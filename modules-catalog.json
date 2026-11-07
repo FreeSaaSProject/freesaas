@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-07T14:35:53+00:00",
+    "generated_at": "2026-11-07T14:43:44+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -426,7 +426,7 @@
         },
         {
             "id": "backups",
-            "version": "0.4.13",
+            "version": "0.4.14",
             "type": "product",
             "name": {
                 "en": "Backups",

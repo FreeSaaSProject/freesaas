@@ -77,7 +77,7 @@ final class BackupRestore
     /**
      * Structural gate: gzip magic (when .gz) + a real CREATE TABLE `base_*` statement
      * outside string literals. Rejects comment-only and SELECT 'CREATE TABLE …' decoys.
-     * Prefer preflightDumpBeforeDrop() before any DROP — that also executes the DDL.
+     * Prefer preflightDumpBeforeDrop() before any DROP.
      */
     public static function dumpLooksValid(string $path): bool
     {
@@ -85,9 +85,11 @@ final class BackupRestore
     }
 
     /**
-     * Pre-DROP proof: parse a real CREATE TABLE `base_*`, execute it under a throwaway
-     * staging name in the current schema, verify the table exists, then DROP it.
-     * Does not touch live base_* tables.
+     * Pre-DROP proof:
+     * 1) stream the whole dump — every statement must terminate (truncated INSERT fails);
+     * 2) take exactly one CREATE TABLE `base_*` (quote-aware `;`, never TAB-only chunks);
+     * 3) execute only that rewritten DDL on a throwaway staging table, then DROP it.
+     * Does not touch live base_* tables. Never runs SET/INSERT/other dump ops.
      *
      * @return array{ok:bool,error:string,table?:string,staging?:string}
      */
@@ -107,13 +109,35 @@ final class BackupRestore
                 return ['ok' => false, 'error' => 'not gzip'];
             }
         }
-        $sample = self::readDumpSample($path, 524288);
-        $found = self::extractFirstBaseCreateTable($sample);
+
+        $complete = self::assertDumpStatementsComplete($path);
+        if (empty($complete['ok'])) {
+            return ['ok' => false, 'error' => (string)($complete['error'] ?? 'dump incomplete')];
+        }
+
+        $found = self::extractFirstBaseCreateTable(self::readDumpSample($path, 524288));
         if ($found === null) {
             return ['ok' => false, 'error' => 'no CREATE TABLE base_* statement outside string literals'];
         }
         $table = $found['table'];
+        // extractFirst already used quote-aware `;` — one statement, no glued SET/INSERT.
         $ddl = ltrim($found['sql']);
+        if (!preg_match(
+            '/^CREATE\s+(?:TEMPORARY\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_]+))/i',
+            $ddl,
+            $m
+        )) {
+            return ['ok' => false, 'error' => 'CREATE TABLE parse failed'];
+        }
+        $ddlTable = (string)(!empty($m[1]) ? $m[1] : ($m[2] ?? ''));
+        if ($ddlTable !== $table) {
+            return ['ok' => false, 'error' => 'CREATE TABLE name mismatch'];
+        }
+        // Refuse multi-query payload (PDO may execute more than one statement).
+        if (self::sqlHasStatementTerminatorOutsideStrings($ddl)) {
+            return ['ok' => false, 'error' => 'CREATE DDL contains an embedded statement terminator'];
+        }
+
         $staging = '__fs_pf_' . substr(bin2hex(random_bytes(4)), 0, 8) . '_' . $table;
         if (strlen($staging) > 64) {
             $staging = substr($staging, 0, 64);
@@ -121,7 +145,6 @@ final class BackupRestore
         if (!preg_match('/^[A-Za-z0-9_]+$/', $staging)) {
             return ['ok' => false, 'error' => 'bad staging name'];
         }
-        // Rewrite first table identifier only (CREATE TABLE … `base_x` → staging).
         $rewritten = preg_replace(
             '/^(CREATE\s+(?:TEMPORARY\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?)(?:`[^`]+`|[A-Za-z0-9_]+)/i',
             '$1`' . $staging . '`',
@@ -132,10 +155,15 @@ final class BackupRestore
         if (!is_string($rewritten) || $replacements < 1) {
             return ['ok' => false, 'error' => 'cannot rewrite CREATE TABLE for staging'];
         }
+        if (self::sqlHasStatementTerminatorOutsideStrings($rewritten)) {
+            return ['ok' => false, 'error' => 'rewritten DDL is multi-statement'];
+        }
+
         $pdo = Database::pdo();
         try {
             $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
             $pdo->exec('DROP TABLE IF EXISTS `' . $staging . '`');
+            // Single DDL only — never the dump tail / SET / INSERT.
             $pdo->exec($rewritten);
             $exists = Database::tableExists($staging);
             if (!$exists) {
@@ -160,6 +188,73 @@ final class BackupRestore
             } catch (Throwable $e) {
                 // ignore
             }
+        }
+    }
+
+    /**
+     * Stream the whole dump: every SQL statement must end with `;` (quote-aware).
+     * Truncated INSERT / open string at EOF → fail. Does not execute SQL.
+     *
+     * @return array{ok:bool,error:string,statements?:int}
+     */
+    public static function assertDumpStatementsComplete(string $path): array
+    {
+        if (preg_match('/\.gz$/i', $path)) {
+            $fh = @gzopen($path, 'rb');
+            if ($fh === false) {
+                return ['ok' => false, 'error' => 'cannot gunzip dump'];
+            }
+            $read = static function () use ($fh) {
+                if (gzeof($fh)) {
+                    return false;
+                }
+                $c = gzread($fh, 65536);
+                return ($c === false || $c === '') ? false : $c;
+            };
+            $close = static function () use ($fh): void {
+                gzclose($fh);
+            };
+        } else {
+            $fh = fopen($path, 'rb');
+            if ($fh === false) {
+                return ['ok' => false, 'error' => 'cannot open dump'];
+            }
+            $read = static function () use ($fh) {
+                if (feof($fh)) {
+                    return false;
+                }
+                $c = fread($fh, 65536);
+                return ($c === false || $c === '') ? false : $c;
+            };
+            $close = static function () use ($fh): void {
+                fclose($fh);
+            };
+        }
+
+        $scan = self::sqlScanStateNew();
+        $statements = 0;
+        try {
+            while (($chunk = $read()) !== false) {
+                if ($statements === 0 && $scan['buf'] === '' && strncmp($chunk, "\xEF\xBB\xBF", 3) === 0) {
+                    $chunk = substr($chunk, 3);
+                }
+                $got = self::sqlScanFeed($scan, $chunk);
+                $statements += count($got);
+            }
+            if (!self::sqlScanLeftoverIsIgnorable($scan)) {
+                $hint = self::sqlScanLeftoverHint($scan);
+                return [
+                    'ok' => false,
+                    'error' => 'dump ends with an incomplete SQL statement' . ($hint !== '' ? ' (' . $hint . ')' : ''),
+                    'statements' => $statements,
+                ];
+            }
+            if ($statements < 1) {
+                return ['ok' => false, 'error' => 'dump has no SQL statements', 'statements' => 0];
+            }
+            return ['ok' => true, 'error' => '', 'statements' => $statements];
+        } finally {
+            $close();
         }
     }
 
@@ -200,7 +295,8 @@ final class BackupRestore
     }
 
     /**
-     * First CREATE TABLE for a base_* name as a real SQL statement (quote/comment aware).
+     * First CREATE TABLE for a base_* name as a real SQL statement (quote/comment aware `;`).
+     * Never uses TAB+`;` alone — that can glue CREATE + SET into one chunk.
      *
      * @return array{sql:string,table:string}|null
      */
@@ -225,162 +321,227 @@ final class BackupRestore
             if ($table === '' || !preg_match('/^base_[A-Za-z0-9_]+$/', $table)) {
                 continue;
             }
-            return ['sql' => rtrim($stmt, " \t\n\r;"), 'table' => $table];
+            return ['sql' => rtrim($trim, " \t\n\r;"), 'table' => $table];
         }
         return null;
     }
 
     /**
-     * Quote/comment-aware statement split (supports FreeSaaS "\\t;" and plain ";").
+     * Quote/comment-aware `;` split only (FreeSaaS `\t;` still ends on `;`).
      *
      * @return list<string>
      */
     private static function splitSqlStatementsForPreflight(string $sql): array
     {
-        $sql = str_replace(["\r\n", "\r"], "\n", $sql);
-        $stmts = [];
-        if (strpos($sql, "\t;") !== false) {
-            $offset = 0;
-            $len = strlen($sql);
-            while ($offset < $len) {
-                $pos = strpos($sql, "\t;", $offset);
-                if ($pos === false) {
-                    $tail = substr($sql, $offset);
-                    if (trim($tail) !== '') {
-                        $stmts[] = $tail;
-                    }
-                    break;
-                }
-                $stmt = substr($sql, $offset, $pos - $offset);
-                $offset = $pos + 2;
-                if ($offset < $len && $sql[$offset] === "\n") {
-                    $offset++;
-                }
-                if (trim($stmt) !== '') {
-                    $stmts[] = $stmt;
-                }
-            }
+        $scan = self::sqlScanStateNew();
+        $stmts = self::sqlScanFeed($scan, str_replace(["\r\n", "\r"], "\n", $sql));
+        // Incomplete tail is kept in state; callers that need completeness use assertDumpStatementsComplete.
+        if (self::sqlScanLeftoverIsIgnorable($scan)) {
             return $stmts;
         }
+        // For extract-from-sample: ignore truncated last fragment (sample may end mid-file).
+        return $stmts;
+    }
 
-        $buf = '';
-        $inSingle = false;
-        $inDouble = false;
-        $inBacktick = false;
-        $inLineComment = false;
-        $inBlockComment = false;
+    /** True when `;` appears outside quotes/comments (multi-statement risk for PDO::exec). */
+    private static function sqlHasStatementTerminatorOutsideStrings(string $sql): bool
+    {
+        $scan = self::sqlScanStateNew();
+        $parts = self::sqlScanFeed($scan, $sql);
+        // A terminator inside the string produces ≥1 completed statement while feeding.
+        // Single DDL with no `;` → 0 parts, leftover = full DDL.
+        if (count($parts) >= 1) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @return array{buf:string,in_single:bool,in_double:bool,in_backtick:bool,in_line:bool,in_block:bool}
+     */
+    private static function sqlScanStateNew(): array
+    {
+        return [
+            'buf' => '',
+            'in_single' => false,
+            'in_double' => false,
+            'in_backtick' => false,
+            'in_line' => false,
+            'in_block' => false,
+        ];
+    }
+
+    /**
+     * @param array{buf:string,in_single:bool,in_double:bool,in_backtick:bool,in_line:bool,in_block:bool} $scan
+     * @return list<string> newly completed statements
+     */
+    private static function sqlScanFeed(array &$scan, string $sql): array
+    {
+        $stmts = [];
         $len = strlen($sql);
         for ($i = 0; $i < $len; $i++) {
             $ch = $sql[$i];
             $next = $i + 1 < $len ? $sql[$i + 1] : '';
 
-            if ($inLineComment) {
+            if ($scan['in_line']) {
                 if ($ch === "\n") {
-                    $inLineComment = false;
-                    $buf .= $ch;
+                    $scan['in_line'] = false;
+                    $scan['buf'] .= $ch;
                 }
                 continue;
             }
-            if ($inBlockComment) {
+            if ($scan['in_block']) {
                 if ($ch === '*' && $next === '/') {
-                    $inBlockComment = false;
+                    $scan['in_block'] = false;
                     $i++;
                 }
                 continue;
             }
 
-            if (!$inSingle && !$inDouble && !$inBacktick) {
+            if (!$scan['in_single'] && !$scan['in_double'] && !$scan['in_backtick']) {
                 if ($ch === '-' && $next === '-') {
-                    $inLineComment = true;
+                    $scan['in_line'] = true;
                     $i++;
                     continue;
                 }
                 if ($ch === '#') {
-                    $inLineComment = true;
+                    $scan['in_line'] = true;
                     continue;
                 }
                 if ($ch === '/' && $next === '*') {
-                    $inBlockComment = true;
+                    $scan['in_block'] = true;
                     $i++;
                     continue;
                 }
                 if ($ch === ';') {
-                    if (trim($buf) !== '') {
-                        $stmts[] = $buf;
+                    if (trim($scan['buf']) !== '') {
+                        $stmts[] = $scan['buf'];
                     }
-                    $buf = '';
+                    $scan['buf'] = '';
                     continue;
                 }
             }
 
-            if ($inSingle) {
-                $buf .= $ch;
+            if ($scan['in_single']) {
+                $scan['buf'] .= $ch;
                 if ($ch === '\\' && $next !== '') {
-                    $buf .= $next;
+                    $scan['buf'] .= $next;
                     $i++;
                     continue;
                 }
                 if ($ch === "'" && $next === "'") {
-                    $buf .= $next;
+                    $scan['buf'] .= $next;
                     $i++;
                     continue;
                 }
                 if ($ch === "'") {
-                    $inSingle = false;
+                    $scan['in_single'] = false;
                 }
                 continue;
             }
-            if ($inDouble) {
-                $buf .= $ch;
+            if ($scan['in_double']) {
+                $scan['buf'] .= $ch;
                 if ($ch === '\\' && $next !== '') {
-                    $buf .= $next;
+                    $scan['buf'] .= $next;
                     $i++;
                     continue;
                 }
                 if ($ch === '"' && $next === '"') {
-                    $buf .= $next;
+                    $scan['buf'] .= $next;
                     $i++;
                     continue;
                 }
                 if ($ch === '"') {
-                    $inDouble = false;
+                    $scan['in_double'] = false;
                 }
                 continue;
             }
-            if ($inBacktick) {
-                $buf .= $ch;
+            if ($scan['in_backtick']) {
+                $scan['buf'] .= $ch;
                 if ($ch === '`' && $next === '`') {
-                    $buf .= $next;
+                    $scan['buf'] .= $next;
                     $i++;
                     continue;
                 }
                 if ($ch === '`') {
-                    $inBacktick = false;
+                    $scan['in_backtick'] = false;
                 }
                 continue;
             }
 
             if ($ch === "'") {
-                $inSingle = true;
-                $buf .= $ch;
+                $scan['in_single'] = true;
+                $scan['buf'] .= $ch;
                 continue;
             }
             if ($ch === '"') {
-                $inDouble = true;
-                $buf .= $ch;
+                $scan['in_double'] = true;
+                $scan['buf'] .= $ch;
                 continue;
             }
             if ($ch === '`') {
-                $inBacktick = true;
-                $buf .= $ch;
+                $scan['in_backtick'] = true;
+                $scan['buf'] .= $ch;
                 continue;
             }
-            $buf .= $ch;
-        }
-        if (trim($buf) !== '') {
-            $stmts[] = $buf;
+            $scan['buf'] .= $ch;
         }
         return $stmts;
+    }
+
+    /**
+     * @param array{buf:string,in_single:bool,in_double:bool,in_backtick:bool,in_line:bool,in_block:bool} $scan
+     */
+    private static function sqlScanLeftoverIsIgnorable(array $scan): bool
+    {
+        if ($scan['in_single'] || $scan['in_double'] || $scan['in_backtick'] || $scan['in_block']) {
+            return false;
+        }
+        // Open line comment to EOF is fine (no statement body).
+        $left = $scan['buf'];
+        if ($scan['in_line']) {
+            return true;
+        }
+        $trim = trim($left);
+        if ($trim === '') {
+            return true;
+        }
+        // Only full-line SQL comments left.
+        foreach (preg_split('/\n/', $left) ?: [] as $line) {
+            $l = ltrim($line);
+            if ($l === '') {
+                continue;
+            }
+            if (strpos($l, '--') === 0 || strpos($l, '#') === 0) {
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @param array{buf:string,in_single:bool,in_double:bool,in_backtick:bool,in_line:bool,in_block:bool} $scan
+     */
+    private static function sqlScanLeftoverHint(array $scan): string
+    {
+        if ($scan['in_single'] || $scan['in_double']) {
+            return 'unclosed string';
+        }
+        if ($scan['in_backtick']) {
+            return 'unclosed identifier';
+        }
+        if ($scan['in_block']) {
+            return 'unclosed block comment';
+        }
+        $head = ltrim($scan['buf']);
+        if ($head === '') {
+            return '';
+        }
+        if (preg_match('/^(INSERT|REPLACE|UPDATE|DELETE|CREATE|ALTER|DROP|SET)\b/i', $head, $m)) {
+            return 'truncated ' . strtoupper($m[1]);
+        }
+        return 'truncated statement';
     }
 
     /** @return array{empty:bool,available:bool} */

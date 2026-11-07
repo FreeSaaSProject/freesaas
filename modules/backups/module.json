@@ -2,7 +2,7 @@
     "id": "backups",
     "name": "backups.module.name",
     "description": "backups.module.description",
-    "version": "0.4.13",
+    "version": "0.4.14",
     "type": "product",
     "catalog": {
         "categories": [
