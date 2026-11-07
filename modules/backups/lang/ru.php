@@ -170,6 +170,7 @@ return [
     'backups.err.restore_no_db' => 'В наборе нет db.sql.gz',
     'backups.err.restore_pack_missing' => 'Файл набора не найден',
     'backups.err.db_not_empty' => 'База не пуста — восстановление/развёртывание заблокировано',
+    'backups.err.dump_preflight' => 'Дамп не прошёл проверку схемы в staging до DROP: {detail}',
     'backups.err.superadmin' => 'Нужны права директора (SUPERADMIN)',
 
     'backups.restore.title' => 'Восстановление / развёртывание из пакета',

@@ -68,7 +68,7 @@ Seq resets to `s001` after each successful light/full. Listing FTP shows missing
 4. Cron starts a CDC pack when journal has rows past `incr_cursor`.
 5. After light/full, CDC baseline = journal watermark taken **at dump start** (not after upload). Capture uses `LOCK TABLES base_backup_changes WRITE` so in-flight journal inserts commit before `MAX(ID)` is frozen (avoids AUTO_INCREMENT holes skipping a late commit). If the lock fails, baseline stays at 0 (no prune; next differential re-exports the whole journal). Mid-dump/mid-upload changes stay in the journal for the next CDC pack. CDC **incr** packs use the same locked watermark for `cursor_to` (start refuses the run if the lock fails — no orphaned `running` row).
 
-Standby/replica full redeploy refuses DROP unless `db.sql(.gz)` has gzip magic (when compressed) and a real `CREATE`/`INSERT`/`REPLACE`/`ALTER`/`DROP` after comment strip — comment-only payloads are rejected. Pre-DROP gate only; not a staging restore.
+Standby/replica full redeploy refuses DROP unless `db.sql(.gz)` contains a real `CREATE TABLE base_*` **statement** (quote/comment-aware — `SELECT 'CREATE TABLE…'` is rejected) **and** that DDL successfully creates a throwaway staging table in the live schema (`preflightDumpBeforeDrop`). Live `base_*` are not touched until preflight passes. Full dump import into a separate staging database is not required for this gate.
 
 ```bash
 php bin/freesaas.php backups cdc-install --format=json

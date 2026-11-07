@@ -341,7 +341,13 @@ final class DbJobs
         $job['message'] = t('core.db.job.cancelled');
         $job['updated_at'] = time();
         $job['elapsed'] = max(0, time() - (int)($job['created_at'] ?? time()));
-        // Drop incomplete artifacts.
+        // CAS first — do not overwrite a tick that already reached done/error.
+        $out = LongJobStore::saveIfRunning($job, DbFs::jobsDir(), ['buffer', 'status_map']);
+        if (!$out['saved']) {
+            return $out['job'];
+        }
+        $job = $out['job'];
+        // Drop incomplete artifacts only after cancelled is committed.
         $opName = (string)($job['op'] ?? '');
         if (in_array($opName, ['dump', 'fetch'], true)) {
             foreach (['path', 'sql_path'] as $k) {
@@ -358,6 +364,7 @@ final class DbJobs
                 }
             }
             $job['bytes'] = 0;
+            self::jobSave($job);
         }
         if ($opName === 'restore') {
             foreach (['inflated_path', 'buffer_file'] as $k) {
@@ -371,7 +378,6 @@ final class DbJobs
                 @unlink($buf);
             }
         }
-        self::jobSave($job);
         return $job;
     }
 

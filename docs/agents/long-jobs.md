@@ -46,7 +46,7 @@ Handler reads `$job['tick_seconds']`. Nested ops (e.g. backups replica → DbJob
 
 `LongJob::public($job)` → `id`, `type`, `status` (`running|done|error|cancelled`), `progress` / `progress_overall` / `progress_detail`, `message`, `log[]`, `error`, `result`, `elapsed`, `eta_seconds?`, `tick_seconds?`, plus legacy-friendly `op` / `progress_table`.
 
-**Cancel vs tick race:** ticks take a non-blocking `.lock` (one crumb at a time). Cancel writes `cancelled` immediately. Tick/`LongJob::save` persist a `running` snapshot only via `LongJobStore::saveIfRunning` (JSON `LOCK_EX` + re-read) — a concurrent cancel is never overwritten back to `running`. The in-flight crumb may still finish; the next tick sees terminal status and stops.
+**Cancel vs tick races:** ticks take a non-blocking `.lock` (one crumb at a time). Both tick saves and cancel use `LongJobStore::saveIfRunning` (JSON `LOCK_EX` + re-read): a `running` snapshot never overwrites `cancelled`/`done`/`error`, and cancel never overwrites an already-terminal `done`/`error`. `on_cancel` runs only after `cancelled` is committed (lost race → no cancel side effects). In-flight crumb may still finish; the next tick sees terminal status and stops.
 
 ## Agent surfaces
 

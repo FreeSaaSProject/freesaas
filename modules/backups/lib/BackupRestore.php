@@ -75,69 +75,312 @@ final class BackupRestore
     }
 
     /**
-     * True when path looks like a usable mysqldump (gzip magic + real SQL, or plain SQL).
-     * Rejects placeholder / "not gzip" text and comment-only payloads that would wipe then fail restore.
-     * Not a substitute for staging restore — only a pre-DROP sanity gate.
+     * Structural gate: gzip magic (when .gz) + a real CREATE TABLE `base_*` statement
+     * outside string literals. Rejects comment-only and SELECT 'CREATE TABLE …' decoys.
+     * Prefer preflightDumpBeforeDrop() before any DROP — that also executes the DDL.
      */
     public static function dumpLooksValid(string $path): bool
     {
+        return self::extractFirstBaseCreateTable(self::readDumpSample($path)) !== null;
+    }
+
+    /**
+     * Pre-DROP proof: parse a real CREATE TABLE `base_*`, execute it under a throwaway
+     * staging name in the current schema, verify the table exists, then DROP it.
+     * Does not touch live base_* tables.
+     *
+     * @return array{ok:bool,error:string,table?:string,staging?:string}
+     */
+    public static function preflightDumpBeforeDrop(string $path): array
+    {
         if ($path === '' || !is_file($path) || filesize($path) < 10) {
-            return false;
+            return ['ok' => false, 'error' => 'dump missing or empty'];
         }
-        $fh = fopen($path, 'rb');
-        if ($fh === false) {
-            return false;
-        }
-        $head = fread($fh, 512);
-        fclose($fh);
-        if (!is_string($head) || $head === '') {
-            return false;
-        }
-        $sample = '';
         if (preg_match('/\.gz$/i', $path)) {
-            if (strlen($head) < 2 || $head[0] !== "\x1f" || $head[1] !== "\x8b") {
-                return false;
+            $fh = fopen($path, 'rb');
+            if ($fh === false) {
+                return ['ok' => false, 'error' => 'cannot open dump'];
+            }
+            $magic = fread($fh, 2);
+            fclose($fh);
+            if ($magic !== "\x1f\x8b") {
+                return ['ok' => false, 'error' => 'not gzip'];
+            }
+        }
+        $sample = self::readDumpSample($path, 524288);
+        $found = self::extractFirstBaseCreateTable($sample);
+        if ($found === null) {
+            return ['ok' => false, 'error' => 'no CREATE TABLE base_* statement outside string literals'];
+        }
+        $table = $found['table'];
+        $ddl = ltrim($found['sql']);
+        $staging = '__fs_pf_' . substr(bin2hex(random_bytes(4)), 0, 8) . '_' . $table;
+        if (strlen($staging) > 64) {
+            $staging = substr($staging, 0, 64);
+        }
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $staging)) {
+            return ['ok' => false, 'error' => 'bad staging name'];
+        }
+        // Rewrite first table identifier only (CREATE TABLE … `base_x` → staging).
+        $rewritten = preg_replace(
+            '/^(CREATE\s+(?:TEMPORARY\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?)(?:`[^`]+`|[A-Za-z0-9_]+)/i',
+            '$1`' . $staging . '`',
+            $ddl,
+            1,
+            $replacements
+        );
+        if (!is_string($rewritten) || $replacements < 1) {
+            return ['ok' => false, 'error' => 'cannot rewrite CREATE TABLE for staging'];
+        }
+        $pdo = Database::pdo();
+        try {
+            $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
+            $pdo->exec('DROP TABLE IF EXISTS `' . $staging . '`');
+            $pdo->exec($rewritten);
+            $exists = Database::tableExists($staging);
+            if (!$exists) {
+                return ['ok' => false, 'error' => 'staging table missing after CREATE', 'table' => $table, 'staging' => $staging];
+            }
+            return ['ok' => true, 'error' => '', 'table' => $table, 'staging' => $staging];
+        } catch (Throwable $e) {
+            return [
+                'ok' => false,
+                'error' => 'staging CREATE failed: ' . $e->getMessage(),
+                'table' => $table,
+                'staging' => $staging,
+            ];
+        } finally {
+            try {
+                $pdo->exec('DROP TABLE IF EXISTS `' . $staging . '`');
+            } catch (Throwable $e) {
+                // ignore cleanup
+            }
+            try {
+                $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+            } catch (Throwable $e) {
+                // ignore
+            }
+        }
+    }
+
+    /** @return string inflated dump head (empty on failure) */
+    private static function readDumpSample(string $path, int $maxBytes = 262144): string
+    {
+        if ($path === '' || !is_file($path) || filesize($path) < 10) {
+            return '';
+        }
+        $maxBytes = max(4096, min(1048576, $maxBytes));
+        if (preg_match('/\.gz$/i', $path)) {
+            $fh = fopen($path, 'rb');
+            if ($fh === false) {
+                return '';
+            }
+            $magic = fread($fh, 2);
+            fclose($fh);
+            if ($magic !== "\x1f\x8b") {
+                return '';
             }
             $gz = @gzopen($path, 'rb');
             if ($gz === false) {
-                return false;
+                return '';
             }
-            // Read enough to skip long preamble comments and still see CREATE/INSERT.
-            $sample = (string)gzread($gz, 65536);
+            $sample = (string)gzread($gz, $maxBytes);
             gzclose($gz);
         } else {
-            $plain = fopen($path, 'rb');
-            if ($plain === false) {
-                return false;
-            }
-            $sample = (string)fread($plain, 65536);
-            fclose($plain);
+            $raw = file_get_contents($path, false, null, 0, $maxBytes);
+            $sample = is_string($raw) ? $raw : '';
         }
-        return self::sqlPayloadLooksValid($sample);
+        if ($sample === '') {
+            return '';
+        }
+        if (strncmp($sample, "\xEF\xBB\xBF", 3) === 0) {
+            $sample = substr($sample, 3);
+        }
+        return $sample;
     }
 
-    /** Require at least one schema/data statement after stripping comments (not comment-only). */
-    private static function sqlPayloadLooksValid(string $sql): bool
+    /**
+     * First CREATE TABLE for a base_* name as a real SQL statement (quote/comment aware).
+     *
+     * @return array{sql:string,table:string}|null
+     */
+    private static function extractFirstBaseCreateTable(string $sql): ?array
     {
         if ($sql === '') {
-            return false;
+            return null;
         }
-        if (strncmp($sql, "\xEF\xBB\xBF", 3) === 0) {
-            $sql = substr($sql, 3);
+        foreach (self::splitSqlStatementsForPreflight($sql) as $stmt) {
+            $trim = ltrim($stmt);
+            if ($trim === '' || strpos($trim, '--') === 0 || strpos($trim, '#') === 0) {
+                continue;
+            }
+            if (!preg_match(
+                '/^CREATE\s+(?:TEMPORARY\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_]+))/i',
+                $trim,
+                $m
+            )) {
+                continue;
+            }
+            $table = (string)(!empty($m[1]) ? $m[1] : ($m[2] ?? ''));
+            if ($table === '' || !preg_match('/^base_[A-Za-z0-9_]+$/', $table)) {
+                continue;
+            }
+            return ['sql' => rtrim($stmt, " \t\n\r;"), 'table' => $table];
         }
-        $stripped = preg_replace('/\/\*.*?\*\//s', ' ', $sql);
-        if (!is_string($stripped)) {
-            return false;
+        return null;
+    }
+
+    /**
+     * Quote/comment-aware statement split (supports FreeSaaS "\\t;" and plain ";").
+     *
+     * @return list<string>
+     */
+    private static function splitSqlStatementsForPreflight(string $sql): array
+    {
+        $sql = str_replace(["\r\n", "\r"], "\n", $sql);
+        $stmts = [];
+        if (strpos($sql, "\t;") !== false) {
+            $offset = 0;
+            $len = strlen($sql);
+            while ($offset < $len) {
+                $pos = strpos($sql, "\t;", $offset);
+                if ($pos === false) {
+                    $tail = substr($sql, $offset);
+                    if (trim($tail) !== '') {
+                        $stmts[] = $tail;
+                    }
+                    break;
+                }
+                $stmt = substr($sql, $offset, $pos - $offset);
+                $offset = $pos + 2;
+                if ($offset < $len && $sql[$offset] === "\n") {
+                    $offset++;
+                }
+                if (trim($stmt) !== '') {
+                    $stmts[] = $stmt;
+                }
+            }
+            return $stmts;
         }
-        $stripped = preg_replace('/--[^\n\r]*/', ' ', $stripped);
-        if (!is_string($stripped)) {
-            return false;
+
+        $buf = '';
+        $inSingle = false;
+        $inDouble = false;
+        $inBacktick = false;
+        $inLineComment = false;
+        $inBlockComment = false;
+        $len = strlen($sql);
+        for ($i = 0; $i < $len; $i++) {
+            $ch = $sql[$i];
+            $next = $i + 1 < $len ? $sql[$i + 1] : '';
+
+            if ($inLineComment) {
+                if ($ch === "\n") {
+                    $inLineComment = false;
+                    $buf .= $ch;
+                }
+                continue;
+            }
+            if ($inBlockComment) {
+                if ($ch === '*' && $next === '/') {
+                    $inBlockComment = false;
+                    $i++;
+                }
+                continue;
+            }
+
+            if (!$inSingle && !$inDouble && !$inBacktick) {
+                if ($ch === '-' && $next === '-') {
+                    $inLineComment = true;
+                    $i++;
+                    continue;
+                }
+                if ($ch === '#') {
+                    $inLineComment = true;
+                    continue;
+                }
+                if ($ch === '/' && $next === '*') {
+                    $inBlockComment = true;
+                    $i++;
+                    continue;
+                }
+                if ($ch === ';') {
+                    if (trim($buf) !== '') {
+                        $stmts[] = $buf;
+                    }
+                    $buf = '';
+                    continue;
+                }
+            }
+
+            if ($inSingle) {
+                $buf .= $ch;
+                if ($ch === '\\' && $next !== '') {
+                    $buf .= $next;
+                    $i++;
+                    continue;
+                }
+                if ($ch === "'" && $next === "'") {
+                    $buf .= $next;
+                    $i++;
+                    continue;
+                }
+                if ($ch === "'") {
+                    $inSingle = false;
+                }
+                continue;
+            }
+            if ($inDouble) {
+                $buf .= $ch;
+                if ($ch === '\\' && $next !== '') {
+                    $buf .= $next;
+                    $i++;
+                    continue;
+                }
+                if ($ch === '"' && $next === '"') {
+                    $buf .= $next;
+                    $i++;
+                    continue;
+                }
+                if ($ch === '"') {
+                    $inDouble = false;
+                }
+                continue;
+            }
+            if ($inBacktick) {
+                $buf .= $ch;
+                if ($ch === '`' && $next === '`') {
+                    $buf .= $next;
+                    $i++;
+                    continue;
+                }
+                if ($ch === '`') {
+                    $inBacktick = false;
+                }
+                continue;
+            }
+
+            if ($ch === "'") {
+                $inSingle = true;
+                $buf .= $ch;
+                continue;
+            }
+            if ($ch === '"') {
+                $inDouble = true;
+                $buf .= $ch;
+                continue;
+            }
+            if ($ch === '`') {
+                $inBacktick = true;
+                $buf .= $ch;
+                continue;
+            }
+            $buf .= $ch;
         }
-        $stripped = preg_replace('/#[^\n\r]*/', ' ', $stripped);
-        if (!is_string($stripped) || trim($stripped) === '') {
-            return false;
+        if (trim($buf) !== '') {
+            $stmts[] = $buf;
         }
-        return (bool)preg_match('/\b(CREATE|INSERT|REPLACE|ALTER|DROP)\s+/i', $stripped);
+        return $stmts;
     }
 
     /** @return array{empty:bool,available:bool} */

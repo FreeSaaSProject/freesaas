@@ -124,8 +124,8 @@ final class LongJobStore
     }
 
     /**
-     * Write tick result only while disk status is still running.
-     * If cancel/done/error won the race, leave disk as-is and return that snapshot.
+     * Write only while disk status is still running (tick progress, cancel, mid-tick save).
+     * If cancel/done/error already won, leave disk as-is and return that snapshot.
      *
      * @param array<string,mixed> $job
      * @param list<string> $dropKeys

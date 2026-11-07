@@ -397,12 +397,17 @@ final class BackupStandby
                     'remote_path' => $remotePath,
                 ];
             }
-            if (!BackupRestore::dumpLooksValid($dump)) {
+            // Prove DDL restores on a throwaway staging table BEFORE any DROP base_*.
+            $preflight = BackupRestore::preflightDumpBeforeDrop($dump);
+            if (empty($preflight['ok'])) {
                 return [
                     'ok' => false,
-                    'error' => 'db dump is not a valid gzip/SQL payload (refuse DROP)',
+                    'error' => t('backups.err.dump_preflight', [
+                        'detail' => (string)($preflight['error'] ?? 'failed'),
+                    ]),
                     'remote_path' => $remotePath,
                     'dump' => basename($dump),
+                    'preflight' => $preflight,
                 ];
             }
             // Shared-DB guard: refuse BEFORE DROP base_* (foreign check after DROP is too late).

@@ -170,6 +170,7 @@ return [
     'backups.err.restore_no_db' => 'No db.sql.gz in the restore set',
     'backups.err.restore_pack_missing' => 'Backup pack file not found',
     'backups.err.db_not_empty' => 'Database is not empty — restore/deploy is locked',
+    'backups.err.dump_preflight' => 'Dump failed staging schema check before DROP: {detail}',
     'backups.err.superadmin' => 'Director (SUPERADMIN) required',
 
     'backups.restore.title' => 'Restore / deploy from pack',

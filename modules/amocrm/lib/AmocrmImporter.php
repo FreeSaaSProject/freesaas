@@ -150,22 +150,32 @@ final class AmocrmImporter
         if ($extId === '') {
             return 'skipped';
         }
-        $tel = AmocrmPhone::fromCustomFields($row['custom_fields_values'] ?? null);
-        $name = trim((string)($row['name'] ?? ''));
-        if ($name === '') {
-            $name = $tel ?? ('Amo #' . $extId);
-        }
+        $tel = array_key_exists('custom_fields_values', $row)
+            ? AmocrmPhone::fromCustomFields($row['custom_fields_values'])
+            : null;
         $mapped = AmocrmIdMapRepository::findLocalId($account, 'contact', $extId);
         $existing = $mapped !== null ? ClientsRepository::find($mapped) : null;
         if ($existing === null && $tel !== null) {
             $existing = ClientsRepository::findByTel($tel);
         }
-        if ($tel === null && $existing === null) {
+        $nameIn = array_key_exists('name', $row) ? trim((string)$row['name']) : null;
+        if ($existing !== null) {
+            $name = $nameIn !== null && $nameIn !== ''
+                ? $nameIn
+                : (string)($existing['name'] ?? '');
+            $resolvedTel = $tel ?? (string)($existing['tel'] ?? '');
+        } else {
+            $name = ($nameIn !== null && $nameIn !== '')
+                ? $nameIn
+                : ($tel ?? ('Amo #' . $extId));
+            $resolvedTel = (string)($tel ?? '');
+        }
+        if ($resolvedTel === '' && $existing === null) {
             return 'skipped';
         }
         $data = [
             'name' => $name,
-            'tel' => $tel ?? (string)($existing['tel'] ?? ''),
+            'tel' => $resolvedTel !== '' ? $resolvedTel : (string)($existing['tel'] ?? ''),
             'mail' => (string)($existing['mail'] ?? ''),
             'birthday' => $existing['birthday'] ?? null,
             'gender' => isset($existing['gender']) ? (int)$existing['gender'] : null,
@@ -203,23 +213,34 @@ final class AmocrmImporter
         if ($extId === '' || !class_exists('CrmCompaniesRepository', false)) {
             return 'skipped';
         }
-        $name = trim((string)($row['name'] ?? ''));
-        if ($name === '') {
-            $name = 'Amo company #' . $extId;
-        }
         $mapped = AmocrmIdMapRepository::findLocalId($account, 'company', $extId);
         $existing = $mapped !== null ? CrmCompaniesRepository::find($mapped) : null;
+        $nameIn = array_key_exists('name', $row) ? trim((string)$row['name']) : null;
+        if ($existing !== null) {
+            $name = $nameIn !== null && $nameIn !== ''
+                ? $nameIn
+                : (string)($existing['name'] ?? '');
+        } else {
+            $name = ($nameIn !== null && $nameIn !== '') ? $nameIn : ('Amo company #' . $extId);
+        }
+        $phone = array_key_exists('custom_fields_values', $row)
+            ? (AmocrmPhone::fromCustomFields($row['custom_fields_values']) ?? (string)($existing['phone'] ?? ''))
+            : (string)($existing['phone'] ?? '');
         $data = [
             'name' => $name,
             'inn' => (string)($existing['inn'] ?? ''),
             'kpp' => (string)($existing['kpp'] ?? ''),
-            'phone' => AmocrmPhone::fromCustomFields($row['custom_fields_values'] ?? null) ?? (string)($existing['phone'] ?? ''),
+            'phone' => $phone,
             'email' => (string)($existing['email'] ?? ''),
             'website' => (string)($existing['website'] ?? ''),
             'address' => (string)($existing['address'] ?? ''),
             'notes' => (string)($existing['notes'] ?? ''),
             'enabled' => 1,
-            'responsible_user_id' => (int)($existing['responsible_user_id'] ?? 0),
+            'responsible_user_id' => self::resolveResponsibleUserId(
+                $account,
+                $row,
+                (int)($existing['responsible_user_id'] ?? 0)
+            ),
         ];
         if ($existing !== null) {
             CrmCompaniesRepository::update((int)$existing['id'], $data);
@@ -231,62 +252,123 @@ final class AmocrmImporter
         return 'created';
     }
 
-    /** @param array<string,mixed> $row */
+    /**
+     * Upsert lead/deal. Sparse webhook payloads (status/responsible) must not wipe
+     * title/amount/stage — only overwrite fields present in $row.
+     *
+     * @param array<string,mixed> $row
+     */
     public static function upsertLead(string $account, array $row): string
     {
         $extId = (string)($row['id'] ?? '');
         if ($extId === '' || !class_exists('CrmDealsRepository', false)) {
             return 'skipped';
         }
-        $title = trim((string)($row['name'] ?? ''));
-        if ($title === '') {
-            $title = 'Amo lead #' . $extId;
-        }
+        $mapped = AmocrmIdMapRepository::findLocalId($account, 'lead', $extId);
+        $existing = $mapped !== null ? CrmDealsRepository::find($mapped) : null;
+
         $pipelineId = self::salePipelineId();
-        $stageId = self::resolveStage($pipelineId, (int)($row['status_id'] ?? 0));
-        if ($pipelineId < 1 || $stageId < 1) {
+        if ($pipelineId < 1) {
             return 'skipped';
         }
-        $clientIds = [];
-        $contacts = $row['_embedded']['contacts'] ?? [];
-        if (is_array($contacts)) {
-            foreach ($contacts as $c) {
-                $cidExt = (string)($c['id'] ?? '');
-                if ($cidExt === '') {
-                    continue;
-                }
-                $local = AmocrmIdMapRepository::findLocalId($account, 'contact', $cidExt);
-                if ($local !== null) {
-                    $clientIds[] = $local;
+
+        $nameIn = array_key_exists('name', $row) ? trim((string)$row['name']) : null;
+        if ($existing !== null) {
+            $title = $nameIn !== null && $nameIn !== ''
+                ? $nameIn
+                : (string)($existing['title'] ?? '');
+        } else {
+            $title = ($nameIn !== null && $nameIn !== '') ? $nameIn : ('Amo lead #' . $extId);
+        }
+
+        if (array_key_exists('status_id', $row) && (int)$row['status_id'] > 0) {
+            $stageId = self::resolveStage($pipelineId, (int)$row['status_id']);
+        } elseif ($existing !== null) {
+            $stageId = (int)$existing['stage_id'];
+            $pipelineId = (int)($existing['pipeline_id'] ?: $pipelineId);
+        } else {
+            $stageId = self::resolveStage($pipelineId, 0);
+        }
+        if ($stageId < 1) {
+            return 'skipped';
+        }
+
+        $amount = array_key_exists('price', $row)
+            ? (float)$row['price']
+            : (float)($existing['amount'] ?? 0);
+
+        $clientIds = null;
+        if (isset($row['_embedded']) && is_array($row['_embedded']) && array_key_exists('contacts', $row['_embedded'])) {
+            $clientIds = [];
+            $contacts = $row['_embedded']['contacts'];
+            if (is_array($contacts)) {
+                foreach ($contacts as $c) {
+                    if (!is_array($c)) {
+                        continue;
+                    }
+                    $cidExt = (string)($c['id'] ?? '');
+                    if ($cidExt === '') {
+                        continue;
+                    }
+                    $local = AmocrmIdMapRepository::findLocalId($account, 'contact', $cidExt);
+                    if ($local !== null) {
+                        $clientIds[] = $local;
+                    }
                 }
             }
         }
-        $companyLocal = 0;
-        $companies = $row['_embedded']['companies'] ?? [];
-        if (is_array($companies) && isset($companies[0]['id'])) {
-            $companyLocal = AmocrmIdMapRepository::findLocalId($account, 'company', (string)$companies[0]['id']) ?? 0;
+
+        $companyLocal = (int)($existing['company_id'] ?? 0);
+        if (isset($row['_embedded']) && is_array($row['_embedded']) && array_key_exists('companies', $row['_embedded'])) {
+            $companyLocal = 0;
+            $companies = $row['_embedded']['companies'];
+            if (is_array($companies) && isset($companies[0]['id'])) {
+                $companyLocal = AmocrmIdMapRepository::findLocalId($account, 'company', (string)$companies[0]['id']) ?? 0;
+            }
         }
-        $mapped = AmocrmIdMapRepository::findLocalId($account, 'lead', $extId);
-        $existing = $mapped !== null ? CrmDealsRepository::find($mapped) : null;
+
         $data = [
             'title' => $title,
             'pipeline_id' => $pipelineId,
             'stage_id' => $stageId,
             'company_id' => $companyLocal,
-            'amount' => (float)($row['price'] ?? 0),
-            'currency' => 'RUB',
-            'responsible_user_id' => (int)($existing['responsible_user_id'] ?? 0),
+            'amount' => $amount,
+            'currency' => (string)($existing['currency'] ?? 'RUB') ?: 'RUB',
+            'responsible_user_id' => self::resolveResponsibleUserId(
+                $account,
+                $row,
+                (int)($existing['responsible_user_id'] ?? 0)
+            ),
             'source' => 'amocrm',
             'notes' => (string)($existing['notes'] ?? ''),
         ];
         if ($existing !== null) {
-            CrmDealsRepository::update((int)$existing['id'], $data, $clientIds !== [] ? $clientIds : null);
+            CrmDealsRepository::update((int)$existing['id'], $data, $clientIds);
             AmocrmIdMapRepository::upsert($account, 'lead', $extId, (int)$existing['id']);
             return 'updated';
         }
-        $localId = CrmDealsRepository::create($data, $clientIds);
+        $localId = CrmDealsRepository::create($data, $clientIds ?? []);
         AmocrmIdMapRepository::upsert($account, 'lead', $extId, $localId);
         return 'created';
+    }
+
+    /**
+     * Map Amo responsible_user_id → local base_users via id map entity=staff when present.
+     * Never write the raw Amo user id into responsible_user_id.
+     *
+     * @param array<string,mixed> $row
+     */
+    private static function resolveResponsibleUserId(string $account, array $row, int $fallbackLocal): int
+    {
+        if (!array_key_exists('responsible_user_id', $row)) {
+            return $fallbackLocal;
+        }
+        $amoUid = trim((string)$row['responsible_user_id']);
+        if ($amoUid === '' || $amoUid === '0') {
+            return 0;
+        }
+        $mapped = AmocrmIdMapRepository::findLocalId($account, 'staff', $amoUid);
+        return $mapped !== null ? $mapped : $fallbackLocal;
     }
 
     private static function salePipelineId(): int

@@ -153,22 +153,18 @@ final class LongJob
     public static function cancel(string $id, ?string $typeOrDir = null): array
     {
         $dir = self::dirForLookup($id, $typeOrDir);
-        // Short exclusive lock on JSON transition; does not wait for tick handler (no deadlock
-        // if cancel is invoked from a tick callback). Tick save uses saveIfRunning CAS.
         $job = LongJobStore::get($id, $dir);
         self::assertJobAccess($job);
         if (($job['status'] ?? '') !== self::STATUS_RUNNING) {
             return $job;
         }
         $type = (string)($job['type'] ?? '');
-        $meta = ($type !== '' && LongJobRegistry::has($type)) ? LongJobRegistry::get($type) : [];
-        $onCancel = $meta['on_cancel'] ?? null;
-        if ($onCancel !== null) {
-            $job = LongJobRegistry::invoke($onCancel, [$job]);
-            if (!is_array($job)) {
-                throw new RuntimeException('LongJob on_cancel must return job array');
-            }
-        }
+        $storeDir = ($type !== '' && LongJobRegistry::has($type))
+            ? (LongJobRegistry::storeDirFor($type) ?? $dir)
+            : $dir;
+
+        // CAS first: never overwrite done/error that landed between get and write.
+        // on_cancel runs only after cancelled is committed, so lost races skip side effects.
         $job['id'] = $id;
         if ($type !== '') {
             $job['type'] = $type;
@@ -181,12 +177,31 @@ final class LongJob
         }
         $job['updated_at'] = time();
         $job['elapsed'] = max(0, time() - (int)($job['created_at'] ?? time()));
-        $storeDir = ($type !== '' && LongJobRegistry::has($type))
-            ? (LongJobRegistry::storeDirFor($type) ?? $dir)
-            : $dir;
-        // Force-write cancelled under file LOCK_EX (same as save); tick CAS will honor it.
-        LongJobStore::save($job, $storeDir, ['buffer', 'status_map']);
-        return $job;
+        $out = LongJobStore::saveIfRunning($job, $storeDir, ['buffer', 'status_map']);
+        if (!$out['saved']) {
+            return $out['job'];
+        }
+        $job = $out['job'];
+
+        $meta = ($type !== '' && LongJobRegistry::has($type)) ? LongJobRegistry::get($type) : [];
+        $onCancel = $meta['on_cancel'] ?? null;
+        if ($onCancel === null) {
+            return $job;
+        }
+        $after = LongJobRegistry::invoke($onCancel, [$job]);
+        if (!is_array($after)) {
+            throw new RuntimeException('LongJob on_cancel must return job array');
+        }
+        $after['id'] = $id;
+        if ($type !== '') {
+            $after['type'] = $type;
+        }
+        $after['status'] = self::STATUS_CANCELLED;
+        $after['updated_at'] = time();
+        $after['elapsed'] = max(0, time() - (int)($after['created_at'] ?? $job['created_at'] ?? time()));
+        // Terminal write: job is already cancelled; refresh message/log from handler.
+        LongJobStore::save($after, $storeDir, ['buffer', 'status_map']);
+        return $after;
     }
 
     /**
@@ -201,11 +216,8 @@ final class LongJob
         while (($job['status'] ?? '') === self::STATUS_RUNNING && time() < $deadline) {
             if ($tickSeconds !== null && $tickSeconds > 0) {
                 $job['tick_seconds'] = LongJobRegistry::clampTickSeconds($tickSeconds);
-                $type = (string)($job['type'] ?? '');
-                $dir = ($type !== '' && LongJobRegistry::has($type))
-                    ? LongJobRegistry::storeDirFor($type)
-                    : $typeOrDir;
-                LongJobStore::save($job, $dir, ['buffer', 'status_map']);
+                // CAS: do not revive a concurrent cancel/done over an unconditional write.
+                self::save($job, $typeOrDir);
             }
             $job = self::tick($id, $typeOrDir);
         }

@@ -753,9 +753,21 @@ final class BackupReplica
                 'tables' => implode(', ', array_slice($foreign, 0, 5)),
             ]));
         }
+        $dir = (string)($job['baseline_local_dir'] ?? '');
+        $dump = $dir !== '' ? BackupStandby::findDbDump($dir) : '';
+        if ($dump === '') {
+            throw new RuntimeException(t('backups.err.restore_no_db'));
+        }
+        $preflight = BackupRestore::preflightDumpBeforeDrop($dump);
+        if (empty($preflight['ok'])) {
+            throw new RuntimeException(t('backups.err.dump_preflight', [
+                'detail' => (string)($preflight['error'] ?? 'failed'),
+            ]));
+        }
         BackupStandby::emptyOwnedTables();
         $job['wiped'] = true;
-        $job['steps'][] = ['step' => 'drop_base', 'status' => 'ok'];
+        $job['dump_preflight'] = $preflight;
+        $job['steps'][] = ['step' => 'drop_base', 'status' => 'ok', 'preflight_table' => (string)($preflight['table'] ?? '')];
         $job['phase'] = 'restore';
         self::jobSave($job);
         return $job;

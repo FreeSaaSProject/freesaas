@@ -16,7 +16,9 @@ There is no separate Amo “deal” — leads are the pipeline objects.
 
 Same pattern as [`bitrix`](bitrix.md): id map + sync state + outbox + webhook claim; `CrmSyncContext` / `sync_origin=amocrm` suppresses echo.
 
-Webhook idempotency key is `entity:op:id:revision` (`updated_at` / `last_modified`, else a payload fingerprint) — not `id` alone, so successive updates of the same lead are not dropped as duplicates. A failed apply releases the claim so Amo can retry.
+Webhook idempotency key is `entity:op:id:revision:fingerprint` — revision from `updated_at` / `last_modified` (or `0`) plus a short payload hash, so two updates with the same timestamp but different fields are not dropped as duplicates. A failed apply releases the claim so Amo can retry.
+
+Sparse webhook payloads (status/responsible change with only id + one field) **merge** into the existing local deal/company/contact: absent `name`/`price`/`status_id`/`_embedded` keep current values. `responsible_user_id` is mapped via id-map `entity=staff` (Amo user → `base_users`); without a staff map the local responsible is left unchanged — never write the raw Amo user id.
 
 ## Config
 

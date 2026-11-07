@@ -84,7 +84,8 @@ final class AmocrmWebhookIngest
 
     /**
      * Idempotency key for one webhook delivery of one entity row.
-     * Must distinguish successive updates of the same id (review MEDIUM).
+     * Always includes a payload fingerprint so two updates with the same updated_at
+     * (but different fields) are not treated as duplicates.
      *
      * @param array<string,mixed> $row
      */
@@ -92,12 +93,11 @@ final class AmocrmWebhookIngest
     {
         $extId = (string)($row['id'] ?? '');
         $rev = (string)($row['updated_at'] ?? $row['last_modified'] ?? $row['modified_at'] ?? '');
-        if ($rev === '' || $rev === '0') {
-            // No revision field — fingerprint this payload so different updates differ,
-            // while identical redeliveries still collide on UNIQUE claim.
-            $rev = substr(hash('sha256', (string)json_encode(self::normalizeForHash($row))), 0, 32);
+        if ($rev === '') {
+            $rev = '0';
         }
-        return $bucket . ':' . $op . ':' . $extId . ':' . $rev;
+        $fp = substr(hash('sha256', (string)json_encode(self::normalizeForHash($row))), 0, 16);
+        return $bucket . ':' . $op . ':' . $extId . ':' . $rev . ':' . $fp;
     }
 
     /**
