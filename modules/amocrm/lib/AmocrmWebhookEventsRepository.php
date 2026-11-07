@@ -22,4 +22,15 @@ final class AmocrmWebhookEventsRepository
             return false;
         }
     }
+
+    /** Drop a claim so a failed apply can be retried on redelivery. */
+    public static function release(string $eventKey): void
+    {
+        if ($eventKey === '' || !self::tableReady()) {
+            return;
+        }
+        Database::pdo()->prepare(
+            'DELETE FROM base_amocrm_webhook_events WHERE event_key = ? LIMIT 1'
+        )->execute([$eventKey]);
+    }
 }
