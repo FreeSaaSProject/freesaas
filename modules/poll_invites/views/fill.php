@@ -29,6 +29,11 @@ $completed = (int)$invite['dt_completed'] > 0;
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
+<?php
+$staffMeta = is_array($staffMeta ?? null) ? $staffMeta : [];
+require __DIR__ . '/_staff_scores.php';
+?>
+
 <?php if ($completed): ?>
   <div class="flash flash-ok"><?= te('poll_invites.fill.completed') ?></div>
 <?php endif; ?>

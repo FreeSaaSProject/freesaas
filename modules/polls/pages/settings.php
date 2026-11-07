@@ -16,10 +16,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             AgentHttp::emit([
                 'ok' => true,
                 'saved' => true,
+                'poll_speech' => ModuleManager::isEnabled('poll_speech') && class_exists('PollSpeechConfig', false)
+                    ? PollSpeechConfig::formValues()
+                    : null,
+                'poll_invites' => class_exists('PollInvitesConfig', false)
+                    ? PollInvitesConfig::formValues()
+                    : null,
             ]);
             return;
         }
     } catch (Throwable $e) {
+        AgentHttp::rethrowIfCapture($e);
         if ($wantsJson) {
             AgentHttp::error($e->getMessage(), 400);
             return;
@@ -37,6 +44,13 @@ if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'has_extra' => $extraHtml !== '',
+        'poll_speech_enabled' => ModuleManager::isEnabled('poll_speech'),
+        'poll_speech' => ModuleManager::isEnabled('poll_speech') && class_exists('PollSpeechConfig', false)
+            ? PollSpeechConfig::formValues()
+            : null,
+        'poll_invites' => class_exists('PollInvitesConfig', false)
+            ? PollInvitesConfig::formValues()
+            : null,
     ]);
     return;
 }

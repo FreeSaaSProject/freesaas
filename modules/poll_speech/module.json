@@ -1,0 +1,258 @@
+{
+    "id": "poll_speech",
+    "name": "poll_speech.module.name",
+    "description": "poll_speech.module.description",
+    "version": "0.1.15",
+    "type": "product",
+    "requires": {
+        "core": ">=1.0.0",
+        "polls": ">=0.1.0",
+        "poll_invites": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "audio": ">=1.0.0",
+        "audio_dicts": ">=1.0.0",
+        "audio_pipeline": ">=1.0.0",
+        "audio_reports": ">=1.0.0",
+        "calendar": ">=1.0.0",
+        "procedures": ">=1.0.0"
+    },
+    "provides": [
+        "poll_speech.oral_channel"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "poll_speech.view",
+            "label": "poll_speech.perm.view"
+        },
+        {
+            "id": "poll_speech.edit",
+            "label": "poll_speech.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/poll-speech",
+            "/poll-speech/settings",
+            "/poll-speech/fill-day"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/poll_speech.md",
+        "ops": [
+            {
+                "id": "poll_speech.list",
+                "method": "GET",
+                "path": "/poll-speech",
+                "permission": "poll_speech.view",
+                "description": "List oral invites pending/filled from speech; filters: day, progress, q",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "day": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD (procedure day)"
+                        },
+                        "progress": {
+                            "type": "string",
+                            "description": "open|speech|done|empty; speech=filled from ASR"
+                        },
+                        "q": {
+                            "type": "integer",
+                            "description": "Invite id"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "poll_speech.settings",
+                "method": "GET",
+                "path": "/poll-speech/settings",
+                "permission": "poll_speech.edit",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Get oral speech settings (cfg/modules/poll_speech.ini)"
+            },
+            {
+                "id": "poll_speech.settings.save",
+                "method": "POST",
+                "path": "/poll-speech/settings",
+                "permission": "poll_speech.edit",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Patch-save oral speech settings; omit keys to keep current (checkbox-safe)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "oral_btn_enabled": {
+                            "type": "string",
+                            "description": "1|0 calendar «review asked»"
+                        },
+                        "oral_poll_id": {
+                            "type": "integer"
+                        },
+                        "dict_id": {
+                            "type": "integer"
+                        },
+                        "window_sec": {
+                            "type": "integer"
+                        },
+                        "admin_field": {
+                            "type": "string",
+                            "description": "linked|proc_admin|both"
+                        },
+                        "key_assign": {
+                            "type": "object",
+                            "description": "Map of key_id → score 1..10 (omit/0 = unmapped ask phrase)"
+                        },
+                        "qid": {
+                            "type": "integer",
+                            "description": "Single score question id (mirrored to staff+service slots)"
+                        },
+                        "answers": {
+                            "type": "string",
+                            "description": "CSV of 10 answer ids for scores 1..10"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "poll_speech.fill_day",
+                "method": "POST",
+                "path": "/poll-speech/fill-day",
+                "permission": "poll_speech.edit",
+                "side_effect": "write",
+                "description": "Fill oral invites from speech for a day; recreate=1 rebuilds all (superadmin)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "day": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD (ignored when recreate=1)"
+                        },
+                        "recreate": {
+                            "type": "string",
+                            "description": "1 = wipe+rebuild speech invites (SUPERADMIN)"
+                        }
+                    }
+                }
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "polls.menu.group",
+            "num": 30,
+            "path": "/poll-speech",
+            "title": "poll_speech.menu.list",
+            "kind": "work"
+        },
+        {
+            "group": "polls.menu.group",
+            "num": 90,
+            "path": "/poll-speech/settings",
+            "title": "poll_speech.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [],
+    "migrators": [
+        {
+            "id": "oral_poll_10",
+            "mode": "transform",
+            "source": [
+                "base_polls"
+            ],
+            "target": [
+                "base_polls",
+                "cfg/modules/poll_speech.ini"
+            ],
+            "description": "poll_speech.migrator.oral_poll_10"
+        },
+        {
+            "id": "seed_dict50_scores",
+            "mode": "transform",
+            "source": [
+                "base_records_keys"
+            ],
+            "target": [
+                "base_records_keys",
+                "cfg/modules/poll_speech.ini"
+            ],
+            "description": "poll_speech.migrator.seed_dict50"
+        },
+        {
+            "id": "repoint_oral_poll1_to_55",
+            "mode": "transform",
+            "source": [
+                "base_poll_invites"
+            ],
+            "target": [
+                "base_poll_invites"
+            ],
+            "description": "poll_speech.migrator.repoint_oral_poll1_to_55"
+        },
+        {
+            "id": "seed_and_backfill_oct_nov",
+            "mode": "transform",
+            "source": [
+                "base_polls",
+                "base_records_keys",
+                "base_procedures",
+                "base_poll_invites"
+            ],
+            "target": [
+                "base_polls",
+                "base_records_keys",
+                "base_poll_invites",
+                "cfg/modules/poll_speech.ini"
+            ],
+            "description": "poll_speech.migrator.seed_and_backfill_oct_nov"
+        }
+    ],
+    "hooks": {
+        "subscribe": [
+            "calendar.timeline.enrich",
+            "audio_reports.day.analyzed",
+            "bi.datasets",
+            "polls.settings.sections",
+            "polls.settings.save"
+        ],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "communications",
+            "audio"
+        ],
+        "maturity": "alpha",
+        "tags": [],
+        "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "poll_speech.setup.step.config",
+                "description": "poll_speech.setup.step.config_help",
+                "href": "/poll-speech/settings",
+                "ask_user": "poll_speech.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "poll_speech.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    }
+}

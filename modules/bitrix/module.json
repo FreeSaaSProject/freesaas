@@ -1,0 +1,218 @@
+{
+    "id": "bitrix",
+    "name": "bitrix.module.name",
+    "description": "bitrix.module.description",
+    "version": "0.1.1",
+    "type": "product",
+    "requires": {
+        "core": ">=1.0.0",
+        "clients": ">=1.0.0",
+        "crm": ">=0.1.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "bitrix.sync"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "leave_tables"
+    },
+    "permissions": [
+        {
+            "id": "bitrix.view",
+            "label": "bitrix.perm.view"
+        },
+        {
+            "id": "bitrix.import",
+            "label": "bitrix.perm.import"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/bitrix",
+            "/bitrix/import",
+            "/bitrix/settings",
+            "/bitrix/webhook",
+            "/bitrix/jobs/ping",
+            "/bitrix/jobs/import",
+            "/bitrix/jobs/outbox"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/bitrix.md",
+        "ops": [
+            {
+                "id": "bitrix.status",
+                "method": "GET",
+                "path": "/bitrix",
+                "permission": "bitrix.view",
+                "side_effect": "read",
+                "description": "Bridge status, map counts, outbox pending"
+            },
+            {
+                "id": "bitrix.ping",
+                "method": "POST",
+                "path": "/bitrix",
+                "permission": "bitrix.view",
+                "side_effect": "write",
+                "description": "POST action=ping — verify REST webhook URL",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["ping"]}
+                    }
+                }
+            },
+            {
+                "id": "bitrix.import",
+                "method": "POST",
+                "path": "/bitrix/import",
+                "permission": "bitrix.import",
+                "side_effect": "write",
+                "description": "Pull contact|company|deal|lead. Prefer dry_run=1 first.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["contact", "company", "deal", "lead"]
+                        },
+                        "dry_run": {
+                            "type": "string",
+                            "enum": ["0", "1"],
+                            "description": "1 = count only (recommended first)"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "bitrix.import.status",
+                "method": "GET",
+                "path": "/bitrix/import",
+                "permission": "bitrix.import",
+                "side_effect": "read",
+                "description": "Last import sync_state per entity + api_ready"
+            },
+            {
+                "id": "bitrix.settings.get",
+                "method": "GET",
+                "path": "/bitrix/settings",
+                "permission": "",
+                "side_effect": "read",
+                "description": "Settings (secrets masked). SUPERADMIN_ACCESS."
+            },
+            {
+                "id": "bitrix.settings.save",
+                "method": "POST",
+                "path": "/bitrix/settings",
+                "permission": "",
+                "side_effect": "write",
+                "description": "Save cfg/modules/bitrix.ini. Blank secrets keep previous. SUPERADMIN_ACCESS.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pull_enabled": {"type": "string", "enum": ["0", "1"]},
+                        "push_enabled": {"type": "string", "enum": ["0", "1"]},
+                        "portal": {"type": "string"},
+                        "rest_url": {"type": "string", "description": "Incoming webhook REST base ending with /"},
+                        "webhook_token": {"type": "string", "description": "Blank keeps current"},
+                        "worker_token": {"type": "string", "description": "Blank keeps current"},
+                        "timeout_sec": {"type": "integer"},
+                        "page_size": {"type": "integer"}
+                    }
+                }
+            }
+        ]
+    },
+    "jobs": [
+        "/bitrix/jobs/ping",
+        "/bitrix/jobs/import",
+        "/bitrix/jobs/outbox"
+    ],
+    "menu": [
+        {
+            "group": "bitrix.menu.group",
+            "num": 10,
+            "path": "/bitrix",
+            "title": "bitrix.menu.status",
+            "kind": "work"
+        },
+        {
+            "group": "bitrix.menu.group",
+            "num": 20,
+            "path": "/bitrix/import",
+            "title": "bitrix.menu.import",
+            "kind": "work"
+        },
+        {
+            "group": "bitrix.menu.group",
+            "num": 90,
+            "path": "/bitrix/settings",
+            "title": "bitrix.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "bitrix.setup.step.config",
+                "description": "bitrix.setup.step.config_help",
+                "href": "/bitrix/settings",
+                "ask_user": "bitrix.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "bitrix.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    },
+    "tables": [
+        "base_bitrix_id_map",
+        "base_bitrix_sync_state",
+        "base_bitrix_outbox",
+        "base_bitrix_webhook_events"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "clients.created",
+            "clients.updated",
+            "crm.company.created",
+            "crm.company.updated",
+            "crm.company.deleted",
+            "crm.deal.created",
+            "crm.deal.updated",
+            "crm.deal.stage_changed",
+            "crm.deal.deleted"
+        ],
+        "publish": []
+    },
+    "bulkActions": [],
+    "catalog": {
+        "categories": [
+            "integrations",
+            "crm"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "integration",
+            "crm",
+            "sync",
+            "jobs"
+        ],
+        "screenshots": []
+    }
+}

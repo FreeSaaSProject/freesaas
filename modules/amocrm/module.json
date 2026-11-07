@@ -1,0 +1,218 @@
+{
+    "id": "amocrm",
+    "name": "amocrm.module.name",
+    "description": "amocrm.module.description",
+    "version": "0.1.1",
+    "type": "product",
+    "requires": {
+        "core": ">=1.0.0",
+        "clients": ">=1.0.0",
+        "crm": ">=0.1.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "amocrm.sync"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "leave_tables"
+    },
+    "permissions": [
+        {
+            "id": "amocrm.view",
+            "label": "amocrm.perm.view"
+        },
+        {
+            "id": "amocrm.import",
+            "label": "amocrm.perm.import"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/amocrm",
+            "/amocrm/import",
+            "/amocrm/settings",
+            "/amocrm/webhook",
+            "/amocrm/jobs/ping",
+            "/amocrm/jobs/import",
+            "/amocrm/jobs/outbox"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/amocrm.md",
+        "ops": [
+            {
+                "id": "amocrm.status",
+                "method": "GET",
+                "path": "/amocrm",
+                "permission": "amocrm.view",
+                "side_effect": "read",
+                "description": "Bridge status, map counts, outbox pending"
+            },
+            {
+                "id": "amocrm.ping",
+                "method": "POST",
+                "path": "/amocrm",
+                "permission": "amocrm.view",
+                "side_effect": "write",
+                "description": "POST action=ping — verify base_url + access_token",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["ping"]}
+                    }
+                }
+            },
+            {
+                "id": "amocrm.import",
+                "method": "POST",
+                "path": "/amocrm/import",
+                "permission": "amocrm.import",
+                "side_effect": "write",
+                "description": "Pull contact|company|lead. Prefer dry_run=1 first.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["contact", "company", "lead"]
+                        },
+                        "dry_run": {
+                            "type": "string",
+                            "enum": ["0", "1"],
+                            "description": "1 = count only (recommended first)"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "amocrm.import.status",
+                "method": "GET",
+                "path": "/amocrm/import",
+                "permission": "amocrm.import",
+                "side_effect": "read",
+                "description": "Last import sync_state per entity + api_ready"
+            },
+            {
+                "id": "amocrm.settings.get",
+                "method": "GET",
+                "path": "/amocrm/settings",
+                "permission": "",
+                "side_effect": "read",
+                "description": "Settings (secrets masked). SUPERADMIN_ACCESS."
+            },
+            {
+                "id": "amocrm.settings.save",
+                "method": "POST",
+                "path": "/amocrm/settings",
+                "permission": "",
+                "side_effect": "write",
+                "description": "Save cfg/modules/amocrm.ini. Blank secrets keep previous. SUPERADMIN_ACCESS.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pull_enabled": {"type": "string", "enum": ["0", "1"]},
+                        "push_enabled": {"type": "string", "enum": ["0", "1"]},
+                        "base_url": {"type": "string", "description": "https://subdomain.amocrm.ru"},
+                        "access_token": {"type": "string", "description": "Blank keeps current"},
+                        "webhook_token": {"type": "string", "description": "Blank keeps current"},
+                        "worker_token": {"type": "string", "description": "Blank keeps current"},
+                        "timeout_sec": {"type": "integer"},
+                        "page_size": {"type": "integer"}
+                    }
+                }
+            }
+        ]
+    },
+    "jobs": [
+        "/amocrm/jobs/ping",
+        "/amocrm/jobs/import",
+        "/amocrm/jobs/outbox"
+    ],
+    "menu": [
+        {
+            "group": "amocrm.menu.group",
+            "num": 10,
+            "path": "/amocrm",
+            "title": "amocrm.menu.status",
+            "kind": "work"
+        },
+        {
+            "group": "amocrm.menu.group",
+            "num": 20,
+            "path": "/amocrm/import",
+            "title": "amocrm.menu.import",
+            "kind": "work"
+        },
+        {
+            "group": "amocrm.menu.group",
+            "num": 90,
+            "path": "/amocrm/settings",
+            "title": "amocrm.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "amocrm.setup.step.config",
+                "description": "amocrm.setup.step.config_help",
+                "href": "/amocrm/settings",
+                "ask_user": "amocrm.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "amocrm.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    },
+    "tables": [
+        "base_amocrm_id_map",
+        "base_amocrm_sync_state",
+        "base_amocrm_outbox",
+        "base_amocrm_webhook_events"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "clients.created",
+            "clients.updated",
+            "crm.company.created",
+            "crm.company.updated",
+            "crm.company.deleted",
+            "crm.deal.created",
+            "crm.deal.updated",
+            "crm.deal.stage_changed",
+            "crm.deal.deleted"
+        ],
+        "publish": []
+    },
+    "bulkActions": [],
+    "catalog": {
+        "categories": [
+            "integrations",
+            "crm"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "integration",
+            "crm",
+            "sync",
+            "jobs"
+        ],
+        "screenshots": []
+    }
+}

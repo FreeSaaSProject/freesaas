@@ -1412,3 +1412,32 @@
     });
   });
 })();
+
+// Money fields: type=text + inputmode=decimal so mobile keyboards can type ","
+// (type=number often rejects locale commas). Replace "," → "." as the user types.
+(function () {
+  function normalizeMoneyValue(value) {
+    return String(value || '').replace(/,/g, '.');
+  }
+
+  function isMoneyInput(el) {
+    return !!(el && el.getAttribute && (
+      el.getAttribute('data-money-input') !== null ||
+      el.getAttribute('data-ledger-bank-normalize') !== null
+    ));
+  }
+
+  document.addEventListener('input', function (e) {
+    var el = e.target;
+    if (!isMoneyInput(el)) return;
+    var next = normalizeMoneyValue(el.value);
+    if (next !== el.value) {
+      var start = el.selectionStart;
+      var end = el.selectionEnd;
+      el.value = next;
+      if (typeof start === 'number' && typeof end === 'number' && el.setSelectionRange) {
+        try { el.setSelectionRange(start, end); } catch (err) {}
+      }
+    }
+  });
+})();

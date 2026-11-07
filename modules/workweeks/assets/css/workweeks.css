@@ -84,6 +84,9 @@
 .nazop-table tr.is-weekend td {
   background: var(--bg-elev);
 }
+.nazop-table tr.is-bday-row td {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 45%, transparent);
+}
 .nazop-op-h {
   font-weight: 700;
   text-align: center;
@@ -92,10 +95,30 @@
   padding-left: 0.15rem;
   padding-right: 0.15rem;
 }
+.nazop-op-h.is-bday {
+  outline: 2px solid var(--warn);
+  outline-offset: -2px;
+}
 .nazop-cell {
   text-align: center;
   padding-left: 0.1rem;
   padding-right: 0.1rem;
+}
+.nazop-cell.is-bday {
+  outline: 2px solid var(--warn);
+  outline-offset: -2px;
+}
+.nazop-bday-note {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--warn);
+  white-space: normal;
+  max-width: 12rem;
+  line-height: 1.2;
+  margin-top: 0.15rem;
+}
+.nazop-bday-flash {
+  margin: 0.35rem 0;
 }
 .nazop-check {
   display: inline-flex;

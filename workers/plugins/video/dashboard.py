@@ -133,10 +133,14 @@ def render_html(snap: Dict[str, Any], ctx: Dict[str, Any]) -> str:
     last = st.get("last_job") or {}
     cur = st.get("current_job") or {}
     counters = st.get("counters") or {}
+    vpn_btn = (
+        '<button type="button" data-act="vpn_down" data-plugin="video">Down</button>'
+        if snap.get("vpn_connected")
+        else '<button type="button" data-act="vpn_up" data-plugin="video">Up</button>'
+    )
     return f"""
 <div class="muted" style="margin-bottom:4px">{ft}VPN {_esc(snap.get('vpn_name') or '—')}: {_esc(snap.get('vpn_line'))}
-  <button type="button" data-act="vpn_up" data-plugin="video">Up</button>
-  <button type="button" data-act="vpn_down" data-plugin="video">Down</button>
+  {vpn_btn}
 </div>
 <div class="muted">jobs ok {counters.get('jobs_ok', 0)}/err {counters.get('jobs_err', 0)}
   · cur {_esc(cur.get('type') or 'idle')} · last {_esc(last.get('type') or '—')} {_esc(last.get('ms') or '')}ms</div>

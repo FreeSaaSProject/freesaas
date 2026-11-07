@@ -4,11 +4,17 @@ declare(strict_types=1);
 /** Ini-backed settings for clientics module ([clientics] in cfg/modules/clientics.ini). */
 final class ClienticsConfig
 {
+    public const SOT_CLIENTICS = 'clientics';
+    public const SOT_FREESAAS = 'freesaas';
+
     /** @return array<string, string|int> */
     public static function defaults(): array
     {
         return [
             'pull_enabled' => '1',
+            'push_enabled' => '0',
+            'appointment_sot' => self::SOT_CLIENTICS,
+            'default_operator_id' => 0,
             'domain' => 'klientiks.ru',
             'account_id' => '',
             'user_id' => '',
@@ -25,11 +31,15 @@ final class ClienticsConfig
     {
         $out = [];
         foreach (self::defaults() as $key => $default) {
-            if ($key === 'pull_enabled') {
-                $out[$key] = self::flag($key, true) ? '1' : '0';
+            if (in_array($key, ['pull_enabled', 'push_enabled'], true)) {
+                $out[$key] = self::flag($key, $key === 'pull_enabled') ? '1' : '0';
                 continue;
             }
-            if (in_array($key, ['timeout_sec', 'page_limit'], true)) {
+            if ($key === 'appointment_sot') {
+                $out[$key] = self::appointmentSot();
+                continue;
+            }
+            if (in_array($key, ['timeout_sec', 'page_limit', 'default_operator_id'], true)) {
                 $out[$key] = (string)self::int($key, (int)$default);
                 continue;
             }
@@ -50,6 +60,19 @@ final class ClienticsConfig
         // Agent-friendly partial saves: only write keys present in POST.
         if (array_key_exists('pull_enabled', $post)) {
             Config::set('clientics', 'pull_enabled', !empty($post['pull_enabled']) ? '1' : '0');
+        }
+        if (array_key_exists('push_enabled', $post)) {
+            Config::set('clientics', 'push_enabled', !empty($post['push_enabled']) ? '1' : '0');
+        }
+        if (array_key_exists('appointment_sot', $post)) {
+            $sot = strtolower(trim((string)$post['appointment_sot']));
+            if ($sot !== self::SOT_FREESAAS) {
+                $sot = self::SOT_CLIENTICS;
+            }
+            Config::set('clientics', 'appointment_sot', $sot);
+        }
+        if (array_key_exists('default_operator_id', $post)) {
+            Config::set('clientics', 'default_operator_id', (string)max(0, (int)$post['default_operator_id']));
         }
         if (array_key_exists('domain', $post)) {
             $domain = trim((string)$post['domain']);
@@ -103,6 +126,27 @@ final class ClienticsConfig
     public static function pullEnabled(): bool
     {
         return self::flag('pull_enabled', true);
+    }
+
+    public static function pushEnabled(): bool
+    {
+        return self::flag('push_enabled', false);
+    }
+
+    public static function appointmentSot(): string
+    {
+        $sot = strtolower(trim(self::string('appointment_sot', self::SOT_CLIENTICS)));
+        return $sot === self::SOT_FREESAAS ? self::SOT_FREESAAS : self::SOT_CLIENTICS;
+    }
+
+    public static function appointmentSotIsFreesaas(): bool
+    {
+        return self::appointmentSot() === self::SOT_FREESAAS;
+    }
+
+    public static function defaultOperatorId(): int
+    {
+        return max(0, self::int('default_operator_id', 0));
     }
 
     public static function accountId(): string
@@ -173,16 +217,7 @@ final class ClienticsConfig
     /**
      * Agent-oriented setup checklist (no secret values).
      *
-     * @return array{
-     *   pull_enabled:bool,
-     *   api_ready:bool,
-     *   worker_token_configured:bool,
-     *   webhook_token_configured:bool,
-     *   account_id:string,
-     *   missing:list<string>,
-     *   writable_fields:list<string>,
-     *   next_steps:list<string>
-     * }
+     * @return array<string,mixed>
      */
     public static function agentSetup(): array
     {
@@ -211,18 +246,28 @@ final class ClienticsConfig
             $next[] = 'After tokens: POST /clientics?format=json action=ping (session) to verify API';
         } else {
             $next[] = 'POST /clientics?format=json action=ping';
+            $next[] = 'POST /clientics?format=json action=inventory';
             $next[] = 'POST /clientics/import?format=json action=clients&dry_run=1&from=YYYY-MM-DD&to=YYYY-MM-DD';
+            if (self::appointmentSotIsFreesaas()) {
+                $next[] = 'appointment_sot=freesaas — ensure push_enabled=1 and flush outbox';
+            } else {
+                $next[] = 'appointment_sot=clientics — FreeSaaS mirrors appointments; create in Clientics';
+            }
         }
 
         return [
             'pull_enabled' => self::pullEnabled(),
+            'push_enabled' => self::pushEnabled(),
+            'appointment_sot' => self::appointmentSot(),
+            'default_operator_id' => self::defaultOperatorId(),
             'api_ready' => self::apiReady(),
             'worker_token_configured' => self::workerTokenConfigured(),
             'webhook_token_configured' => self::webhookTokenConfigured(),
             'account_id' => self::accountId(),
             'missing' => $missing,
             'writable_fields' => [
-                'pull_enabled', 'domain', 'account_id', 'user_id', 'access_token',
+                'pull_enabled', 'push_enabled', 'appointment_sot', 'default_operator_id',
+                'domain', 'account_id', 'user_id', 'access_token',
                 'timeout_sec', 'page_limit', 'worker_token', 'webhook_token',
             ],
             'next_steps' => $next,

@@ -223,11 +223,16 @@ def do_core_action(action: str, payload: Dict[str, Any]) -> str:
     if action == "start":
         if plugin:
             spec = load_plugin(plugin)
-            return supervisor.start_plugin(spec) if spec else f"unknown {plugin}"
-        return "; ".join(supervisor.start_enabled())
+            return (
+                supervisor.start_plugin(spec, clear_pause=True)
+                if spec
+                else f"unknown {plugin}"
+            )
+        # Explicit UI "Start all" clears pauses; LaunchAgent boot uses clear_pause=False.
+        return "; ".join(supervisor.start_enabled(clear_pause=True))
     if action == "stop":
         if plugin:
-            return supervisor.stop_plugin(plugin)
+            return supervisor.stop_plugin(plugin, pause=True)
         return "; ".join(supervisor.stop_enabled())
     if action == "restart":
         if not plugin:
@@ -332,8 +337,8 @@ def render_page(*, csrf_token: str) -> str:
   </label>
   {"<label class='muted'>" + t('dash.asr_lang', locale=locale) + " <select id='asrLang'>" + asr_opts + "</select></label>" if show_asr else ""}
   <div class="toolbar" style="margin:0">
-    <button type="button" data-act="start">{t('dash.start_all', locale=locale)}</button>
-    <button type="button" data-act="stop">{t('dash.stop_all', locale=locale)}</button>
+    <button type="button" id="btnStartAll" data-act="start" hidden>{t('dash.start_all', locale=locale)}</button>
+    <button type="button" id="btnStopAll" data-act="stop" hidden>{t('dash.stop_all', locale=locale)}</button>
     <button type="button" id="btnRefresh">{t('dash.refresh', locale=locale)}</button>
     <button type="button" class="fold-btn" id="btnNotifyToggle" aria-expanded="false">
       <span>{t('dash.notify', locale=locale)}</span>
@@ -413,7 +418,14 @@ async function postAction(action, payload={{}}) {{
     }},
     body: JSON.stringify({{ action, csrf: window.CSRF || '', ...payload }}),
   }});
-  return r.json();
+  const text = await r.text();
+  let data = {{}};
+  try {{ data = text ? JSON.parse(text) : {{}}; }} catch (e) {{ data = {{ raw: text }}; }}
+  if (!r.ok) {{
+    const msg = (data && data.message) || data.raw || text || (tt('dash.action_fail') + ' HTTP ' + r.status);
+    throw new Error(msg);
+  }}
+  return data;
 }}
 function esc(s) {{
   return String(s ?? '').replace(/[&<>"']/g, c => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c]));
@@ -489,15 +501,25 @@ function renderPlugins(data) {{
     `CPU ${{fmtCpu(hm.cpu_percent)}} · RAM ${{hm.mem_used_mb ?? '—'}}/${{hm.mem_total_mb ?? '—'}} MB · ${{tt('dash.enabled')}} ${{(data.host && data.host.enabled_plugins || []).join(',')}}`;
   fillNotify(data.notify);
   fillAutostart(data.autostart);
+  const anyRun = plugins.some(p => p.running);
+  const anyStop = plugins.some(p => !p.running);
+  const btnStartAll = $('btnStartAll');
+  const btnStopAll = $('btnStopAll');
+  if (btnStartAll) {{ if (anyStop) btnStartAll.removeAttribute('hidden'); else btnStartAll.setAttribute('hidden', ''); }}
+  if (btnStopAll) {{ if (anyRun) btnStopAll.removeAttribute('hidden'); else btnStopAll.setAttribute('hidden', ''); }}
   let html = `<table><thead><tr>
     <th></th><th>${{tt('dash.state')}}</th><th>${{tt('dash.cpu')}}</th><th>${{tt('dash.rss')}}</th>
     <th>${{tt('dash.activity')}}</th><th></th></tr></thead><tbody>`;
   for (const p of plugins) {{
     const act = p.activity || {{}};
-    const st = p.running
-      ? `<span class="ok">${{tt('dash.running')}}</span>`
-      : `<span class="bad">${{tt('dash.stopped')}}</span>`;
+    let st;
+    if (p.running) st = `<span class="ok">${{tt('dash.running')}}</span>`;
+    else if (p.paused) st = `<span class="warn">${{tt('dash.paused')}}</span>`;
+    else st = `<span class="bad">${{tt('dash.stopped')}}</span>`;
     const stale = p.stale ? ` <span class="badge stale">${{tt('dash.stale')}}</span>` : '';
+    const ctl = p.running
+      ? `<button type="button" data-act="stop" data-plugin="${{esc(p.id)}}">${{tt('dash.stop')}}</button>`
+      : `<button type="button" data-act="start" data-plugin="${{esc(p.id)}}">${{tt('dash.start')}}</button>`;
     html += `<tr>
       <td><strong>${{esc(p.title || p.id)}}</strong><div class="muted">pid ${{p.pid || '—'}}</div></td>
       <td>${{st}}${{stale}}</td>
@@ -505,11 +527,7 @@ function renderPlugins(data) {{
       <td>${{p.rss_mb != null ? p.rss_mb + ' MB' : '—'}}</td>
       <td class="activity"><span class="phase">${{esc(phaseLabel(act.phase))}}</span>
         <div class="muted">${{esc(act.detail || '')}}</div></td>
-      <td>
-        <button type="button" data-act="start" data-plugin="${{esc(p.id)}}">${{tt('dash.start')}}</button>
-        <button type="button" data-act="stop" data-plugin="${{esc(p.id)}}">${{tt('dash.stop')}}</button>
-        <button type="button" data-act="restart" data-plugin="${{esc(p.id)}}">${{tt('dash.restart')}}</button>
-      </td>
+      <td>${{ctl}}</td>
     </tr>`;
   }}
   html += '</tbody></table>';
@@ -559,8 +577,22 @@ document.addEventListener('click', async (ev) => {{
     if (a.name === 'data-act' || a.name === 'data-plugin' || a.name === 'data-confirm') continue;
     payload[a.name.slice(5).replace(/-/g, '_')] = a.value;
   }}
-  const res = await postAction(act, payload);
-  if (res.message) console.log(res.message);
+  try {{
+    const res = await postAction(act, payload);
+    if (res.message) {{
+      console.log(res.message);
+      if (act === 'stop' || act === 'start' || act === 'restart') {{
+        const el = document.createElement('div');
+        el.className = 'muted';
+        el.style.cssText = 'position:fixed;bottom:12px;right:12px;background:#1a2332;border:1px solid #243044;padding:8px 12px;border-radius:6px;z-index:99;max-width:420px';
+        el.textContent = res.message;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 4000);
+      }}
+    }}
+  }} catch (e) {{
+    alert((tt('dash.action_fail') + ': ') + (e && e.message ? e.message : e));
+  }}
   refreshStatus();
 }});
 $('btnRefresh').onclick = () => {{ refreshStatus(); refreshLogs(); }};

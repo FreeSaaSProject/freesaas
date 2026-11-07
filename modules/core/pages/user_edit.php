@@ -145,6 +145,19 @@ $buildData = static function (array $post, array $current, bool $super, bool $cr
         $data['ID_STATUS2'] = (int)($post['ID_STATUS2'] ?? 0);
     }
 
+    if (Database::columnExists('base_users', 'bday')) {
+        $bdayRaw = trim((string)($post['bday'] ?? ''));
+        if ($bdayRaw === '') {
+            $data['bday'] = 0;
+        } else {
+            $ts = strtotime($bdayRaw . ' 12:00:00');
+            $data['bday'] = $ts !== false ? $ts : 0;
+        }
+    }
+    if (Database::columnExists('base_users', 'show_bday_in_cal')) {
+        $data['show_bday_in_cal'] = !empty($post['show_bday_in_cal']) ? 1 : 0;
+    }
+
     $newsAfterRaw = trim((string)($post['showNewsAfter'] ?? ''));
     if ($newsAfterRaw === '') {
         $data['showNewsAfter'] = 0;

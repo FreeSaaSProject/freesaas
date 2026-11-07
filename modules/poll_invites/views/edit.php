@@ -14,7 +14,7 @@ $chk = static function (string $key) use ($row): string {
 <section class="page-head">
   <div class="page-head-row">
     <h1><?= $isNew ? te('poll_invites.edit.heading_new') : e('#' . $id) ?></h1>
-    <?php if (!$isNew): ?>
+    <?php if (!$isNew && (int)($row['dt_completed'] ?? 0) < 1): ?>
     <div class="page-actions">
       <a class="btn-secondary" href="/poll-invites/<?= $id ?>/fill"><?= te('poll_invites.action.fill') ?></a>
     </div>
@@ -24,6 +24,11 @@ $chk = static function (string $key) use ($row): string {
 
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
+
+<?php
+$staffMeta = is_array($staffMeta ?? null) ? $staffMeta : [];
+require __DIR__ . '/_staff_scores.php';
+?>
 
 <form method="post" class="form-grid form-wide">
   <fieldset>

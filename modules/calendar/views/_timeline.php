@@ -78,6 +78,35 @@ $renderShiftChip = static function (array $sh): string {
     $html .= '</span>';
     return $html;
 };
+$renderBirthdays = static function (array $list): string {
+    if ($list === []) {
+        return '';
+    }
+    $html = '<div class="calendar-tl-bdays">';
+    foreach ($list as $bd) {
+        if (!is_array($bd)) {
+            continue;
+        }
+        $bg = trim((string)($bd['color'] ?? ''));
+        $fg = trim((string)($bd['color_text'] ?? ''));
+        if ($bg === '') {
+            $bg = 'var(--accent-soft)';
+        }
+        if ($fg === '') {
+            $fg = 'var(--text)';
+        }
+        $parts = preg_split('/\s+/u', trim((string)($bd['name'] ?? '')), 3) ?: [];
+        $short = trim(($parts[0] ?? '') . ' ' . ($parts[1] ?? ''));
+        if ($short === '') {
+            $short = (string)($bd['name'] ?? '');
+        }
+        $html .= '<div class="calendar-tl-bday">'
+            . e(t('calendar.day.birthday', ['age' => (int)($bd['age'] ?? 0)]))
+            . ' <b style="background-color:' . e($bg) . ';color:' . e($fg) . '">'
+            . e($short) . '</b></div>';
+    }
+    return $html . '</div>';
+};
 ?>
 <div class="calendar-tl-wrap">
   <table class="<?= e($tlClass) ?>" id="event_container" aria-label="<?= e($ariaLabel) ?>">
@@ -148,8 +177,10 @@ $renderShiftChip = static function (array $sh): string {
           $showTableBtn = $canTables && $dayIsToday;
           ?>
           <td>
+            <?php $bdayList = is_array($col['birthdays'] ?? null) ? $col['birthdays'] : []; ?>
             <?php if ($canManage): ?>
               <div class="calendar-tl-shifts-cell">
+                <?= $renderBirthdays($bdayList) ?>
                 <button type="button"
                         class="calendar-tl-shifts calendar-tl-shifts-btn"
                         data-shift-open="<?= e($day['date']) ?>"
@@ -171,6 +202,7 @@ $renderShiftChip = static function (array $sh): string {
               </div>
             <?php else: ?>
               <div class="calendar-tl-shifts-cell">
+                <?= $renderBirthdays($bdayList) ?>
                 <div class="calendar-tl-shifts">
                   <?php if (!empty($col['shifts'])): ?>
                     <?php foreach ($col['shifts'] as $sh): ?>

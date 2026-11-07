@@ -22,7 +22,7 @@ Permissions: `clients.view`, `clients.edit`, `clients.statuses`, `clients.tags`.
 | `/client-statuses` | Status dictionary |
 | `/client-tags` | Tags dictionary |
 
-Extension hooks (other modules): `clients.list`, `clients.edit.sections`, `clients.edit.save`, `clients.view.profile`. 1C visit bindings / staff NFC live in `terminals` (not on `base_clients`).
+Extension hooks (other modules): `clients.list`, `clients.edit.sections`, `clients.edit.save`, `clients.view.profile`. Lifecycle: `clients.created` / `clients.updated` (payload `id`, `data`, optional `sync_origin`). 1C visit bindings / staff NFC live in `terminals` (not on `base_clients`). Sales companies/deals: [`crm`](crm.md); bridges [`bitrix`](bitrix.md) / [`amocrm`](amocrm.md).
 
 ## Agent JSON (session)
 

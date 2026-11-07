@@ -1,7 +1,46 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-06T10:05:24+00:00",
+    "generated_at": "2026-11-07T07:27:44+00:00",
     "modules": [
+        {
+            "id": "amocrm",
+            "version": "0.1.1",
+            "type": "product",
+            "name": {
+                "en": "AmoCRM",
+                "ru": "AmoCRM"
+            },
+            "description": {
+                "en": "Bidirectional bridge: Amo/Kommo contacts, companies, leads ↔ FreeSaaS clients + sales CRM.",
+                "ru": "Двусторонний мост: контакты, компании, сделки Amo/Kommo ↔ clients + sales CRM."
+            },
+            "summary": {
+                "en": "Requires clients + crm. Set base_url + access_token. Amo leads map to CRM deals (sale pipeline).",
+                "ru": "Нужны clients + crm. Укажите base_url + access_token. Сделки Amo → CRM deals (sale)."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "crm": ">=0.1.0"
+            },
+            "optionalRequires": [],
+            "catalog": {
+                "categories": [
+                    "integrations",
+                    "crm"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "integration",
+                    "crm",
+                    "sync",
+                    "jobs"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/amocrm.md"
+            }
+        },
         {
             "id": "asr",
             "version": "1.0.1",
@@ -309,7 +348,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "1.0.14",
+            "version": "1.0.15",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -496,6 +535,45 @@
             },
             "agent": {
                 "docs": "docs/agents/bi.md"
+            }
+        },
+        {
+            "id": "bitrix",
+            "version": "0.1.1",
+            "type": "product",
+            "name": {
+                "en": "Bitrix24 CRM",
+                "ru": "Bitrix24 CRM"
+            },
+            "description": {
+                "en": "Bidirectional bridge: Bitrix contacts/companies/deals/leads ↔ FreeSaaS clients + sales CRM.",
+                "ru": "Двусторонний мост: контакты/компании/сделки/лиды Bitrix ↔ clients + sales CRM."
+            },
+            "summary": {
+                "en": "Requires clients + crm. Configure incoming webhook REST URL, webhook_token and worker_token. Dual-run with outbox push.",
+                "ru": "Нужны clients + crm. Настройте REST webhook URL, webhook_token и worker_token. Dual-run через outbox."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "crm": ">=0.1.0"
+            },
+            "optionalRequires": [],
+            "catalog": {
+                "categories": [
+                    "integrations",
+                    "crm"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "integration",
+                    "crm",
+                    "sync",
+                    "jobs"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/bitrix.md"
             }
         },
         {
@@ -806,19 +884,19 @@
         },
         {
             "id": "clientics",
-            "version": "0.1.4",
+            "version": "0.2.0",
             "type": "product",
             "name": {
                 "en": "Clientics",
                 "ru": "Клиентикс"
             },
             "description": {
-                "en": "Pull-only bridge from Clientics: day-scoped client import and webhook stub. No push back.",
-                "ru": "Только pull из Клиентикс: импорт клиентов по дням и заглушка webhook. Обратной записи нет."
+                "en": "Dual-run bridge with Clientics: clients, appointments, reference maps; configurable appointment SoT. No medical cards until API exposes them.",
+                "ru": "Dual-run с Клиентикс: клиенты, записи, справочники; настраиваемый SoT записей. Медкарты — только когда появятся в API."
             },
             "summary": {
-                "en": "Enable to import clients from Clientics into FreeSaaS. Requires clients. Soft calendar/procedures/workweeks for day-scoped pulls. Configure tokens in cfg/modules/clientics.ini. Beta — expect sync edge cases; diagnose locally if import fails.",
-                "ru": "Включайте для импорта клиентов из Клиентикс. Требует clients. Мягко calendar/procedures/workweeks для дневных выгрузок. Токены — cfg/modules/clientics.ini. Beta: при сбоях импорта диагностируйте локально."
+                "en": "Enable for Clientics dual-run into FreeSaaS. Requires clients; soft calendar/crm/catalog/procedures. Configure tokens and appointment_sot in cfg/modules/clientics.ini. Medcards skipped until API inventory finds them. Beta — diagnose sync failures locally.",
+                "ru": "Включайте для dual-run с Клиентикс. Требует clients; мягко calendar/crm/catalog/procedures. Токены и appointment_sot — cfg/modules/clientics.ini. Медкарты пропускаются, пока inventory их не найдёт. Beta: при сбоях sync диагностируйте локально."
             },
             "requires": {
                 "core": ">=1.0.0",
@@ -827,7 +905,9 @@
             "optionalRequires": {
                 "calendar": ">=1.0.0",
                 "procedures": ">=1.0.0",
-                "workweeks": ">=1.0.0"
+                "workweeks": ">=1.0.0",
+                "crm": ">=0.1.0",
+                "catalog": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -848,7 +928,7 @@
         },
         {
             "id": "clients",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Clients",
@@ -943,6 +1023,41 @@
             },
             "agent": {
                 "docs": "docs/agents/contracts.md"
+            }
+        },
+        {
+            "id": "crm",
+            "version": "0.1.1",
+            "type": "product",
+            "name": {
+                "en": "Sales CRM",
+                "ru": "Sales CRM"
+            },
+            "description": {
+                "en": "Companies, deals/leads with pipelines, custom fields and notes. Contacts stay in Clients.",
+                "ru": "Компании, сделки/лиды с воронками, доп. поля и заметки. Контакты остаются в Клиентах."
+            },
+            "summary": {
+                "en": "Alpha — expect instability. Sales funnels and B2B companies. Requires clients. Bitrix/Amo bridges sync into these tables.",
+                "ru": "Alpha — возможна нестабильность. Воронки продаж и B2B-компании. Нужен clients. Мосты Bitrix/Amo пишут в эти таблицы."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0"
+            },
+            "optionalRequires": [],
+            "catalog": {
+                "categories": [
+                    "crm"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "crm",
+                    "sync"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/crm.md"
             }
         },
         {
@@ -1442,7 +1557,7 @@
         },
         {
             "id": "poll_invites",
-            "version": "0.1.11",
+            "version": "0.1.24",
             "type": "product",
             "name": {
                 "en": "Poll invites",
@@ -1453,8 +1568,8 @@
                 "ru": "Инстансы приглашений на опросы и заполнение сотрудниками; хуки для bots/site."
             },
             "summary": {
-                "en": "Enable to send/fill poll invites. Requires polls. Soft clients/bonuses/calendar/procedures. “Review asked” button on calendar procedure chips. Publishes poll_invites.* for bots and site channels.",
-                "ru": "Включайте для рассылки/заполнения опросов. Требует polls. Мягко clients/bonuses/calendar/procedures. Кнопка «собран отзыв» на чипах календаря. Публикует poll_invites.* для bots и сайта."
+                "en": "Enable to send/fill poll invites. Requires polls. Soft clients/bonuses/calendar/procedures. Oral button and speech fill live in poll_speech. Publishes poll_invites.* for bots and site channels.",
+                "ru": "Включайте для рассылки/заполнения опросов. Требует polls. Мягко clients/bonuses/calendar/procedures. Oral-кнопка и заполнение из речи — модуль poll_speech. Публикует poll_invites.* для bots и сайта."
             },
             "requires": {
                 "core": ">=1.0.0",
@@ -1465,7 +1580,9 @@
                 "bonuses": ">=1.0.0",
                 "calendar": ">=1.0.0",
                 "procedures": ">=1.0.0",
-                "bi": ">=1.0.0"
+                "audio": ">=1.0.0",
+                "bi": ">=1.0.0",
+                "poll_speech": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -1479,8 +1596,49 @@
             }
         },
         {
+            "id": "poll_speech",
+            "version": "0.1.15",
+            "type": "product",
+            "name": {
+                "en": "Speech polls",
+                "ru": "Голосовые опросы"
+            },
+            "description": {
+                "en": "Oral feedback: “review asked” mark and filling polls from speech-analytics keys.",
+                "ru": "Устная обратная связь: отметка «собран отзыв» и заполнение опросов из ключей речевой аналитики."
+            },
+            "summary": {
+                "en": "Enable with poll_invites and audio_dicts. Calendar button + fill after Re-® from a score dictionary. Alpha.",
+                "ru": "Включайте вместе с poll_invites и audio_dicts. Кнопка на календаре + заполнение после Re-® по словарю оценок. Alpha."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "polls": ">=0.1.0",
+                "poll_invites": ">=0.1.0"
+            },
+            "optionalRequires": {
+                "audio": ">=1.0.0",
+                "audio_dicts": ">=1.0.0",
+                "audio_pipeline": ">=1.0.0",
+                "audio_reports": ">=1.0.0",
+                "calendar": ">=1.0.0",
+                "procedures": ">=1.0.0"
+            },
+            "catalog": {
+                "categories": [
+                    "communications",
+                    "audio"
+                ],
+                "maturity": "alpha",
+                "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/poll_speech.md"
+            }
+        },
+        {
             "id": "polls",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Polls",
@@ -1772,7 +1930,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "1.0.4",
+            "version": "1.0.5",
             "type": "product",
             "name": {
                 "en": "Staff reports",

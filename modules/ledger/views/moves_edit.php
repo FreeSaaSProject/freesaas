@@ -187,7 +187,7 @@ $postedTransferAccountTo = $convertOpen ? (int)($_POST['transfer_account_to'] ??
       <?php endif; ?>
     </div>
     <label class="ledger-sum-field"><?= te('ledger.moves.col.sum') ?>
-      <input type="number" name="summ" inputmode="decimal" step="0.01" min="0.01"
+      <input type="text" name="summ" inputmode="decimal" data-money-input autocomplete="off"
              value="<?= e((string)($row['summ'] ?? '')) ?>" required>
     </label>
   </div>

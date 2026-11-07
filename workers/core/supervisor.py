@@ -11,7 +11,14 @@ from typing import Any, Dict, List, Optional
 from . import metrics, status as status_mod
 from .config import enabled_plugins, load_host
 from .logs import rotate_if_huge
-from .paths import VENV_PYTHON, WORKERS_ROOT, ensure_var_dirs, log_path, pid_path
+from .paths import (
+    VENV_PYTHON,
+    WORKERS_ROOT,
+    ensure_var_dirs,
+    log_path,
+    pause_path,
+    pid_path,
+)
 from .plugin import PluginSpec, load_plugin
 
 
@@ -38,6 +45,26 @@ def write_pid(plugin_id: str, pid: int) -> None:
 
 def clear_pid(plugin_id: str) -> None:
     p = pid_path(plugin_id)
+    try:
+        if p.is_file():
+            p.unlink()
+    except OSError:
+        pass
+
+
+def is_paused(plugin_id: str) -> bool:
+    return pause_path(plugin_id).is_file()
+
+
+def set_paused(plugin_id: str, paused: bool) -> None:
+    ensure_var_dirs()
+    p = pause_path(plugin_id)
+    if paused:
+        try:
+            p.write_text(f"paused_at={int(time.time())}\n", encoding="utf-8")
+        except OSError:
+            pass
+        return
     try:
         if p.is_file():
             p.unlink()
@@ -73,11 +100,19 @@ def is_running(pid: int) -> bool:
         return False
 
 
-def stop_plugin(plugin_id: str, *, timeout: float = 8.0) -> str:
+def stop_plugin(plugin_id: str, *, timeout: float = 8.0, pause: bool = True) -> str:
+    """Stop a worker. pause=True (default) marks it so LaunchAgent boot will not revive it."""
+    if pause:
+        set_paused(plugin_id, True)
     pid = read_pid(plugin_id)
+    msgs: List[str] = []
     if not pid or not is_running(pid):
         clear_pid(plugin_id)
-        return f"{plugin_id}: not running"
+        spec = load_plugin(plugin_id)
+        if spec:
+            msgs.extend(_kill_orphan_workers(spec, keep_pid=0))
+        base = f"{plugin_id}: not running (paused)" if pause else f"{plugin_id}: not running"
+        return base if not msgs else f"{base}; " + "; ".join(msgs)
     try:
         if sys.platform == "win32":
             import psutil  # type: ignore
@@ -85,7 +120,11 @@ def stop_plugin(plugin_id: str, *, timeout: float = 8.0) -> str:
             p = psutil.Process(pid)
             p.terminate()
         else:
-            os.kill(pid, signal.SIGTERM)
+            # Workers start in a new session — signal the process group when possible.
+            try:
+                os.killpg(pid, signal.SIGTERM)
+            except OSError:
+                os.kill(pid, signal.SIGTERM)
     except Exception as e:  # noqa: BLE001
         clear_pid(plugin_id)
         return f"{plugin_id}: kill failed: {e}"
@@ -93,7 +132,15 @@ def stop_plugin(plugin_id: str, *, timeout: float = 8.0) -> str:
     while time.time() < deadline:
         if not is_running(pid):
             clear_pid(plugin_id)
-            return f"{plugin_id}: stopped pid={pid}"
+            spec = load_plugin(plugin_id)
+            if spec:
+                msgs.extend(_kill_orphan_workers(spec, keep_pid=0))
+            note = f"{plugin_id}: stopped pid={pid}"
+            if pause:
+                note += " (paused)"
+            if msgs:
+                note += "; " + "; ".join(msgs)
+            return note
         time.sleep(0.2)
     try:
         if sys.platform == "win32":
@@ -101,11 +148,22 @@ def stop_plugin(plugin_id: str, *, timeout: float = 8.0) -> str:
 
             psutil.Process(pid).kill()
         else:
-            os.kill(pid, signal.SIGKILL)
+            try:
+                os.killpg(pid, signal.SIGKILL)
+            except OSError:
+                os.kill(pid, signal.SIGKILL)
     except Exception:  # noqa: BLE001
         pass
     clear_pid(plugin_id)
-    return f"{plugin_id}: killed pid={pid}"
+    spec = load_plugin(plugin_id)
+    if spec:
+        msgs.extend(_kill_orphan_workers(spec, keep_pid=0))
+    note = f"{plugin_id}: killed pid={pid}"
+    if pause:
+        note += " (paused)"
+    if msgs:
+        note += "; " + "; ".join(msgs)
+    return note
 
 
 def _kill_orphan_workers(spec: PluginSpec, *, keep_pid: int = 0) -> List[str]:
@@ -141,8 +199,18 @@ def _kill_orphan_workers(spec: PluginSpec, *, keep_pid: int = 0) -> List[str]:
     return msgs
 
 
-def start_plugin(spec: PluginSpec, *, extra_args: Optional[List[str]] = None) -> str:
+def start_plugin(
+    spec: PluginSpec,
+    *,
+    extra_args: Optional[List[str]] = None,
+    clear_pause: bool = True,
+) -> str:
     ensure_var_dirs()
+    if clear_pause:
+        set_paused(spec.id, False)
+    elif is_paused(spec.id):
+        return f"{spec.id}: paused — skipped (Start in dashboard to resume)"
+
     existing = read_pid(spec.id)
     if existing and is_running(existing):
         orphans = _kill_orphan_workers(spec, keep_pid=existing)
@@ -277,6 +345,7 @@ def plugin_runtime(spec: PluginSpec, *, sample_cpu: bool = True) -> Dict[str, An
     if not running:
         clear_pid(spec.id) if pid else None
         pid = 0
+    paused = is_paused(spec.id)
     st = status_mod.read(spec.status_path())
     m = metrics.sample_pid(pid) if pid else {
         "pid": 0,
@@ -295,6 +364,7 @@ def plugin_runtime(spec: PluginSpec, *, sample_cpu: bool = True) -> Dict[str, An
         "version": spec.version,
         "pid": pid,
         "running": bool(running),
+        "paused": bool(paused),
         "cpu_percent": m.get("cpu_percent"),
         "rss_mb": m.get("rss_mb"),
         "activity": activity,
@@ -323,17 +393,20 @@ def all_runtime(*, sample_cpu: bool = True) -> Dict[str, Any]:
     }
 
 
-def start_enabled() -> List[str]:
-    return [start_plugin(s) for s in enabled_plugins()]
+def start_enabled(*, clear_pause: bool = False) -> List[str]:
+    """Host/LaunchAgent boot: do not clear intentional pauses (clear_pause=False)."""
+    return [start_plugin(s, clear_pause=clear_pause) for s in enabled_plugins()]
 
 
 def stop_enabled() -> List[str]:
-    return [stop_plugin(s.id) for s in enabled_plugins()]
+    return [stop_plugin(s.id, pause=True) for s in enabled_plugins()]
 
 
 def restart_plugin(plugin_id: str) -> str:
-    stop_plugin(plugin_id)
+    # Restart is intentional — clear pause, then start.
+    stop_plugin(plugin_id, pause=False)
+    set_paused(plugin_id, False)
     spec = load_plugin(plugin_id)
     if not spec:
         return f"{plugin_id}: unknown plugin"
-    return start_plugin(spec)
+    return start_plugin(spec, clear_pause=True)

@@ -104,6 +104,8 @@ final class Csrf
             '/cron/tick',
             '/cron/status',
             '/clientics/webhook',
+            '/bitrix/webhook',
+            '/amocrm/webhook',
             '/gcal/oauth',
             // Machine OAuth endpoints (no browser session CSRF). Consent UI is NOT exempt.
             '/oauth/token',
@@ -127,6 +129,8 @@ final class Csrf
             '/banks/jobs/',
             '/yclients/jobs/',
             '/clientics/jobs/',
+            '/bitrix/jobs/',
+            '/amocrm/jobs/',
             '/core/jobs/',
             '/llm/api/',
         ];

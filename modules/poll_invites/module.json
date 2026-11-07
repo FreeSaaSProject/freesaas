@@ -2,7 +2,7 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.1.11",
+    "version": "0.1.24",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -13,7 +13,9 @@
         "bonuses": ">=1.0.0",
         "calendar": ">=1.0.0",
         "procedures": ">=1.0.0",
-        "bi": ">=1.0.0"
+        "audio": ">=1.0.0",
+        "bi": ">=1.0.0",
+        "poll_speech": ">=0.1.0"
     },
     "provides": [
         "poll_invites.instances"
@@ -36,8 +38,10 @@
     "routes": {
         "pages": [
             "/poll-invites",
+            "/poll-invites/unviewed",
             "/poll-invites/new",
             "/poll-invites/oral-asked",
+            "/poll-invites/{id}",
             "/poll-invites/{id}/edit",
             "/poll-invites/{id}/fill"
         ]
@@ -50,13 +54,52 @@
                 "method": "GET",
                 "path": "/poll-invites",
                 "permission": "poll_invites.view",
-                "description": "List poll invites; filters: q, id_poll, progress, id_operator"
+                "description": "List poll invites; filters: q, id_poll, progress, id_operator, id_resp",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "q": { "type": "string" },
+                        "id_poll": { "type": "integer" },
+                        "progress": { "type": "string" },
+                        "id_operator": { "type": "integer" },
+                        "id_resp": { "type": "integer" }
+                    }
+                }
+            },
+            {
+                "id": "poll_invites.unviewed",
+                "method": "GET",
+                "path": "/poll-invites/unviewed",
+                "permission": "poll_invites.view",
+                "description": "Group view of completed invites not yet marked viewed by the current responsible user"
+            },
+            {
+                "id": "poll_invites.unviewed.mark",
+                "method": "POST",
+                "path": "/poll-invites/unviewed",
+                "permission": "poll_invites.view",
+                "side_effect": "write",
+                "description": "Mark invites viewed (body: ids[] or mark_all=1); writes RESP_USERS_VIEWED",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ids": {
+                            "type": "array",
+                            "items": { "type": "integer" }
+                        },
+                        "mark_all": {
+                            "type": "string",
+                            "description": "1 = mark all unviewed for current user"
+                        }
+                    }
+                }
             },
             {
                 "id": "poll_invites.create",
                 "method": "POST",
                 "path": "/poll-invites/new",
                 "permission": "poll_invites.edit",
+                "side_effect": "write",
                 "description": "Create a poll invite"
             },
             {
@@ -64,19 +107,44 @@
                 "method": "POST",
                 "path": "/poll-invites/oral-asked",
                 "permission": "poll_invites.edit",
-                "description": "Mark oral review asked for a procedure (creates invite with ID_PROC, empty CODE); body: id_proc, optional id_poll, ret"
+                "side_effect": "write",
+                "description": "Mark oral review asked for a procedure (creates invite with ID_PROC, empty CODE)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id_proc": { "type": "integer" },
+                        "id_poll": { "type": "integer" },
+                        "ret": { "type": "string" }
+                    },
+                    "required": ["id_proc"]
+                }
             },
             {
                 "id": "poll_invites.fill",
                 "method": "POST",
                 "path": "/poll-invites/{id}/fill",
                 "permission": "poll_invites.edit",
-                "description": "Save staff fill answers for an invite"
+                "side_effect": "write",
+                "description": "Save staff fill answers for an invite",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "integer" }
+                    },
+                    "required": ["id"]
+                }
             }
         ]
     },
     "jobs": [],
     "menu": [
+        {
+            "group": "polls.menu.group",
+            "num": 15,
+            "path": "/poll-invites/unviewed",
+            "title": "poll_invites.menu.unviewed",
+            "kind": "work"
+        },
         {
             "group": "polls.menu.group",
             "num": 20,
@@ -93,10 +161,9 @@
     "hooks": {
         "subscribe": [
             "core.notices.collect",
-            "calendar.timeline.enrich",
+            "bi.datasets",
             "polls.settings.sections",
-            "polls.settings.save",
-            "bi.datasets"
+            "polls.settings.save"
         ],
         "publish": [
             "poll_invites.created",
@@ -124,7 +191,7 @@
                 "id": "config",
                 "title": "poll_invites.setup.step.config",
                 "description": "poll_invites.setup.step.config_help",
-                "href": "/poll_invites/settings",
+                "href": "/polls/settings",
                 "ask_user": "poll_invites.setup.ask.config",
                 "choices": [
                     {

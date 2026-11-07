@@ -32,7 +32,10 @@ if str(_REPO_ROOT) not in sys.path:
 try:
     from workers.core.status import activity as make_activity
     from workers.core.status import utc_iso
+    from workers.core.backoff import ServerBackoff, is_backoff_exception
 except ImportError:  # pragma: no cover
+    ServerBackoff = None  # type: ignore
+    is_backoff_exception = None  # type: ignore
 
     def utc_iso() -> str:
         return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -963,20 +966,43 @@ def main() -> int:
     idle = int(LOOP.get("sleep_seconds_idle") or 5)
     busy = int(LOOP.get("sleep_seconds_run") or 1)
     hello_every = float(LOOP.get("hello_every_sec") or 30)
+    server_bo = ServerBackoff(name="freesaas") if ServerBackoff is not None else None
+    if server_bo is not None:
+        log.info("FreeSaaS backoff: 3m→5m→10m→30m→1h→2h on refuse/timeout")
     try:
         while True:
+            if server_bo is not None and server_bo.active():
+                left = int(server_bo.remaining())
+                detail = f"FreeSaaS backoff {left}s"
+                if server_bo.last_error:
+                    detail += f": {server_bo.last_error[:120]}"
+                set_activity("backoff", detail)
+                log.warning("%s", detail)
+                server_bo.sleep_slice(30.0)
+                continue
+
             now = time.time()
             if now - last_hello >= hello_every:
                 try:
                     set_activity("hello", "heartbeat")
                     hello(cameras)
                     last_hello = now
+                    if server_bo is not None:
+                        server_bo.success()
                     set_activity("idle", "waiting for claim")
                 except Exception as e:  # noqa: BLE001
                     log.warning("hello failed: %s", e)
                     _STATUS["ok"] = False
                     set_activity("error", f"hello: {e}")
-            if LIVE.get("push_enabled") and cameras:
+                    if (
+                        server_bo is not None
+                        and is_backoff_exception is not None
+                        and is_backoff_exception(e)
+                    ):
+                        delay = server_bo.fail(str(e))
+                        log.warning("FreeSaaS unreachable — backoff %ss", int(delay))
+                        continue
+            if LIVE.get("push_enabled") and cameras and not (server_bo and server_bo.active()):
                 fps = float(LIVE.get("fps") or 2)
                 if now - last_live >= max(0.2, 1.0 / max(0.1, fps)):
                     ids = set(int(x) for x in (LIVE.get("camera_ids") or []))
@@ -992,9 +1018,19 @@ def main() -> int:
             try:
                 set_activity("claim", "polling FreeSaaS")
                 job = claim()
+                if server_bo is not None:
+                    server_bo.success()
             except Exception as e:  # noqa: BLE001
                 log.warning("claim failed: %s", e)
                 set_activity("error", f"claim: {e}")
+                if (
+                    server_bo is not None
+                    and is_backoff_exception is not None
+                    and is_backoff_exception(e)
+                ):
+                    delay = server_bo.fail(str(e))
+                    log.warning("FreeSaaS unreachable — backoff %ss", int(delay))
+                    continue
                 time.sleep(idle)
                 continue
             if not job:

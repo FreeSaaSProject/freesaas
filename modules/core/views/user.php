@@ -37,22 +37,22 @@ $menuPreview = is_array($menuPreview ?? null) ? $menuPreview : null;
       <?php if ($canManageAuth): ?>
       <form method="post" class="inline-form" action="/users/<?= $uid ?>">
         <input type="hidden" name="action" value="login_link">
-        <button type="submit" class="btn"><?= te('core.user.login_link_create') ?></button>
+        <button type="submit" class="btn-secondary"><?= te('core.user.login_link_create') ?></button>
       </form>
       <form method="post" class="inline-form" action="/users/<?= $uid ?>">
         <input type="hidden" name="action" value="unlock">
-        <button type="submit" class="btn"><?= te('core.user.unlock') ?></button>
+        <button type="submit" class="btn-secondary"><?= te('core.user.unlock') ?></button>
       </form>
       <form method="post" class="inline-form" action="/users/<?= $uid ?>"
             onsubmit="return confirm(<?= tj('core.user.logout_all_confirm') ?>)">
         <input type="hidden" name="action" value="logout_all">
-        <button type="submit" class="btn"><?= te('core.user.logout_all') ?></button>
+        <button type="submit" class="btn-secondary"><?= te('core.user.logout_all') ?></button>
       </form>
       <?php endif; ?>
       <?php if ($canBotLinkCode): ?>
       <form method="post" class="inline-form" action="/users/<?= $uid ?>">
         <input type="hidden" name="action" value="bot_link_code">
-        <button type="submit" class="btn"><?= te('core.user.bot_link_code') ?></button>
+        <button type="submit" class="btn-secondary"><?= te('core.user.bot_link_code') ?></button>
       </form>
       <?php endif; ?>
       <?php if ($canEdit): ?>
@@ -75,6 +75,29 @@ $menuPreview = is_array($menuPreview ?? null) ? $menuPreview : null;
       <?php endif; ?>
       <dt><?= te('core.user.email') ?></dt><dd><?= e((string)($user['mail'] ?: '—')) ?></dd>
       <dt><?= te('core.user.phone') ?></dt><dd><?= e((string)($user['tel'] ?: '—')) ?></dd>
+      <?php
+        $bdayTs = (int)($user['bday'] ?? 0);
+        $bdayCivil = ($bdayTs > 0 && Database::columnExists('base_users', 'bday'))
+          ? UsersRepository::bdayCivilYmd($bdayTs)
+          : '';
+      ?>
+      <?php if (Database::columnExists('base_users', 'bday')): ?>
+      <dt><?= te('core.user.bday') ?></dt>
+      <dd>
+        <?php if ($bdayCivil !== ''): ?>
+          <?php
+            $bdayShow = substr($bdayCivil, 8, 2) . '.' . substr($bdayCivil, 5, 2) . '.' . substr($bdayCivil, 0, 4);
+            $age = UsersRepository::ageOnDate($bdayTs, date('Y-m-d'));
+          ?>
+          <?= e(t('core.user.bday_value', ['date' => $bdayShow, 'age' => $age])) ?>
+          <?php if (Database::columnExists('base_users', 'show_bday_in_cal')): ?>
+            <span class="muted"> · <?= !empty($user['show_bday_in_cal']) ? te('core.user.bday_in_cal_yes') : te('core.user.bday_in_cal_no') ?></span>
+          <?php endif; ?>
+        <?php else: ?>
+          —
+        <?php endif; ?>
+      </dd>
+      <?php endif; ?>
       <dt><?= te('core.user.active') ?></dt><dd><?= ((string)$user['enabled'] === '1') ? te('core.common.yes') : te('core.common.no') ?></dd>
       <dt><?= te('core.user.role') ?></dt><dd><?= e($statusName) ?></dd>
       <?php if ($partnerStatusName !== ''): ?>

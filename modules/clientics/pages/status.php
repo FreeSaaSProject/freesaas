@@ -6,12 +6,7 @@ $wantsJson = AgentHttp::wantsJson();
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string)($_POST['action'] ?? $_GET['action'] ?? '');
     if ($action === 'ping') {
-        if (!ClienticsConfig::pullEnabled()) {
-            if ($wantsJson) {
-                AgentHttp::error('pull disabled', 503);
-                return;
-            }
-        } elseif (!ClienticsConfig::apiReady()) {
+        if (!ClienticsConfig::apiReady()) {
             if ($wantsJson) {
                 AgentHttp::error('api config incomplete — POST /clientics/settings first', 400, [
                     'setup' => ClienticsConfig::agentSetup(),
@@ -45,8 +40,26 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 return;
             }
         }
+    } elseif ($action === 'inventory') {
+        if (!ClienticsConfig::apiReady()) {
+            if ($wantsJson) {
+                AgentHttp::error('api config incomplete', 400, ['setup' => ClienticsConfig::agentSetup()]);
+                return;
+            }
+        } else {
+            $inv = ClienticsApiInventory::probe(true);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => !empty($inv['ok']),
+                    'action' => 'inventory',
+                    'inventory' => $inv,
+                    'setup' => ClienticsConfig::agentSetup(),
+                ]);
+                return;
+            }
+        }
     } elseif ($wantsJson) {
-        AgentHttp::error('unknown action; use action=ping', 400);
+        AgentHttp::error('unknown action; use action=ping|inventory', 400);
         return;
     }
 }
@@ -54,11 +67,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $payload = [
     'ok' => true,
     'pull_enabled' => ClienticsConfig::pullEnabled(),
+    'push_enabled' => ClienticsConfig::pushEnabled(),
+    'appointment_sot' => ClienticsConfig::appointmentSot(),
+    'default_operator_id' => ClienticsConfig::defaultOperatorId(),
     'api_ready' => ClienticsConfig::apiReady(),
     'worker_token_configured' => ClienticsConfig::workerTokenConfigured(),
     'webhook_token_configured' => ClienticsConfig::webhookTokenConfigured(),
     'account_id' => ClienticsConfig::accountId(),
+    'outbox_pending' => ClienticsOutboxRepository::pendingCount(),
     'map_counts' => ClienticsIdMapRepository::countsByEntity(ClienticsConfig::accountId()),
+    'inventory' => ClienticsApiInventory::last(),
     'jobs' => ClienticsSyncStateRepository::all(),
     'setup' => ClienticsConfig::agentSetup(),
 ];

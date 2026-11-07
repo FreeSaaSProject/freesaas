@@ -44,6 +44,7 @@ return [
     'calendar.month.nov' => 'Ноя',
     'calendar.month.dec' => 'Дек',
     'calendar.day.title' => 'Календарь на {date}',
+    'calendar.day.birthday' => '!!!ДР №{age}:',
     'calendar.day.aria' => 'Календарь',
     'calendar.day.prev' => 'Предыдущий день',
     'calendar.day.next' => 'Следующий день',

@@ -2,7 +2,7 @@
     "id": "clientics",
     "name": "clientics.module.name",
     "description": "clientics.module.description",
-    "version": "0.1.4",
+    "version": "0.2.0",
     "type": "product",
     "catalog": {
         "categories": [
@@ -25,10 +25,13 @@
     "optionalRequires": {
         "calendar": ">=1.0.0",
         "procedures": ">=1.0.0",
-        "workweeks": ">=1.0.0"
+        "workweeks": ">=1.0.0",
+        "crm": ">=0.1.0",
+        "catalog": ">=1.0.0"
     },
     "provides": [
-        "clientics.pull"
+        "clientics.pull",
+        "clientics.push"
     ],
     "migrations": "migrations/",
     "uninstall": {
@@ -55,6 +58,10 @@
             "/clientics/settings",
             "/clientics/jobs/ping",
             "/clientics/jobs/import-clients",
+            "/clientics/jobs/import-appointments",
+            "/clientics/jobs/import-refs",
+            "/clientics/jobs/outbox",
+            "/clientics/jobs/inventory",
             "/clientics/webhook"
         ]
     },
@@ -67,7 +74,7 @@
                 "path": "/clientics",
                 "permission": "clientics.view",
                 "side_effect": "read",
-                "description": "Status + setup checklist (missing fields, next_steps). Secrets never returned."
+                "description": "Status + setup + inventory snapshot + outbox pending. Secrets never returned."
             },
             {
                 "id": "clientics.ping",
@@ -75,19 +82,27 @@
                 "path": "/clientics",
                 "permission": "clientics.view",
                 "side_effect": "write",
-                "description": "Session ping of Clientics API after tokens saved. Body: action=ping. No worker_token needed.",
+                "description": "Session ping of Clientics API. Body: action=ping.",
                 "parameters": {
                     "type": "object",
-                    "required": [
-                        "action"
-                    ],
+                    "required": ["action"],
                     "properties": {
-                        "action": {
-                            "type": "string",
-                            "enum": [
-                                "ping"
-                            ]
-                        }
+                        "action": {"type": "string", "enum": ["ping"]}
+                    }
+                }
+            },
+            {
+                "id": "clientics.inventory",
+                "method": "POST",
+                "path": "/clientics",
+                "permission": "clientics.view",
+                "side_effect": "write",
+                "description": "Probe Restapi list modules (incl. MedicalCards/WaitingList candidates). Body: action=inventory.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["inventory"]}
                     }
                 }
             },
@@ -97,45 +112,26 @@
                 "path": "/clientics/import",
                 "permission": "clientics.import",
                 "side_effect": "read",
-                "description": "Last clients import report + api_ready flags"
+                "description": "Last import reports + Sot/push flags"
             },
             {
-                "id": "clientics.import.clients",
+                "id": "clientics.import.run",
                 "method": "POST",
                 "path": "/clientics/import",
                 "permission": "clientics.import",
                 "side_effect": "write",
-                "description": "Pull clients by day range into base_clients. Prefer dry_run=1 first. Max 400 days.",
+                "description": "Pull/sync action: clients|appointments|users|services|waiting_list|inventory|outbox. Prefer dry_run=1 for pulls.",
                 "parameters": {
                     "type": "object",
-                    "required": [
-                        "action",
-                        "from",
-                        "to"
-                    ],
+                    "required": ["action"],
                     "properties": {
                         "action": {
                             "type": "string",
-                            "enum": [
-                                "clients"
-                            ]
+                            "enum": ["clients", "appointments", "users", "services", "waiting_list", "inventory", "outbox"]
                         },
-                        "from": {
-                            "type": "string",
-                            "description": "YYYY-MM-DD"
-                        },
-                        "to": {
-                            "type": "string",
-                            "description": "YYYY-MM-DD"
-                        },
-                        "dry_run": {
-                            "type": "string",
-                            "enum": [
-                                "0",
-                                "1"
-                            ],
-                            "description": "1 = count only, no DB writes"
-                        }
+                        "from": {"type": "string", "description": "YYYY-MM-DD (clients/appointments)"},
+                        "to": {"type": "string", "description": "YYYY-MM-DD"},
+                        "dry_run": {"type": "string", "enum": ["0", "1"]}
                     }
                 }
             },
@@ -145,7 +141,7 @@
                 "path": "/clientics/settings",
                 "permission": "",
                 "side_effect": "read",
-                "description": "Read settings (secrets masked) + setup checklist. Requires SUPERADMIN_ACCESS."
+                "description": "Read settings (secrets masked) + setup. SUPERADMIN_ACCESS."
             },
             {
                 "id": "clientics.settings.save",
@@ -153,49 +149,22 @@
                 "path": "/clientics/settings",
                 "permission": "",
                 "side_effect": "write",
-                "description": "Save cfg/modules/clientics.ini. Empty access_token/worker_token/webhook_token keeps previous. SUPERADMIN_ACCESS.",
+                "description": "Save cfg/modules/clientics.ini. Empty secrets keep previous. SUPERADMIN_ACCESS.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "pull_enabled": {
-                            "type": "string",
-                            "enum": [
-                                "0",
-                                "1"
-                            ]
-                        },
-                        "domain": {
-                            "type": "string",
-                            "description": "Default klientiks.ru"
-                        },
-                        "account_id": {
-                            "type": "string"
-                        },
-                        "user_id": {
-                            "type": "string"
-                        },
-                        "access_token": {
-                            "type": "string",
-                            "description": "API token; blank keeps current"
-                        },
-                        "timeout_sec": {
-                            "type": "integer",
-                            "minimum": 5,
-                            "maximum": 120
-                        },
-                        "page_limit": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "maximum": 500
-                        },
-                        "worker_token": {
-                            "type": "string",
-                            "description": "Cron X-Clientics-Token; blank keeps current"
-                        },
-                        "webhook_token": {
-                            "type": "string",
-                            "description": "Webhook X-Clientics-Webhook-Token; blank keeps current"
-                        }
+                        "pull_enabled": {"type": "string", "enum": ["0", "1"]},
+                        "push_enabled": {"type": "string", "enum": ["0", "1"]},
+                        "appointment_sot": {"type": "string", "enum": ["clientics", "freesaas"]},
+                        "default_operator_id": {"type": "integer", "minimum": 0},
+                        "domain": {"type": "string"},
+                        "account_id": {"type": "string"},
+                        "user_id": {"type": "string"},
+                        "access_token": {"type": "string"},
+                        "timeout_sec": {"type": "integer", "minimum": 5, "maximum": 120},
+                        "page_limit": {"type": "integer", "minimum": 1, "maximum": 500},
+                        "worker_token": {"type": "string"},
+                        "webhook_token": {"type": "string"}
                     }
                 }
             },
@@ -206,7 +175,7 @@
                 "permission": "public",
                 "side_effect": "write",
                 "assistant": false,
-                "description": "Cron ping; auth X-Clientics-Token or ?token="
+                "description": "Cron ping; auth X-Clientics-Token"
             },
             {
                 "id": "clientics.jobs.import_clients",
@@ -215,13 +184,53 @@
                 "permission": "public",
                 "side_effect": "write",
                 "assistant": false,
-                "description": "Cron import clients; auth X-Clientics-Token; query from/to/dry_run"
+                "description": "Cron import clients; X-Clientics-Token; from/to/dry_run"
+            },
+            {
+                "id": "clientics.jobs.import_appointments",
+                "method": "POST",
+                "path": "/clientics/jobs/import-appointments",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Cron import appointments; X-Clientics-Token"
+            },
+            {
+                "id": "clientics.jobs.import_refs",
+                "method": "POST",
+                "path": "/clientics/jobs/import-refs",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Cron users/services/waiting_list; action=all|users|services|waiting_list"
+            },
+            {
+                "id": "clientics.jobs.outbox",
+                "method": "POST",
+                "path": "/clientics/jobs/outbox",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Cron flush outbox; X-Clientics-Token"
+            },
+            {
+                "id": "clientics.jobs.inventory",
+                "method": "POST",
+                "path": "/clientics/jobs/inventory",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Cron API inventory probe; X-Clientics-Token"
             }
         ]
     },
     "jobs": [
         "/clientics/jobs/ping",
-        "/clientics/jobs/import-clients"
+        "/clientics/jobs/import-clients",
+        "/clientics/jobs/import-appointments",
+        "/clientics/jobs/import-refs",
+        "/clientics/jobs/outbox",
+        "/clientics/jobs/inventory"
     ],
     "menu": [
         {
@@ -249,11 +258,17 @@
     "configSchema": [],
     "tables": [
         "base_clientics_id_map",
-        "base_clientics_sync_state"
+        "base_clientics_sync_state",
+        "base_clientics_outbox",
+        "base_clientics_webhook_events"
     ],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "clients.created",
+            "clients.updated",
+            "calendar.event.saved"
+        ],
         "publish": []
     },
     "bulkActions": [],

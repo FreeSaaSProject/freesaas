@@ -18,7 +18,7 @@ final class PollInvitesRepository
 
     /**
      * @param array{
-     *   q?:string,id_poll?:int,progress?:string,id_operator?:int,
+     *   q?:string,id_poll?:int,progress?:string,id_operator?:int,id_resp?:int,
      *   order?:string,limit?:int,offset?:int
      * } $opts
      * @return array{items:list<array<string,mixed>>,total:int}
@@ -31,6 +31,7 @@ final class PollInvitesRepository
         $pdo = Database::pdo();
         $where = ['1=1'];
         $params = [];
+        $hasProcStaff = Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR');
 
         $q = trim((string)($opts['q'] ?? ''));
         if ($q !== '') {
@@ -45,6 +46,18 @@ final class PollInvitesRepository
             $params[] = $pollId;
         }
         $op = (int)($opts['id_operator'] ?? 0);
+        $respId = (int)($opts['id_resp'] ?? 0);
+        if ($respId > 0) {
+            if ($hasProcStaff) {
+                $where[] = '(i.ID_PROC_OPERATOR = ? OR i.ID_PROC_ADMIN = ? OR i.RESP_USERS LIKE ?)';
+                $params[] = $respId;
+                $params[] = $respId;
+                $params[] = '%#' . $respId . '#%';
+            } else {
+                $where[] = 'i.RESP_USERS LIKE ?';
+                $params[] = '%#' . $respId . '#%';
+            }
+        }
         $uidScope = (int)($opts['user_id'] ?? Auth::userId());
         $progress = (string)($opts['progress'] ?? '');
         $now = time();
@@ -92,14 +105,37 @@ final class PollInvitesRepository
             ? 'LEFT JOIN base_polls p ON p.ID = i.ID_POLL'
             : '';
         $pollName = $joinPoll !== '' ? 'p.NAME AS poll_name' : "'' AS poll_name";
+        $joinProc = Database::tableExists('base_procedures')
+            ? 'LEFT JOIN base_procedures pr ON pr.ID = i.ID_PROC'
+            : '';
+        $joinGood = ($joinProc !== '' && Database::tableExists('base_products'))
+            ? 'LEFT JOIN base_products g ON g.id = pr.ID_GOOD'
+            : '';
+        $procCols = $joinProc !== ''
+            ? 'pr.DTSTART AS proc_dtstart, pr.DTEND AS proc_dtend,'
+                . ($joinGood !== '' ? ' g.name AS proc_product_name,' : " '' AS proc_product_name,")
+            : 'NULL AS proc_dtstart, NULL AS proc_dtend, \'\' AS proc_product_name,';
+        $scoreCols = $hasProcStaff
+            ? 'i.ID_PROC_OPERATOR AS id_proc_operator, i.ID_PROC_ADMIN AS id_proc_admin,
+               i.SCORE_STAFF AS score_staff, i.SCORE_SERVICE AS score_service,
+               i.RESP_USERS AS resp_users,'
+            : '0 AS id_proc_operator, 0 AS id_proc_admin,
+               NULL AS score_staff, NULL AS score_service,
+               i.RESP_USERS AS resp_users,';
 
-        $sql = "SELECT i.ID AS id, i.ID_POLL AS id_poll, i.ID_USER AS id_user,
+        $sql = "SELECT i.ID AS id, i.ID_POLL AS id_poll, i.ID_USER AS id_user, i.ID_PROC AS id_proc,
                        i.CODE AS code, i.DT_CREATE AS dt_create, i.DT_EXPIRE AS dt_expire,
                        i.DT_COMPLETED AS dt_completed, i.STATUS AS status,
                        i.ID_OPERATOR_LINKED AS id_operator_linked,
+                       i.DATA_TEXT AS data_text, i.DATA_OPTS AS data_opts, i.LOG AS log,
+                       i.RESP_USERS_VIEWED AS resp_users_viewed,
+                       {$scoreCols}
+                       {$procCols}
                        $pollName
                 FROM base_poll_invites i
                 $joinPoll
+                $joinProc
+                $joinGood
                 WHERE $sqlWhere ORDER BY $order";
         if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
@@ -107,6 +143,343 @@ final class PollInvitesRepository
         $st = $pdo->prepare($sql);
         $st->execute($params);
         return ['items' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [], 'total' => $total];
+    }
+
+    /**
+     * Record ids referenced in speech fill log (`record=123`).
+     *
+     * @return list<int>
+     */
+    public static function speechRecordIdsFromLog(string $log): array
+    {
+        if ($log === '' || !preg_match_all('/\brecord=(\d+)\b/', $log, $m)) {
+            return [];
+        }
+        $ids = [];
+        foreach ($m[1] as $raw) {
+            $id = (int)$raw;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        return array_values($ids);
+    }
+
+    /** First non-empty DATA_TEXT value (speech snippet / free text). */
+    public static function transcriptSnippet($dataText, int $maxLen = 0): string
+    {
+        $decoded = is_array($dataText)
+            ? $dataText
+            : (class_exists('PollAnswersCodec', false)
+                ? PollAnswersCodec::decode((string)$dataText)
+                : []);
+        if (!is_array($decoded)) {
+            return '';
+        }
+        $snippet = '';
+        foreach ($decoded as $tv) {
+            $tv = trim((string)$tv);
+            if ($tv !== '') {
+                $snippet = $tv;
+                break;
+            }
+        }
+        if ($snippet === '' || $maxLen < 1) {
+            return $snippet;
+        }
+        if (function_exists('mb_substr')) {
+            return mb_strlen($snippet) > $maxLen
+                ? mb_substr($snippet, 0, $maxLen) . '…'
+                : $snippet;
+        }
+        return strlen($snippet) > $maxLen ? substr($snippet, 0, $maxLen) . '…' : $snippet;
+    }
+
+    public static function isViewedByUser(string $respUsersViewed, int $uid): bool
+    {
+        if ($uid < 1) {
+            return false;
+        }
+        return strpos($respUsersViewed, '#' . $uid . '#') !== false;
+    }
+
+    public static function isResponsibleUser(array $invite, int $uid): bool
+    {
+        if ($uid < 1) {
+            return false;
+        }
+        if ((int)($invite['id_proc_operator'] ?? 0) === $uid
+            || (int)($invite['id_proc_admin'] ?? 0) === $uid
+        ) {
+            return true;
+        }
+        $resp = (string)($invite['resp_users'] ?? '');
+        return $resp !== '' && strpos($resp, '#' . $uid . '#') !== false;
+    }
+
+    /**
+     * Completed invites where $uid is responsible and has not marked viewed yet.
+     *
+     * @param array{limit?:int,offset?:int} $opts
+     * @return array{items:list<array<string,mixed>>,total:int}
+     */
+    public static function listUnviewedForUser(int $uid, array $opts = []): array
+    {
+        if ($uid < 1 || !Database::tableExists('base_poll_invites')) {
+            return ['items' => [], 'total' => 0];
+        }
+        $pdo = Database::pdo();
+        $token = '%#' . $uid . '#%';
+        $hasProcStaff = Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR');
+        $respSql = $hasProcStaff
+            ? '(i.RESP_USERS LIKE ? OR i.ID_PROC_OPERATOR = ? OR i.ID_PROC_ADMIN = ?)'
+            : 'i.RESP_USERS LIKE ?';
+        $where = 'i.DT_COMPLETED > 0 AND ' . $respSql
+            . " AND (i.RESP_USERS_VIEWED = '' OR i.RESP_USERS_VIEWED NOT LIKE ?)";
+        $params = $hasProcStaff
+            ? [$token, $uid, $uid, $token]
+            : [$token, $token];
+
+        $stc = $pdo->prepare("SELECT COUNT(*) FROM base_poll_invites i WHERE $where");
+        $stc->execute($params);
+        $total = (int)$stc->fetchColumn();
+
+        $limit = max(0, (int)($opts['limit'] ?? 100));
+        $offset = max(0, (int)($opts['offset'] ?? 0));
+        $joinPoll = Database::tableExists('base_polls')
+            ? 'LEFT JOIN base_polls p ON p.ID = i.ID_POLL'
+            : '';
+        $pollName = $joinPoll !== '' ? 'p.NAME AS poll_name' : "'' AS poll_name";
+        $joinProc = Database::tableExists('base_procedures')
+            ? 'LEFT JOIN base_procedures pr ON pr.ID = i.ID_PROC'
+            : '';
+        $joinGood = ($joinProc !== '' && Database::tableExists('base_products'))
+            ? 'LEFT JOIN base_products g ON g.id = pr.ID_GOOD'
+            : '';
+        $procCols = $joinProc !== ''
+            ? 'pr.DTSTART AS proc_dtstart, pr.DTEND AS proc_dtend,'
+                . ($joinGood !== '' ? ' g.name AS proc_product_name,' : " '' AS proc_product_name,")
+            : 'NULL AS proc_dtstart, NULL AS proc_dtend, \'\' AS proc_product_name,';
+        $scoreCols = $hasProcStaff
+            ? 'i.ID_PROC_OPERATOR AS id_proc_operator, i.ID_PROC_ADMIN AS id_proc_admin,
+               i.SCORE_STAFF AS score_staff, i.SCORE_SERVICE AS score_service,'
+            : '0 AS id_proc_operator, 0 AS id_proc_admin, NULL AS score_staff, NULL AS score_service,';
+
+        $sql = "SELECT i.ID AS id, i.ID_POLL AS id_poll, i.ID_USER AS id_user, i.ID_PROC AS id_proc,
+                       i.DT_CREATE AS dt_create, i.DT_COMPLETED AS dt_completed,
+                       i.DATA_OPTS AS data_opts, i.DATA_TEXT AS data_text, i.LOG AS log,
+                       i.RESP_USERS AS resp_users, i.RESP_USERS_VIEWED AS resp_users_viewed,
+                       {$scoreCols}
+                       {$procCols}
+                       $pollName
+                FROM base_poll_invites i
+                $joinPoll
+                $joinProc
+                $joinGood
+                WHERE $where
+                ORDER BY i.DT_COMPLETED DESC, i.ID DESC";
+        if ($limit > 0) {
+            $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
+        }
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        return ['items' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [], 'total' => $total];
+    }
+
+    public static function countUnviewedForUser(int $uid): int
+    {
+        if ($uid < 1 || !Database::tableExists('base_poll_invites')) {
+            return 0;
+        }
+        $token = '%#' . $uid . '#%';
+        $hasProcStaff = Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR');
+        $respSql = $hasProcStaff
+            ? '(RESP_USERS LIKE ? OR ID_PROC_OPERATOR = ? OR ID_PROC_ADMIN = ?)'
+            : 'RESP_USERS LIKE ?';
+        $sql = 'SELECT COUNT(*) FROM base_poll_invites WHERE DT_COMPLETED > 0 AND '
+            . $respSql
+            . " AND (RESP_USERS_VIEWED = '' OR RESP_USERS_VIEWED NOT LIKE ?)";
+        $params = $hasProcStaff
+            ? [$token, $uid, $uid, $token]
+            : [$token, $token];
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        return (int)$st->fetchColumn();
+    }
+
+    /**
+     * Mark invites as viewed by responsible user (appends #uid# to RESP_USERS_VIEWED).
+     *
+     * @param list<int> $ids
+     */
+    public static function markViewedByUser(array $ids, int $uid): int
+    {
+        if ($uid < 1 || !Database::tableExists('base_poll_invites')) {
+            return 0;
+        }
+        $token = '#' . $uid . '#';
+        $done = 0;
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            'SELECT ID AS id, RESP_USERS AS resp_users, RESP_USERS_VIEWED AS resp_users_viewed,
+                    ' . (Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR')
+                ? 'ID_PROC_OPERATOR AS id_proc_operator, ID_PROC_ADMIN AS id_proc_admin'
+                : '0 AS id_proc_operator, 0 AS id_proc_admin') . '
+             FROM base_poll_invites WHERE ID = ? LIMIT 1'
+        );
+        $upd = $pdo->prepare(
+            'UPDATE base_poll_invites SET RESP_USERS_VIEWED = ? WHERE ID = ?'
+        );
+        foreach ($ids as $id) {
+            $id = (int)$id;
+            if ($id < 1) {
+                continue;
+            }
+            $st->execute([$id]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if (!$row || !self::isResponsibleUser($row, $uid)) {
+                continue;
+            }
+            $viewed = (string)($row['resp_users_viewed'] ?? '');
+            if (self::isViewedByUser($viewed, $uid)) {
+                continue;
+            }
+            $viewed = trim($viewed) === '' ? $token : (rtrim($viewed, ',') . ',' . $token);
+            $upd->execute([$viewed, $id]);
+            $done++;
+        }
+        return $done;
+    }
+
+    /**
+     * Executor/admin + overall score + procedure context for invite card / list.
+     *
+     * Oral channel asks one overall rating; SCORE_STAFF/SERVICE stay denormalized copies.
+     *
+     * @param array<string,mixed> $invite
+     * @param array<int,string> $staffNames
+     * @return array{
+     *   id_proc:int,
+     *   proc_dtstart:int,
+     *   proc_dtend:int,
+     *   proc_product_name:string,
+     *   asked_at:int,
+     *   id_proc_operator:int,
+     *   id_proc_admin:int,
+     *   executor_name:string,
+     *   admin_name:string,
+     *   score:?int,
+     *   score_staff:?int,
+     *   score_service:?int,
+     *   speech_record_ids:list<int>,
+     *   has_scores:bool,
+     *   has_staff:bool,
+     *   has_proc:bool
+     * }
+     */
+    public static function staffScoreMeta(array $invite, array $staffNames = []): array
+    {
+        $opId = max(0, (int)($invite['id_proc_operator'] ?? 0));
+        $admId = max(0, (int)($invite['id_proc_admin'] ?? 0));
+        if ($opId < 1 || $admId < 1) {
+            $resp = (string)($invite['resp_users'] ?? '');
+            if (preg_match_all('/#(\d+)#/', $resp, $m) && !empty($m[1])) {
+                if ($opId < 1) {
+                    $opId = (int)$m[1][0];
+                }
+                if ($admId < 1 && isset($m[1][1])) {
+                    $admId = (int)$m[1][1];
+                }
+            }
+        }
+
+        $scoreStaff = null;
+        $scoreService = null;
+        if (isset($invite['score_staff']) && $invite['score_staff'] !== null && $invite['score_staff'] !== '') {
+            $scoreStaff = max(0, (int)$invite['score_staff']);
+            if ($scoreStaff < 1) {
+                $scoreStaff = null;
+            }
+        }
+        if (isset($invite['score_service']) && $invite['score_service'] !== null && $invite['score_service'] !== '') {
+            $scoreService = max(0, (int)$invite['score_service']);
+            if ($scoreService < 1) {
+                $scoreService = null;
+            }
+        }
+        if (($scoreStaff === null || $scoreService === null)
+            && class_exists('PollSpeechScore', false)
+            && class_exists('PollAnswersCodec', false)
+        ) {
+            $rawOpts = $invite['data_opts'] ?? null;
+            $opts = is_array($rawOpts)
+                ? $rawOpts
+                : PollAnswersCodec::decode((string)$rawOpts);
+            if (is_array($opts)) {
+                $decoded = PollSpeechScore::fromDataOpts($opts);
+                if ($scoreStaff === null && (int)$decoded['staff'] >= 1) {
+                    $scoreStaff = (int)$decoded['staff'];
+                }
+                if ($scoreService === null && (int)$decoded['service'] >= 1) {
+                    $scoreService = (int)$decoded['service'];
+                }
+            }
+        }
+        $score = $scoreStaff ?? $scoreService;
+
+        $procId = max(0, (int)($invite['id_proc'] ?? 0));
+        $procStart = max(0, (int)($invite['proc_dtstart'] ?? 0));
+        $procEnd = max(0, (int)($invite['proc_dtend'] ?? 0));
+        $productName = trim((string)($invite['proc_product_name'] ?? ''));
+        if ($procId > 0 && ($procStart < 1 || $productName === '')
+            && class_exists('ProceduresRepository', false)
+            && Database::tableExists('base_procedures')
+        ) {
+            $proc = ProceduresRepository::find($procId);
+            if ($proc !== null) {
+                if ($procStart < 1) {
+                    $procStart = max(0, (int)($proc['dtstart'] ?? 0));
+                }
+                if ($procEnd < 1) {
+                    $procEnd = max(0, (int)($proc['dtend'] ?? 0));
+                }
+                if ($productName === '') {
+                    $productName = trim((string)($proc['product_name'] ?? ''));
+                }
+                if ($opId < 1) {
+                    $opId = max(0, (int)($proc['id_operator'] ?? 0));
+                }
+                if ($admId < 1) {
+                    $admId = max(0, (int)($proc['id_admin'] ?? 0));
+                }
+            }
+        }
+
+        $label = static function (int $id) use ($staffNames): string {
+            if ($id < 1) {
+                return '';
+            }
+            return (string)($staffNames[$id] ?? ('#' . $id));
+        };
+
+        return [
+            'id_proc' => $procId,
+            'proc_dtstart' => $procStart,
+            'proc_dtend' => $procEnd,
+            'proc_product_name' => $productName,
+            'asked_at' => max(0, (int)($invite['dt_create'] ?? 0)),
+            'id_proc_operator' => $opId,
+            'id_proc_admin' => $admId,
+            'executor_name' => $label($opId),
+            'admin_name' => $label($admId),
+            'score' => $score,
+            'score_staff' => $scoreStaff,
+            'score_service' => $scoreService,
+            'speech_record_ids' => self::speechRecordIdsFromLog((string)($invite['log'] ?? '')),
+            'has_scores' => $score !== null,
+            'has_staff' => $opId > 0 || $admId > 0,
+            'has_proc' => $procId > 0,
+        ];
     }
 
     /** @return array<string,mixed>|null */
@@ -131,7 +504,13 @@ final class PollInvitesRepository
                     SIGN_REQ AS sign_req, ID_SUPERVISOR_SIGNED AS id_supervisor_signed,
                     DT_SUPERVISOR_SIGNED AS dt_supervisor_signed,
                     ID_ORDER_NEW AS id_order_new, ID_ORDER_FRIEND_NEW AS id_order_friend_new,
-                    ID_GBOOK AS id_gbook
+                    ID_GBOOK AS id_gbook'
+                . (Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR')
+                    ? ', ID_PROC_OPERATOR AS id_proc_operator, ID_PROC_ADMIN AS id_proc_admin,
+                       SCORE_STAFF AS score_staff, SCORE_SERVICE AS score_service'
+                    : ', 0 AS id_proc_operator, 0 AS id_proc_admin,
+                       NULL AS score_staff, NULL AS score_service')
+                . '
              FROM base_poll_invites WHERE ID = ? LIMIT 1'
         );
         $st->execute([$id]);
@@ -252,11 +631,16 @@ final class PollInvitesRepository
         }
         $uid = Auth::userId();
         $now = time();
+        $dtCreate = max(0, (int)($data['dt_create'] ?? 0));
+        if ($dtCreate < 1) {
+            $dtCreate = $now;
+        }
         $log = $data['log'];
         if ($log === '') {
             $log = '[' . date('d.m.y H:i') . '][' . $uid . ']: created' . "\n";
         }
         $hasUsersViewed = Database::columnExists('base_poll_invites', 'USERS_VIEWED');
+        $hasProcStaff = Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR');
         $cols = 'DT_CREATE, DT_AVAIL, DT_EXPIRE, DT_STARTED, DT_COMPLETED, DT_RECOMPLETED,
                 ID_OPERATOR_CREATE, ID_OPERATOR_LINKED, ID_OPERATOR_UPDATE, DT_OPERATOR_UPDATE,
                 ID_USER, ID_EVENT, ID_PROC, ID_POLL, TEXT_ADMIN_TO_USER,
@@ -274,7 +658,7 @@ final class PollInvitesRepository
                 ?,0,0,
                 0,0,0';
         $params = [
-            $now, $data['dt_avail'], $data['dt_expire'],
+            $dtCreate, $data['dt_avail'], $data['dt_expire'],
             $uid, $data['id_operator_linked'],
             $data['id_user'], $data['id_event'], $data['id_proc'], $data['id_poll'],
             $data['text_admin_to_user'],
@@ -285,6 +669,16 @@ final class PollInvitesRepository
             $data['is_special'], $data['is_special_friend'], $isResult,
             $data['sign_req'],
         ];
+        if ($hasProcStaff) {
+            $cols .= ', ID_PROC_OPERATOR, ID_PROC_ADMIN, SCORE_STAFF, SCORE_SERVICE';
+            $vals .= ', ?, ?, ?, ?';
+            $params[] = max(0, (int)($data['id_proc_operator'] ?? 0));
+            $params[] = max(0, (int)($data['id_proc_admin'] ?? 0));
+            $scoreStaff = $data['score_staff'] ?? null;
+            $scoreService = $data['score_service'] ?? null;
+            $params[] = $scoreStaff === null || $scoreStaff === '' ? null : max(0, min(10, (int)$scoreStaff));
+            $params[] = $scoreService === null || $scoreService === '' ? null : max(0, min(10, (int)$scoreService));
+        }
         if ($hasUsersViewed) {
             $cols .= ', USERS_VIEWED';
             $vals .= ', ?';
@@ -443,6 +837,13 @@ final class PollInvitesRepository
     {
         if ($pollId !== null && $pollId > 0) {
             return $pollId;
+        }
+        // Prefer poll_speech oral poll when that module owns the calendar button.
+        if (class_exists('PollSpeechConfig', false)) {
+            $speechPoll = PollSpeechConfig::oralPollId();
+            if ($speechPoll > 0) {
+                return $speechPoll;
+            }
         }
         $cfg = class_exists('PollInvitesConfig', false)
             ? PollInvitesConfig::oralPollId()
@@ -611,6 +1012,8 @@ final class PollInvitesRepository
             'resp_users' => $respUsers,
             'is_result' => !empty($poll['is_result']) ? 1 : 0,
             'source' => 'oral_asked',
+            'id_proc_operator' => $opId,
+            'id_proc_admin' => $admId,
         ]);
 
         return [
@@ -734,6 +1137,217 @@ final class PollInvitesRepository
         }
     }
 
+    /**
+     * Channel fill (speech / bots) without interactive Auth / assertCanOpen.
+     *
+     * @param array<int|string,mixed> $dataOpts
+     * @param array<int|string,string> $dataText
+     */
+    public static function saveAnswersFromChannel(
+        int $id,
+        array $dataOpts,
+        array $dataText,
+        bool $complete,
+        string $source,
+        string $logNote = ''
+    ): void {
+        $invite = self::find($id);
+        if (!$invite) {
+            throw new InvalidArgumentException(t('poll_invites.err.not_found', ['id' => $id]));
+        }
+
+        $uid = Auth::check() ? Auth::userId() : 0;
+        $now = time();
+        $dtStarted = (int)$invite['dt_started'];
+        if ($dtStarted < 1) {
+            $dtStarted = $now;
+        }
+        $dtCompleted = (int)$invite['dt_completed'];
+        $dtRecompleted = (int)$invite['dt_recompleted'];
+        if ($complete) {
+            if ($dtCompleted > 0) {
+                $dtRecompleted = $now;
+            } else {
+                $dtCompleted = $now;
+            }
+        }
+
+        $optsEnc = PollAnswersCodec::encode($dataOpts);
+        $textEnc = PollAnswersCodec::encode($dataText);
+        $note = trim($logNote);
+        $log = (string)$invite['log'] . '[' . date('d.m.y H:i') . '][' . $uid . ']: '
+            . ($note !== '' ? $note : ('answers saved via ' . $source))
+            . ($complete ? ' + complete' : '') . "\n";
+
+        $meta = self::resolveProcStaffAndScores($invite, $dataOpts);
+        $hasProcStaff = Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR');
+        if ($hasProcStaff) {
+            $st = Database::pdo()->prepare(
+                'UPDATE base_poll_invites SET
+                    DATA_OPTS = ?, DATA_TEXT = ?, DT_STARTED = ?, DT_COMPLETED = ?, DT_RECOMPLETED = ?,
+                    LOG = ?, ID_OPERATOR_UPDATE = ?, DT_OPERATOR_UPDATE = ?,
+                    ID_PROC_OPERATOR = ?, ID_PROC_ADMIN = ?, SCORE_STAFF = ?, SCORE_SERVICE = ?,
+                    RESP_USERS = ?
+                 WHERE ID = ?'
+            );
+            $st->execute([
+                $optsEnc, $textEnc, $dtStarted, $dtCompleted, $dtRecompleted,
+                $log, $uid, $now,
+                $meta['id_proc_operator'], $meta['id_proc_admin'],
+                $meta['score_staff'], $meta['score_service'],
+                $meta['resp_users'],
+                $id,
+            ]);
+        } else {
+            $st = Database::pdo()->prepare(
+                'UPDATE base_poll_invites SET
+                    DATA_OPTS = ?, DATA_TEXT = ?, DT_STARTED = ?, DT_COMPLETED = ?, DT_RECOMPLETED = ?,
+                    LOG = ?, ID_OPERATOR_UPDATE = ?, DT_OPERATOR_UPDATE = ?
+                 WHERE ID = ?'
+            );
+            $st->execute([
+                $optsEnc, $textEnc, $dtStarted, $dtCompleted, $dtRecompleted,
+                $log, $uid, $now, $id,
+            ]);
+        }
+
+        EventBus::emit('poll_invites.answer.saved', [
+            'invite_id' => $id,
+            'poll_id' => (int)$invite['id_poll'],
+            'client_id' => (int)$invite['id_user'],
+            'code' => (string)$invite['code'],
+            'data_opts' => $dataOpts,
+            'source' => $source,
+            'complete' => $complete,
+        ]);
+
+        if ($complete && ((int)$invite['dt_completed'] < 1 || $dtRecompleted === $now)) {
+            EventBus::emit('poll_invites.completed', [
+                'invite_id' => $id,
+                'poll_id' => (int)$invite['id_poll'],
+                'client_id' => (int)$invite['id_user'],
+                'code' => (string)$invite['code'],
+                'data_opts' => $dataOpts,
+                'bonus_auto' => (int)$invite['bonus_auto'],
+                'bonus_value' => (int)$invite['bonus_value'],
+                'source' => $source,
+            ]);
+        }
+    }
+
+    /**
+     * Resolve executor/admin from the linked procedure and numeric scores from DATA_OPTS.
+     *
+     * @param array<string,mixed> $invite
+     * @param array<int|string,mixed> $dataOpts
+     * @return array{
+     *   id_proc_operator:int,
+     *   id_proc_admin:int,
+     *   score_staff:?int,
+     *   score_service:?int,
+     *   resp_users:string
+     * }
+     */
+    public static function resolveProcStaffAndScores(array $invite, array $dataOpts): array
+    {
+        $opId = max(0, (int)($invite['id_proc_operator'] ?? 0));
+        $admId = max(0, (int)($invite['id_proc_admin'] ?? 0));
+        $procId = max(0, (int)($invite['id_proc'] ?? 0));
+        if ($procId > 0 && class_exists('ProceduresRepository', false)
+            && Database::tableExists('base_procedures')
+        ) {
+            $proc = ProceduresRepository::find($procId);
+            if ($proc !== null) {
+                $opId = max(0, (int)($proc['id_operator'] ?? 0));
+                $admId = max(0, (int)($proc['id_admin'] ?? 0));
+            }
+        }
+        if ($opId < 1 || $admId < 1) {
+            $resp = (string)($invite['resp_users'] ?? '');
+            if (preg_match_all('/#(\d+)#/', $resp, $m) && !empty($m[1])) {
+                if ($opId < 1 && isset($m[1][0])) {
+                    $opId = (int)$m[1][0];
+                }
+                if ($admId < 1 && isset($m[1][1])) {
+                    $admId = (int)$m[1][1];
+                } elseif ($admId < 1 && $opId > 0) {
+                    $admId = $opId;
+                }
+            }
+        }
+
+        $scoreStaff = null;
+        $scoreService = null;
+        if (class_exists('PollSpeechScore', false)) {
+            $decoded = PollSpeechScore::fromDataOpts($dataOpts);
+            if ((int)$decoded['staff'] >= 1) {
+                $scoreStaff = (int)$decoded['staff'];
+            }
+            if ((int)$decoded['service'] >= 1) {
+                $scoreService = (int)$decoded['service'];
+            }
+        }
+
+        $respParts = [];
+        if ($opId > 0) {
+            $respParts[] = '#' . $opId . '#';
+        }
+        if ($admId > 0 && $admId !== $opId) {
+            $respParts[] = '#' . $admId . '#';
+        }
+        $respUsers = $respParts !== []
+            ? implode(',', $respParts)
+            : (string)($invite['resp_users'] ?? '');
+
+        return [
+            'id_proc_operator' => $opId,
+            'id_proc_admin' => $admId,
+            'score_staff' => $scoreStaff,
+            'score_service' => $scoreService,
+            'resp_users' => $respUsers,
+        ];
+    }
+
+    /**
+     * Merge free-text evidence (e.g. speech rating snippet) without changing DATA_OPTS.
+     *
+     * @param array<int|string,string> $dataText
+     */
+    public static function mergeDataText(int $id, array $dataText, string $logNote = ''): void
+    {
+        $invite = self::find($id);
+        if (!$invite) {
+            throw new InvalidArgumentException(t('poll_invites.err.not_found', ['id' => $id]));
+        }
+        $existing = PollAnswersCodec::decode((string)($invite['data_text'] ?? ''));
+        if (!is_array($existing)) {
+            $existing = [];
+        }
+        foreach ($dataText as $k => $v) {
+            $text = trim((string)$v);
+            if ($text === '') {
+                continue;
+            }
+            $existing[(string)$k] = mb_substr($text, 0, 500);
+        }
+        $uid = Auth::check() ? Auth::userId() : 0;
+        $note = trim($logNote);
+        $log = (string)$invite['log'];
+        if ($note !== '') {
+            $log .= '[' . date('d.m.y H:i') . '][' . $uid . ']: ' . $note . "\n";
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_poll_invites SET DATA_TEXT = ?, LOG = ?, ID_OPERATOR_UPDATE = ?, DT_OPERATOR_UPDATE = ? WHERE ID = ?'
+        );
+        $st->execute([
+            PollAnswersCodec::encode($existing),
+            $log,
+            $uid,
+            time(),
+            $id,
+        ]);
+    }
+
     public static function signSupervisor(int $id): void
     {
         if (!Auth::capability('SUPERADMIN_ACCESS')) {
@@ -819,6 +1433,16 @@ final class PollInvitesRepository
                 'short' => t('poll_invites.notice.open_short', ['n' => $openN]),
                 'href' => '/poll-invites?progress=open',
                 'title' => t('poll_invites.notice.open_title', ['n' => $openN]),
+                'tone' => 'warn',
+            ];
+        }
+
+        $unviewedN = self::countUnviewedForUser($uid);
+        if ($unviewedN > 0) {
+            $out[] = [
+                'short' => t('poll_invites.notice.unviewed_short', ['n' => $unviewedN]),
+                'href' => '/poll-invites/unviewed',
+                'title' => t('poll_invites.notice.unviewed_title', ['n' => $unviewedN]),
                 'tone' => 'warn',
             ];
         }

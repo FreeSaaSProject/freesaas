@@ -45,7 +45,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [likespa-restores.md](likespa-restores.md) | Spa instance pack: legacy cutover, restores, FREE_TICKET, settlement JSON |
 | [terminals.md](terminals.md) | Terminals/therms: registry, occupancy, sync jobs + JSON |
 | [yclients.md](yclients.md) | YClients pull: settings tokens, session ping, clients import JSON |
-| [clientics.md](clientics.md) | Clientics pull: settings tokens, session ping, day import, webhook |
+| [clientics.md](clientics.md) | Clientics dual-run: SoT appointments, clients/appointments pull, outbox push, inventory |
 | [cron.md](cron.md) | Platform hard cron: `/cron/tick`, `Cron::register`, journal |
 | [debugging.md](debugging.md) | Health, blocked modules, workers |
 | [workers.md](workers.md) | Edge workers host Mac/Windows (video + whisper + audioloader; dashboard / logs) |

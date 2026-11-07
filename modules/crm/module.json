@@ -1,0 +1,485 @@
+{
+    "id": "crm",
+    "name": "crm.module.name",
+    "description": "crm.module.description",
+    "version": "0.1.1",
+    "type": "product",
+    "requires": {
+        "core": ">=1.0.0",
+        "clients": ">=1.0.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "crm.companies",
+        "crm.deals",
+        "crm.pipelines"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "drop_owned"
+    },
+    "permissions": [
+        {
+            "id": "crm.view",
+            "label": "crm.perm.view"
+        },
+        {
+            "id": "crm.edit",
+            "label": "crm.perm.edit"
+        },
+        {
+            "id": "crm.delete",
+            "label": "crm.perm.delete"
+        },
+        {
+            "id": "crm.pipelines",
+            "label": "crm.perm.pipelines"
+        },
+        {
+            "id": "crm.fields",
+            "label": "crm.perm.fields"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/crm",
+            "/crm/companies",
+            "/crm/companies/new",
+            "/crm/companies/{id}",
+            "/crm/companies/{id}/edit",
+            "/crm/deals",
+            "/crm/deals/new",
+            "/crm/deals/{id}",
+            "/crm/deals/{id}/edit",
+            "/crm/pipelines",
+            "/crm/pipelines/new",
+            "/crm/pipelines/{id}/edit",
+            "/crm/stages/new",
+            "/crm/stages/{id}/edit",
+            "/crm/fields",
+            "/crm/fields/new",
+            "/crm/fields/{id}/edit"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/crm.md",
+        "ops": [
+            {
+                "id": "crm.companies.list",
+                "method": "GET",
+                "path": "/crm/companies",
+                "permission": "crm.view",
+                "side_effect": "read",
+                "description": "List CRM companies; filters: q, enabled (default 1; empty=all)"
+            },
+            {
+                "id": "crm.companies.get",
+                "method": "GET",
+                "path": "/crm/companies/{id}",
+                "permission": "crm.view",
+                "side_effect": "read",
+                "description": "Company card + contacts + notes + custom values + linked deals"
+            },
+            {
+                "id": "crm.companies.get_edit",
+                "method": "GET",
+                "path": "/crm/companies/{id}/edit",
+                "permission": "crm.edit",
+                "side_effect": "read",
+                "description": "Company edit payload + custom field defs"
+            },
+            {
+                "id": "crm.companies.create",
+                "method": "POST",
+                "path": "/crm/companies/new",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Create company. client_ids=comma ids; primary_client_id; cf[field_id]=value",
+                "parameters": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "inn": {"type": "string"},
+                        "kpp": {"type": "string"},
+                        "phone": {"type": "string"},
+                        "email": {"type": "string"},
+                        "website": {"type": "string"},
+                        "address": {"type": "string"},
+                        "notes": {"type": "string"},
+                        "enabled": {"type": "string", "enum": ["0", "1"]},
+                        "responsible_user_id": {"type": "integer"},
+                        "client_ids": {"type": "string", "description": "Comma-separated base_clients ids"},
+                        "primary_client_id": {"type": "integer"}
+                    }
+                }
+            },
+            {
+                "id": "crm.companies.update",
+                "method": "POST",
+                "path": "/crm/companies/{id}/edit",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Update company (same fields as create)"
+            },
+            {
+                "id": "crm.companies.delete",
+                "method": "POST",
+                "path": "/crm/companies/{id}/edit",
+                "permission": "crm.delete",
+                "side_effect": "write",
+                "description": "Delete company; POST action=delete",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {"action": {"type": "string", "enum": ["delete"]}}
+                }
+            },
+            {
+                "id": "crm.companies.add_note",
+                "method": "POST",
+                "path": "/crm/companies/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Add note on company; action=add_note&body=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "body"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["add_note"]},
+                        "body": {"type": "string"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.list",
+                "method": "GET",
+                "path": "/crm/deals",
+                "permission": "crm.view",
+                "side_effect": "read",
+                "description": "List deals; filters: q, pipeline_id, stage_id, company_id, client_id"
+            },
+            {
+                "id": "crm.deals.get",
+                "method": "GET",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.view",
+                "side_effect": "read",
+                "description": "Deal card + contacts + notes + stage history + stages"
+            },
+            {
+                "id": "crm.deals.get_edit",
+                "method": "GET",
+                "path": "/crm/deals/{id}/edit",
+                "permission": "crm.edit",
+                "side_effect": "read",
+                "description": "Deal edit payload + pipelines + stages_by_pipeline + companies"
+            },
+            {
+                "id": "crm.deals.new_form",
+                "method": "GET",
+                "path": "/crm/deals/new",
+                "permission": "crm.edit",
+                "side_effect": "read",
+                "description": "Empty deal form + pipelines + stages_by_pipeline + companies (use before create)"
+            },
+            {
+                "id": "crm.deals.create",
+                "method": "POST",
+                "path": "/crm/deals/new",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Create deal. Prefer crm.deals.new_form first for pipeline_id/stage_id.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["title", "pipeline_id"],
+                    "properties": {
+                        "title": {"type": "string"},
+                        "pipeline_id": {"type": "integer"},
+                        "stage_id": {"type": "integer", "description": "Defaults to first stage of pipeline"},
+                        "company_id": {"type": "integer"},
+                        "amount": {"type": "number"},
+                        "currency": {"type": "string"},
+                        "source": {"type": "string"},
+                        "notes": {"type": "string"},
+                        "responsible_user_id": {"type": "integer"},
+                        "client_ids": {"type": "string"},
+                        "primary_client_id": {"type": "integer"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.update",
+                "method": "POST",
+                "path": "/crm/deals/{id}/edit",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Update deal fields / pipeline / stage"
+            },
+            {
+                "id": "crm.deals.move_stage",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Move deal stage; action=move_stage&stage_id=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "stage_id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["move_stage"]},
+                        "stage_id": {"type": "integer"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.add_note",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Add note on deal; action=add_note&body=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "body"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["add_note"]},
+                        "body": {"type": "string"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.delete",
+                "method": "POST",
+                "path": "/crm/deals/{id}/edit",
+                "permission": "crm.delete",
+                "side_effect": "write",
+                "description": "Delete deal; POST action=delete",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {"action": {"type": "string", "enum": ["delete"]}}
+                }
+            },
+            {
+                "id": "crm.pipelines.list",
+                "method": "GET",
+                "path": "/crm/pipelines",
+                "permission": "crm.pipelines",
+                "side_effect": "read",
+                "description": "Pipelines + nested stages (kind=lead|sale)"
+            },
+            {
+                "id": "crm.pipelines.create",
+                "method": "POST",
+                "path": "/crm/pipelines/new",
+                "permission": "crm.pipelines",
+                "side_effect": "write",
+                "description": "Create pipeline",
+                "parameters": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "kind": {"type": "string", "enum": ["lead", "sale"]},
+                        "enabled": {"type": "string", "enum": ["0", "1"]},
+                        "sort_order": {"type": "integer"}
+                    }
+                }
+            },
+            {
+                "id": "crm.pipelines.update",
+                "method": "POST",
+                "path": "/crm/pipelines/{id}/edit",
+                "permission": "crm.pipelines",
+                "side_effect": "write",
+                "description": "Update pipeline"
+            },
+            {
+                "id": "crm.stages.create",
+                "method": "POST",
+                "path": "/crm/stages/new",
+                "permission": "crm.pipelines",
+                "side_effect": "write",
+                "description": "Create stage in pipeline",
+                "parameters": {
+                    "type": "object",
+                    "required": ["pipeline_id", "name", "code"],
+                    "properties": {
+                        "pipeline_id": {"type": "integer"},
+                        "name": {"type": "string"},
+                        "code": {"type": "string"},
+                        "semantic": {"type": "string", "enum": ["P", "S", "F"]},
+                        "sort_order": {"type": "integer"},
+                        "enabled": {"type": "string", "enum": ["0", "1"]}
+                    }
+                }
+            },
+            {
+                "id": "crm.stages.update",
+                "method": "POST",
+                "path": "/crm/stages/{id}/edit",
+                "permission": "crm.pipelines",
+                "side_effect": "write",
+                "description": "Update stage"
+            },
+            {
+                "id": "crm.fields.list",
+                "method": "GET",
+                "path": "/crm/fields",
+                "permission": "crm.fields",
+                "side_effect": "read",
+                "description": "List custom field definitions"
+            },
+            {
+                "id": "crm.fields.create",
+                "method": "POST",
+                "path": "/crm/fields/new",
+                "permission": "crm.fields",
+                "side_effect": "write",
+                "description": "Create custom field (entity=company|deal|contact)",
+                "parameters": {
+                    "type": "object",
+                    "required": ["entity", "code", "name"],
+                    "properties": {
+                        "entity": {"type": "string", "enum": ["company", "deal", "contact"]},
+                        "code": {"type": "string"},
+                        "name": {"type": "string"},
+                        "field_type": {"type": "string", "enum": ["string", "text", "number", "bool", "enum"]},
+                        "enums_json": {"type": "string"},
+                        "sort_order": {"type": "integer"},
+                        "enabled": {"type": "string", "enum": ["0", "1"]}
+                    }
+                }
+            },
+            {
+                "id": "crm.fields.update",
+                "method": "POST",
+                "path": "/crm/fields/{id}/edit",
+                "permission": "crm.fields",
+                "side_effect": "write",
+                "description": "Update custom field definition"
+            },
+            {
+                "id": "crm.fields.delete",
+                "method": "POST",
+                "path": "/crm/fields/{id}/edit",
+                "permission": "crm.fields",
+                "side_effect": "write",
+                "description": "Delete custom field; action=delete",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {"action": {"type": "string", "enum": ["delete"]}}
+                }
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "crm.menu.group",
+            "num": 10,
+            "path": "/crm/deals",
+            "title": "crm.menu.deals",
+            "kind": "work"
+        },
+        {
+            "group": "crm.menu.group",
+            "num": 20,
+            "path": "/crm/companies",
+            "title": "crm.menu.companies",
+            "kind": "work"
+        },
+        {
+            "group": "crm.menu.group",
+            "num": 80,
+            "path": "/crm/pipelines",
+            "title": "crm.menu.pipelines",
+            "kind": "settings"
+        },
+        {
+            "group": "crm.menu.group",
+            "num": 90,
+            "path": "/crm/fields",
+            "title": "crm.menu.fields",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "crm.setup.step.ready",
+                "description": "crm.setup.step.ready_help",
+                "href": "/crm/deals",
+                "ask_user": "crm.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "crm.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
+    },
+    "tables": [
+        "base_crm_companies",
+        "base_crm_company_contacts",
+        "base_crm_pipelines",
+        "base_crm_stages",
+        "base_crm_deals",
+        "base_crm_deal_contacts",
+        "base_crm_custom_fields",
+        "base_crm_custom_values",
+        "base_crm_notes",
+        "base_crm_stage_history"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "clients.view.profile"
+        ],
+        "publish": [
+            "crm.company.created",
+            "crm.company.updated",
+            "crm.company.deleted",
+            "crm.deal.created",
+            "crm.deal.updated",
+            "crm.deal.deleted",
+            "crm.deal.stage_changed",
+            "crm.note.created"
+        ]
+    },
+    "bulkActions": [
+        {
+            "list_id": "crm_companies",
+            "action": "delete"
+        },
+        {
+            "list_id": "crm_deals",
+            "action": "delete"
+        }
+    ],
+    "catalog": {
+        "categories": [
+            "crm"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "crm",
+            "sync"
+        ],
+        "screenshots": []
+    }
+}

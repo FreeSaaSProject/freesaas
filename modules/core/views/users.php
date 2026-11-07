@@ -73,6 +73,18 @@ $colSpan = 5 + ($hasNum ? 1 : 0) + count($extraColumns);
             <?= UsersRepository::badgeHtml($uid, false) ?>
             <span class="user-name-full"><?= e((string)($u['name'] ?: '—')) ?></span>
           </a>
+          <?php
+            $bdayTs = (int)($u['bday'] ?? 0);
+            $bdayCivil = $bdayTs > 0 ? UsersRepository::bdayCivilYmd($bdayTs) : '';
+            if ($bdayCivil !== ''):
+              $age = UsersRepository::ageOnDate($bdayTs, date('Y-m-d'));
+              $bdayShow = substr($bdayCivil, 8, 2) . '.' . substr($bdayCivil, 5, 2) . '.' . substr($bdayCivil, 0, 4);
+          ?>
+            <div class="muted" style="font-size:0.85em;margin-top:0.15rem"><?= e(t('core.users.bday_meta', [
+              'age' => $age,
+              'date' => $bdayShow,
+            ])) ?></div>
+          <?php endif; ?>
         </td>
         <td><code><?= e((string)$u['login']) ?></code></td>
         <td><?= e($statuses[(int)$u['ID_STATUS']] ?? ('#' . $u['ID_STATUS'])) ?></td>

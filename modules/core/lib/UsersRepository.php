@@ -426,6 +426,7 @@ final class UsersRepository
 
         $cols = self::selectList([
             'id', 'login', 'name', 'mail', 'enabled', 'ID_STATUS', 'color', 'color_text', 'tel', 'IS_HIDDEN', 'IS_ACCEPTOR', 'num',
+            'bday',
         ]);
         if ($cols === '') {
             return ['items' => [], 'total' => 0];
@@ -535,6 +536,7 @@ final class UsersRepository
             'ASSIST_TEAM', 'NOT_IN_TEAM', 'STOCK_REVISION', 'AUDIO_ANALYTICS_ENABLED',
             'skin', 'RESTRICT_TYPES', 'RESTRICT_TYPES_ONLINE', 'RESTRICT_PROCS',
             'favorites', 'showNewsAfter', 'status', 'locale', 'IS_ACCEPTOR',
+            'bday', 'show_bday_in_cal',
         ];
         $sqlCols = self::selectList($cols);
         if ($sqlCols === '') {
@@ -840,6 +842,7 @@ final class UsersRepository
             'favorites', 'showNewsAfter',
             'IS_ACCEPTOR',
             'locale',
+            'bday', 'show_bday_in_cal',
         ];
         foreach ($allowed as $col) {
             if (!array_key_exists($col, $data)) {
@@ -1087,11 +1090,18 @@ final class UsersRepository
         $add('retries', 0);
         $add('expire', 0);
         // Strict schemas: bday (unix/int) or birthday date NOT NULL without DEFAULT.
-        if (Database::columnExists('base_users', 'bday') && !array_key_exists('bday', $data)) {
+        if (array_key_exists('bday', $data)) {
+            $add('bday', max(0, (int)$data['bday']));
+        } elseif (Database::columnExists('base_users', 'bday')) {
             $add('bday', 0);
         }
         if (Database::columnExists('base_users', 'birthday') && !array_key_exists('birthday', $data)) {
             $add('birthday', '0000-00-00');
+        }
+        if (array_key_exists('show_bday_in_cal', $data)) {
+            $add('show_bday_in_cal', !empty($data['show_bday_in_cal']) ? 1 : 0);
+        } elseif (Database::columnExists('base_users', 'show_bday_in_cal')) {
+            $add('show_bday_in_cal', 1);
         }
         if (isset($data['num'])) {
             $add('num', max(0, (int)$data['num']));
@@ -1133,6 +1143,131 @@ final class UsersRepository
         $sql = 'INSERT INTO base_users (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ')';
         Database::pdo()->prepare($sql)->execute($params);
         return (int)Database::pdo()->lastInsertId();
+    }
+
+    /**
+     * Civil Y-m-d for a unix bday using the *current* app TZ offset.
+     * Avoids PHP historical zone rules shifting legacy midnight stamps by a day
+     * vs MySQL FROM_UNIXTIME (session offset).
+     */
+    public static function bdayCivilYmd(int $bdayTs): string
+    {
+        if ($bdayTs < 1) {
+            return '';
+        }
+        try {
+            $tz = new DateTimeZone(date_default_timezone_get());
+            $offset = $tz->getOffset(new DateTimeImmutable('now'));
+        } catch (Throwable $e) {
+            $offset = (int)date('Z');
+        }
+        return gmdate('Y-m-d', $bdayTs + $offset);
+    }
+
+    /**
+     * Age in whole years on a calendar day (oper: year(day) - year(bday)).
+     */
+    public static function ageOnDate(int $bdayTs, string $ymd): int
+    {
+        if ($bdayTs < 1 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd)) {
+            return 0;
+        }
+        $civil = self::bdayCivilYmd($bdayTs);
+        if ($civil === '') {
+            return 0;
+        }
+        $by = (int)substr($civil, 0, 4);
+        $dy = (int)substr($ymd, 0, 4);
+        return max(0, $dy - $by);
+    }
+
+    /**
+     * Staff with birthday on Y-m-d (enabled + show_bday_in_cal), oper calendar markers.
+     *
+     * @return list<array{id:int,name:string,age:int,color:string,color_text:string,bday:int}>
+     */
+    public static function birthdaysForDate(string $ymd): array
+    {
+        $map = self::birthdaysForDates([$ymd]);
+        return $map[$ymd] ?? [];
+    }
+
+    /**
+     * Batch birthday lookup (one staff query). Keys are Y-m-d.
+     *
+     * @param list<string> $ymds
+     * @return array<string, list<array{id:int,name:string,age:int,color:string,color_text:string,bday:int}>>
+     */
+    public static function birthdaysForDates(array $ymds): array
+    {
+        $want = [];
+        foreach ($ymds as $ymd) {
+            $ymd = (string)$ymd;
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd)) {
+                $want[$ymd] = [];
+            }
+        }
+        if ($want === []
+            || !Database::tableExists('base_users')
+            || !Database::columnExists('base_users', 'bday')
+        ) {
+            return $want;
+        }
+        $cols = self::selectList(['id', 'name', 'login', 'color', 'color_text', 'bday', 'show_bday_in_cal', 'enabled']);
+        if ($cols === '') {
+            return $want;
+        }
+        $hasShow = Database::columnExists('base_users', 'show_bday_in_cal');
+        $sql = "SELECT {$cols} FROM base_users WHERE enabled = '1' AND bday > 0";
+        if ($hasShow) {
+            $sql .= ' AND show_bday_in_cal = 1';
+        }
+        $rows = Database::pdo()->query($sql)->fetchAll() ?: [];
+        $byMd = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $bday = (int)($row['bday'] ?? 0);
+            if ($bday < 1) {
+                continue;
+            }
+            $civil = self::bdayCivilYmd($bday);
+            if ($civil === '') {
+                continue;
+            }
+            $md = (int)substr($civil, 5, 2) . '-' . (int)substr($civil, 8, 2);
+            $name = trim((string)($row['name'] ?? ''));
+            if ($name === '') {
+                $name = (string)($row['login'] ?? ('#' . (int)($row['id'] ?? 0)));
+            }
+            $byMd[$md][] = [
+                'id' => (int)($row['id'] ?? 0),
+                'name' => $name,
+                'color' => trim((string)($row['color'] ?? '')),
+                'color_text' => trim((string)($row['color_text'] ?? '')),
+                'bday' => $bday,
+            ];
+        }
+        foreach ($want as $ymd => $_) {
+            $md = (int)substr($ymd, 5, 2) . '-' . (int)substr($ymd, 8, 2);
+            $list = [];
+            foreach ($byMd[$md] ?? [] as $row) {
+                $list[] = [
+                    'id' => $row['id'],
+                    'name' => $row['name'],
+                    'age' => self::ageOnDate((int)$row['bday'], $ymd),
+                    'color' => $row['color'],
+                    'color_text' => $row['color_text'],
+                    'bday' => $row['bday'],
+                ];
+            }
+            usort($list, static function (array $a, array $b): int {
+                return strcasecmp($a['name'], $b['name']);
+            });
+            $want[$ymd] = $list;
+        }
+        return $want;
     }
 
     /**

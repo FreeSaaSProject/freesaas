@@ -43,7 +43,7 @@ $toId = (int)($toId ?? 0);
   </label>
 
   <label><?= te('payments.col.sum') ?>
-    <input type="number" name="sum" inputmode="decimal" step="0.01" min="0.01"
+    <input type="text" name="sum" inputmode="decimal" data-money-input autocomplete="off"
            value="<?= e((string)$sum) ?>" required>
   </label>
 

@@ -41,6 +41,11 @@ def pid_path(plugin_id: str) -> Path:
     return RUN_DIR / f"{plugin_id}.pid"
 
 
+def pause_path(plugin_id: str) -> Path:
+    """Marker: plugin was stopped intentionally; host boot must not auto-restart it."""
+    return RUN_DIR / f"{plugin_id}.paused"
+
+
 def log_path(plugin_id: str, source: str = "worker") -> Path:
     if source in ("", "worker", "default"):
         return LOG_DIR / f"{plugin_id}.log"

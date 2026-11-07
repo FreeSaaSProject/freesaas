@@ -75,19 +75,30 @@ if (isset($_GET['saved']) && $message === '') {
 }
 
 $pollNames = PollsRepository::rootNames(false);
-$staff = [];
-if (class_exists('UsersRepository', false)) {
-    foreach (UsersRepository::list(['limit' => 500, 'enabled' => '1'])['items'] ?? [] as $u) {
-        $staff[(int)$u['id']] = (string)($u['name'] ?? ('#' . $u['id']));
-    }
-} else {
-    $st = Database::pdo()->query(
-        "SELECT id, name FROM base_users WHERE enabled = 1 ORDER BY name ASC LIMIT 500"
-    );
-    foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $u) {
-        $staff[(int)$u['id']] = (string)$u['name'];
+$extraStaffIds = [
+    (int)($row['id_operator_linked'] ?? 0),
+    (int)($row['id_proc_operator'] ?? 0),
+    (int)($row['id_proc_admin'] ?? 0),
+];
+$respRaw = (string)($row['resp_users'] ?? '');
+if ($respRaw !== '' && preg_match_all('/#(\d+)#/', $respRaw, $m)) {
+    foreach ($m[1] as $rid) {
+        $extraStaffIds[] = (int)$rid;
     }
 }
+$staff = class_exists('UsersRepository', false)
+    ? UsersRepository::staffNamesIncluding($extraStaffIds)
+    : [];
+$staffMeta = $isNew ? [
+    'id_proc_operator' => 0,
+    'id_proc_admin' => 0,
+    'executor_name' => '',
+    'admin_name' => '',
+    'score_staff' => null,
+    'score_service' => null,
+    'has_scores' => false,
+    'has_staff' => false,
+] : PollInvitesRepository::staffScoreMeta($row, $staff);
 
 View::render('edit', [
     'title' => $isNew
@@ -97,6 +108,8 @@ View::render('edit', [
     'row' => $row,
     'pollNames' => $pollNames,
     'staff' => $staff,
+    'staffMeta' => $staffMeta,
+    'showAudioLinks' => true,
     'message' => $message,
     'error' => $error,
     'breadcrumbs' => Breadcrumbs::withHome([

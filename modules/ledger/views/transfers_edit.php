@@ -44,7 +44,10 @@ $toId = (int)($toId ?? 0);
     </select>
   </label>
   <label><?= te('ledger.moves.col.dt') ?><input type="datetime-local" name="dt" value="<?= e($dtValue) ?>" required></label>
-  <label><?= te('ledger.moves.col.sum') ?><input name="summ" value="<?= e((string)($row['summ'] ?? '0')) ?>" required></label>
+  <label><?= te('ledger.moves.col.sum') ?>
+    <input type="text" name="summ" inputmode="decimal" data-money-input autocomplete="off"
+           value="<?= e((string)($row['summ'] ?? '0')) ?>" required>
+  </label>
   <label class="ledger-move-descr"><?= te('ledger.moves.col.descr') ?>
     <textarea name="descr" rows="10"><?= e((string)($row['descr'] ?? '')) ?></textarea>
   </label>

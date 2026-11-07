@@ -3,15 +3,29 @@ declare(strict_types=1);
 /** @var array<string,mixed> $payload */
 $maps = is_array($payload['map_counts'] ?? null) ? $payload['map_counts'] : [];
 $jobs = is_array($payload['jobs'] ?? null) ? $payload['jobs'] : [];
+$inv = is_array($payload['inventory'] ?? null) ? $payload['inventory'] : null;
+$sot = (string)($payload['appointment_sot'] ?? 'clientics');
 ?>
 <section class="page-head">
   <h1><?= te('clientics.status.title') ?></h1>
   <p class="muted"><?= te('clientics.status.lede') ?></p>
 </section>
 
+<?php if ($sot === 'clientics'): ?>
+  <div class="flash flash-warn"><?= te('clientics.status.sot_clientics_hint') ?></div>
+<?php else: ?>
+  <div class="flash flash-ok"><?= te('clientics.status.sot_freesaas_hint') ?></div>
+<?php endif; ?>
+
 <dl class="kv-list">
   <dt><?= te('clientics.status.pull') ?></dt>
   <dd><?= !empty($payload['pull_enabled']) ? te('clientics.status.on') : te('clientics.status.off') ?></dd>
+  <dt><?= te('clientics.status.push') ?></dt>
+  <dd><?= !empty($payload['push_enabled']) ? te('clientics.status.on') : te('clientics.status.off') ?></dd>
+  <dt><?= te('clientics.status.appointment_sot') ?></dt>
+  <dd><code><?= e($sot) ?></code></dd>
+  <dt><?= te('clientics.status.outbox') ?></dt>
+  <dd><?= (int)($payload['outbox_pending'] ?? 0) ?></dd>
   <dt><?= te('clientics.status.api') ?></dt>
   <dd><?= !empty($payload['api_ready']) ? te('clientics.status.ready') : te('clientics.status.missing') ?>
     <?php if ((string)($payload['account_id'] ?? '') !== ''): ?>
@@ -23,6 +37,31 @@ $jobs = is_array($payload['jobs'] ?? null) ? $payload['jobs'] : [];
   <dt><?= te('clientics.status.webhook') ?></dt>
   <dd><?= !empty($payload['webhook_token_configured']) ? te('clientics.status.ready') : te('clientics.status.missing') ?></dd>
 </dl>
+
+<section>
+  <h2><?= te('clientics.status.inventory') ?></h2>
+  <?php if (!is_array($inv)): ?>
+    <p class="muted"><?= te('clientics.status.inventory_none') ?></p>
+  <?php else: ?>
+    <p>
+      <?= te('clientics.status.medical_cards') ?>:
+      <?= !empty($inv['medical_cards']) ? te('clientics.status.on') : te('clientics.status.off') ?>
+      ·
+      <?= te('clientics.status.waiting_list') ?>:
+      <?= !empty($inv['waiting_list']) ? te('clientics.status.on') : te('clientics.status.off') ?>
+    </p>
+    <?php
+    $avail = is_array($inv['available'] ?? null) ? $inv['available'] : [];
+    if ($avail !== []):
+    ?>
+      <ul>
+        <?php foreach ($avail as $mod): ?>
+          <li><code><?= e((string)$mod) ?></code></li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
+  <?php endif; ?>
+</section>
 
 <section>
   <h2><?= te('clientics.status.maps') ?></h2>

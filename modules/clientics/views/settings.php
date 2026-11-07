@@ -6,6 +6,7 @@ declare(strict_types=1);
 $on = static function (string $key) use ($cfg): bool {
     return ($cfg[$key] ?? '0') === '1';
 };
+$sot = (string)($cfg['appointment_sot'] ?? 'clientics');
 ?>
 <section class="page-head">
   <h1><?= te('clientics.settings.title') ?></h1>
@@ -19,6 +20,19 @@ $on = static function (string $key) use ($cfg): bool {
     <legend><?= te('clientics.settings.features') ?></legend>
     <input type="hidden" name="pull_enabled" value="0">
     <label class="check"><input type="checkbox" name="pull_enabled" value="1"<?= $on('pull_enabled') ? ' checked' : '' ?>> <?= te('clientics.settings.pull_enabled') ?></label>
+    <input type="hidden" name="push_enabled" value="0">
+    <label class="check"><input type="checkbox" name="push_enabled" value="1"<?= $on('push_enabled') ? ' checked' : '' ?>> <?= te('clientics.settings.push_enabled') ?></label>
+    <label><?= te('clientics.settings.appointment_sot') ?>
+      <select name="appointment_sot">
+        <option value="clientics"<?= $sot === 'clientics' ? ' selected' : '' ?>><?= te('clientics.settings.sot_clientics') ?></option>
+        <option value="freesaas"<?= $sot === 'freesaas' ? ' selected' : '' ?>><?= te('clientics.settings.sot_freesaas') ?></option>
+      </select>
+      <span class="muted"><?= te('clientics.settings.appointment_sot_help') ?></span>
+    </label>
+    <label><?= te('clientics.settings.default_operator_id') ?>
+      <input type="number" name="default_operator_id" min="0" value="<?= e((string)($cfg['default_operator_id'] ?? '0')) ?>">
+      <span class="muted"><?= te('clientics.settings.default_operator_help') ?></span>
+    </label>
   </fieldset>
 
   <fieldset>

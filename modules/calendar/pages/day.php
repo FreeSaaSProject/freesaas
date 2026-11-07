@@ -154,6 +154,9 @@ $dayColumns = [[
         'is_weekend' => $n >= 6,
     ],
     'shifts' => $shiftLabels,
+    'birthdays' => class_exists('UsersRepository', false)
+        ? UsersRepository::birthdaysForDate($dateParam)
+        : [],
     'chips' => $chips,
     'hour_marks' => [],
     'passed' => CalendarTimeline::passedOverlay($dayStart),

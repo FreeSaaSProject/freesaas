@@ -301,9 +301,13 @@ Always start with: `status <plugin>` + `logs <plugin> --tail 80`.
 
 ## 10. Autostart (login)
 
-**macOS:** LaunchAgent `ru.freesaas.workers` runs `bin/freesaas-workers-boot.sh`: `start` all enabled plugins, then keep **dashboard** in foreground (`KeepAlive`).
+**macOS:** LaunchAgent `ru.freesaas.workers` runs `bin/freesaas-workers-boot.sh`: one-shot `start` of enabled plugins (skips intentional pauses), then keep **dashboard** in foreground (`KeepAlive`). If the dashboard port is already taken, boot **waits passively** — it does not re-`start` plugins every 45s (that used to undo Stop).
 
 **Windows:** Task Scheduler task `FreeSaaSWorkers` runs `bin/freesaas-workers-boot.cmd` (same idea: `start` then `dashboard`).
+
+**Stop vs pause:** dashboard/CLI **Stop** writes `var/run/<plugin>.paused` and kills the process. Host boot will not revive a paused plugin; **Start** (or `restart`) clears the marker. Status JSON includes `paused: true`.
+
+**FreeSaaS HTTP backoff** (whisper + video): on connect timeout / refuse / 403 / 429 / 5xx the worker stops calling the host and waits **3m → 5m → 10m → 30m → 1h → 2h** (cap). Success resets the ladder. Activity phase `backoff`.
 
 ```bash
 ./workers/bin/freesaas-workers autostart status

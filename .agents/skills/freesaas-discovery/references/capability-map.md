@@ -14,7 +14,7 @@ Source of truth: repo `modules-catalog.json` (regenerate with `php bin/build-mod
 
 | Business need | Category / tags | Typical modules |
 |---------------|-----------------|-----------------|
-| Client CRM | `crm` | `clients`, `bonuses`, `certificates`; soft `yclients`, `clientics` |
+| Client CRM | `crm` | `clients`, `bonuses`, `certificates`; sales CRM `crm` (companies/deals); soft `yclients`, `clientics`, `bitrix`, `amocrm` |
 | Booking / appointments | `booking`, `site` | `booking`, `calendar`, `orders`, `procedures`, `sites` |
 | Staff shifts / leave | `team` | `workweeks`, `vacations`, `staff_reports` |
 | Finance / management accounting | `finance` | `ledger`, `finance`, `funds`, `bi`, `liquid_assets`; soft `banks`, `remittances` |

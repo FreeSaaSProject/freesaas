@@ -129,6 +129,23 @@ tr.is-block td { opacity: 0.75; }
   gap: 0.15rem;
   align-items: stretch;
 }
+.calendar-tl-bdays {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 0.15rem;
+}
+.calendar-tl-bday {
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--warn);
+}
+.calendar-tl-bday b {
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  font-weight: 700;
+}
 .calendar-tl-table-open {
   display: inline-flex;
   align-items: center;

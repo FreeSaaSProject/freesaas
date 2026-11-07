@@ -44,6 +44,7 @@ return [
     'calendar.month.nov' => 'Nov',
     'calendar.month.dec' => 'Dec',
     'calendar.day.title' => 'Calendar for {date}',
+    'calendar.day.birthday' => '!!!BD #{age}:',
     'calendar.day.aria' => 'Calendar',
     'calendar.day.prev' => 'Previous day',
     'calendar.day.next' => 'Next day',

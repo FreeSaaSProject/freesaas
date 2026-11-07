@@ -1,0 +1,103 @@
+/* Oral “review asked” mark on /calendar (class set via calendar.timeline.enrich). */
+.calendar-tl-chip.has-oral-mark {
+  border-style: solid;
+  border-width: 2px;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.45);
+}
+[data-theme="dark"] .calendar-tl-chip.has-oral-mark,
+:root:not([data-theme="light"]) .calendar-tl-chip.has-oral-mark {
+  border-color: #4ade80;
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.5);
+}
+
+.poll-invites-oral .poll-invites-oral-btn {
+  cursor: pointer;
+}
+
+.poll-invites-oral .poll-invites-oral-done {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 4px;
+  border: 1px solid #15803d;
+  background: #16a34a;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+[data-theme="dark"] .poll-invites-oral .poll-invites-oral-done,
+:root:not([data-theme="light"]) .poll-invites-oral .poll-invites-oral-done {
+  border-color: #4ade80;
+  background: #15803d;
+  color: #ecfdf5;
+}
+
+.poll-invites-staff-scores {
+  margin: 0 0 1rem;
+}
+.poll-invites-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem 1.25rem;
+  margin: 0;
+}
+.poll-invites-meta-grid dt {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+.poll-invites-meta-grid dd {
+  margin: 0.15rem 0 0;
+}
+.poll-invites-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.poll-invites-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  line-height: 1.35;
+}
+.poll-invites-audio-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+}
+.poll-invites-transcript {
+  max-width: 36rem;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+.poll-invites-unviewed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.poll-invites-unviewed-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.poll-invites-unviewed-answers,
+.poll-invites-unviewed-transcript {
+  margin-top: 0.75rem;
+}
+.poll-invites-unviewed-answers h3,
+.poll-invites-unviewed-transcript h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+.poll-invites-unviewed-answers ol {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+.poll-invites-unviewed-transcript p {
+  margin: 0;
+  white-space: pre-wrap;
+}

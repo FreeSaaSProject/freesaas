@@ -79,6 +79,21 @@ if ($state['next_qid'] > 0 && isset($tree['questions'][$state['next_qid']])) {
 }
 $showHistory = !empty($tree['poll']['show_history']);
 
+$extraStaffIds = [
+    (int)($invite['id_proc_operator'] ?? 0),
+    (int)($invite['id_proc_admin'] ?? 0),
+];
+$respRaw = (string)($invite['resp_users'] ?? '');
+if ($respRaw !== '' && preg_match_all('/#(\d+)#/', $respRaw, $m)) {
+    foreach ($m[1] as $rid) {
+        $extraStaffIds[] = (int)$rid;
+    }
+}
+$staffNames = class_exists('UsersRepository', false)
+    ? UsersRepository::staffNamesIncluding($extraStaffIds)
+    : [];
+$staffMeta = PollInvitesRepository::staffScoreMeta($invite, $staffNames);
+
 View::render('fill', [
     'title' => t('poll_invites.fill.title', ['id' => $id]),
     'invite' => $invite,
@@ -87,6 +102,8 @@ View::render('fill', [
     'currentQ' => $currentQ,
     'dataText' => $dataText,
     'showHistory' => $showHistory,
+    'staffMeta' => $staffMeta,
+    'showAudioLinks' => true,
     'canSign' => Auth::capability('SUPERADMIN_ACCESS'),
     'message' => $message,
     'error' => $error,

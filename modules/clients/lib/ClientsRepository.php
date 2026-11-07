@@ -473,7 +473,15 @@ final class ClientsRepository
             $data['subscribe'],
             $data['notes'],
         ]);
-        return (int)$pdo->lastInsertId();
+        $id = (int)$pdo->lastInsertId();
+        $payload = ['id' => $id, 'data' => $data];
+        if (class_exists('CrmSyncContext', false) && CrmSyncContext::isExternal()) {
+            $payload = CrmSyncContext::withOrigin($payload);
+        } elseif (class_exists('ClienticsSyncContext', false) && ClienticsSyncContext::isExternal()) {
+            $payload = ClienticsSyncContext::withOrigin($payload);
+        }
+        EventBus::emit('clients.created', $payload);
+        return $id;
     }
 
     /** @param array<string,mixed> $data */
@@ -520,6 +528,13 @@ final class ClientsRepository
         $params[] = $id;
         $sql = 'UPDATE base_clients SET ' . implode(', ', $sets) . ' WHERE id = ?';
         Database::pdo()->prepare($sql)->execute($params);
+        $payload = ['id' => $id, 'data' => $data];
+        if (class_exists('CrmSyncContext', false) && CrmSyncContext::isExternal()) {
+            $payload = CrmSyncContext::withOrigin($payload);
+        } elseif (class_exists('ClienticsSyncContext', false) && ClienticsSyncContext::isExternal()) {
+            $payload = ClienticsSyncContext::withOrigin($payload);
+        }
+        EventBus::emit('clients.updated', $payload);
     }
 
     /** @return list<array{id:int,name:string,login:string}> */

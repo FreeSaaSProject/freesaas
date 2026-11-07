@@ -232,6 +232,21 @@ foreach ($days as $day) {
     ];
 }
 
+$weekBdayDates = [];
+foreach ($dayColumns as $col) {
+    $d = (string)($col['day']['date'] ?? '');
+    if ($d !== '') {
+        $weekBdayDates[] = $d;
+    }
+}
+$weekBirthdays = class_exists('UsersRepository', false)
+    ? UsersRepository::birthdaysForDates($weekBdayDates)
+    : [];
+foreach ($dayColumns as $i => $col) {
+    $d = (string)($col['day']['date'] ?? '');
+    $dayColumns[$i]['birthdays'] = $weekBirthdays[$d] ?? [];
+}
+
 $staffOptions = [];
 if (!$myOnly) {
     foreach (UsersRepository::listEnabledStaff() as $u) {

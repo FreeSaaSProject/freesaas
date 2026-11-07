@@ -53,6 +53,27 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
     }
     return $html;
 };
+
+$bdayByDay = [];
+$bdayOpIds = [];
+if (class_exists('UsersRepository', false)) {
+    $dayDates = [];
+    foreach ($days as $day) {
+        $dd = (string)($day['date'] ?? '');
+        if ($dd !== '') {
+            $dayDates[] = $dd;
+        }
+    }
+    $bdayByDay = UsersRepository::birthdaysForDates($dayDates);
+    foreach ($bdayByDay as $list) {
+        foreach ($list as $bd) {
+            $bid = (int)($bd['id'] ?? 0);
+            if ($bid > 0 && isset($visibleIds[$bid])) {
+                $bdayOpIds[$bid] = true;
+            }
+        }
+    }
+}
 ?>
 <form method="post" action="<?= e($formAction) ?>" class="nazop-form" id="nazop-form"
       data-nazop-day="<?= e($mode) ?>"
@@ -129,6 +150,9 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
   <?php if (!$operators): ?>
     <div class="flash flash-warn"><?= te('workweeks.nazop.no_ops') ?></div>
   <?php else: ?>
+  <?php if ($bdayOpIds !== []): ?>
+    <div class="flash flash-warn nazop-bday-flash"><?= te('workweeks.nazop.birthday_warn') ?></div>
+  <?php endif; ?>
   <div class="nazop-table-wrap">
     <table class="data nazop-table">
       <thead>
@@ -137,9 +161,16 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
           <th><?= te('workweeks.nazop.col_day') ?></th>
           <th title="<?= te('workweeks.nazop.col_none') ?>">н</th>
           <?php foreach ($operators as $op): ?>
-            <th class="nazop-op-h"
-                title="<?= e($op['label']) ?>"
-                style="background:<?= e($op['bg']) ?>;color:<?= e($op['fg']) ?>;"><?= e($op['acronym']) ?></th>
+            <?php
+            $opIsBday = isset($bdayOpIds[(int)$op['id']]);
+            $opTitle = (string)$op['label'];
+            if ($opIsBday) {
+                $opTitle .= ' · ' . t('workweeks.nazop.birthday_op');
+            }
+            ?>
+            <th class="nazop-op-h<?= $opIsBday ? ' is-bday' : '' ?>"
+                title="<?= e($opTitle) ?>"
+                style="background:<?= e($op['bg']) ?>;color:<?= e($op['fg']) ?>;"><?= e($op['acronym']) ?><?= $opIsBday ? '·ДР' : '' ?></th>
           <?php endforeach; ?>
           <th><?= te('workweeks.col.mas_max') ?></th>
         </tr>
@@ -156,10 +187,32 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
                 $onCount++;
             }
         }
+        $dayBdays = $bdayByDay[$d] ?? [];
+        $dayBdayIds = [];
+        $dayBdayNames = [];
+        foreach ($dayBdays as $bd) {
+            $bid = (int)($bd['id'] ?? 0);
+            if ($bid < 1 || !isset($visibleIds[$bid])) {
+                continue;
+            }
+            $dayBdayIds[$bid] = true;
+            $dayBdayNames[] = (string)($bd['name'] ?? '') . ' (№' . (int)($bd['age'] ?? 0) . ')';
+        }
+        $rowClass = !empty($day['is_weekend']) ? 'is-weekend' : '';
+        if ($dayBdayIds !== []) {
+            $rowClass = trim($rowClass . ' is-bday-row');
+        }
         ?>
-        <tr<?= !empty($day['is_weekend']) ? ' class="is-weekend"' : '' ?>>
+        <tr<?= $rowClass !== '' ? ' class="' . e($rowClass) . '"' : '' ?>>
           <td class="muted"><?= (int)$i ?></td>
-          <td class="nazop-day"><nobr><?= e($day['label']) ?> <?= e($day['weekday']) ?></nobr></td>
+          <td class="nazop-day">
+            <nobr><?= e($day['label']) ?> <?= e($day['weekday']) ?></nobr>
+            <?php if ($dayBdayNames !== []): ?>
+              <div class="nazop-bday-note" title="<?= e(implode(', ', $dayBdayNames)) ?>"><?= e(t('workweeks.nazop.birthday_day', [
+                'names' => implode(', ', $dayBdayNames),
+              ])) ?></div>
+            <?php endif; ?>
+          </td>
           <td><input type="checkbox" checked disabled aria-hidden="true"></td>
           <?php foreach ($operators as $op): ?>
             <?php
@@ -169,9 +222,10 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
             $opPc = $on
                 ? WorkweeksRepository::normalizePriceCol((int)$rowAssigned[$oid]['price_col'])
                 : ($statusPc >= 1 ? $statusPc : $defaultLane);
+            $cellBday = isset($dayBdayIds[$oid]);
             ?>
-            <td class="nazop-cell" style="background:<?= e($op['bg']) ?>;color:<?= e($op['fg']) ?>;">
-              <label class="nazop-check">
+            <td class="nazop-cell<?= $cellBday ? ' is-bday' : '' ?>" style="background:<?= e($op['bg']) ?>;color:<?= e($op['fg']) ?>;">
+              <label class="nazop-check"<?= $cellBday ? ' title="' . e(t('workweeks.nazop.birthday_op')) . '"' : '' ?>>
                 <input type="checkbox"
                        name="checked[<?= e($d) ?>][<?= $oid ?>]"
                        value="1"

@@ -168,6 +168,9 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `comments` | Comment thread on news items; no own menu routes |
 | `contracts` | Offers/contracts; depends on `core` + `comments` |
 | `clients` | Client CRM (`base_clients`) + client statuses; login identity = phone |
+| `crm` | Sales CRM: companies, deals/leads + pipelines/stages, custom fields, notes (`base_crm_*`); requires `clients`; alpha |
+| `bitrix` | Bitrix24 dual-run bridge (id map / outbox / webhook) into `clients` + `crm`; alpha |
+| `amocrm` | AmoCRM/Kommo dual-run bridge into `clients` + `crm`; alpha |
 | `units` | Units of measure (`base_units`) |
 | `suppliers` | Suppliers (`base_suppliers`) |
 | `cabinets` | Rooms (`base_cabinets`); used by stocks `ID_CABINET` and staff `skin` |
@@ -190,6 +193,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `orders` | Website orders (`base_orders`, shared with storefront); notice chips; `orders.for_day` for calendar |
 | `polls` | Poll definitions tree (`base_polls`); universal; channels via EventBus |
 | `poll_invites` | Poll invite instances + staff fill (`base_poll_invites`); requires `polls`; publish `poll_invites.*` for bots/site |
+| `poll_speech` | Oral feedback channel: calendar «review asked» + fill invites from `audio_dicts` keys after Re-® (`audio_reports.day.analyzed`); requires `polls`+`poll_invites`; alpha — [`docs/agents/poll_speech.md`](docs/agents/poll_speech.md) |
 | `calendar` | Day view + event CRUD (`base_events*`); requires `workweeks`; can create procedures from event |
 | `docs` | Document engine + medical cards (`base_doc_*`): versioned schema/template definitions, filled instances, frozen print, optional QR archive, audio/LLM autofill proposals; URL prefix `/documents`; alpha — [`docs/agents/docs.md`](docs/agents/docs.md) |
 | `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |

@@ -22,6 +22,20 @@ final class ClienticsIdMapRepository
         return $v !== false ? (int)$v : null;
     }
 
+    public static function findExtId(string $accountId, string $entity, int $localId): ?string
+    {
+        if (!self::tableReady() || $accountId === '' || $entity === '' || $localId < 1) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ext_id FROM base_clientics_id_map
+             WHERE account_id = ? AND entity = ? AND local_id = ? LIMIT 1'
+        );
+        $st->execute([$accountId, $entity, $localId]);
+        $v = $st->fetchColumn();
+        return $v !== false ? (string)$v : null;
+    }
+
     public static function upsert(string $accountId, string $entity, string $extId, int $localId): void
     {
         if (!self::tableReady() || $accountId === '' || $entity === '' || $extId === '' || $localId < 1) {

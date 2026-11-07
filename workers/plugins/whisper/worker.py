@@ -27,11 +27,14 @@ try:
 	from workers.core.status import StatusWriter
 	from workers.core.i18n import t as _i18n_t
 	from workers.core.notify import NotifySettings, load_notify_settings, send as notify_send
+	from workers.core.backoff import ServerBackoff, is_backoff_exception
 except ImportError:  # pragma: no cover
 	StatusWriter = None  # type: ignore
 	NotifySettings = None  # type: ignore
 	load_notify_settings = None  # type: ignore
 	notify_send = None  # type: ignore
+	ServerBackoff = None  # type: ignore
+	is_backoff_exception = None  # type: ignore
 
 	def _i18n_t(key: str, **kwargs: Any) -> str:  # type: ignore
 		return key
@@ -68,6 +71,18 @@ def idle_sleep(total_sec: int) -> None:
 		step = min(chunk, left)
 		time.sleep(step)
 		left -= step
+
+
+def backoff_sleep(bo: Any, *, label: str = "FreeSaaS") -> None:
+	"""Wait out ServerBackoff with dashboard heartbeats (no remote calls)."""
+	while bo is not None and bo.active():
+		left = int(bo.remaining())
+		detail = f"{label} backoff {left}s"
+		if bo.last_error:
+			detail += f": {bo.last_error[:120]}"
+		set_activity("backoff", detail)
+		log(f"⏳ {detail}")
+		bo.sleep_slice(30.0)
 
 
 # Настройки клиента (заполняются из JSON через load_config / --config)
@@ -1336,8 +1351,16 @@ def main():
 	else:
 		log("⚙️  Notify: core unavailable")
 
+	server_bo = ServerBackoff(name="freesaas") if ServerBackoff is not None else None
+	if server_bo is not None:
+		log("⚙️  FreeSaaS backoff: 3m→5m→10m→30m→1h→2h on refuse/timeout")
+
 	while True:
 		try:
+			if server_bo is not None and server_bo.active():
+				backoff_sleep(server_bo)
+				continue
+
 			log(tl("log.check_file"))
 			set_activity("claim", tl("activity.claim"))
 			r = requests.get(
@@ -1346,7 +1369,14 @@ def main():
 				verify=tls_verify(),
 				timeout=30,
 			)
+			if server_bo is not None:
+				delay = server_bo.note_http(r.status_code, (r.text or "")[:160])
+				if delay is not None:
+					log(f"⛔ FreeSaaS HTTP {r.status_code} — backoff {int(delay)}s")
+					continue
 			r.raise_for_status()
+			if server_bo is not None:
+				server_bo.success()
 			filename = r.text.strip()
 
 			if filename == "None":
@@ -1535,6 +1565,15 @@ def main():
 			log("❌ Error:", e)
 			set_activity("error", str(e)[:200])
 			status_update(ok=False)
+			if (
+				server_bo is not None
+				and is_backoff_exception is not None
+				and is_backoff_exception(e)
+			):
+				delay = server_bo.fail(str(e))
+				log(f"⛔ FreeSaaS unreachable — backoff {int(delay)}s (no requests until then)")
+				backoff_sleep(server_bo)
+				continue
 
 		log(tl("log.cycle_wait", sec=LOOP_SLEEP_SECONDS_RUN))
 		time.sleep(LOOP_SLEEP_SECONDS_RUN)

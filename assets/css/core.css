@@ -1862,10 +1862,39 @@ a.pager-chip:hover {
 }
 .page-head-row > .page-actions {
   margin-left: auto;
-  flex: 0 0 auto;
+  /* Grow/shrink so long action rows wrap instead of clipping past overflow-x:clip */
+  flex: 1 1 16rem;
+  min-width: 0;
+  max-width: 100%;
+  justify-content: flex-end;
 }
-.page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
 .page-actions > .to-top { margin-left: auto; }
+.page-actions > .inline-form {
+  display: inline-flex;
+  max-width: 100%;
+  margin: 0;
+}
+.page-actions > .btn,
+.page-actions > .btn-primary,
+.page-actions > .btn-secondary,
+.page-actions > .btn-danger,
+.page-actions > .btn-ghost,
+.page-actions > .inline-form > .btn,
+.page-actions > .inline-form > .btn-primary,
+.page-actions > .inline-form > .btn-secondary,
+.page-actions > .inline-form > .btn-danger,
+.page-actions > .inline-form > .btn-ghost {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  box-sizing: border-box;
+}
 .btn-danger {
   border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
   background: color-mix(in srgb, var(--danger) 12%, transparent);

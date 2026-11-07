@@ -128,7 +128,7 @@ $dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
       </label>
     </div>
     <label class="payments-sum-field"><?= te('payments.col.sum') ?>
-      <input type="number" name="sum" inputmode="decimal" step="0.01" min="0.01"
+      <input type="text" name="sum" inputmode="decimal" data-money-input autocomplete="off"
              value="<?= e((string)($row['sum'] ?? '')) ?>" required<?= $isTransferLeg ? ' disabled' : '' ?>>
     </label>
   </div>

@@ -4,10 +4,20 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/ClienticsConfig.php';
 require_once __DIR__ . '/lib/ClienticsJobsAuth.php';
 require_once __DIR__ . '/lib/ClienticsPhone.php';
+require_once __DIR__ . '/lib/ClienticsSyncContext.php';
 require_once __DIR__ . '/lib/ClienticsIdMapRepository.php';
 require_once __DIR__ . '/lib/ClienticsSyncStateRepository.php';
+require_once __DIR__ . '/lib/ClienticsOutboxRepository.php';
+require_once __DIR__ . '/lib/ClienticsWebhookEventsRepository.php';
 require_once __DIR__ . '/lib/ClienticsApiClient.php';
+require_once __DIR__ . '/lib/ClienticsApiInventory.php';
 require_once __DIR__ . '/lib/ClienticsClientsImporter.php';
+require_once __DIR__ . '/lib/ClienticsUsersImporter.php';
+require_once __DIR__ . '/lib/ClienticsServicesImporter.php';
+require_once __DIR__ . '/lib/ClienticsAppointmentsImporter.php';
+require_once __DIR__ . '/lib/ClienticsWaitingListImporter.php';
+require_once __DIR__ . '/lib/ClienticsOutboxPusher.php';
+require_once __DIR__ . '/lib/ClienticsOutboxListener.php';
 require_once __DIR__ . '/lib/ClienticsWebhookIngest.php';
 
 ModuleManager::registerMenuGroup('clientics.menu.group', 1250, '/clientics');
@@ -18,6 +28,10 @@ $pages = [
     '/clientics/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/clientics/jobs/ping' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_ping.php'],
     '/clientics/jobs/import-clients' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_import_clients.php'],
+    '/clientics/jobs/import-appointments' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_import_appointments.php'],
+    '/clientics/jobs/import-refs' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_import_refs.php'],
+    '/clientics/jobs/outbox' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_outbox.php'],
+    '/clientics/jobs/inventory' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_inventory.php'],
     '/clientics/webhook' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'webhook.php'],
 ];
 
@@ -42,6 +56,15 @@ foreach ($pages as $path => $def) {
     ModuleManager::registerRoute($path, $route);
 }
 
+foreach (['clients.created', 'clients.updated'] as $ev) {
+    EventBus::on($ev, static function ($payload) {
+        return ClienticsOutboxListener::onClientsChanged(is_array($payload) ? $payload : []);
+    });
+}
+EventBus::on('calendar.event.saved', static function ($payload) {
+    return ClienticsOutboxListener::onCalendarEventSaved(is_array($payload) ? $payload : []);
+});
+
 Cron::register('clientics.import_clients', [
     'module' => 'clientics',
     'label' => 'clientics.cron.import_clients',
@@ -62,6 +85,43 @@ Cron::register('clientics.import_clients', [
     },
 ]);
 
+Cron::register('clientics.import_appointments', [
+    'module' => 'clientics',
+    'label' => 'clientics.cron.import_appointments',
+    'every' => 60,
+    'handler' => static function (): array {
+        if (!ClienticsConfig::pullEnabled()) {
+            return ['ok' => true, 'skipped' => 1, 'message' => 'pull disabled'];
+        }
+        if (!ModuleManager::isEnabled('calendar')) {
+            return ['ok' => true, 'skipped' => 1, 'message' => 'calendar disabled'];
+        }
+        $from = date('Y-m-d', strtotime('-1 day'));
+        $to = date('Y-m-d');
+        $report = ClienticsAppointmentsImporter::run($from, $to, false);
+        return [
+            'ok' => !empty($report['ok']),
+            'processed' => (int)($report['created'] ?? 0) + (int)($report['updated'] ?? 0),
+            'skipped' => (int)($report['skipped'] ?? 0),
+            'message' => (string)($report['error'] ?? ($from . '..' . $to)),
+        ];
+    },
+]);
+
+Cron::register('clientics.outbox', [
+    'module' => 'clientics',
+    'label' => 'clientics.cron.outbox',
+    'every' => 5,
+    'handler' => static function (): array {
+        $r = ClienticsOutboxPusher::flush(25);
+        return [
+            'ok' => !empty($r['ok']),
+            'processed' => (int)($r['processed'] ?? 0),
+            'message' => (string)($r['message'] ?? ('errors=' . (int)($r['errors'] ?? 0))),
+        ];
+    },
+]);
+
 Health::register('clientics.worker_token', 'clientics', static function (): array {
     if (ClienticsConfig::workerTokenConfigured()) {
         return ['status' => 'ok', 'message' => 'worker_token configured'];
@@ -74,15 +134,15 @@ Health::register('clientics.worker_token', 'clientics', static function (): arra
 }, 'Clientics job worker token');
 
 Health::register('clientics.api', 'clientics', static function (): array {
-    if (!ClienticsConfig::pullEnabled()) {
-        return ['status' => 'ok', 'message' => 'pull disabled'];
+    if (!ClienticsConfig::pullEnabled() && !ClienticsConfig::pushEnabled()) {
+        return ['status' => 'ok', 'message' => 'pull/push disabled'];
     }
     if (ClienticsConfig::apiReady()) {
         return ['status' => 'ok', 'message' => 'account/user/token present'];
     }
     return [
         'status' => 'degraded',
-        'message' => 'account_id / user_id / access_token incomplete — pull jobs will fail',
+        'message' => 'account_id / user_id / access_token incomplete — sync jobs will fail',
         'meta' => ['hint' => '/clientics/settings'],
     ];
 }, 'Clientics API config');

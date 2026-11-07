@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-/** Pull Clientics clients into base_clients (day-scoped list API). Pull-only. */
+/** Pull Clientics clients into base_clients (day-scoped list API). */
 final class ClienticsClientsImporter
 {
     /**
@@ -213,16 +213,21 @@ final class ClienticsClientsImporter
             return $existing !== null ? 'updated' : 'created';
         }
 
-        if ($existing !== null) {
-            $localId = (int)$existing['id'];
-            ClientsRepository::update($localId, $data);
-            ClienticsIdMapRepository::upsert($accountId, 'client', $extId, $localId);
-            return $mappedLocal === $localId ? 'updated' : 'linked';
-        }
+        ClienticsSyncContext::begin('clientics');
+        try {
+            if ($existing !== null) {
+                $localId = (int)$existing['id'];
+                ClientsRepository::update($localId, $data);
+                ClienticsIdMapRepository::upsert($accountId, 'client', $extId, $localId);
+                return $mappedLocal === $localId ? 'updated' : 'linked';
+            }
 
-        $localId = ClientsRepository::create($data);
-        ClienticsIdMapRepository::upsert($accountId, 'client', $extId, $localId);
-        return 'created';
+            $localId = ClientsRepository::create($data);
+            ClienticsIdMapRepository::upsert($accountId, 'client', $extId, $localId);
+            return 'created';
+        } finally {
+            ClienticsSyncContext::end();
+        }
     }
 
     private static function nullableStr($v): ?string

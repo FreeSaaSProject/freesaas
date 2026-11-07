@@ -44,6 +44,13 @@ $newsAfterTs = (int)($user['showNewsAfter'] ?? 0);
 if ($newsAfterTs > 0) {
     $newsAfterVal = date('Y-m-d\TH:i', $newsAfterTs);
 }
+$bdayVal = '';
+$bdayTs = (int)($user['bday'] ?? 0);
+if ($bdayTs > 0) {
+    $bdayVal = UsersRepository::bdayCivilYmd($bdayTs);
+}
+$hasBdayCol = Database::columnExists('base_users', 'bday');
+$hasShowBdayCol = Database::columnExists('base_users', 'show_bday_in_cal');
 ?>
 <section class="page-head">
   <h1><?= $isNew ? te('core.user_edit.title_new') : te('core.user_edit.heading') ?></h1>
@@ -86,6 +93,17 @@ if ($newsAfterTs > 0) {
   <label><?= te('core.user_edit.phone') ?>
     <input name="tel" value="<?= e((string)$user['tel']) ?>" placeholder="9XXXXXXXXX">
   </label>
+  <?php if ($hasBdayCol): ?>
+  <label><?= te('core.user_edit.bday') ?>
+    <input type="date" name="bday" value="<?= e($bdayVal) ?>">
+  </label>
+  <?php endif; ?>
+  <?php if ($hasShowBdayCol): ?>
+  <label class="check">
+    <input type="checkbox" name="show_bday_in_cal" value="1"<?= ((int)($user['show_bday_in_cal'] ?? 1) === 1) ? ' checked' : '' ?>>
+    <?= te('core.user_edit.show_bday_in_cal') ?>
+  </label>
+  <?php endif; ?>
   <?php if (Database::columnExists('base_users', 'num')): ?>
   <label><?= te('core.user_edit.num') ?>
     <input type="number" name="num" min="0" step="1" value="<?= (int)($user['num'] ?? 0) ?>">

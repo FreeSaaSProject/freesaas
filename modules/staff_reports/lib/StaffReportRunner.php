@@ -224,14 +224,37 @@ final class StaffReportRunner
             'quality' => $quality,
         ];
 
+        $dayData = [
+            'unique_clients' => (int)($quality['procedure_count'] ?? 0),
+            'procedures' => [],
+            'analysis_procedures' => [],
+            'windows' => [],
+        ];
+        if (class_exists('DayCollector', false)) {
+            $collectCfg = class_exists('StaffReportConfig', false)
+                ? StaffReportConfig::defaults()
+                : [];
+            $collected = DayCollector::collect(
+                $employeeId,
+                (int)$bounds['day_start'],
+                (int)$bounds['day_end'],
+                $collectCfg
+            );
+            if (is_array($collected)) {
+                $dayData = array_merge($dayData, $collected);
+                if ((int)($dayData['unique_clients'] ?? 0) < 1
+                    && (int)($quality['procedure_count'] ?? 0) > 0
+                ) {
+                    $dayData['unique_clients'] = (int)$quality['procedure_count'];
+                }
+            }
+        }
+
         $ctx = [
             'employee_id' => $employeeId,
             'bounds' => $bounds,
             'config' => $config,
-            'day_data' => [
-                'unique_clients' => (int)($quality['procedure_count'] ?? 0),
-                'windows' => [],
-            ],
+            'day_data' => $dayData,
             'criteria' => $criteriaResults,
             'coverage' => null,
             'quality' => $quality,

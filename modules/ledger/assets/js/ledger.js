@@ -1,4 +1,5 @@
 (function () {
+  // Bank balance: strip spaces/nbsp; comma→dot also handled by core.js data-money-input twin.
   function normalizeBank(value) {
     return String(value || '')
       .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')
@@ -8,7 +9,7 @@
 
   document.addEventListener('input', function (e) {
     var el = e.target;
-    if (!el || !el.getAttribute || !el.getAttribute('data-ledger-bank-normalize')) {
+    if (!el || !el.getAttribute || el.getAttribute('data-ledger-bank-normalize') === null) {
       return;
     }
     var next = normalizeBank(el.value);

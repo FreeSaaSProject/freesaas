@@ -62,8 +62,9 @@ def write_boot_script() -> Path:
     log_dir = WORKERS_ROOT / "var" / "log"
     log_dir.mkdir(parents=True, exist_ok=True)
     body = f"""#!/usr/bin/env bash
-# FreeSaaS workers boot (LaunchAgent). Starts plugins, then dashboard in foreground.
-# If dashboard port is already taken (manual start), wait and keep plugins alive.
+# FreeSaaS workers boot (LaunchAgent). Starts plugins once, then dashboard in foreground.
+# If dashboard port is already taken (manual start), wait passively — do NOT re-start
+# plugins in a loop (that made Stop buttons useless: workers came back every 45s).
 set -euo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 ROOT="{WORKERS_ROOT}"
@@ -76,11 +77,11 @@ LOG="$ROOT/var/log/boot.log"
 port_busy() {{
   /usr/bin/curl -sf -m 1 "http://127.0.0.1:8766/" >/dev/null 2>&1
 }}
+# One-shot start (respects var/run/<plugin>.paused markers).
 "$CLI" start >>"$LOG" 2>&1 || true
 # Wait out a manually started dashboard so KeepAlive does not crash-loop on bind.
 while port_busy; do
-  echo "$(date '+%F %T') dashboard already up — waiting, ensuring plugins" >>"$LOG"
-  "$CLI" start >>"$LOG" 2>&1 || true
+  echo "$(date '+%F %T') dashboard already up — waiting (not restarting plugins)" >>"$LOG"
   sleep 45
 done
 exec "$CLI" dashboard

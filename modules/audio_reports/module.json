@@ -2,7 +2,7 @@
     "id": "audio_reports",
     "name": "audio_reports.module.name",
     "description": "audio_reports.module.description",
-    "version": "1.0.14",
+    "version": "1.0.15",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -189,6 +189,7 @@
             "audio_reports.calendar.day_extras",
             "audio_reports.calendar.summary_enrich",
             "audio_reports.calendar.reparse.after",
+            "audio_reports.day.analyzed",
             "audio_reports.summary.cards",
             "audio_reports.summary.external",
             "audio_reports.day_quality.metrics.catalog",
