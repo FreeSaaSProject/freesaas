@@ -6,6 +6,9 @@ final class ProceduresRepository
     /** @var array<string,array<string,mixed>> */
     private static $dayColumnStatsCache = [];
 
+    /** @var array<int,array{current:float,last_year:float,pct:float,is_today:bool}> */
+    private static $monthYoYCache = [];
+
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
@@ -979,6 +982,91 @@ final class ProceduresRepository
             'promo_count' => $promoCount,
         ];
         self::$dayColumnStatsCache[$cacheKey] = $result;
+        return $result;
+    }
+
+    /**
+     * Month-to-date revenue vs same window last year (oper calculateAdminBonus mode=1 / ГкГ).
+     * Windows: month start → end of $dayTs (or now if that calendar day is today).
+     * Cash formula: ENABLED=1 AND RESTORED<1 (no 1C_ID=999 filter — oper parity).
+     *
+     * @return array{current:float,last_year:float,pct:float,is_today:bool}
+     */
+    public static function monthYoYRevenue(int $dayTs): array
+    {
+        $empty = [
+            'current' => 0.0,
+            'last_year' => 0.0,
+            'pct' => 0.0,
+            'is_today' => false,
+        ];
+        if ($dayTs < 1 || !Database::tableExists('base_procedures')) {
+            return $empty;
+        }
+        $dayStart = (int)strtotime(date('Y-m-d 00:00:00', $dayTs));
+        if (isset(self::$monthYoYCache[$dayStart])) {
+            return self::$monthYoYCache[$dayStart];
+        }
+
+        $now = class_exists('DemoMode', false) ? DemoMode::now() : time();
+        $todayStart = (int)strtotime(date('Y-m-d 00:00:00', $now));
+        $isToday = $dayStart === $todayStart;
+        $isFuture = $dayStart > $todayStart;
+        if ($isFuture) {
+            self::$monthYoYCache[$dayStart] = $empty;
+
+            return $empty;
+        }
+
+        $y = (int)date('Y', $dayStart);
+        $m = (int)date('n', $dayStart);
+        $d = (int)date('j', $dayStart);
+        $monthStart = (int)mktime(0, 0, 0, $m, 1, $y);
+        if ($isToday) {
+            $currentEnd = $now;
+            $lastYearEnd = (int)mktime(
+                (int)date('H', $now),
+                (int)date('i', $now),
+                (int)date('s', $now),
+                $m,
+                $d,
+                $y - 1
+            );
+        } else {
+            $currentEnd = (int)mktime(23, 59, 59, $m, $d, $y);
+            $lastYearEnd = (int)mktime(23, 59, 59, $m, $d, $y - 1);
+        }
+        $lastYearMonthStart = (int)mktime(0, 0, 0, $m, 1, $y - 1);
+
+        $sumRange = static function (int $from, int $to): float {
+            if ($to < $from) {
+                return 0.0;
+            }
+            $st = Database::pdo()->prepare(
+                'SELECT COALESCE(SUM(SUMM), 0) FROM base_procedures
+                 WHERE DTSTART >= ? AND DTSTART <= ?
+                   AND ENABLED = 1 AND RESTORED < 1'
+            );
+            $st->execute([$from, $to]);
+
+            return (float)$st->fetchColumn();
+        };
+
+        $current = $sumRange($monthStart, $currentEnd);
+        $lastYear = $sumRange($lastYearMonthStart, $lastYearEnd);
+        // Never divide by zero; callers hide the chip when last_year <= 0.
+        $pct = $lastYear > 0
+            ? round(($current / $lastYear) * 100, 1)
+            : 0.0;
+
+        $result = [
+            'current' => $current,
+            'last_year' => $lastYear,
+            'pct' => $pct,
+            'is_today' => $isToday,
+        ];
+        self::$monthYoYCache[$dayStart] = $result;
+
         return $result;
     }
 

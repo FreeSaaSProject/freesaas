@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/ProcedureTypesRepository.php';
 require_once __DIR__ . '/lib/ProceduresRepository.php';
+require_once __DIR__ . '/lib/ProceduresConfig.php';
 require_once __DIR__ . '/lib/ProceduresChain.php';
 require_once __DIR__ . '/lib/ProceduresEditAcl.php';
 require_once __DIR__ . '/lib/ProceduresDayLoad.php';
@@ -15,6 +16,28 @@ require_once __DIR__ . '/lib/ProcedureCreatedCollect.php';
 
 EventBus::on('bi.datasets', [ProceduresBiContrib::class, 'onDatasets']);
 EventBus::on('bi.recipes', [ProceduresBiContrib::class, 'onRecipes']);
+
+EventBus::on('calendar.settings.sections', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_calendar_yoy', [
+        'cfg' => ProceduresConfig::formValues(),
+    ], 'procedures');
+    return $payload;
+});
+
+EventBus::on('calendar.settings.save', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    if (!isset($post['procedures_calendar_yoy_save'])) {
+        return $payload;
+    }
+    ProceduresConfig::saveFromPost($post);
+    return $payload;
+});
 
 // Soft: attach CRM procedure creates (TYPE + DTCREATE) to audio script collections.
 EventBus::on('audio_pipeline.collect.after_admin', [ProcedureCreatedCollect::class, 'onCollectAfterAdmin']);
@@ -343,6 +366,34 @@ EventBus::on('calendar.day.stats', static function ($payload) {
                     'labelLong' => t('procedures.stats.bar_long'),
                 ], 'procedures'),
             ];
+        }
+
+        // Month-to-date vs last year (oper ГкГ); gated by ini + money capability.
+        if (($canMoney || $isSuper)
+            && !$myOnly
+            && empty($day['is_future'])
+            && ProceduresConfig::showCalendarYoy()
+        ) {
+            $yoy = ProceduresRepository::monthYoYRevenue($tsStart);
+            // Need a last-year baseline; skip empty both sides and the oper «999%» case.
+            if ((float)$yoy['last_year'] > 0) {
+                $sections[] = [
+                    'id' => 'procedures.yoy',
+                    'module' => 'procedures',
+                    'order' => 15,
+                    'html' => View::capture('_day_stats_yoy', [
+                        'pct' => (float)$yoy['pct'],
+                        'current' => (float)$yoy['current'],
+                        'lastYear' => (float)$yoy['last_year'],
+                        'showAmounts' => $isSuper,
+                    ], 'procedures'),
+                    'data' => [
+                        'pct' => (float)$yoy['pct'],
+                        'current' => (float)$yoy['current'],
+                        'last_year' => (float)$yoy['last_year'],
+                    ],
+                ];
+            }
         }
 
         if ($lines) {
