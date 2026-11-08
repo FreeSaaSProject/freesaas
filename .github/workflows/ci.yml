@@ -155,11 +155,19 @@ jobs:
       - name: Agent Skills (frontmatter + local refs)
         run: php bin/check-agent-skills.php
 
+      # ubuntu-latest now ships Python 3.14; semgrep 1.110 + protobuf crash
+      # (TypeError: Metaclasses with custom tp_new). Pin 3.12 for this step only.
+      - name: Setup Python for Semgrep
+        if: matrix.php == '8.2'
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+
       - name: Semgrep PHP security (SAST)
         if: matrix.php == '8.2'
         run: |
           set -euo pipefail
-          python3 -m pip install --user 'semgrep==1.110.0'
+          python -m pip install --user 'semgrep==1.110.0'
           export PATH="$HOME/.local/bin:$PATH"
           # Focused ruleset (.semgrep.yml). Full p/php is too noisy on JSON APIs /
           # ListQuery ORDER BY allow-lists / intentional SSL toggles — covered by
