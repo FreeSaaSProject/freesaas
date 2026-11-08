@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 /**
+ * Track + fill revenue bar (pct = revenue/1000; 100% ≈ 100 000 ₽).
+ *
  * @var float $pct 0..100+
  * @var string $labelShort
  * @var string $labelLong
@@ -33,11 +35,14 @@ if ($pct > 80) {
     $stops[] = 'rgb(51, 253, 93)';
 }
 $grad = $stops ? implode(',', $stops) : 'rgb(80,80,80)';
-$text = $pct > 99 ? 'black' : 'white';
 if ($pct > 99) {
     $grad = 'rgb(51, 253, 93),rgb(255, 229, 0)';
 }
+$fullClass = $pct > 99 ? ' is-full' : '';
 ?>
-<div class="cal-stat-bar" style="width:<?= (int)$w ?>%;background:linear-gradient(to right,<?= e($grad) ?>);color:<?= e($text) ?>;">
-  <?= e($word) ?>: <?= (int)floor($pct) ?>%
+<div class="cal-stat-bar<?= $fullClass ?>">
+  <?php if ($w > 0): ?>
+  <div class="cal-stat-bar-fill" style="width:<?= (int)$w ?>%;background:linear-gradient(to right,<?= e($grad) ?>);"></div>
+  <?php endif; ?>
+  <div class="cal-stat-bar-label"><?= e($word) ?>: <?= (int)floor($pct) ?>%</div>
 </div>

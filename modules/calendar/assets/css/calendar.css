@@ -759,14 +759,47 @@ tr.is-block td { opacity: 0.75; }
   min-width: 0;
   word-break: break-word;
 }
+/* Revenue %: full-width track; fill = pct (small days stay readable). */
 .cal-stat-bar {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
   border: 1px solid #000;
   border-radius: 12px;
-  text-align: center;
   margin-bottom: 0.35rem;
+  min-height: 1.15rem;
+  overflow: hidden;
+  background: rgba(128, 128, 128, 0.18);
+}
+[data-theme="dark"] .cal-stat-bar,
+:root:not([data-theme="light"]) .cal-stat-bar {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+}
+.cal-stat-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  max-width: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.cal-stat-bar-label {
+  position: relative;
+  z-index: 1;
+  text-align: center;
   font-size: 0.7rem;
   font-weight: 600;
-  min-height: 1.1rem;
+  line-height: 1.15rem;
+  padding: 0 0.25rem;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 1px 1px #000;
+  white-space: nowrap;
+}
+.cal-stat-bar.is-full .cal-stat-bar-label {
+  color: #111;
+  text-shadow: none;
 }
 .cal-stat-staff {
   margin: 0.15rem 0;

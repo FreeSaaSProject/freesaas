@@ -816,7 +816,9 @@ final class ProceduresRepository
 
     /**
      * Calendar day footer aggregates (oper $STATS lite).
-     * Revenue excludes RESTORED>0 and internal 1C_ID=999.
+     * Cash revenue excludes RESTORED>0 and internal 1C_ID=999.
+     * Restored rows still count on the masseur/admin staff lines (and commission base)
+     * so the footer matches payroll; they also feed the separate «ВОССТАНОВЛЕНО» total.
      *
      * @return array{
      *   operators: array<int,array<string,mixed>>,
@@ -918,15 +920,17 @@ final class ProceduresRepository
             $onec = trim((string)($row['onec_id'] ?? ''));
             $tid = (int)($row['type'] ?? 0);
 
-            if ($rest > 0) {
+            $isRestored = $rest > 0;
+            if ($isRestored) {
                 $restored += $sum;
-                continue;
-            }
-            if ($onec === '999') {
+            } elseif ($onec === '999') {
+                // Internal/employee-settle stubs: skip cash + staff lines.
+                // Restored rows keep staff attribution even when 1C_ID stays 999.
                 continue;
             }
 
-            // Performer column (ID_OPERATOR): revenue + commission base.
+            // Performer column (ID_OPERATOR): staff line + commission base.
+            // Cash day revenue skips restored (shown separately as ВОССТАНОВЛЕНО).
             if ($oid > 0) {
                 $ensureOp(
                     $ops,
@@ -938,12 +942,14 @@ final class ProceduresRepository
                 $ops[$oid]['summ'] += $sum;
                 $ops[$oid]['proc_count']++;
                 $ops[$oid]['sums_by_type'][$tid] = ($ops[$oid]['sums_by_type'][$tid] ?? 0.0) + $sum;
-                $revenue += $sum;
-                $procCount++;
-                $def = (float)($row['summ_default'] ?? 0);
-                if ($def > 0 && abs($sum - $def) > 0.01) {
-                    $ops[$oid]['promo_count']++;
-                    $promoCount++;
+                if (!$isRestored) {
+                    $revenue += $sum;
+                    $procCount++;
+                    $def = (float)($row['summ_default'] ?? 0);
+                    if ($def > 0 && abs($sum - $def) > 0.01) {
+                        $ops[$oid]['promo_count']++;
+                        $promoCount++;
+                    }
                 }
             }
 

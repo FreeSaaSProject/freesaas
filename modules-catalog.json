@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-07T14:43:44+00:00",
+    "generated_at": "2026-11-08T08:10:24+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -722,7 +722,7 @@
         },
         {
             "id": "calendar",
-            "version": "1.0.8",
+            "version": "1.0.9",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -1672,7 +1672,7 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.19",
+            "version": "1.0.22",
             "type": "product",
             "name": {
                 "en": "Treatments",
