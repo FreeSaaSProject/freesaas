@@ -170,6 +170,7 @@ Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`,
 | `staff_kpi` | procedures | same |
 | `masseur_shifts` | workweeks | `modules/workweeks/recipes/bi/` |
 | `admin_conversion` | terminals | `modules/terminals/recipes/bi/` |
+| `tickets_oasis` | terminals | same — oasis vs regular ticket counts |
 | `audio_desk_month` | audio_reports | `modules/audio_reports/recipes/bi/` |
 
 `/audio/summaries` (summary profiles UI) remains available alongside the BI family for comparison / gradual migration.

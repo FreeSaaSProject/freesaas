@@ -21,6 +21,9 @@ final class TerminalsBiContrib
             'fields' => [
                 ['id' => 'id', 'col' => 'ID', 'type' => 'int', 'agg' => true],
                 ['id' => 'dtstart', 'col' => 'DTSTART', 'type' => 'datetime'],
+                ['id' => 'is_oasis', 'col' => 'IS_OASIS', 'type' => 'int'],
+                ['id' => 'id_type', 'col' => 'ID_TYPE', 'type' => 'int'],
+                ['id' => 'ticket_type', 'col' => 'TICKET_TYPE', 'type' => 'string'],
             ],
             'joins' => [],
         ]);
@@ -38,9 +41,11 @@ final class TerminalsBiContrib
             return ['recipes' => []];
         }
         $list = is_array($payload['recipes'] ?? null) ? $payload['recipes'] : [];
-        $path = base_path('modules/terminals/recipes/bi/admin_conversion.json');
-        if (is_file($path)) {
-            $list[] = ['id' => 'admin_conversion', 'module' => 'terminals', 'path' => $path];
+        foreach (['admin_conversion', 'tickets_oasis'] as $rid) {
+            $path = base_path('modules/terminals/recipes/bi/' . $rid . '.json');
+            if (is_file($path)) {
+                $list[] = ['id' => $rid, 'module' => 'terminals', 'path' => $path];
+            }
         }
         $payload['recipes'] = $list;
         return $payload;

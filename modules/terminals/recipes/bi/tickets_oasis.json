@@ -1,0 +1,166 @@
+{
+  "v": 1,
+  "id": "tickets_oasis",
+  "title": "Билеты: оазис и обычные",
+  "requires": [
+    "guests"
+  ],
+  "queries": [
+    {
+      "as": "totals",
+      "from": "guests",
+      "select": [
+        {
+          "agg": "count",
+          "as": "total"
+        }
+      ]
+    },
+    {
+      "as": "oasis",
+      "from": "guests",
+      "where": [
+        {
+          "field": "is_oasis",
+          "op": "=",
+          "value": 1
+        }
+      ],
+      "select": [
+        {
+          "agg": "count",
+          "as": "n"
+        }
+      ]
+    },
+    {
+      "as": "regular",
+      "from": "guests",
+      "where": [
+        {
+          "field": "is_oasis",
+          "op": "!=",
+          "value": 1
+        }
+      ],
+      "select": [
+        {
+          "agg": "count",
+          "as": "n"
+        }
+      ]
+    },
+    {
+      "as": "by_flag",
+      "from": "guests",
+      "group_by": [
+        "is_oasis"
+      ],
+      "select": [
+        {
+          "field": "is_oasis"
+        },
+        {
+          "agg": "count",
+          "as": "n"
+        }
+      ],
+      "order_by": [
+        {
+          "field": "is_oasis",
+          "dir": "asc"
+        }
+      ],
+      "limit": 20
+    }
+  ],
+  "derive": [
+    {
+      "as": "by_flag_labeled",
+      "from": "by_flag",
+      "select": [
+        "*"
+      ],
+      "compute": [
+        {
+          "as": "kind",
+          "expr": {
+            "if": [
+              {
+                "eq": [
+                  {
+                    "field": "is_oasis"
+                  },
+                  {
+                    "lit": 1
+                  }
+                ]
+              },
+              {
+                "lit": "Оазис"
+              },
+              {
+                "if": [
+                  {
+                    "eq": [
+                      {
+                        "field": "is_oasis"
+                      },
+                      {
+                        "lit": 2
+                      }
+                    ]
+                  },
+                  {
+                    "lit": "Обычные"
+                  },
+                  {
+                    "lit": "Не размечено (0)"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "type": "metrics",
+      "title": "За период",
+      "items": [
+        {
+          "label": "Всего билетов",
+          "from": "totals",
+          "field": "total"
+        },
+        {
+          "label": "Оазис",
+          "from": "oasis",
+          "field": "n"
+        },
+        {
+          "label": "Обычные (не оазис)",
+          "from": "regular",
+          "field": "n"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "По флагу IS_OASIS",
+      "from": "by_flag_labeled",
+      "columns": [
+        "kind",
+        "is_oasis",
+        "n"
+      ]
+    },
+    {
+      "type": "text",
+      "title": "Пояснение",
+      "body": "Оазис = IS_OASIS=1 (сен–ноя 2026, имя с «оазис»). Обычные = все остальные визиты за выбранный месяц (включая 0 до дозаполнения)."
+    }
+  ]
+}

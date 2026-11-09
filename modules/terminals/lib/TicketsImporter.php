@@ -91,7 +91,13 @@ final class TicketsImporter
             return $out;
         }
 
-        $n = FullstatsRepository::replaceDay($dayStart, $valid, true);
+        try {
+            $n = FullstatsRepository::replaceDay($dayStart, $valid, true);
+        } catch (Throwable $e) {
+            $out['error'] = $e->getMessage();
+            $out['message'] = $out['error'];
+            return $out;
+        }
         $out['ok'] = true;
         $out['imported'] = $n;
         $out['skipped'] = $skipped;

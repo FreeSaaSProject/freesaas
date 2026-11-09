@@ -97,8 +97,8 @@ final class OnecClient
             $dtEnd = self::parseTs(
                 $item['end_date'] ?? $item['end'] ?? $item['DTEND'] ?? $item['dtend'] ?? 0
             );
-            // Oper: open-ended / sentinel end before midnight of the visit day → clamp to 23:00.
-            if ($dtStart > 0 && $dtEnd > 0 && $dtEnd < $dayStart) {
+            // Oper/1C: open visit or empty/sentinel end (year 0001 → large negative) → 23:00 that day.
+            if ($dtStart > 0 && ($dtEnd <= 0 || $dtEnd < $dayStart)) {
                 $dtEnd = (int)mktime(23, 0, 0, (int)date('n', $dtStart), (int)date('j', $dtStart), (int)date('Y', $dtStart));
             }
 
@@ -674,12 +674,21 @@ final class OnecClient
     /** @param mixed $v */
     private static function parseTs($v): int
     {
-        if (is_int($v) || (is_string($v) && ctype_digit($v))) {
-            return (int)$v;
+        if (is_int($v) || is_float($v)) {
+            $t = (int)$v;
+            // Reject empty/sentinel (negative) and non-unix absurdities.
+            return ($t > 0 && $t <= 4102444800) ? $t : 0;
+        }
+        if (is_string($v) && ctype_digit($v)) {
+            $t = (int)$v;
+            return ($t > 0 && $t <= 4102444800) ? $t : 0;
         }
         if (is_string($v) && $v !== '') {
             $t = strtotime($v);
-            return $t !== false ? $t : 0;
+            if ($t === false || $t <= 0 || $t > 4102444800) {
+                return 0;
+            }
+            return $t;
         }
         return 0;
     }

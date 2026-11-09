@@ -84,6 +84,7 @@ final class FullstatsRepository
         }
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
+        $hasOasis = self::hasOasisColumn();
         $oasisSel = $hasOasis ? ', IS_OASIS AS is_oasis' : ', 0 AS is_oasis';
         $sql = "SELECT ID AS id, DTCREATE AS dtcreate, DTSTART AS dtstart, DTEND AS dtend,
                        DURATION AS duration, ID1C_USER AS id1c_user, TITLE_FULL AS title_full,
@@ -374,6 +375,15 @@ final class FullstatsRepository
             }
             $n = 0;
             $now = time();
+            $u32 = static function (int $v): int {
+                if ($v < 0) {
+                    return 0;
+                }
+                if ($v > 4294967295) {
+                    return 4294967295;
+                }
+                return $v;
+            };
             foreach ($rows as $r) {
                 $ticketType = (string)($r['ticket_type'] ?? '');
                 $idType = (int)($r['id_type'] ?? 0);
@@ -390,20 +400,20 @@ final class FullstatsRepository
                     }
                 }
                 $vals = [
-                    (int)($r['dtcreate'] ?? $now),
-                    (int)($r['dtstart'] ?? 0),
-                    (int)($r['dtend'] ?? 0),
-                    (int)($r['duration'] ?? 0),
+                    $u32((int)($r['dtcreate'] ?? $now)),
+                    $u32((int)($r['dtstart'] ?? 0)),
+                    $u32((int)($r['dtend'] ?? 0)),
+                    $u32((int)($r['duration'] ?? 0)),
                     (string)($r['id1c_user'] ?? ''),
                     (string)($r['title_full'] ?? ''),
                     $ticketType,
-                    $idType,
-                    $isLimited,
-                    $isPayer,
+                    $u32($idType),
+                    $u32($isLimited),
+                    $u32($isPayer),
                 ];
                 if ($hasOasis) {
                     // Fresh imports: unknown oasis → not oasis (chunked backfill same rule).
-                    $vals[] = $isOasis > 0 ? $isOasis : 2;
+                    $vals[] = $isOasis > 0 ? $u32($isOasis) : 2;
                 }
                 $ins->execute($vals);
                 $n++;
