@@ -35,7 +35,7 @@ final class AudioPipelineAgentOps
                 'query' => ['admin', 'date', 'record', 'key', 'limit', 'offset'],
             ]],
             ['POST', '/agent/audio_pipeline/day-reparse', 'audio_pipeline.day_reparse', [self::class, 'dayReparse'], [
-                'description' => 'Reset+stem+collect for admin+date (confirm=1); optional time_budget_sec',
+                'description' => 'Reset+stem+collect for admin+date (confirm=1); optional time_budget_sec; scripts as-of day end',
                 'body' => ['admin', 'date', 'confirm', 'reset', 'time_budget_sec'],
             ]],
             ['POST', '/agent/audio_pipeline/backfill-playtime', 'audio_pipeline.backfill_playtime', [self::class, 'backfillPlaytime'], [
@@ -342,11 +342,13 @@ final class AudioPipelineAgentOps
         $stc->execute($params);
         $total = (int)$stc->fetchColumn();
         $hasGate = Database::columnExists('base_records_collections', 'GATE_REASON');
+        $hasScriptVersion = Database::columnExists('base_records_collections', 'ID_SCRIPT_VERSION');
         $st = $pdo->prepare(
             'SELECT c.ID AS id, c.ID_ADMIN AS id_admin, c.ID_SCRIPT AS id_script,
                     c.DT_START AS dt_start, c.DT_END AS dt_end, c.SCORE AS score,
                     c.SCORE_RATE AS score_rate, c.RATED AS rated'
             . ($hasGate ? ', c.GATE_REASON AS gate_reason' : '')
+            . ($hasScriptVersion ? ', c.ID_SCRIPT_VERSION AS id_script_version' : '')
             . " FROM base_records_collections c
              WHERE $sqlWhere
              ORDER BY c.DT_START ASC
@@ -367,6 +369,7 @@ final class AudioPipelineAgentOps
                 'id' => $cid,
                 'id_admin' => (int)$row['id_admin'],
                 'id_script' => $sid,
+                'id_script_version' => $hasScriptVersion ? (int)($row['id_script_version'] ?? 0) : null,
                 'script_name' => self::scriptName($sid),
                 'dt_start' => (int)$row['dt_start'],
                 'dt_end' => (int)$row['dt_end'],
@@ -402,11 +405,13 @@ final class AudioPipelineAgentOps
             return ['ok' => false, 'error' => 'no_collections_table', 'http' => 500];
         }
         $hasGate = Database::columnExists('base_records_collections', 'GATE_REASON');
+        $hasScriptVersion = Database::columnExists('base_records_collections', 'ID_SCRIPT_VERSION');
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, ID_ADMIN AS id_admin, ID_SCRIPT AS id_script,
                     DT_START AS dt_start, DT_END AS dt_end, SCORE AS score,
                     SCORE_RATE AS score_rate, RATED AS rated'
             . ($hasGate ? ', GATE_REASON AS gate_reason' : '')
+            . ($hasScriptVersion ? ', ID_SCRIPT_VERSION AS id_script_version' : '')
             . ' FROM base_records_collections WHERE ID = ? LIMIT 1'
         );
         $st->execute([$id]);
@@ -448,6 +453,7 @@ final class AudioPipelineAgentOps
                 'id' => (int)$row['id'],
                 'id_admin' => (int)$row['id_admin'],
                 'id_script' => $sid,
+                'id_script_version' => $hasScriptVersion ? (int)($row['id_script_version'] ?? 0) : null,
                 'script_name' => self::scriptName($sid),
                 'dt_start' => (int)$row['dt_start'],
                 'dt_end' => (int)$row['dt_end'],
@@ -629,6 +635,7 @@ final class AudioPipelineAgentOps
             $out['collect'] = CollectRunner::run(false, [$admin], [
                 'start' => $from,
                 'end' => $to,
+                'as_of' => $to,
                 'time_budget_sec' => $collBudget,
             ]);
             $diag = self::dayDiag();

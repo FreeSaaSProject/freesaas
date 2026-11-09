@@ -2,7 +2,7 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "1.0.21",
+    "version": "1.0.26",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -56,6 +56,11 @@
             "/agent/audio_dicts/script",
             "/agent/audio_dicts/script/part",
             "/agent/audio_dicts/script/part/delete",
+            "/agent/audio_dicts/script/versions",
+            "/agent/audio_dicts/script/publish",
+            "/agent/audio_dicts/script/restore",
+            "/agent/audio_dicts/script/open",
+            "/agent/audio_dicts/script/valid-from",
             "/agent/audio_dicts/dicts",
             "/agent/audio_dicts/dict",
             "/agent/audio_dicts/keys",
@@ -109,6 +114,50 @@
                 "assistant": false,
                 "side_effect": "write",
                 "description": "Agent-token: delete one part; body script_id, part_id, confirm=1"
+            },
+            {
+                "id": "audio_dicts.agent.script_versions",
+                "method": "GET",
+                "path": "/agent/audio_dicts/script/versions",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token: list published script versions + dirty; query id="
+            },
+            {
+                "id": "audio_dicts.agent.script_publish",
+                "method": "POST",
+                "path": "/agent/audio_dicts/script/publish",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: save into new or existing version; body id, confirm=1, target=new|existing, version_id / mode / valid_from_date"
+            },
+            {
+                "id": "audio_dicts.agent.script_restore",
+                "method": "POST",
+                "path": "/agent/audio_dicts/script/restore",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: restore from version_id; body id, version_id, confirm=1; publish=1 default rewrite or publish=0 draft"
+            },
+            {
+                "id": "audio_dicts.agent.script_open",
+                "method": "POST",
+                "path": "/agent/audio_dicts/script/open",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: load version into working tree; body id, version_id, confirm=1"
+            },
+            {
+                "id": "audio_dicts.agent.script_valid_from",
+                "method": "POST",
+                "path": "/agent/audio_dicts/script/valid-from",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: set version VALID_FROM; body id, version_id, confirm=1, valid_from_date"
             },
             {
                 "id": "audio_dicts.agent.dicts_list",
@@ -338,6 +387,14 @@
                 "description": "Canvas part API: reorder|save|add|delete"
             },
             {
+                "id": "audio_dicts.scripts.publish",
+                "method": "POST",
+                "path": "/audio/scripts/{id}",
+                "permission": "audio_dicts.edit",
+                "side_effect": "write",
+                "description": "Publish working tree; POST action=publish, publish_mode=from_date|rewrite, valid_from_date, publish_rewrite_confirm"
+            },
+            {
                 "id": "audio_dicts.scripts.delete",
                 "method": "POST",
                 "path": "/audio/scripts/{id}",
@@ -392,6 +449,7 @@
         "base_records_keys_tags",
         "base_records_keys_tags_links",
         "base_records_scripts",
+        "base_records_script_versions",
         "base_records_trashes"
     ],
     "migrators": [],

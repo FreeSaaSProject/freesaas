@@ -49,7 +49,7 @@ final class DayQualityReport
         }
         $dayEnd = (int)$dayStart + 86399;
 
-        $scripts = self::loadScriptsForAdmin($adminId);
+        $scripts = self::loadScriptsForAdmin($adminId, $dayEnd);
         $dayBonusScripts = array_values(array_filter(
             $scripts,
             static fn (array $s): bool => !empty($s['day_bonus'])
@@ -311,9 +311,12 @@ final class DayQualityReport
     }
 
     /**
+     * Rated scripts for staff (position filter). When $asOfTs > 0, use published
+     * script versions as-of that timestamp (day reports / reparse fidelity).
+     *
      * @return list<array<string,mixed>>
      */
-    public static function loadScriptsForAdmin(int $adminId): array
+    public static function loadScriptsForAdmin(int $adminId, int $asOfTs = 0): array
     {
         if ($adminId < 1 || !Database::tableExists('base_records_scripts')) {
             return [];
@@ -334,6 +337,18 @@ final class DayQualityReport
                 $posIds = $eq;
             }
         }
+
+        if ($asOfTs > 0
+            && class_exists('ScriptVersionsRepository', false)
+            && ScriptVersionsRepository::tableReady()
+        ) {
+            return self::filterScriptsForPosition(
+                self::rootsFromVersionedAsOf($asOfTs),
+                $positionId,
+                $posIds
+            );
+        }
+
         $hasDay = Database::columnExists('base_records_scripts', 'DAY_BONUS');
         $dayCols = $hasDay
             ? ', DAY_BONUS AS day_bonus, DAY_BONUS_SUM AS day_bonus_sum, PROC_RATIO_MIN AS proc_ratio_min'
@@ -354,23 +369,6 @@ final class DayQualityReport
         }
         $roots = [];
         while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-            $posRaw = (string)($row['id_position'] ?? '');
-            if ($posRaw !== '' && $posRaw !== '0' && $positionId > 0) {
-                $ok = false;
-                foreach ($posIds as $pid) {
-                    $pid = (int)$pid;
-                    if ($pid < 1) {
-                        continue;
-                    }
-                    if ($posRaw === (string)$pid || strpos($posRaw, '#' . $pid . '#') !== false) {
-                        $ok = true;
-                        break;
-                    }
-                }
-                if (!$ok) {
-                    continue;
-                }
-            }
             $gates = [];
             if (class_exists('RecordsScriptsRepository', false)) {
                 $gates = RecordsScriptsRepository::resolveDayGatesFromRow($row);
@@ -390,6 +388,7 @@ final class DayQualityReport
             $roots[] = [
                 'id' => (int)$row['id'],
                 'name' => (string)$row['name'],
+                'id_position' => (string)($row['id_position'] ?? ''),
                 'day_bonus' => (int)($row['day_bonus'] ?? 0),
                 'day_bonus_sum' => (int)($row['day_bonus_sum'] ?? 0),
                 'day_gates' => $gates,
@@ -397,6 +396,7 @@ final class DayQualityReport
                 'parts' => [],
             ];
         }
+        $roots = self::filterScriptsForPosition($roots, $positionId, $posIds);
         if ($roots === []) {
             return [];
         }
@@ -404,10 +404,83 @@ final class DayQualityReport
         $partsBy = self::loadParts($ids);
         foreach ($roots as &$r) {
             $r['parts'] = $partsBy[(int)$r['id']] ?? [];
+            unset($r['id_position']);
         }
         unset($r);
 
         return $roots;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private static function rootsFromVersionedAsOf(int $asOfTs): array
+    {
+        $out = [];
+        foreach (ScriptVersionsRepository::loadScriptsAsOf($asOfTs) as $root) {
+            if ((int)($root['rating_enabled'] ?? 0) < 1) {
+                continue;
+            }
+            $parts = [];
+            foreach ($root['parts'] ?? [] as $p) {
+                $parts[] = [
+                    'id' => (int)($p['id'] ?? 0),
+                    'name' => trim((string)($p['name'] ?? '')) !== ''
+                        ? trim((string)$p['name'])
+                        : ('#' . (int)($p['id'] ?? 0)),
+                    'gate_red_max' => (float)($p['gate_red_max'] ?? 0),
+                    'gate_yellow_max' => (float)($p['gate_yellow_max'] ?? 0),
+                    'hide_from_reports' => !empty($p['hide_from_reports']) ? 1 : 0,
+                    'cond_type' => trim((string)($p['cond_type'] ?? '')),
+                ];
+            }
+            $out[] = [
+                'id' => (int)$root['id'],
+                'name' => (string)$root['name'],
+                'id_position' => (string)($root['id_position'] ?? ''),
+                'day_bonus' => (int)($root['day_bonus'] ?? 0),
+                'day_bonus_sum' => (int)($root['day_bonus_sum'] ?? 0),
+                'day_gates' => is_array($root['day_gates'] ?? null) ? $root['day_gates'] : [],
+                'proc_ratio_min' => (int)($root['proc_ratio_min'] ?? 0),
+                'parts' => $parts,
+            ];
+        }
+        usort($out, static function (array $a, array $b): int {
+            return strcasecmp((string)$a['name'], (string)$b['name']) ?: ((int)$a['id'] <=> (int)$b['id']);
+        });
+        return $out;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $roots
+     * @param list<int> $posIds
+     * @return list<array<string,mixed>>
+     */
+    private static function filterScriptsForPosition(array $roots, int $positionId, array $posIds): array
+    {
+        $filtered = [];
+        foreach ($roots as $row) {
+            $posRaw = (string)($row['id_position'] ?? '');
+            if ($posRaw !== '' && $posRaw !== '0' && $positionId > 0) {
+                $ok = false;
+                foreach ($posIds as $pid) {
+                    $pid = (int)$pid;
+                    if ($pid < 1) {
+                        continue;
+                    }
+                    if ($posRaw === (string)$pid || strpos($posRaw, '#' . $pid . '#') !== false) {
+                        $ok = true;
+                        break;
+                    }
+                }
+                if (!$ok) {
+                    continue;
+                }
+            }
+            unset($row['id_position']);
+            $filtered[] = $row;
+        }
+        return $filtered;
     }
 
     /**

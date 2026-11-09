@@ -140,7 +140,7 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   user logout-all <login> [--format=json]
   user hash-audit [--format=json]
   demo provision [--login=demo] [--password=demodemo] [--name=…] [--format=json]
-  demo seed [--locale=ru|en] [--reset] [--format=json]
+  demo seed [--locale=ru|en] [--profile=spa|clinic] [--reset] [--clients=N] [--only=…] [--force] [--format=json]
   demo claim [--existing] [--format=json]
   demo status [--format=json]
   bot unlink <login|client:<id>> [--platform=telegram|max] [--format=json]
@@ -243,7 +243,7 @@ function freesaas_cmd_demo(string $sub, array $args, array $opts): void
     if (!in_array($sub, ['seed', 'provision', 'claim', 'status'], true)) {
         Cli::usage(
             "Usage:\n  demo provision [--login=demo] [--password=demodemo] [--name=Demo] [--format=json]\n"
-            . "  demo seed [--locale=ru|en] [--reset] [--format=json]\n"
+            . "  demo seed [--locale=ru|en] [--profile=spa|clinic] [--reset] [--clients=N] [--only=stages] [--force] [--format=json]\n"
             . "  demo claim [--existing] [--format=json]\n"
             . '  demo status [--format=json]'
         );
@@ -273,6 +273,8 @@ function freesaas_cmd_demo(string $sub, array $args, array $opts): void
             freesaas_emit_ops([
                 'ok' => true,
                 'stand_id' => DemoStand::configuredId(),
+                'profile' => DemoSeed::resolveProfile([]),
+                'http_lock' => DemoMode::httpLock(),
                 'marker' => DemoStand::get(),
                 'module_version' => DemoStand::moduleVersion(),
                 'domain_counts' => DemoStand::domainCounts(),
@@ -283,10 +285,23 @@ function freesaas_cmd_demo(string $sub, array $args, array $opts): void
             return;
         }
         if ($sub === 'seed') {
-            freesaas_emit_ops(DemoSeed::run([
+            $only = [];
+            if (isset($opts['only']) && is_string($opts['only']) && $opts['only'] !== '') {
+                $only = array_values(array_filter(array_map('trim', explode(',', (string)$opts['only']))));
+            }
+            $seedOpts = [
                 'locale' => isset($opts['locale']) ? (string)$opts['locale'] : I18n::locale(),
+                'profile' => (string)($opts['profile'] ?? Config::get('demo', 'profile', 'spa')),
                 'reset' => !empty($opts['reset']),
-            ]));
+                'force' => !empty($opts['force']),
+                'clients' => (int)($opts['clients'] ?? 520),
+                'days' => (int)($opts['days'] ?? 0),
+                'audio_days' => (int)($opts['audio-days'] ?? $opts['audio_days'] ?? 0),
+            ];
+            if ($only !== []) {
+                $seedOpts['only'] = $only;
+            }
+            freesaas_emit_ops(DemoSeed::run($seedOpts));
             return;
         }
         freesaas_emit_ops(DemoProvision::run([

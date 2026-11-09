@@ -355,7 +355,22 @@ final class DayQualityMetrics
             return ['starts' => $starts, 'finishes' => 0];
         }
         $finishPart = 0;
-        if (Database::tableExists('base_records_scripts')) {
+        if (class_exists('ScriptVersionsRepository', false)
+            && ScriptVersionsRepository::tableReady()
+        ) {
+            $ver = ScriptVersionsRepository::asOf($scriptId, $dayEnd);
+            if ($ver !== null) {
+                foreach ($ver['tree']['parts'] as $p) {
+                    if ((int)($p['disabled'] ?? 0) >= 1) {
+                        continue;
+                    }
+                    if ((int)($p['finish'] ?? 0) > 0) {
+                        $finishPart = (int)($p['id'] ?? 0);
+                        break;
+                    }
+                }
+            }
+        } elseif (Database::tableExists('base_records_scripts')) {
             $fp = Database::pdo()->prepare(
                 'SELECT ID FROM base_records_scripts
                  WHERE PID = ? AND FINISH > 0 AND DISABLED < 1

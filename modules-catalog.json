@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-09T06:56:11+00:00",
+    "generated_at": "2026-11-09T19:10:40+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -199,7 +199,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.21",
+            "version": "1.0.26",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -312,7 +312,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.0.12",
+            "version": "1.0.15",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -348,7 +348,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "1.0.15",
+            "version": "1.0.18",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -1062,19 +1062,19 @@
         },
         {
             "id": "demo",
-            "version": "1.0.4",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "Demo stand",
                 "ru": "Демостенд"
             },
             "description": {
-                "en": "Public demo seed and guest provision (only when app.demo_readonly=1).",
-                "ru": "Сид и провижининг публичного демо (только при app.demo_readonly=1)."
+                "en": "Demo-host seed and guest provision (spa/clinic profiles, http_lock levels; only when app.demo_readonly=1).",
+                "ru": "Сид и провижининг демо-хоста (профили spa/clinic, уровни http_lock; только при app.demo_readonly=1)."
             },
             "summary": {
-                "en": "Enable only on public demo hosts with app.demo_readonly=1. Provides CLI seed/provision, the read-only banner, a link to the other-language stand and self-update / reseed cron jobs (cfg/modules/demo.ini). Keep =0 in production.",
-                "ru": "Включайте только на публичных демо-хостах вместе с app.demo_readonly=1. Даёт CLI seed/provision, баннер «только просмотр», ссылку на стенд другого языка и cron-задачи самообновления и пересева (cfg/modules/demo.ini). На проде держите =0."
+                "en": "Enable only on demo hosts with app.demo_readonly=1. Seed profiles spa|clinic, http_lock=full|auth|off, CLI seed/provision, banner, other-language stand link, and self-update / reseed cron (cfg/modules/demo.ini). Keep =0 in production.",
+                "ru": "Включайте только на демо-хостах вместе с app.demo_readonly=1. Профили сида spa|clinic, уровень закрытости http_lock=full|auth|off, CLI seed/provision, баннер, ссылка на стенд другого языка и cron самообновления/пересева (cfg/modules/demo.ini). На проде держите =0."
             },
             "requires": {
                 "core": ">=1.0.0"
@@ -1082,6 +1082,7 @@
             "optionalRequires": {
                 "audio": ">=1.0.0",
                 "audio_dicts": ">=1.0.0",
+                "audio_pipeline": ">=1.0.0",
                 "bi": ">=1.0.0",
                 "bonuses": ">=1.0.0",
                 "cabinets": ">=1.0.0",
@@ -1092,6 +1093,7 @@
                 "funds": ">=1.0.0",
                 "ledger": ">=1.0.0",
                 "orders": ">=1.0.0",
+                "payments": ">=1.0.0",
                 "procedures": ">=1.0.0",
                 "procents": ">=1.0.0",
                 "rates": ">=1.0.0",

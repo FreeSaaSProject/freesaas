@@ -307,6 +307,7 @@ try {
         $coll = CollectRunner::run(false, $admins, [
             'start' => $range['start'],
             'end' => $range['end'],
+            'as_of' => (int)$range['end'],
             'time_budget_sec' => 90,
         ]);
         $liveMark(t('audio_reports.calendar.reparse_collect_stats', [

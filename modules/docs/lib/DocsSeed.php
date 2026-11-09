@@ -102,7 +102,7 @@ final class DocsSeed
     }
 
     /** Bump when default schemas/templates change; untouched seeds (single version) are upgraded. */
-    public const REVISION = 2;
+    public const REVISION = 6;
 
     /** Localization key of a seeded select option. */
     public static function optionKey(string $fieldId, string $value): string
@@ -121,8 +121,17 @@ final class DocsSeed
         }
         foreach (self::definitions() as $seed) {
             $def = DocsDefsRepository::findByCode((string)$seed['meta']['code']);
-            if ($def !== null && count(DocsDefsRepository::versions((int)$def['id'])) === 1) {
-                DocsDefsRepository::saveVersionIfChanged((int)$def['id'], $seed['version']);
+            if ($def === null || count(DocsDefsRepository::versions((int)$def['id'])) !== 1) {
+                continue;
+            }
+            $prevVid = (int)$def['id_version_current'];
+            $newVid = DocsDefsRepository::saveVersionIfChanged((int)$def['id'], $seed['version']);
+            // Unprinted shells follow the upgraded seed template (printed snapshots stay frozen).
+            if ($newVid > 0 && $newVid !== $prevVid && DocsInstancesRepository::tableReady()) {
+                Database::pdo()->prepare(
+                    "UPDATE base_doc_instances SET ID_VERSION = ?
+                     WHERE ID_DEF = ? AND ID_VERSION = ? AND DT_PRINT = 0 AND STATUS <> 'void'"
+                )->execute([$newVid, (int)$def['id'], $prevVid]);
             }
         }
         Config::set('docs', 'seed_revision', (string)self::REVISION);
@@ -137,12 +146,66 @@ final class DocsSeed
             self::def('medcard_profile', 'medcard_profile', 'client', 'manual', 1, 10, self::profileSchema(), self::profileHtml()),
             self::def('medcard_visit', 'medcard_visit', 'event', 'medical', 1, 20, self::visitSchema(), self::visitHtml()),
             self::def('medcard_dossier', 'medcard_dossier', 'client', 'manual', 1, 30, ['sections' => []], self::dossierHtml()),
+            // Legacy sample (disabled): kept so older installs that already have it stay stable.
             self::def('consent_medical', 'consent', 'client', 'medical', 0, 40, ['sections' => []], self::consentHtml(), 365),
+            // Paid services contract — print body from library pack (rich Д-ЗГ), fallback skinny HTML.
+            self::def(
+                'contract_citizen',
+                'contract',
+                'client',
+                'medical',
+                1,
+                50,
+                ['sections' => []],
+                self::contractCitizenHtml(),
+                365,
+                self::libraryPrint('elos63', 'd_zg')
+            ),
+            // Official «Перечень» IDS (приказ 390н) — rich client-level consent from library.
+            self::def(
+                'consent_list',
+                'consent',
+                'client',
+                'medical',
+                1,
+                55,
+                ['sections' => []],
+                self::consentHtml(),
+                0,
+                self::libraryPrint('elos63', 'ids_p')
+            ),
+            // Per-visit IDS listing basket procedures (short companion to consent_list).
+            self::def('consent_procedure', 'consent', 'event', 'medical', 1, 60, ['sections' => []], self::consentProcedureHtml(), 0),
+        ];
+    }
+
+    /**
+     * Load print layout from modules/docs/library/<pack>/<file>.json when present.
+     *
+     * @return array{print_html?:string,orientation?:string,format?:string,copies?:int}
+     */
+    private static function libraryPrint(string $pack, string $file): array
+    {
+        if (!class_exists('DocsLibrary', false)) {
+            require_once __DIR__ . '/DocsLibrary.php';
+        }
+        $tpl = DocsLibrary::readPackFile($pack, $file);
+        if ($tpl === null || trim((string)($tpl['print_html'] ?? '')) === '') {
+            return [];
+        }
+        $orient = (string)($tpl['orientation'] ?? 'portrait');
+        $paper = (string)($tpl['paper'] ?? 'A4');
+        return [
+            'print_html' => (string)$tpl['print_html'],
+            'orientation' => in_array($orient, DocsDefsRepository::ORIENTATIONS, true) ? $orient : 'portrait',
+            'format' => in_array($paper, DocsDefsRepository::FORMATS, true) ? $paper : 'A4',
+            'copies' => max(1, min(9, (int)($tpl['copies'] ?? 1))),
         ];
     }
 
     /**
      * @param array<string,mixed> $schema
+     * @param array{print_html?:string,orientation?:string,format?:string,copies?:int} $print
      * @return array{meta:array<string,mixed>,version:array<string,mixed>}
      */
     private static function def(
@@ -154,7 +217,8 @@ final class DocsSeed
         int $num,
         array $schema,
         string $html,
-        int $expireDays = 0
+        int $expireDays = 0,
+        array $print = []
     ): array {
         return [
             'meta' => [
@@ -172,10 +236,10 @@ final class DocsSeed
             ],
             'version' => [
                 'schema_json' => (string)json_encode($schema, JSON_UNESCAPED_UNICODE),
-                'print_html' => $html,
-                'orientation' => 'portrait',
-                'format' => 'A4',
-                'copies' => 1,
+                'print_html' => (string)($print['print_html'] ?? $html),
+                'orientation' => (string)($print['orientation'] ?? 'portrait'),
+                'format' => (string)($print['format'] ?? 'A4'),
+                'copies' => (int)($print['copies'] ?? 1),
             ],
         ];
     }
@@ -361,7 +425,7 @@ final class DocsSeed
             . '14. ' . self::l('i14') . ': {profile.education|' . self::l('i14_default') . '}<br>'
             . '15. ' . self::l('i15') . ': {profile.employment|' . $b . '}<br>'
             . '16. ' . self::l('i16') . ': {profile.disability|' . $b . '}<br>'
-            . '17. ' . self::l('i17') . ': {profile.work_place|' . $b . '} {profile.work_position}<br>'
+            . '17. ' . self::l('i17') . ': {profile.work_place|' . $b . '} {profile.work_position|' . $b . '}<br>'
             . '18. ' . self::l('i18') . ' ' . $b . $b . '<br>'
             . '19. ' . self::l('i19') . ' ' . $b . $b . '<br>'
             . '20. ' . self::l('i20') . ':</p>{dossier.diagnoses}'
@@ -370,7 +434,7 @@ final class DocsSeed
             . '23. ' . self::l('i23') . ' <u>{profile.ana_alerg|' . $b . '}</u></p>';
     }
 
-    /** Items 26–35 left blank as in the paper form. */
+    /** Items 26–35: item 26 filled from visit sheets when present; 27–35 blank paper form. */
     private static function tail025(): string
     {
         $b = self::BLANK;
@@ -383,8 +447,7 @@ final class DocsSeed
             . implode('</th><th>', array_map(static fn(string $k): string => self::l($k), $cols)) . '</th></tr><tr>'
             . str_repeat('<td>&nbsp;</td>', count($cols)) . '</tr></table>';
         return '<div style="font-size:8pt">'
-            . '<p><b>' . self::l('t26') . '</b><br>' . $line('line_date') . $line('line_complaints') . $line('line_treatment')
-            . $dia() . $line('line_recs') . $line('line_sick') . $line('line_doctor') . '</p>'
+            . '{dossier.stage_epicrisis}'
             . '<p><b>' . self::l('t27') . '</b><br>' . $line('line_date') . $line('line_complaints') . $line('line_treatment')
             . $dia() . $line('line_recs') . $line('line_sick')
             . self::l('line_head') . ' ' . $b . ' ' . self::l('line_attending') . ' ' . $b . '</p>'
@@ -452,5 +515,53 @@ final class DocsSeed
             . '<p>' . e(t('docs.seed.tpl.consent_body')) . '</p>'
             . '<p style="margin-top:2em">' . e(t('docs.seed.tpl.sign_client')) . ' ____________________ {doc.date}</p>'
             . '<p>' . e(t('docs.seed.tpl.valid_until')) . ' {doc.expire}</p>{qr}';
+    }
+
+    /** Framework contract for paid medical services (citizen / consumer). */
+    private static function contractCitizenHtml(): string
+    {
+        $b = self::BLANK;
+        return '<div style="font-size:9pt">'
+            . '<p style="font-size:8pt">' . e(t('docs.seed.tpl.contract_notice')) . '</p>'
+            . '<h3 style="text-align:center">' . e(t('docs.seed.tpl.contract_title')) . ' №{doc.id}</h3>'
+            . '<table width="100%"><tr><td>' . e(t('docs.seed.tpl.city')) . ' {org.city|' . $b . '}</td>'
+            . '<td style="text-align:right">{doc.date}</td></tr></table>'
+            . '<p>{org.name|' . $b . '}, ' . e(t('docs.seed.tpl.contract_org')) . ' {org.address|' . $b . '}; '
+            . e(t('docs.seed.tpl.inn')) . ' {org.inn|' . $b . '}, ' . e(t('docs.seed.tpl.ogrn')) . ' {org.ogrn|' . $b . '}; '
+            . e(t('docs.seed.tpl.license')) . ' {org.license|' . $b . '} ' . e(t('docs.seed.tpl.from')) . ' {org.license_date|' . $b . '}, '
+            . e(t('docs.seed.tpl.issued_by')) . ' {org.license_issuer|' . $b . '}.</p>'
+            . '<p>' . e(t('docs.seed.tpl.contract_parties')) . ' {client.name}, '
+            . e(t('docs.seed.tpl.passport')) . ' {client.passport_serie|' . $b . '} № {client.passport_number|' . $b . '}, '
+            . e(t('docs.seed.tpl.address')) . ' {client.address|' . $b . '}.</p>'
+            . '<p><b>1. ' . e(t('docs.seed.tpl.contract_s1')) . '</b><br>' . e(t('docs.seed.tpl.contract_s1_body')) . '</p>'
+            . '<p><b>2. ' . e(t('docs.seed.tpl.contract_s2')) . '</b><br>' . e(t('docs.seed.tpl.contract_s2_body')) . '</p>'
+            . '<p><b>3. ' . e(t('docs.seed.tpl.contract_s3')) . '</b><br>' . e(t('docs.seed.tpl.contract_s3_body')) . '</p>'
+            . '<p>' . e(t('docs.seed.tpl.contract_term')) . ' {doc.date} — {doc.expire|' . $b . '}.</p>'
+            . '<table width="100%" style="margin-top:1.5em"><tr>'
+            . '<td width="50%" valign="top"><b>' . e(t('docs.seed.tpl.provider')) . '</b><br>{org.name|' . $b . '}<br>'
+            . e(t('docs.seed.tpl.sign_provider')) . ' _____________ / {org.director_short|' . $b . '}</td>'
+            . '<td width="50%" valign="top"><b>' . e(t('docs.seed.tpl.consumer')) . '</b><br>{client.name}<br>'
+            . e(t('docs.seed.tpl.sign_client')) . ' _____________ / _____________</td>'
+            . '</tr></table>{qr}</div>';
+    }
+
+    /** Per-visit informed voluntary consent listing basket procedures. */
+    private static function consentProcedureHtml(): string
+    {
+        $b = self::BLANK;
+        return '<div style="font-size:10pt">'
+            . '<h3 style="text-align:center">' . e(t('docs.seed.name.consent_procedure')) . '</h3>'
+            . '<p>' . e(t('docs.seed.tpl.ids_law')) . '</p>'
+            . '<p>' . e(t('docs.seed.tpl.ids_i')) . ' {client.name}, '
+            . e(t('docs.seed.tpl.passport')) . ' {client.passport_serie|' . $b . '} № {client.passport_number|' . $b . '}, '
+            . e(t('docs.seed.tpl.born')) . ' {client.birthday|' . $b . '}, '
+            . e(t('docs.seed.tpl.ids_org')) . ' {org.name|' . $b . '}.</p>'
+            . '<p><b>' . e(t('docs.seed.tpl.ids_services')) . '</b></p>{event.items}'
+            . '<p>' . e(t('docs.seed.tpl.ids_body')) . '</p>'
+            . '<p>' . e(t('docs.seed.tpl.ids_risks')) . '</p>'
+            . '<table width="100%" style="margin-top:1.5em"><tr>'
+            . '<td width="50%" valign="top">' . e(t('docs.seed.tpl.sign_client')) . '<br>_____________ / {client.name}<br>{doc.date}</td>'
+            . '<td width="50%" valign="top">' . e(t('docs.seed.tpl.sign_doctor')) . '<br>_____________ / {doctor.name|' . $b . '}<br>{doc.date}</td>'
+            . '</tr></table>{qr}</div>';
     }
 }

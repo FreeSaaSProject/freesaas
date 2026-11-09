@@ -20,7 +20,7 @@ final class DocsRender
         'doctor.name', 'doctor.position', 'visit.recommends', 'visit.date', 'visit.anamnesis_life',
         'visit.objective_general', 'visit.next_text', 'contract.id', 'contract.date',
         'profile.bmi', 'profile.ana_gyno_print',
-        'dossier.diagnoses', 'dossier.visits', 'dossier.procedures',
+        'dossier.diagnoses', 'dossier.visits', 'dossier.procedures', 'dossier.stage_epicrisis',
         'org.ogrn_boxes', 'doc.id', 'doc.code', 'doc.name', 'doc.date', 'doc.expire', 'staff.name', 'qr',
     ];
 
@@ -30,7 +30,7 @@ final class DocsRender
     /** Context values that are engine-built HTML (not escaped). */
     private const HTML_KEYS = [
         'fields', 'event.items', 'qr', 'dossier', 'org.signature', 'org.ogrn_boxes',
-        'dossier.diagnoses', 'dossier.visits', 'dossier.procedures',
+        'dossier.diagnoses', 'dossier.visits', 'dossier.procedures', 'dossier.stage_epicrisis',
     ];
 
     /** Visit sheet: profile fields printed on the first visit (form 025/u items 24). */
@@ -352,6 +352,9 @@ final class DocsRender
             $vars['dossier.diagnoses'] = strpos($template, '{dossier.diagnoses') !== false ? self::diagnosesHtml($visitIds) : '';
             $vars['dossier.visits'] = strpos($template, '{dossier.visits') !== false ? self::dossierVisitsHtml($visitIds) : '';
             $vars['dossier.procedures'] = strpos($template, '{dossier.procedures') !== false ? self::proceduresHtml($clientId) : '';
+            $vars['dossier.stage_epicrisis'] = strpos($template, '{dossier.stage_epicrisis') !== false
+                ? self::stageEpicrisisHtml($visitIds)
+                : '';
         }
 
         $printTs = (int)$instance['dt_print'] > 0 ? (int)$instance['dt_print'] : time();
@@ -510,6 +513,56 @@ final class DocsRender
         }
         $out['visit.objective_general'] = trim($general . ($body !== [] ? ' ' . implode('; ', $body) . '.' : ''));
         return $out;
+    }
+
+    /**
+     * Item 26 «Этапный эпикриз»: summaries from visit sheets that have clinical text.
+     * Falls back to a blank paper block when nothing is filled.
+     *
+     * @param list<int> $visitIds ordered
+     */
+    public static function stageEpicrisisHtml(array $visitIds): string
+    {
+        $b = '__________';
+        $blocks = [];
+        foreach ($visitIds as $vid) {
+            $visit = DocsInstancesRepository::find($vid);
+            if ($visit === null) {
+                continue;
+            }
+            $p = (array)($visit['payload'] ?? []);
+            $complaints = trim((string)($p['complaints'] ?? ''));
+            $dia = trim((string)($p['dia_codes'] ?? ''));
+            $recs = trim((string)($p['recommends'] ?? ''));
+            $obj = trim((string)($p['ana_obj'] ?? ''));
+            $gen = trim((string)($p['ana_gen'] ?? ''));
+            if ($complaints === '' && $dia === '' && $recs === '' && $obj === '' && $gen === '') {
+                continue;
+            }
+            $doctor = self::doctorVars((int)($p['doctor_id'] ?? 0))['name'];
+            $date = I18n::formatDate(self::visitTs($visit), 'date');
+            $treatment = trim($gen . ($obj !== '' ? ($gen !== '' ? '; ' : '') . $obj : ''));
+            $blocks[] = '<p><b>' . e(t('docs.seed.f025.t26')) . '</b><br>'
+                . e(t('docs.seed.f025.line_date')) . ' <u>' . e($date) . '</u><br>'
+                . e(t('docs.seed.f025.line_complaints')) . ' <u>' . e($complaints !== '' ? $complaints : $b) . '</u><br>'
+                . e(t('docs.seed.f025.line_treatment')) . ' <u>' . e($treatment !== '' ? $treatment : $b) . '</u><br>'
+                . e(t('docs.seed.f025.line_main_dia')) . ' <u>' . e($dia !== '' ? $dia : $b) . '</u><br>'
+                . e(t('docs.seed.f025.line_recs')) . ' <u>' . e($recs !== '' ? $recs : $b) . '</u><br>'
+                . e(t('docs.seed.f025.line_doctor')) . ' <u>' . e($doctor !== '' ? $doctor : $b) . '</u></p>';
+            if (count($blocks) >= 3) {
+                break;
+            }
+        }
+        if ($blocks === []) {
+            return '<p><b>' . e(t('docs.seed.f025.t26')) . '</b><br>'
+                . e(t('docs.seed.f025.line_date')) . ' ' . $b . $b . '<br>'
+                . e(t('docs.seed.f025.line_complaints')) . ' ' . $b . $b . '<br>'
+                . e(t('docs.seed.f025.line_treatment')) . ' ' . $b . $b . '<br>'
+                . e(t('docs.seed.f025.line_main_dia')) . ' ' . $b . ' ' . e(t('docs.seed.f025.line_icd')) . ' ' . $b . '<br>'
+                . e(t('docs.seed.f025.line_recs')) . ' ' . $b . $b . '<br>'
+                . e(t('docs.seed.f025.line_doctor')) . ' ' . $b . $b . '</p>';
+        }
+        return implode('', $blocks);
     }
 
     /**

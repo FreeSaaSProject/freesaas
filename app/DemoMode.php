@@ -5,12 +5,18 @@ declare(strict_types=1);
  * Demo stand guards (single monorepo; enabled only when cfg says so).
  *
  * Default off: absent / 0 / false / off / no → production behaviour unchanged.
- * When on: block unsafe HTTP mutations; optional auto-login.
+ * When on (`app.demo_readonly=1`): demo host marker (fail-closed modules, noindex,
+ * CLI seed). HTTP mutation lockdown is controlled separately by `[demo] http_lock`
+ * (`full` | `auth` | `off`). Optional auto-login.
  * Module absent-key policy is always fail-closed (see Config::moduleEnabled).
  */
 final class DemoMode
 {
-    /** Paths allowed to POST/PUT/PATCH/DELETE while demo_readonly is on. */
+    public const LOCK_FULL = 'full';
+    public const LOCK_AUTH = 'auth';
+    public const LOCK_OFF = 'off';
+
+    /** Paths allowed to POST/PUT/PATCH/DELETE while http_lock is full/auth. */
     private const MUTATION_ALLOW = [
         '/login',
         '/logout',
@@ -26,6 +32,28 @@ final class DemoMode
             return false;
         }
         return self::flag((string)Config::get('app', 'demo_readonly', '0'));
+    }
+
+    /**
+     * HTTP mutation policy on a demo host.
+     * - full: deny all mutations except allow-list (public marketing stands)
+     * - auth: allow mutations only when Auth::check() (closed AI / staff demos)
+     * - off: no demo-specific mutation block
+     * Non-demo hosts always behave as off.
+     */
+    public static function httpLock(): string
+    {
+        if (!self::readonly()) {
+            return self::LOCK_OFF;
+        }
+        if (!class_exists('Config', false)) {
+            return self::LOCK_FULL;
+        }
+        $raw = strtolower(trim((string)Config::get('demo', 'http_lock', self::LOCK_FULL)));
+        if ($raw === self::LOCK_AUTH || $raw === self::LOCK_OFF || $raw === self::LOCK_FULL) {
+            return $raw;
+        }
+        return self::LOCK_FULL;
     }
 
     public static function autoLogin(): bool
@@ -64,13 +92,26 @@ final class DemoMode
     }
 
     /**
-     * Skip shared DB writes from HTTP GET (and similar) under demo_readonly.
-     * Router already denies POST|PUT|PATCH|DELETE; this covers GET side effects
-     * (e.g. news mark-as-read). CLI seed/provision still write while the flag is on.
+     * Skip shared DB writes from HTTP GET (and similar) under demo http_lock.
+     * Router already denies POST|PUT|PATCH|DELETE when locked; this covers GET
+     * side effects (e.g. news mark-as-read). CLI seed/provision still write.
+     * - full: block for all HTTP
+     * - auth: block only for guests (logged-in staff may write)
+     * - off: never block
      */
     public static function blocksHttpSideEffects(): bool
     {
-        return self::readonly() && PHP_SAPI !== 'cli';
+        if (PHP_SAPI === 'cli' || !self::readonly()) {
+            return false;
+        }
+        $lock = self::httpLock();
+        if ($lock === self::LOCK_OFF) {
+            return false;
+        }
+        if ($lock === self::LOCK_AUTH) {
+            return !(class_exists('Auth', false) && Auth::check(false));
+        }
+        return true;
     }
 
     /**
@@ -167,12 +208,16 @@ final class DemoMode
     }
 
     /**
-     * Block unsafe methods under demo_readonly (after auth/CSRF).
+     * Block unsafe methods under demo http_lock (after auth/CSRF).
      * @return bool true if request was denied (caller must return)
      */
     public static function denyUnsafeIfReadonly(string $path, string $method, bool $wantJson): bool
     {
         if (!self::readonly()) {
+            return false;
+        }
+        $lock = self::httpLock();
+        if ($lock === self::LOCK_OFF) {
             return false;
         }
         $method = strtoupper($method);
@@ -182,17 +227,22 @@ final class DemoMode
         if (self::mutationAllowed($path)) {
             return false;
         }
+        if ($lock === self::LOCK_AUTH && class_exists('Auth', false) && Auth::check(false)) {
+            return false;
+        }
         $msg = class_exists('I18n', false)
-            ? t('app.demo.readonly_deny')
-            : 'Demo is read-only';
+            ? t($lock === self::LOCK_AUTH ? 'app.demo.auth_deny' : 'app.demo.readonly_deny')
+            : ($lock === self::LOCK_AUTH ? 'Demo requires login to modify data' : 'Demo is read-only');
         if ($wantJson && class_exists('AgentHttp', false)) {
-            AgentHttp::error($msg, 403, ['error_code' => 'demo_readonly']);
+            AgentHttp::error($msg, 403, ['error_code' => $lock === self::LOCK_AUTH ? 'demo_auth_required' : 'demo_readonly']);
             return true;
         }
         http_response_code(403);
         if (class_exists('View', false)) {
             View::render('error', [
-                'title' => class_exists('I18n', false) ? t('app.demo.readonly_title') : 'Read-only',
+                'title' => class_exists('I18n', false)
+                    ? t($lock === self::LOCK_AUTH ? 'app.demo.auth_title' : 'app.demo.readonly_title')
+                    : ($lock === self::LOCK_AUTH ? 'Login required' : 'Read-only'),
                 'message' => $msg,
                 'hint' => '',
             ]);

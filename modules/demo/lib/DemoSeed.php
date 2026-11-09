@@ -30,7 +30,7 @@ final class DemoSeed
     ];
 
     /**
-     * @param array{reset?:bool,locale?:string} $opts
+     * @param array{reset?:bool,locale?:string,profile?:string,clients?:int,days?:int,audio_days?:int,force?:bool,only?:list<string>|string} $opts
      * @return array<string,mixed>
      */
     public static function run(array $opts = []): array
@@ -46,8 +46,7 @@ final class DemoSeed
 
         $locale = I18n::normalize((string)($opts['locale'] ?? I18n::locale())) ?? 'ru';
         I18n::setLocale($locale);
-        $pack = self::pack($locale);
-        $reset = !empty($opts['reset']);
+        $profile = self::resolveProfile($opts);
 
         // Second lock (DB marker) + version preflight — both before any wipe.
         DemoStand::assertSeedable($locale);
@@ -55,6 +54,13 @@ final class DemoSeed
         if ($problems !== []) {
             throw new RuntimeException('demo seed refused (preflight, data kept): ' . implode('; ', $problems));
         }
+
+        if ($profile === 'clinic') {
+            return self::runClinic($opts, $locale);
+        }
+
+        $pack = self::pack($locale);
+        $reset = !empty($opts['reset']);
         $dump = self::snapshot();
 
         try {
@@ -85,15 +91,70 @@ final class DemoSeed
 
         return [
             'ok' => true,
+            'profile' => 'spa',
             'locale' => $locale,
             'reset' => $reset,
             'stand_id' => DemoStand::configuredId(),
             'seed_version' => $version,
             'dump' => $dump,
+            'http_lock' => DemoMode::httpLock(),
             'anchor_day' => date('Y-m-d', self::now()),
             'week_monday' => date('Y-m-d', self::mondayTs()),
             'counts' => $counts,
         ];
+    }
+
+    /** @param array<string,mixed> $opts */
+    public static function resolveProfile(array $opts = []): string
+    {
+        $raw = strtolower(trim((string)($opts['profile'] ?? Config::get('demo', 'profile', 'spa'))));
+        return $raw === 'clinic' ? 'clinic' : 'spa';
+    }
+
+    /**
+     * @param array<string,mixed> $opts
+     * @return array<string,mixed>
+     */
+    private static function runClinic(array $opts, string $locale): array
+    {
+        require_once base_path('modules/demo/lib/ClinicDemo/ClinicDemo.php');
+        $dump = self::snapshot();
+        try {
+            $result = ClinicDemo::runForDemoModule($opts + ['locale' => $locale]);
+        } catch (Throwable $e) {
+            if ($dump === null) {
+                throw $e;
+            }
+            try {
+                DbTools::restore($dump, self::snapshotTables());
+                Database::clearSchemaCache();
+            } catch (Throwable $re) {
+                throw new RuntimeException(
+                    'clinic demo seed failed: ' . $e->getMessage()
+                    . '; restore of ' . $dump . ' also failed: ' . $re->getMessage(),
+                    0,
+                    $e
+                );
+            }
+            throw new RuntimeException(
+                'clinic demo seed failed, previous data restored from ' . $dump . ': ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+        if (empty($result['ok'])) {
+            throw new RuntimeException(
+                'clinic demo seed refused: ' . implode('; ', (array)($result['errors'] ?? ['unknown']))
+            );
+        }
+        $version = DemoStand::moduleVersion();
+        DemoStand::recordSeed($version, $locale, self::pruneDumps($dump));
+        $result['stand_id'] = DemoStand::configuredId();
+        $result['seed_version'] = $version;
+        $result['dump'] = $dump;
+        $result['reset'] = !empty($opts['reset']);
+        $result['http_lock'] = DemoMode::httpLock();
+        return $result;
     }
 
     /**

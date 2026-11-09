@@ -36,10 +36,15 @@ Compare `script_probe_hash` / `fingerprint` across hosts. **Different hash ⇒ D
 | Method | Path | Notes |
 |--------|------|--------|
 | GET | `/agent/audio_dicts/scripts` | Root list; `q=`, `include_disabled=1` |
-| GET | `/agent/audio_dicts/script?id=` | Root + **all parts** + `fingerprint` |
-| POST | `/agent/audio_dicts/script` | Full save: JSON `{id, confirm:1, meta{}, parts[]}`. **confirm required** |
+| GET | `/agent/audio_dicts/script?id=` | Root + **all parts** + `fingerprint` + `versioning` |
+| POST | `/agent/audio_dicts/script` | Full save: JSON `{id, confirm:1, meta{}, parts[]}`. **confirm required** (working tree only; collect uses as-of published versions until you publish/save-into) |
 | POST | `/agent/audio_dicts/script/part` | Upsert one part: `{script_id, confirm:1, part:{…}}` (`id` omit = create) |
 | POST | `/agent/audio_dicts/script/part/delete` | `{script_id, part_id, confirm:1}` |
+| GET | `/agent/audio_dicts/script/versions?id=` | Versions + `dirty` + `diff_lines` |
+| POST | `/agent/audio_dicts/script/publish` | `{id, confirm:1, target:new\|existing}`; new → `mode=from_date\|rewrite`, `valid_from_date`, `rewrite_confirm`; existing → `version_id` (overwrite tree) |
+| POST | `/agent/audio_dicts/script/open` | `{id, version_id, confirm:1}` — load version into working tree |
+| POST | `/agent/audio_dicts/script/valid-from` | `{id, version_id, confirm:1, valid_from_date}` — change schedule date |
+| POST | `/agent/audio_dicts/script/restore` | `{id, version_id, confirm:1, publish:1\|0}` — restore tree; default publish=rewrite |
 | GET | `/agent/audio_dicts/dicts` | Dictionaries; `q=`, `include_disabled=1` |
 | GET | `/agent/audio_dicts/dict?id=` | One dict + `keys_total` |
 | GET | `/agent/audio_dicts/keys?dict=` | Keys page; `q=`, `limit=`, `offset=` |
@@ -76,9 +81,9 @@ After definition changes, **reparse the day** (below). Stem/collect do not auto-
 | GET | `/agent/audio_pipeline/day-records` | List records; `transcription=1` truncates to 2k chars |
 | GET | `/agent/audio_pipeline/record?id=` | Full transcription + instances |
 | GET | `/agent/audio_pipeline/instances` | **Вхождения** for admin+date; `record=`, `key=`; includes `by_key` histogram |
-| GET | `/agent/audio_pipeline/collections` | Collections for admin+date; `script=` filter; `datas_count` |
-| GET | `/agent/audio_pipeline/collection?id=` | One collection + `collections_datas` hits (part/key names) |
-| POST | `/agent/audio_pipeline/day-reparse` | Reset+stem+collect for **one admin+day**; `{admin,date,confirm:1}` optional `reset=0`, `time_budget_sec` (30–300, default 180) |
+| GET | `/agent/audio_pipeline/collections` | Collections for admin+date; `script=` filter; `datas_count`; `id_script_version` pin |
+| GET | `/agent/audio_pipeline/collection?id=` | One collection + `collections_datas` hits (part/key names); `id_script_version` |
+| POST | `/agent/audio_pipeline/day-reparse` | Reset+stem+collect for **one admin+day**; scripts **as-of day end**; `{admin,date,confirm:1}` optional `reset=0`, `time_budget_sec` (30–300, default 180) |
 
 ```bash
 # Who hit which keys that day?

@@ -7,6 +7,7 @@ require_once __DIR__ . '/lib/RecordsKeysRepository.php';
 require_once __DIR__ . '/lib/KeyStemConflict.php';
 require_once __DIR__ . '/lib/RecordsTagsRepository.php';
 require_once __DIR__ . '/lib/RecordsScriptsRepository.php';
+require_once __DIR__ . '/lib/ScriptVersionsRepository.php';
 require_once __DIR__ . '/lib/ScriptPack.php';
 require_once __DIR__ . '/lib/DictDescrSuggest.php';
 require_once __DIR__ . '/lib/AudioDictsLongJob.php';

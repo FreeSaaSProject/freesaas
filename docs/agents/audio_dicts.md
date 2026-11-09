@@ -24,7 +24,8 @@ Permissions: `audio_dicts.view`, `audio_dicts.edit`.
 | `base_records_keys` | Owned by `audio_dicts` |
 | `base_records_keys_tags` | Owned by `audio_dicts` |
 | `base_records_keys_tags_links` | Owned by `audio_dicts` |
-| `base_records_scripts` | Owned by `audio_dicts` |
+| `base_records_scripts` | Owned by `audio_dicts` (working tree; root may have `ID_VERSION_CURRENT`) |
+| `base_records_script_versions` | Owned by `audio_dicts` (immutable published snapshots) |
 | `base_records_trashes` | Owned by `audio_dicts` |
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
@@ -37,6 +38,7 @@ Record chip summary lives on `base_records.KEY_TYPES` (legacy name = dict ids) �
 
 - Dictionaries under Audio analytics: dicts, keys, tags, scripts, trash phrases.
 - Scripts tree: `/audio/scripts/{id}` + parts / download pack / list upload import. Same-DB copy remains via bulk and `/audio/scripts/{id}/copy`.
+- **Script versions:** working copy in `base_records_scripts`; version trees in `base_records_script_versions` (`TREE_JSON`, `VALID_FROM`, `STATUS=active|superseded`). Collect / day Re-® always hydrate **as-of the day end** (scripts valid on that day). On the script page: **Open** loads a version into the editor; **Save** asks whether to write a **new version from a date** or **overwrite an existing** version from the list. With **two or more** versions, each row can change its **valid-from** date. Version list shows diffs; **Roll back** / **To draft** still restore. Agent `script/publish` remains for from_date|rewrite. Dictionaries/keys stay live; block dict sets (`IDS_DICTONARYS`) are versioned with the script.
 - Day bonus roots may define `DAY_GATES` (JSON list of `{metric,op,threshold,label}`). Builtins: `audio_playtime`, `script_starts`, `script_finishes`, `proc_ratio` (episodes/CRM count), `proc_overlap` (% CRM procedures with ≥ hard-overlap to any rated episode — prefer this over a «Покрытие» label on `proc_ratio`). Unavailable metrics skip (not red). Leave `label` empty to use catalog i18n.
 - Unique bracelet scans are a script **part**: `COND_TYPE=term_scan_unique` + `GATE_*` as **count** thresholds. Unavailable when term_scans off (part skipped, not red). Collect ignores this COND_TYPE. Provider: EventBus `audio_reports.day_quality.part_metric`.
 - CRM procedure creates: `COND_TYPE=proc_created` + type ids in `IDS_DICTONARYS` (`#1#,#40#`) + `TIMEOUT` window around the collection (`DTCREATE ∈ [start−T, end+T]`, `0` → 1800s). Same admin (`ID_ADMIN`). Collect ignores this COND_TYPE; `procedures` attaches hits via `audio_pipeline.collect.after_admin` and day-quality via `part_metric` (% collections matched). Soft: procedures off → part skipped, not red.
@@ -62,6 +64,11 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `audio_dicts.agent.script_save` | POST | `/agent/audio_dicts/script` |
 | `audio_dicts.agent.script_part_save` | POST | `/agent/audio_dicts/script/part` |
 | `audio_dicts.agent.script_part_delete` | POST | `/agent/audio_dicts/script/part/delete` |
+| `audio_dicts.agent.script_versions` | GET | `/agent/audio_dicts/script/versions` |
+| `audio_dicts.agent.script_publish` | POST | `/agent/audio_dicts/script/publish` |
+| `audio_dicts.agent.script_restore` | POST | `/agent/audio_dicts/script/restore` |
+| `audio_dicts.agent.script_open` | POST | `/agent/audio_dicts/script/open` |
+| `audio_dicts.agent.script_valid_from` | POST | `/agent/audio_dicts/script/valid-from` |
 | `audio_dicts.agent.dicts_list` | GET | `/agent/audio_dicts/dicts` |
 | `audio_dicts.agent.dict_get` | GET | `/agent/audio_dicts/dict` |
 | `audio_dicts.agent.keys_list` | GET | `/agent/audio_dicts/keys` |

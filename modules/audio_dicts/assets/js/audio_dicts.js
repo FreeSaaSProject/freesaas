@@ -1170,8 +1170,165 @@
       });
     });
 
+    function sortedIds(list) {
+      return (list || []).map(function (n) { return parseInt(n, 10) || 0; })
+        .filter(function (n) { return n > 0; })
+        .sort(function (a, b) { return a - b; });
+    }
+
+    function metaSnapshot() {
+      if (!form) return {};
+      var pos = [];
+      form.querySelectorAll('input[name="positions[]"]:checked').forEach(function (cb) {
+        pos.push(parseInt(cb.value, 10) || 0);
+      });
+      var gates = [];
+      if (dayGatesBody) {
+        dayGatesBody.querySelectorAll('tr.scripts-day-gate-row').forEach(function (row) {
+          var metric = row.querySelector('select[name*="[metric]"]');
+          var op = row.querySelector('select[name*="[op]"]');
+          var thr = row.querySelector('input[name*="[threshold]"]');
+          var label = row.querySelector('input[name*="[label]"]');
+          gates.push({
+            metric: metric ? String(metric.value || '') : '',
+            op: op ? String(op.value || '') : '',
+            threshold: thr ? String(thr.value || '') : '',
+            label: label ? String(label.value || '') : ''
+          });
+        });
+      }
+      var nameEl = form.querySelector('input[name="name"]');
+      var disEl = form.querySelector('input[name="disabled"]');
+      var rateEl = form.querySelector('input[name="rating_enabled"]');
+      var hidEl = form.querySelector('input[name="is_hidden"]');
+      var bonusEl = form.querySelector('input[name="day_bonus"]');
+      var sumEl = form.querySelector('input[name="day_bonus_sum"]');
+      return {
+        name: nameEl ? String(nameEl.value || '') : '',
+        disabled: !!(disEl && disEl.checked),
+        positions: sortedIds(pos),
+        rating_enabled: !!(rateEl && rateEl.checked),
+        is_hidden: !!(hidEl && hidEl.checked),
+        day_bonus: !!(bonusEl && bonusEl.checked),
+        day_bonus_sum: sumEl ? (parseInt(sumEl.value, 10) || 0) : 0,
+        day_gates: gates
+      };
+    }
+
+    function partsSnapshot() {
+      return parts.map(function (raw) {
+        var p = normalizePart(raw);
+        return {
+          id: parseInt(p.id, 10) || 0,
+          name: String(p.name || ''),
+          disabled: parseInt(p.disabled, 10) || 0,
+          score: parseInt(p.score, 10) || 0,
+          score_rate: parseInt(p.score_rate, 10) || 0,
+          kpi: parseInt(p.kpi, 10) || 0,
+          cond_type: String(p.cond_type || ''),
+          cond_value: parseInt(p.cond_value, 10) || 0,
+          timeout: parseInt(p.timeout, 10) || 0,
+          break_gap: parseInt(p.break_gap, 10) || 0,
+          diversity: parseInt(p.diversity, 10) || 0,
+          instances_min: parseInt(p.instances_min, 10) || 0,
+          start_gate: parseInt(p.start_gate, 10) || 0,
+          extend_timeout: parseInt(p.extend_timeout, 10) || 0,
+          gate_red_max: parseFloat(p.gate_red_max) || 0,
+          gate_yellow_max: parseFloat(p.gate_yellow_max) || 0,
+          hide_from_reports: parseInt(p.hide_from_reports, 10) || 0,
+          is_req: parseInt(p.is_req, 10) || 0,
+          finish: parseInt(p.finish, 10) || 0,
+          closer: parseInt(p.closer, 10) || 0,
+          break_flag: parseInt(p.break_flag, 10) || 0,
+          collection_killer: parseInt(p.collection_killer, 10) || 0,
+          dict_ids: sortedIds(p.dict_ids)
+        };
+      });
+    }
+
+    function contentSignature() {
+      return JSON.stringify({ meta: metaSnapshot(), parts: partsSnapshot() });
+    }
+
     parts.forEach(normalizePart);
     refresh();
+    var baselineSignature = contentSignature();
+    var noChangesMsg = root.getAttribute('data-no-changes') || '';
+
+    // Version save dialog: compare real content (toggle dict on/off → no dialog).
+    var dlg = document.getElementById('scripts-save-dialog');
+    var openBtn = document.getElementById('scripts-save-open');
+    if (form && dlg && openBtn && typeof dlg.showModal === 'function') {
+      var targetNew = dlg.querySelector('input[name="dlg_save_target"][value="new"]');
+      var dateInp = document.getElementById('dlg-save-valid-from');
+      var verSel = document.getElementById('dlg-save-version-id');
+      var hidTarget = document.getElementById('scripts-save-target');
+      var hidVer = document.getElementById('scripts-save-version-id');
+      var hidDate = document.getElementById('scripts-save-valid-from');
+      function syncDlg() {
+        var isNew = !!(targetNew && targetNew.checked);
+        if (dateInp) dateInp.disabled = !isNew;
+        if (verSel) verSel.disabled = isNew;
+      }
+      dlg.addEventListener('change', syncDlg);
+      openBtn.addEventListener('click', function () {
+        // Flush open panel fields into parts before compare.
+        if (selected >= 0 && panelBody && !panelBody.hidden) {
+          panelBody.querySelectorAll('[data-field]').forEach(function (inp) {
+            var field = inp.getAttribute('data-field');
+            if (!field || !parts[selected]) return;
+            if (inp.type === 'checkbox') {
+              parts[selected][field] = inp.checked ? 1 : 0;
+            } else if (inp.type === 'number') {
+              if (field === 'gate_red_max' || field === 'gate_yellow_max') {
+                parts[selected][field] = parseFloat(inp.value) || 0;
+              } else {
+                parts[selected][field] = parseInt(inp.value, 10) || 0;
+              }
+            } else if (field === 'proc_type_ids') {
+              var ids = [];
+              String(inp.value || '').split(/[,;\s#]+/).forEach(function (tok) {
+                var n = parseInt(tok, 10);
+                if (n > 0 && ids.indexOf(n) < 0) ids.push(n);
+              });
+              parts[selected].dict_ids = ids;
+            } else {
+              parts[selected][field] = inp.value;
+            }
+          });
+          var dictIds = [];
+          panelBody.querySelectorAll('[data-dict]:checked').forEach(function (c) {
+            dictIds.push(parseInt(c.getAttribute('data-dict'), 10));
+          });
+          if (panelBody.querySelector('[data-dict]')) {
+            parts[selected].dict_ids = dictIds;
+          }
+        }
+        parts.forEach(normalizePart);
+        syncHidden();
+        if (contentSignature() === baselineSignature) {
+          alert(noChangesMsg);
+          return;
+        }
+        syncDlg();
+        dlg.showModal();
+      });
+      dlg.addEventListener('close', function () {
+        if (dlg.returnValue !== 'confirm') return;
+        var isNew = !!(targetNew && targetNew.checked);
+        if (hidTarget) hidTarget.value = isNew ? 'new' : 'existing';
+        if (hidDate) hidDate.value = (dateInp && dateInp.value) ? dateInp.value : '';
+        if (hidVer) hidVer.value = (verSel && verSel.value) ? verSel.value : '0';
+        var act = document.createElement('input');
+        act.type = 'hidden';
+        act.name = 'action';
+        act.value = 'save';
+        form.appendChild(act);
+        if (typeof form.requestSubmit === 'function') form.requestSubmit();
+        else form.submit();
+      });
+      syncDlg();
+    }
   }
 
   function initScriptImport() {

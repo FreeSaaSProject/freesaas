@@ -27,6 +27,16 @@ final class DemoChrome
         '/bi' => 'bi',
     ];
 
+    /** Marketing tips / CTA / locale switch (public stands). Closed AI demos set show_promo=0. */
+    public static function showPromo(): bool
+    {
+        if (!class_exists('Config', false)) {
+            return true;
+        }
+        $raw = strtolower(trim((string)Config::get('demo', 'show_promo', '1')));
+        return !in_array($raw, ['0', 'false', 'off', 'no'], true);
+    }
+
     /** @param array<string,mixed> $gate */
     public static function onLayoutGate(array $gate): array
     {
@@ -40,41 +50,58 @@ final class DemoChrome
             Assets::need('demo');
         }
         $gate['demo_banner'] = self::bannerHtml();
-        $tip = self::tipHtmlForPath(request_path());
-        if ($tip !== '') {
-            $gate['main_prefix'] = (string)($gate['main_prefix'] ?? '') . $tip;
+        if (self::showPromo()) {
+            $tip = self::tipHtmlForPath(request_path());
+            if ($tip !== '') {
+                $gate['main_prefix'] = (string)($gate['main_prefix'] ?? '') . $tip;
+            }
         }
         return $gate;
     }
 
     public static function bannerHtml(): string
     {
-        // UTM must be in the query (before #) or analytics never sees it.
-        $cta = self::httpUrl((string)Config::get('demo', 'cta_url', self::defaultCtaUrl()));
-        $home = self::httpUrl((string)Config::get('demo', 'home_url', self::defaultHomeUrl()));
-        if ($cta === '') {
-            $cta = self::defaultCtaUrl();
+        $lock = DemoMode::httpLock();
+        if ($lock === DemoMode::LOCK_AUTH) {
+            $text = t('demo.banner.text_auth');
+        } elseif ($lock === DemoMode::LOCK_OFF) {
+            $text = t('demo.banner.text_open');
+        } else {
+            $text = t('demo.banner.text');
         }
-        if ($home === '') {
-            $home = self::defaultHomeUrl();
-        }
-        $text = t('demo.banner.text');
         if (DemoMode::isFrozen()) {
             $when = class_exists('I18n', false)
                 ? I18n::formatDate(DemoMode::now(), 'datetime')
                 : date('Y-m-d H:i', DemoMode::now());
             $text .= ' · ' . t('demo.banner.frozen', ['when' => $when]);
         }
+        $actions = '';
+        if (self::showPromo()) {
+            // UTM must be in the query (before #) or analytics never sees it.
+            $cta = self::httpUrl((string)Config::get('demo', 'cta_url', self::defaultCtaUrl()));
+            $home = self::httpUrl((string)Config::get('demo', 'home_url', self::defaultHomeUrl()));
+            if ($cta === '') {
+                $cta = self::defaultCtaUrl();
+            }
+            if ($home === '') {
+                $home = self::defaultHomeUrl();
+            }
+            $actions = '<div class="demo-banner-actions">'
+                . '<a class="demo-banner-cta" href="' . e($cta) . '" rel="noopener">' . te('demo.banner.cta') . '</a>'
+                . '<a class="demo-banner-home" href="' . e($home) . '" rel="noopener">' . te('demo.banner.home') . '</a>'
+                . '</div>';
+        }
         return '<div class="demo-banner" role="region" aria-label="' . te('demo.banner.aria') . '">'
             . '<p class="demo-banner-text">' . e($text) . '</p>'
-            . '<div class="demo-banner-actions">'
-            . '<a class="demo-banner-cta" href="' . e($cta) . '" rel="noopener">' . te('demo.banner.cta') . '</a>'
-            . '<a class="demo-banner-home" href="' . e($home) . '" rel="noopener">' . te('demo.banner.home') . '</a>'
-            . '</div></div>';
+            . $actions
+            . '</div>';
     }
 
     public static function tipHtmlForPath(string $path): string
     {
+        if (!self::showPromo()) {
+            return '';
+        }
         $id = self::tipIdForPath($path);
         if ($id === null) {
             return '';
@@ -100,13 +127,16 @@ final class DemoChrome
         foreach ($phrases as $p) {
             $lis .= '<li>' . $p . '</li>';
         }
+        $noteKey = DemoMode::httpLock() === DemoMode::LOCK_FULL
+            ? 'demo.tip.disabled_note'
+            : 'demo.tip.disabled_note_auth';
         return '<aside class="demo-ai-tip" data-demo-tip="' . e($id) . '">'
             . '<div class="demo-ai-tip-head">'
             . '<strong>' . te('demo.tip.title') . '</strong>'
             . '<a href="' . e($href) . '" rel="noopener">' . te('demo.tip.how') . '</a>'
             . '</div>'
             . '<ul class="demo-ai-tip-list">' . $lis . '</ul>'
-            . '<p class="demo-ai-tip-note muted">' . te('demo.tip.disabled_note') . '</p>'
+            . '<p class="demo-ai-tip-note muted">' . te($noteKey) . '</p>'
             . '</aside>';
     }
 

@@ -2,7 +2,7 @@
     "id": "demo",
     "name": "demo.module.name",
     "description": "demo.module.description",
-    "version": "1.0.4",
+    "version": "1.0.6",
     "type": "product",
     "catalog": {
         "categories": [
@@ -20,6 +20,7 @@
     "optionalRequires": {
         "audio": ">=1.0.0",
         "audio_dicts": ">=1.0.0",
+        "audio_pipeline": ">=1.0.0",
         "bi": ">=1.0.0",
         "bonuses": ">=1.0.0",
         "cabinets": ">=1.0.0",
@@ -30,6 +31,7 @@
         "funds": ">=1.0.0",
         "ledger": ">=1.0.0",
         "orders": ">=1.0.0",
+        "payments": ">=1.0.0",
         "procedures": ">=1.0.0",
         "procents": ">=1.0.0",
         "rates": ">=1.0.0",

@@ -30,6 +30,26 @@ final class AudioDictsAgentOps
                 'description' => 'Delete one part; body: script_id, part_id, confirm=1',
                 'body' => ['script_id', 'part_id', 'confirm'],
             ]],
+            ['GET', '/agent/audio_dicts/script/versions', 'audio_dicts.agent.script_versions', [self::class, 'scriptVersions'], [
+                'description' => 'List published versions + dirty flag; query id=',
+                'query' => ['id'],
+            ]],
+            ['POST', '/agent/audio_dicts/script/publish', 'audio_dicts.agent.script_publish', [self::class, 'scriptPublish'], [
+                'description' => 'Save working tree into a version; body: id, confirm=1; target=new|existing (default new); for new: mode=from_date|rewrite, valid_from_date, rewrite_confirm; for existing: version_id',
+                'body' => ['id', 'confirm', 'target', 'version_id', 'mode', 'valid_from_date', 'rewrite_confirm'],
+            ]],
+            ['POST', '/agent/audio_dicts/script/restore', 'audio_dicts.agent.script_restore', [self::class, 'scriptRestore'], [
+                'description' => 'Restore working tree from version_id; body: id, version_id, confirm=1; publish=1 (default rewrite) or publish=0 for draft only',
+                'body' => ['id', 'version_id', 'confirm', 'publish', 'mode'],
+            ]],
+            ['POST', '/agent/audio_dicts/script/open', 'audio_dicts.agent.script_open', [self::class, 'scriptOpen'], [
+                'description' => 'Load a published version into the working tree; body: id, version_id, confirm=1',
+                'body' => ['id', 'version_id', 'confirm'],
+            ]],
+            ['POST', '/agent/audio_dicts/script/valid-from', 'audio_dicts.agent.script_valid_from', [self::class, 'scriptValidFrom'], [
+                'description' => 'Change VALID_FROM for a version; body: id, version_id, confirm=1, valid_from_date=YYYY-MM-DD (empty → epoch)',
+                'body' => ['id', 'version_id', 'confirm', 'valid_from_date'],
+            ]],
             ['GET', '/agent/audio_dicts/dicts', 'audio_dicts.agent.dicts_list', [self::class, 'dictsList'], [
                 'description' => 'List dictionaries (q, include_disabled)',
                 'query' => ['q', 'include_disabled'],
@@ -69,6 +89,11 @@ final class AudioDictsAgentOps
             '/agent/audio_dicts/script' => ['GET', 'POST'],
             '/agent/audio_dicts/script/part' => ['POST'],
             '/agent/audio_dicts/script/part/delete' => ['POST'],
+            '/agent/audio_dicts/script/versions' => ['GET'],
+            '/agent/audio_dicts/script/publish' => ['POST'],
+            '/agent/audio_dicts/script/restore' => ['POST'],
+            '/agent/audio_dicts/script/open' => ['POST'],
+            '/agent/audio_dicts/script/valid-from' => ['POST'],
             '/agent/audio_dicts/dicts' => ['GET'],
             '/agent/audio_dicts/dict' => ['GET'],
             '/agent/audio_dicts/keys' => ['GET'],
@@ -133,12 +158,245 @@ final class AudioDictsAgentOps
             return ['ok' => false, 'error' => 'not_found', 'http' => 404];
         }
         $parts = $tree['parts'];
+        $versioning = null;
+        if (class_exists('ScriptVersionsRepository', false) && ScriptVersionsRepository::tableReady()) {
+            ScriptVersionsRepository::ensureBackfilled($id);
+            $cur = ScriptVersionsRepository::current($id);
+            $versioning = [
+                'dirty' => ScriptVersionsRepository::isDirty($id),
+                'current' => $cur === null ? null : [
+                    'id' => (int)$cur['id'],
+                    'version' => (int)$cur['version'],
+                    'valid_from' => (int)$cur['valid_from'],
+                    'status' => (string)$cur['status'],
+                ],
+                'versions' => ScriptVersionsRepository::listForScript($id),
+            ];
+        }
         return [
             'ok' => true,
             'root' => $tree['root'],
             'parts' => $parts,
             'parts_count' => count($parts),
             'fingerprint' => substr(sha1(json_encode($parts) ?: ''), 0, 12),
+            'versioning' => $versioning,
+            'http' => 200,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    public static function scriptVersions(): array
+    {
+        $in = AgentOps::requestInput();
+        $id = (int)($in['id'] ?? 0);
+        if ($id < 1) {
+            return ['ok' => false, 'error' => 'id required', 'http' => 400];
+        }
+        if (!class_exists('ScriptVersionsRepository', false) || !ScriptVersionsRepository::tableReady()) {
+            return ['ok' => false, 'error' => 'versioning_not_ready', 'http' => 503];
+        }
+        if (RecordsScriptsRepository::findWithParts($id) === null) {
+            return ['ok' => false, 'error' => 'not_found', 'http' => 404];
+        }
+        ScriptVersionsRepository::ensureBackfilled($id);
+        $cur = ScriptVersionsRepository::current($id);
+        return [
+            'ok' => true,
+            'id' => $id,
+            'dirty' => ScriptVersionsRepository::isDirty($id),
+            'current' => $cur === null ? null : [
+                'id' => (int)$cur['id'],
+                'version' => (int)$cur['version'],
+                'valid_from' => (int)$cur['valid_from'],
+                'status' => (string)$cur['status'],
+            ],
+            'versions' => ScriptVersionsRepository::listForScript($id),
+            'http' => 200,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    public static function scriptPublish(): array
+    {
+        $in = AgentOps::requestInput();
+        if (!self::confirmed($in)) {
+            return ['ok' => false, 'error' => 'confirm=1 required', 'http' => 400];
+        }
+        $id = (int)($in['id'] ?? 0);
+        if ($id < 1) {
+            return ['ok' => false, 'error' => 'id required', 'http' => 400];
+        }
+        if (!class_exists('ScriptVersionsRepository', false) || !ScriptVersionsRepository::tableReady()) {
+            return ['ok' => false, 'error' => 'versioning_not_ready', 'http' => 503];
+        }
+        $target = strtolower(trim((string)($in['target'] ?? 'new')));
+        if ($target === 'existing') {
+            $versionId = (int)($in['version_id'] ?? 0);
+            if ($versionId < 1) {
+                return ['ok' => false, 'error' => 'version_id required for target=existing', 'http' => 400];
+            }
+            try {
+                $result = ScriptVersionsRepository::updateContent($id, $versionId);
+                if (!empty($result['unchanged'])) {
+                    return [
+                        'ok' => false,
+                        'error' => t('audio_dicts.scripts.versions.err.no_changes'),
+                        'http' => 400,
+                    ];
+                }
+                Database::pdo()->prepare(
+                    'UPDATE base_records_scripts SET ID_VERSION_CURRENT = ? WHERE ID = ? AND PID = 0'
+                )->execute([$versionId, $id]);
+                ScriptVersionsRepository::clearRequestCache();
+            } catch (Throwable $e) {
+                return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
+            }
+            return [
+                'ok' => true,
+                'message' => 'saved_into',
+                'target' => 'existing',
+                'saved' => $result,
+                'dirty' => ScriptVersionsRepository::isDirty($id),
+                'http' => 200,
+            ];
+        }
+        $mode = trim((string)($in['mode'] ?? ScriptVersionsRepository::MODE_FROM_DATE));
+        if ($mode === ScriptVersionsRepository::MODE_REWRITE) {
+            $ack = $in['rewrite_confirm'] ?? null;
+            if (!in_array(strtolower(trim((string)$ack)), ['1', 'true', 'yes', 'on'], true)) {
+                return ['ok' => false, 'error' => 'rewrite_confirm=1 required for mode=rewrite', 'http' => 400];
+            }
+        }
+        try {
+            $result = ScriptVersionsRepository::publish($id, [
+                'mode' => $mode,
+                'valid_from_date' => trim((string)($in['valid_from_date'] ?? '')),
+            ]);
+            if (!empty($result['unchanged'])) {
+                return [
+                    'ok' => false,
+                    'error' => t('audio_dicts.scripts.versions.err.no_changes'),
+                    'http' => 400,
+                ];
+            }
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
+        }
+        return [
+            'ok' => true,
+            'message' => 'published',
+            'target' => 'new',
+            'published' => $result,
+            'dirty' => ScriptVersionsRepository::isDirty($id),
+            'http' => 200,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    public static function scriptOpen(): array
+    {
+        $in = AgentOps::requestInput();
+        if (!self::confirmed($in)) {
+            return ['ok' => false, 'error' => 'confirm=1 required', 'http' => 400];
+        }
+        $id = (int)($in['id'] ?? 0);
+        $versionId = (int)($in['version_id'] ?? 0);
+        if ($id < 1 || $versionId < 1) {
+            return ['ok' => false, 'error' => 'id and version_id required', 'http' => 400];
+        }
+        if (!class_exists('ScriptVersionsRepository', false) || !ScriptVersionsRepository::tableReady()) {
+            return ['ok' => false, 'error' => 'versioning_not_ready', 'http' => 503];
+        }
+        try {
+            $opened = ScriptVersionsRepository::openForEdit($id, $versionId);
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
+        }
+        $fresh = RecordsScriptsRepository::findWithParts($id);
+        return [
+            'ok' => true,
+            'message' => 'opened',
+            'opened' => $opened,
+            'root' => $fresh['root'] ?? null,
+            'parts_count' => count($fresh['parts'] ?? []),
+            'dirty' => ScriptVersionsRepository::isDirtyAgainst($id, $versionId),
+            'http' => 200,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    public static function scriptValidFrom(): array
+    {
+        $in = AgentOps::requestInput();
+        if (!self::confirmed($in)) {
+            return ['ok' => false, 'error' => 'confirm=1 required', 'http' => 400];
+        }
+        $id = (int)($in['id'] ?? 0);
+        $versionId = (int)($in['version_id'] ?? 0);
+        if ($id < 1 || $versionId < 1) {
+            return ['ok' => false, 'error' => 'id and version_id required', 'http' => 400];
+        }
+        if (!class_exists('ScriptVersionsRepository', false) || !ScriptVersionsRepository::tableReady()) {
+            return ['ok' => false, 'error' => 'versioning_not_ready', 'http' => 503];
+        }
+        $date = trim((string)($in['valid_from_date'] ?? ''));
+        $validFrom = 0;
+        if ($date !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $tz = date_default_timezone_get() ?: 'UTC';
+            $dt = DateTimeImmutable::createFromFormat(
+                'Y-m-d H:i:s',
+                $date . ' 00:00:00',
+                new DateTimeZone($tz)
+            );
+            if ($dt instanceof DateTimeImmutable) {
+                $validFrom = $dt->getTimestamp();
+            }
+        }
+        try {
+            $result = ScriptVersionsRepository::updateValidFrom($id, $versionId, $validFrom);
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
+        }
+        return [
+            'ok' => true,
+            'message' => 'valid_from_saved',
+            'valid_from' => $result,
+            'http' => 200,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    public static function scriptRestore(): array
+    {
+        $in = AgentOps::requestInput();
+        if (!self::confirmed($in)) {
+            return ['ok' => false, 'error' => 'confirm=1 required', 'http' => 400];
+        }
+        $id = (int)($in['id'] ?? 0);
+        $versionId = (int)($in['version_id'] ?? 0);
+        if ($id < 1 || $versionId < 1) {
+            return ['ok' => false, 'error' => 'id and version_id required', 'http' => 400];
+        }
+        if (!class_exists('ScriptVersionsRepository', false) || !ScriptVersionsRepository::tableReady()) {
+            return ['ok' => false, 'error' => 'versioning_not_ready', 'http' => 503];
+        }
+        $publish = !isset($in['publish'])
+            || !in_array(strtolower(trim((string)$in['publish'])), ['0', 'false', 'no'], true);
+        try {
+            $result = ScriptVersionsRepository::restore($id, $versionId, [
+                'publish' => $publish,
+                'mode' => (string)($in['mode'] ?? ScriptVersionsRepository::MODE_REWRITE),
+            ]);
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
+        }
+        $fresh = RecordsScriptsRepository::findWithParts($id);
+        return [
+            'ok' => true,
+            'message' => $publish ? 'restored_published' : 'restored_draft',
+            'restored' => $result,
+            'root' => $fresh['root'] ?? null,
+            'parts_count' => count($fresh['parts'] ?? []),
             'http' => 200,
         ];
     }
@@ -189,6 +447,9 @@ final class AudioDictsAgentOps
             'root' => $fresh['root'] ?? null,
             'parts_count' => count($fresh['parts'] ?? []),
             'fingerprint' => substr(sha1(json_encode($fresh['parts'] ?? []) ?: ''), 0, 12),
+            'dirty' => class_exists('ScriptVersionsRepository', false)
+                && ScriptVersionsRepository::tableReady()
+                && ScriptVersionsRepository::isDirty($id),
             'http' => 200,
         ];
     }

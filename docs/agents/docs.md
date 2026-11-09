@@ -14,9 +14,47 @@ php bin/freesaas.php migrate run --module=docs --format=json
 cp modules/docs/config.example.ini cfg/modules/docs.ini   # optional: qr_archive
 ```
 
-Default definitions (`medcard_profile`, `medcard_visit`, `medcard_dossier`, sample `consent`) are seeded on first open of `/documents` (runtime, current locale).
+Default definitions seeded on first open of `/documents` (or any `DocsDefsRepository::ensureSeeded()` call — current locale):
+
+| Code | Kind | Scope | Trigger | Enabled |
+|------|------|-------|---------|---------|
+| `medcard_profile` | medcard_profile | client | manual | yes |
+| `medcard_visit` | medcard_visit | event | medical | yes |
+| `medcard_dossier` | medcard_dossier | client | manual | yes |
+| `consent_medical` | consent | client | medical | no (legacy sample) |
+| `contract_citizen` | contract | client | medical | yes — print body from `library/elos63/d_zg` (rich Д-ЗГ) |
+| `consent_list` | consent | client | medical | yes — print body from `library/elos63/ids_p` (Перечень 390н) |
+| `consent_procedure` | consent | event | medical | yes — short ИДС for the visit basket |
+
+Untouched seeds upgrade when `DocsSeed::REVISION` rises (`cfg` key `docs.seed_revision`); unprinted instances of those defs are retargeted to the new version. Edited definitions (more than one version) are left alone. New codes appear on the next `ensureSeeded()` even if revision already matches.
 
 Permissions: `docs.view`, `docs.edit`, `docs.print`, `docs.medical` (medcard kinds), `docs.manage` (definitions/templates), `docs.sign` (QR archive sign). Calendar section needs role flag `EVT_DOC_LINKS` (or superadmin).
+
+## Agent checklist: make medcards work
+
+Use when the business needs ambulatory cards (form 025/у) or visit sheets. Skip this module entirely for pure salon/retail stands that never print clinical charts.
+
+1. **Dependencies on:** `core`, `clients`, `calendar` (+ `workweeks`), `procedures` (medical types). Soft: `audio` / `audio_llm` for autofill proposals.
+2. **Enable + migrate** as above (`--accept-risk`: maturity `alpha`). Confirm `php bin/freesaas.php module inspect docs --format=json` → enabled, no migration errors.
+3. **Org requisites** — print header `{org.*}`: UI `/documents/settings` or agent `docs.settings` with `org[name]`, `org[address]`, `org[inn]`, `org[ogrn]`, licence fields, optional `org[signature]` URL. Empty org → blank underlines on the title page.
+4. **Roles:** grant staff `docs.view` / `docs.edit` / `docs.print` / `docs.medical`; directors also `docs.manage`. On doctor/admin statuses set `EVT_DOC_LINKS` so calendar event edit shows the Documents block.
+5. **Medical procedure types:** at least one `base_procedure_types.IS_MEDICAL=1` and products linked to it. Seeded `medcard_visit` trigger is `medical` — shells spawn only when the visit basket has a medical product.
+6. **Open once** `/documents` (or call any docs page) so seed defs exist. Codes that matter:
+   - `medcard_profile` — standing part (OMS, work, anamnesis life/allergy, skin/mucosa/nails, blood, …)
+   - `medcard_visit` — per-visit sheet (`complaints`, `ana_gen`, `ana_obj`, `dia_codes`, `doctor_id`, `recommends`, …)
+   - `medcard_dossier` — full card print (aggregates profile + visits)
+   - `contract_citizen` — rich paid-services contract (library `elos63/d_zg`; one per client; medical trigger)
+   - `consent_list` — rich «Перечень» IDS (library `elos63/ids_p`; one per client)
+   - `consent_procedure` — short ИДС listing `{event.items}` (one per medical event)
+   - Clinic demo also turns on `docs.qr_archive=1` (archive QR on prints; needs stickers’ phpqrcode)
+7. **Smoke path:** create/open a calendar event with a medical service → Documents section shows visit sheet + ИДС (+ contract once per client) → fill visit until `ready` → print ИДС/contract → client → «Медкарта» / `/documents/clients/{id}/medcard`. Item 20 / stage epicrisis read **only** def code `medcard_visit`.
+8. **What fills what on 025/у:**
+   - Title (1–23): client + `medcard_profile` (`{profile.*}`; use `{profile.work_position|__________}` style fallbacks)
+   - Item 20 `{dossier.diagnoses}`: unique `dia_codes` (+ doctor) across official visit sheets
+   - Visit pages 24/25: visit payload; on the **first** visit also `{visit.anamnesis_life}` / `{visit.objective_general}` from profile (`ana_life`, `ana_gyno`, `ana_alerg`, `obj_skin`, `obj_sliz`, `obj_nogot`, optional height/weight/BMI)
+   - Item 26 `{dossier.stage_epicrisis}`: auto blocks from visits that have clinical text (complaints / `ana_*` / `dia_codes` / `recommends`); blank paper form if none
+9. **Do not** store clinical text on `base_clients` / `base_procedures` columns — only in `base_doc_instances.PAYLOAD`.
+10. **Demo clinic pack** (`demo` profile `clinic`): stage `docs` fills standard profile + visit fields for a subset of events; see [`demo.md`](demo.md). Production stands use staff entry or LLM proposals, not the demo pack.
 
 ## Layers
 
@@ -107,7 +145,7 @@ Template HTML is sanitized (tables, inline `style`, no scripts/forms/iframes) be
 | `{visit.date}` `{visit.anamnesis_life}` `{visit.objective_general}` `{visit.next_text}` | Visit sheet helpers; on the first visit anamnesis/objective lines come from the profile (blanks when empty) |
 | `{profile.bmi}` `{profile.ana_gyno_print}` | BMI with band; gynecological anamnesis ("not applicable" for men) |
 | `{org.ogrn_boxes}` | OGRN digits in boxed cells |
-| `{dossier.diagnoses}` `{dossier.visits}` `{dossier.procedures}` | 025/у item 20 table, all visit sheets (each with its own version), medical procedures list |
+| `{dossier.diagnoses}` `{dossier.visits}` `{dossier.procedures}` `{dossier.stage_epicrisis}` | 025/у item 20 table; all visit sheets; medical procedures list; item 26 stage epicrisis from filled visits |
 | `{dossier}` | (`medcard_dossier` only) legacy profile + visit sheets list |
 | `{qr}` | Archive QR (empty when `qr_archive=0`) |
 

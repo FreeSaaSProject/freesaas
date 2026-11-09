@@ -303,6 +303,13 @@ final class RecordsScriptsRepository
             throw $e;
         }
         EventBus::emit('audio_dicts.changed', ['entity' => 'scripts', 'id' => $rootId]);
+        if (class_exists('ScriptVersionsRepository', false) && ScriptVersionsRepository::tableReady()) {
+            try {
+                ScriptVersionsRepository::ensureBackfilled($rootId);
+            } catch (Throwable $e) {
+                // Working tree is saved; versioning can catch up on next request.
+            }
+        }
         return $rootId;
     }
 
@@ -407,6 +414,277 @@ final class RecordsScriptsRepository
         EventBus::emit('audio_dicts.changed', ['entity' => 'scripts', 'id' => $id]);
     }
 
+    /**
+     * Replace working tree from a published version snapshot, preserving part IDs
+     * (re-inserts deleted part rows with the same ID when free).
+     *
+     * @param array<string,mixed> $rootCanonical
+     * @param list<array<string,mixed>> $partsCanonical
+     */
+    public static function replaceFromVersionTree(int $scriptId, array $rootCanonical, array $partsCanonical): void
+    {
+        $tree = self::findWithParts($scriptId);
+        if ($tree === null) {
+            throw new InvalidArgumentException(t('audio_dicts.scripts.err.not_found', ['id' => $scriptId]));
+        }
+        $meta = self::metaFromRoot(array_merge($tree['root'], $rootCanonical, [
+            'id' => $scriptId,
+            'name' => (string)($rootCanonical['name'] ?? $tree['root']['name']),
+            'id_position' => (string)($rootCanonical['id_position'] ?? $tree['root']['id_position'] ?? ''),
+        ]));
+        $parts = [];
+        foreach ($partsCanonical as $p) {
+            if (!is_array($p)) {
+                continue;
+            }
+            $name = trim((string)($p['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $parts[] = array_merge($p, [
+                'id' => (int)($p['id'] ?? 0),
+                'name' => $name,
+                'dict_ids' => is_array($p['dict_ids'] ?? null)
+                    ? $p['dict_ids']
+                    : self::parseIds((string)($p['ids_dictonarys'] ?? '')),
+                'roles' => is_array($p['roles'] ?? null) ? $p['roles'] : self::rolesFromFlags(
+                    (int)($p['is_req'] ?? 0),
+                    (int)($p['finish'] ?? 0),
+                    (int)($p['break_flag'] ?? 0),
+                    (int)($p['collection_killer'] ?? 0),
+                    (int)($p['closer'] ?? 0)
+                ),
+            ]);
+        }
+        if ($parts === []) {
+            throw new InvalidArgumentException(t('audio_dicts.scripts.err.parts_required'));
+        }
+
+        $pdo = Database::pdo();
+        $pdo->beginTransaction();
+        try {
+            // Root meta (same path as update()).
+            if (Database::columnExists('base_records_scripts', 'RATING_ENABLED')) {
+                $hasDayBonus = Database::columnExists('base_records_scripts', 'DAY_BONUS');
+                $hasDayGates = Database::columnExists('base_records_scripts', 'DAY_GATES');
+                $st = $pdo->prepare(
+                    'UPDATE base_records_scripts SET NAME=?, DISABLED=?, NUM=?, ID_POSITION=?,
+                     RATING_ENABLED=?, IS_HIDDEN=?, LEGACY_TYPE_ID=?'
+                    . ($hasDayBonus ? ', DAY_BONUS=?, DAY_BONUS_SUM=?, PROC_RATIO_MIN=?' : '')
+                    . ($hasDayGates ? ', DAY_GATES=?' : '')
+                    . ' WHERE ID=? AND PID=0'
+                );
+                $params = [
+                    $meta['name'],
+                    (int)($meta['disabled'] ?? 0),
+                    (int)($meta['num'] ?? 0),
+                    $meta['id_position'] ?? '',
+                    (int)($meta['rating_enabled'] ?? 0),
+                    (int)($meta['is_hidden'] ?? 0),
+                    (int)($meta['legacy_type_id'] ?? 0),
+                ];
+                if ($hasDayBonus) {
+                    $params[] = (int)($meta['day_bonus'] ?? 0);
+                    $params[] = max(0, (int)($meta['day_bonus_sum'] ?? 0));
+                    $params[] = self::legacyProcRatioMinFromMeta($meta);
+                }
+                if ($hasDayGates) {
+                    $params[] = self::encodeDayGates(is_array($meta['day_gates'] ?? null) ? $meta['day_gates'] : []);
+                }
+                $params[] = $scriptId;
+                $st->execute($params);
+            } else {
+                $st = $pdo->prepare(
+                    'UPDATE base_records_scripts SET NAME=?, DISABLED=?, NUM=?, ID_POSITION=? WHERE ID=? AND PID=0'
+                );
+                $st->execute([
+                    $meta['name'],
+                    (int)($meta['disabled'] ?? 0),
+                    (int)($meta['num'] ?? 0),
+                    $meta['id_position'] ?? '',
+                    $scriptId,
+                ]);
+            }
+
+            $existingIds = [];
+            foreach ($tree['parts'] as $p) {
+                $existingIds[(int)$p['id']] = true;
+            }
+            $keep = [];
+            $ordered = [];
+            foreach (array_values($parts) as $i => $part) {
+                $partId = (int)($part['id'] ?? 0);
+                $num = $i + 1;
+                $flags = self::flagsFromPart($part);
+                $dicts = self::joinIds(is_array($part['dict_ids'] ?? null)
+                    ? $part['dict_ids']
+                    : self::parseIds((string)($part['ids_dictonarys'] ?? '')));
+                if ($partId > 0 && isset($existingIds[$partId])) {
+                    self::updatePartRow($pdo, $partId, $scriptId, $num, $part, $flags, $dicts);
+                    $keep[] = $partId;
+                    $ordered[] = $partId;
+                    continue;
+                }
+                if ($partId > 0) {
+                    // Ensure ID is free or belongs to this script already (deleted).
+                    $chk = $pdo->prepare('SELECT ID, PID FROM base_records_scripts WHERE ID = ? LIMIT 1');
+                    $chk->execute([$partId]);
+                    $row = $chk->fetch(PDO::FETCH_ASSOC);
+                    if ($row && (int)$row['PID'] !== $scriptId && (int)$row['PID'] !== 0) {
+                        throw new RuntimeException(t('audio_dicts.scripts.versions.err.part_id_conflict', [
+                            'id' => (string)$partId,
+                        ]));
+                    }
+                    if ($row && (int)$row['PID'] === 0) {
+                        throw new RuntimeException(t('audio_dicts.scripts.versions.err.part_id_conflict', [
+                            'id' => (string)$partId,
+                        ]));
+                    }
+                    if (!$row) {
+                        self::insertPartRowWithId($pdo, $partId, $scriptId, $num, $part, $flags, $dicts);
+                    } else {
+                        self::updatePartRow($pdo, $partId, $scriptId, $num, $part, $flags, $dicts);
+                    }
+                    $keep[] = $partId;
+                    $ordered[] = $partId;
+                } else {
+                    $newId = self::insertPartRow($pdo, $scriptId, $num, $part, $flags, $dicts);
+                    $keep[] = $newId;
+                    $ordered[] = $newId;
+                }
+            }
+
+            $toDelete = array_diff(array_keys($existingIds), $keep);
+            if ($toDelete !== []) {
+                $in = implode(',', array_fill(0, count($toDelete), '?'));
+                $del = $pdo->prepare("DELETE FROM base_records_scripts WHERE ID IN ($in) AND PID = ?");
+                $del->execute(array_merge(array_values($toDelete), [$scriptId]));
+            }
+
+            self::linkNextQids($pdo, $ordered);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+        EventBus::emit('audio_dicts.changed', ['entity' => 'scripts', 'id' => $scriptId]);
+    }
+
+    /**
+     * @param array<string,mixed> $part
+     * @param array{is_req:int,finish:int,closer?:int,break:int,killer:int} $flags
+     */
+    private static function insertPartRowWithId(
+        PDO $pdo,
+        int $partId,
+        int $rootId,
+        int $num,
+        array $part,
+        array $flags,
+        string $dicts
+    ): void {
+        if ($partId < 1) {
+            self::insertPartRow($pdo, $rootId, $num, $part, $flags, $dicts);
+            return;
+        }
+        if (Database::columnExists('base_records_scripts', 'SCORE_RATE')) {
+            $hasGate = Database::columnExists('base_records_scripts', 'START_GATE');
+            $hasExtend = Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT');
+            $hasBreakGap = Database::columnExists('base_records_scripts', 'BREAK_GAP');
+            $hasQuality = Database::columnExists('base_records_scripts', 'GATE_RED_MAX');
+            $hasHide = Database::columnExists('base_records_scripts', 'HIDE_FROM_REPORTS');
+            $ins = $pdo->prepare(
+                'INSERT INTO base_records_scripts
+                 (ID, PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
+                  IDS_DICTONARYS, SCORE, `BREAK`, TIMEOUT, DIVERSITY, INSTANCES_MIN,
+                  COLLECTION_KILLER, ID_POSITION, SCORE_RATE, KPI, COND_TYPE, COND_VALUE'
+                . ($hasGate ? ', START_GATE' : '')
+                . ($hasExtend ? ', EXTEND_TIMEOUT' : '')
+                . ($hasBreakGap ? ', BREAK_GAP' : '')
+                . ($hasQuality ? ', GATE_RED_MAX, GATE_YELLOW_MAX' : '')
+                . ($hasHide ? ', HIDE_FROM_REPORTS' : '')
+                . ')
+                 VALUES (?, ?, 0, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?'
+                . ($hasGate ? ', ?' : '')
+                . ($hasExtend ? ', ?' : '')
+                . ($hasBreakGap ? ', ?' : '')
+                . ($hasQuality ? ', ?, ?' : '')
+                . ($hasHide ? ', ?' : '')
+                . ')'
+            );
+            $params = [
+                $partId,
+                $rootId,
+                $num,
+                $part['name'],
+                time(),
+                (int)($part['disabled'] ?? 0),
+                $flags['is_req'],
+                $flags['finish'],
+                $dicts,
+                (int)($part['score'] ?? 0),
+                $flags['break'],
+                (int)($part['timeout'] ?? 0),
+                (int)($part['diversity'] ?? 0),
+                (int)($part['instances_min'] ?? 0),
+                $flags['killer'],
+                (string)($part['id_position'] ?? ''),
+                (int)($part['score_rate'] ?? 0),
+                (int)($part['kpi'] ?? 0),
+                (string)($part['cond_type'] ?? ''),
+                (int)($part['cond_value'] ?? 0),
+            ];
+            if ($hasGate) {
+                $params[] = max(0, min(2, (int)($part['start_gate'] ?? 0)));
+            }
+            if ($hasExtend) {
+                $params[] = array_key_exists('extend_timeout', $part)
+                    ? (!empty($part['extend_timeout']) ? 1 : 0)
+                    : 1;
+            }
+            if ($hasBreakGap) {
+                $params[] = max(0, (int)($part['break_gap'] ?? 120));
+            }
+            if ($hasQuality) {
+                $params[] = max(0.0, (float)($part['gate_red_max'] ?? 0));
+                $params[] = max(0.0, (float)($part['gate_yellow_max'] ?? 0));
+            }
+            if ($hasHide) {
+                $params[] = !empty($part['hide_from_reports']) ? 1 : 0;
+            }
+            $ins->execute($params);
+        } else {
+            $ins = $pdo->prepare(
+                'INSERT INTO base_records_scripts
+                 (ID, PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
+                  IDS_DICTONARYS, SCORE, `BREAK`, TIMEOUT, DIVERSITY, INSTANCES_MIN,
+                  COLLECTION_KILLER, ID_POSITION)
+                 VALUES (?, ?, 0, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $ins->execute([
+                $partId,
+                $rootId,
+                $num,
+                $part['name'],
+                time(),
+                (int)($part['disabled'] ?? 0),
+                $flags['is_req'],
+                $flags['finish'],
+                $dicts,
+                (int)($part['score'] ?? 0),
+                $flags['break'],
+                (int)($part['timeout'] ?? 0),
+                (int)($part['diversity'] ?? 0),
+                (int)($part['instances_min'] ?? 0),
+                $flags['killer'],
+                (string)($part['id_position'] ?? ''),
+            ]);
+        }
+        self::applyCloserFlag($pdo, $partId, (int)($flags['closer'] ?? 0));
+    }
+
     /** @param list<int> $ids */
     public static function deleteByIds(array $ids): int
     {
@@ -424,9 +702,15 @@ final class RecordsScriptsRepository
             return 0;
         }
         $rin = implode(',', array_fill(0, count($roots), '?'));
+        if (Database::tableExists('base_records_script_versions')) {
+            $pdo->prepare("DELETE FROM base_records_script_versions WHERE ID_SCRIPT IN ($rin)")->execute($roots);
+        }
         $pdo->prepare("DELETE FROM base_records_scripts WHERE PID IN ($rin)")->execute($roots);
         $del = $pdo->prepare("DELETE FROM base_records_scripts WHERE ID IN ($rin) AND PID = 0");
         $del->execute($roots);
+        if (class_exists('ScriptVersionsRepository', false)) {
+            ScriptVersionsRepository::clearRequestCache();
+        }
         EventBus::emit('audio_dicts.changed', ['entity' => 'scripts']);
         return $del->rowCount();
     }

@@ -587,16 +587,52 @@ final class CalendarAggregates
             return $out;
         }
 
-        /** @var array<int, int> $finishPartByScript finish part id keyed by root script id */
+        /** @var array<int, int> $finishPartByScript default finish part (as-of range end) */
         $finishPartByScript = [];
-        $stFinish = $pdo->query(
-            'SELECT ID AS id, PID AS pid
-             FROM base_records_scripts
-             WHERE PID > 0 AND FINISH > 0 AND DISABLED < 1'
-        );
-        if ($stFinish) {
-            while ($row = $stFinish->fetch(PDO::FETCH_ASSOC)) {
-                $finishPartByScript[(int)$row['pid']] = (int)$row['id'];
+        /** @var array<int, true> $allFinishPartIds union for datas JOIN */
+        $allFinishPartIds = [];
+        $useVersions = class_exists('ScriptVersionsRepository', false)
+            && ScriptVersionsRepository::tableReady();
+        if ($useVersions) {
+            foreach ($roots as $r) {
+                $sid = (int)$r['id'];
+                if ($sid < 1) {
+                    continue;
+                }
+                // Collect finish part ids from versions at range ends (covers mid-range publishes).
+                foreach ([$fromTs, $toTs] as $asOf) {
+                    $ver = ScriptVersionsRepository::asOf($sid, $asOf);
+                    if ($ver === null) {
+                        continue;
+                    }
+                    foreach ($ver['tree']['parts'] as $p) {
+                        if ((int)($p['disabled'] ?? 0) >= 1 || (int)($p['finish'] ?? 0) < 1) {
+                            continue;
+                        }
+                        $pid = (int)($p['id'] ?? 0);
+                        if ($pid > 0) {
+                            $allFinishPartIds[$pid] = true;
+                            if ($asOf === $toTs && !isset($finishPartByScript[$sid])) {
+                                $finishPartByScript[$sid] = $pid;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        } else {
+            $stFinish = $pdo->query(
+                'SELECT ID AS id, PID AS pid
+                 FROM base_records_scripts
+                 WHERE PID > 0 AND FINISH > 0 AND DISABLED < 1'
+            );
+            if ($stFinish) {
+                while ($row = $stFinish->fetch(PDO::FETCH_ASSOC)) {
+                    $pid = (int)$row['id'];
+                    $sid = (int)$row['pid'];
+                    $finishPartByScript[$sid] = $pid;
+                    $allFinishPartIds[$pid] = true;
+                }
             }
         }
 
@@ -636,9 +672,9 @@ final class CalendarAggregates
 
         /** @var array<int, array<int,true>> $finishPartsByCollection collectionId → finish part ids present */
         $finishPartsByCollection = [];
-        if (Database::tableExists('base_records_collections_datas') && $finishPartByScript !== []) {
+        if (Database::tableExists('base_records_collections_datas') && $allFinishPartIds !== []) {
             // One range JOIN instead of chunked IN (thousands of collection ids) — same filters as above.
-            $finishIn = implode(',', array_map('intval', array_unique(array_values($finishPartByScript))));
+            $finishIn = implode(',', array_map('intval', array_keys($allFinishPartIds)));
             $sqlFinish = 'SELECT d.ID_COLLECTION AS id, d.ID_PART AS id_part
                 FROM base_records_collections_datas d
                 INNER JOIN base_records_collections c ON c.ID = d.ID_COLLECTION';
@@ -666,6 +702,9 @@ final class CalendarAggregates
             }
         }
 
+        /** @var array<string, int> $finishByScriptDay cache "sid:day" → finish part id */
+        $finishByScriptDay = [];
+
         /** @var array<int, true> $usedScripts */
         $usedScripts = [];
         foreach ($collections as $row) {
@@ -689,7 +728,28 @@ final class CalendarAggregates
             $out['by_admin'][$aid][$sid]['starts']++;
             $out['by_admin'][$aid][$sid]['score'] += $score;
 
-            $finishPart = $finishPartByScript[$sid] ?? 0;
+            $dayKey = $sid . ':' . $day;
+            if (!isset($finishByScriptDay[$dayKey])) {
+                $finishPart = $finishPartByScript[$sid] ?? 0;
+                if ($useVersions && preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+                    $dayEnd = strtotime($day . ' 23:59:59');
+                    if ($dayEnd !== false) {
+                        $ver = ScriptVersionsRepository::asOf($sid, (int)$dayEnd);
+                        $finishPart = 0;
+                        if ($ver !== null) {
+                            foreach ($ver['tree']['parts'] as $p) {
+                                if ((int)($p['disabled'] ?? 0) >= 1 || (int)($p['finish'] ?? 0) < 1) {
+                                    continue;
+                                }
+                                $finishPart = (int)($p['id'] ?? 0);
+                                break;
+                            }
+                        }
+                    }
+                }
+                $finishByScriptDay[$dayKey] = $finishPart;
+            }
+            $finishPart = $finishByScriptDay[$dayKey];
             if ($finishPart > 0 && !empty($finishPartsByCollection[$cid][$finishPart])) {
                 $out['by_admin_day'][$aid][$sid][$day]['finishes']++;
                 $out['by_admin'][$aid][$sid]['finishes']++;

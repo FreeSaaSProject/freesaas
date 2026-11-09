@@ -285,7 +285,7 @@ final class DayRatingReport
             return [];
         }
 
-        $partsByScript = self::scriptPartsTemplates($scriptIds);
+        $partsByScript = self::scriptPartsTemplates($scriptIds, $dayEnd);
         $hitsByColl = self::collectionPartHits(array_map(static fn ($c) => (int)$c['id'], $collections));
 
         $out = [];
@@ -339,11 +339,45 @@ final class DayRatingReport
      * @param list<int> $scriptIds
      * @return array<int, list<array{id:int,name:string,score_rate:int,finish:int,killer:int}>>
      */
-    private static function scriptPartsTemplates(array $scriptIds): array
+    private static function scriptPartsTemplates(array $scriptIds, int $asOfTs = 0): array
     {
         if ($scriptIds === [] || !Database::tableExists('base_records_scripts')) {
             return [];
         }
+
+        if ($asOfTs > 0
+            && class_exists('ScriptVersionsRepository', false)
+            && ScriptVersionsRepository::tableReady()
+        ) {
+            $out = [];
+            foreach ($scriptIds as $sid) {
+                $sid = (int)$sid;
+                if ($sid < 1) {
+                    continue;
+                }
+                $ver = ScriptVersionsRepository::asOf($sid, $asOfTs);
+                if ($ver === null) {
+                    continue;
+                }
+                $out[$sid] = [];
+                foreach ($ver['tree']['parts'] as $p) {
+                    if ((int)($p['disabled'] ?? 0) >= 1) {
+                        continue;
+                    }
+                    $out[$sid][] = [
+                        'id' => (int)($p['id'] ?? 0),
+                        'name' => trim((string)($p['name'] ?? '')) !== ''
+                            ? trim((string)$p['name'])
+                            : ('#' . (int)($p['id'] ?? 0)),
+                        'score_rate' => (int)($p['score_rate'] ?? 0),
+                        'finish' => (int)($p['finish'] ?? 0),
+                        'killer' => (int)($p['collection_killer'] ?? 0),
+                    ];
+                }
+            }
+            return $out;
+        }
+
         $in = implode(',', array_map('intval', $scriptIds));
         $rateCol = Database::columnExists('base_records_scripts', 'SCORE_RATE')
             ? 'SCORE_RATE' : '0';

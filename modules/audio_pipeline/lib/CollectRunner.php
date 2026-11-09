@@ -16,7 +16,7 @@ final class CollectRunner
 
     /**
      * @param list<int>|null $onlyAdminIds when set, rebuild only these admins (day-scoped reparse)
-     * @param array{start?:int,end?:int,time_budget_sec?:int}|null $window optional DT window
+     * @param array{start?:int,end?:int,time_budget_sec?:int,as_of?:int}|null $window optional DT window
      * @return array{ok:bool,processed:int,skipped:int,message:string,extra?:array}
      */
     public static function run(bool $fullRebuild = false, ?array $onlyAdminIds = null, ?array $window = null): array
@@ -35,6 +35,10 @@ final class CollectRunner
         $winStart = max(0, (int)($window['start'] ?? 0));
         $winEnd = max(0, (int)($window['end'] ?? 0));
         $hasWindow = ($winStart > 0 && $winEnd >= $winStart);
+        $asOf = max(0, (int)($window['as_of'] ?? 0));
+        if ($asOf < 1) {
+            $asOf = $hasWindow ? $winEnd : time();
+        }
 
         // Full-table orphan sweep is expensive on large instances (~1M+ rows).
         // Only on explicit full rebuild — never on incremental stem/cron collect
@@ -46,7 +50,7 @@ final class CollectRunner
             );
         }
 
-        $scripts = self::loadScripts();
+        $scripts = self::loadScripts($asOf);
         if ($scripts['by_id'] === []) {
             return ['ok' => true, 'processed' => 0, 'skipped' => 0, 'message' => 'no_scripts'];
         }
@@ -137,6 +141,7 @@ final class CollectRunner
                 'admins' => count($adminIds),
                 'window' => $hasWindow,
                 'offers' => $offersTotal,
+                'as_of' => $asOf,
             ],
         ];
     }
@@ -160,14 +165,40 @@ final class CollectRunner
     }
 
     /**
+     * Load published script trees as-of $asOf.
+     * Falls back to live rows when versioning is unavailable.
+     *
      * @return array{
      *   by_id:array<int,array<string,mixed>>,
      *   roots:array<int,array<string,mixed>>,
      *   key_to_parts:array<int,list<array{script:int,part:int}>>,
-     *   metric_parts:array<int,list<array<string,mixed>>>
+     *   metric_parts:array<int,list<array<string,mixed>>>,
+     *   version_by_script:array<int,int>
      * }
      */
-    private static function loadScripts(): array
+    private static function loadScripts(int $asOf = 0): array
+    {
+        if (class_exists('ScriptVersionsRepository', false)
+            && ScriptVersionsRepository::tableReady()
+        ) {
+            return ScriptVersionsRepository::hydrateForCollect($asOf > 0 ? $asOf : time());
+        }
+
+        return self::loadScriptsLive();
+    }
+
+    /**
+     * Legacy live-tree loader (pre-versioning / fallback).
+     *
+     * @return array{
+     *   by_id:array<int,array<string,mixed>>,
+     *   roots:array<int,array<string,mixed>>,
+     *   key_to_parts:array<int,list<array{script:int,part:int}>>,
+     *   metric_parts:array<int,list<array<string,mixed>>>,
+     *   version_by_script:array<int,int>
+     * }
+     */
+    private static function loadScriptsLive(): array
     {
         $byId = [];
         $roots = [];
@@ -290,11 +321,11 @@ final class CollectRunner
                     continue;
                 }
                 $cond = $hasCond ? trim((string)($row['COND_TYPE'] ?? '')) : '';
-                $dicts = self::parseIds((string)($row['IDS_DICTONARYS'] ?? ''));
                 // Any COND_TYPE part is not keyed (proc_created reuses IDS as TYPE ids).
                 if ($cond !== '') {
                     continue;
                 }
+                $dicts = self::parseIds((string)($row['IDS_DICTONARYS'] ?? ''));
                 foreach ($dicts as $did) {
                     foreach ($keysByDict[$did] ?? [] as $keyId) {
                         $keyToParts[$keyId][] = ['script' => (int)$row['PID'], 'part' => $partId];
@@ -308,6 +339,7 @@ final class CollectRunner
             'roots' => $roots,
             'key_to_parts' => $keyToParts,
             'metric_parts' => $metricParts,
+            'version_by_script' => [],
         ];
     }
 
@@ -850,27 +882,41 @@ final class CollectRunner
         $pdo = Database::pdo();
         $hasScoreRate = Database::columnExists('base_records_collections', 'SCORE_RATE');
         $hasRated = Database::columnExists('base_records_collections', 'RATED');
+        $hasScriptVersion = Database::columnExists('base_records_collections', 'ID_SCRIPT_VERSION');
+        $scriptVersionId = (int)(($scripts['version_by_script'][$scriptId] ?? 0));
+        $versionCol = $hasScriptVersion ? ', ID_SCRIPT_VERSION' : '';
+        $versionPh = $hasScriptVersion ? ', ?' : '';
+        $versionVal = $hasScriptVersion ? [$scriptVersionId > 0 ? $scriptVersionId : null] : [];
 
         if ($hasScoreRate && $hasRated) {
             $pdo->prepare(
                 'INSERT INTO base_records_collections
-                 (DT_START, DT_END, ID_ADMIN, ID_SCRIPT, SCORE, SCORE_RATE, RATED, GATE_REASON)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-            )->execute([
+                 (DT_START, DT_END, ID_ADMIN, ID_SCRIPT, SCORE, SCORE_RATE, RATED, GATE_REASON'
+                . $versionCol . ')
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?' . $versionPh . ')'
+            )->execute(array_merge([
                 $dtStart, $dtEnd, $adminId, $scriptId, $score,
                 $scoreRate, $rated, mb_substr($gateReason, 0, 32),
-            ]);
+            ], $versionVal));
         } elseif ($hasScoreRate) {
             $pdo->prepare(
                 'INSERT INTO base_records_collections
-                 (DT_START, DT_END, ID_ADMIN, ID_SCRIPT, SCORE, SCORE_RATE)
-                 VALUES (?, ?, ?, ?, ?, ?)'
-            )->execute([$dtStart, $dtEnd, $adminId, $scriptId, $score, $scoreRate]);
+                 (DT_START, DT_END, ID_ADMIN, ID_SCRIPT, SCORE, SCORE_RATE'
+                . $versionCol . ')
+                 VALUES (?, ?, ?, ?, ?, ?' . $versionPh . ')'
+            )->execute(array_merge(
+                [$dtStart, $dtEnd, $adminId, $scriptId, $score, $scoreRate],
+                $versionVal
+            ));
         } else {
             $pdo->prepare(
-                'INSERT INTO base_records_collections (DT_START, DT_END, ID_ADMIN, ID_SCRIPT, SCORE)
-                 VALUES (?, ?, ?, ?, ?)'
-            )->execute([$dtStart, $dtEnd, $adminId, $scriptId, $score]);
+                'INSERT INTO base_records_collections (DT_START, DT_END, ID_ADMIN, ID_SCRIPT, SCORE'
+                . $versionCol . ')
+                 VALUES (?, ?, ?, ?, ?' . $versionPh . ')'
+            )->execute(array_merge(
+                [$dtStart, $dtEnd, $adminId, $scriptId, $score],
+                $versionVal
+            ));
         }
         $colId = (int)$pdo->lastInsertId();
         if ($colId < 1) {

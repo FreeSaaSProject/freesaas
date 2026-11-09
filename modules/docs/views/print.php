@@ -32,8 +32,9 @@ body{font-family:"PT Serif","Times New Roman",serif;font-size:11.5pt;color:#000;
 .docs-print-fields th{width:34%;text-align:left;vertical-align:top;font-weight:600;padding:.25em .5em .25em 0}
 .docs-print-fields td{vertical-align:top;padding:.25em 0;border-bottom:1px dotted #999}
 .docs-print-items th,.docs-print-items td{border:1px solid #777;padding:.2em .4em}
-.docs-print-qr{margin-top:1em;display:flex;align-items:center;gap:.6em}
-.docs-print-qr small{font-size:8pt;color:#444}
+.docs-print-qr{margin-top:.6em;display:inline-flex;align-items:center;gap:.4em}
+.docs-print-qr svg{width:48px;height:48px;flex:0 0 auto}
+.docs-print-qr small{font-size:7pt;color:#444;max-width:9em;line-height:1.2}
 .docs-print-copy+.docs-print-copy{page-break-before:always;break-before:page}
 .docs-page-break{page-break-before:always;break-before:page;height:0}
 @media screen{.docs-page-break{border-top:1px dashed #bbb;margin:1.5em 0}}

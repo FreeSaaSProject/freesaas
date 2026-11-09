@@ -107,6 +107,14 @@ final class DocsSample
         $vars['dossier.diagnoses'] = DocsRender::diagnosesHtml([], [
             ['date' => $vars['card.day'] . '.' . $vars['card.month'] . '.' . $vars['card.year'], 'diagnosis' => $diaSample, 'doctor' => DocsRender::shortName($staff)],
         ]);
+        // Sample epicrisis: one filled block so the 025 preview is not blank paper.
+        $vars['dossier.stage_epicrisis'] = '<p><b>' . e(t('docs.seed.f025.t26')) . '</b><br>'
+            . e(t('docs.seed.f025.line_date')) . ' <u>' . e($vars['event.date']) . '</u><br>'
+            . e(t('docs.seed.f025.line_complaints')) . ' <u>' . e(t('docs.sample.textarea')) . '</u><br>'
+            . e(t('docs.seed.f025.line_treatment')) . ' <u>' . e(t('docs.sample.textarea')) . '</u><br>'
+            . e(t('docs.seed.f025.line_main_dia')) . ' <u>' . e($diaSample) . '</u><br>'
+            . e(t('docs.seed.f025.line_recs')) . ' <u>' . e(t('docs.sample.textarea')) . '</u><br>'
+            . e(t('docs.seed.f025.line_doctor')) . ' <u>' . e(DocsRender::shortName($staff)) . '</u></p>';
         $vars['dossier.visits'] = '';
         if ($visitVer !== null && (string)$def['kind'] !== 'medcard_visit') {
             $pages = [];

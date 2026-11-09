@@ -7,6 +7,7 @@ require_once __DIR__ . '/lib/DemoSeed.php';
 require_once __DIR__ . '/lib/DemoProvision.php';
 require_once __DIR__ . '/lib/DemoJobs.php';
 require_once __DIR__ . '/lib/DemoChrome.php';
+require_once __DIR__ . '/lib/ClinicDemo/ClinicDemo.php';
 
 Assets::register('demo', [
     'css' => ['demo.css'],
@@ -22,17 +23,19 @@ EventBus::on('core.notices.collect', static function ($notices) {
     if (!class_exists('DemoMode', false) || !DemoMode::readonly()) {
         return $notices;
     }
-    // Banner strip carries the main copy; chips keep only RU↔EN switch.
+    // Banner strip carries the main copy; chips keep only RU↔EN switch (promo only).
     $own = [];
-    $other = I18n::locale() === 'en' ? 'ru' : 'en';
-    $switchUrl = trim((string)Config::get('demo', 'switch_url_' . $other, ''));
-    if ($switchUrl !== '' && preg_match('#^https?://#i', $switchUrl)) {
-        $own[] = [
-            'short' => $other === 'en' ? t('demo.switch_to_en') : t('demo.switch_to_ru'),
-            'href' => $switchUrl,
-            'title' => $other === 'en' ? t('demo.switch_title_en') : t('demo.switch_title_ru'),
-            'tone' => 'info',
-        ];
+    if (DemoChrome::showPromo()) {
+        $other = I18n::locale() === 'en' ? 'ru' : 'en';
+        $switchUrl = trim((string)Config::get('demo', 'switch_url_' . $other, ''));
+        if ($switchUrl !== '' && preg_match('#^https?://#i', $switchUrl)) {
+            $own[] = [
+                'short' => $other === 'en' ? t('demo.switch_to_en') : t('demo.switch_to_ru'),
+                'href' => $switchUrl,
+                'title' => $other === 'en' ? t('demo.switch_title_en') : t('demo.switch_title_ru'),
+                'tone' => 'info',
+            ];
+        }
     }
     return array_merge($own, $notices);
 });
