@@ -2,8 +2,11 @@
 declare(strict_types=1);
 
 /**
- * Backfill IS_OASIS: default "not oasis"; only Sep–Nov 2026 visits with
- * oasis in the name get IS_OASIS=1. Add indexes for classify scans.
+ * Indexes for classify scans + mark Sep–Nov 2026 oasis-by-name.
+ *
+ * Heavy IS_OASIS 0→2 backfill is NOT done here (UI schema LongJob ~25s/tick;
+ * full-table UPDATE on millions of rows times out and leaves the migration unapplied).
+ * See FullstatsRepository::backfillOasisNotChunk + Cron terminals.oasis_backfill.
  */
 return static function (PDO $pdo): void {
     $st = $pdo->prepare(
@@ -14,39 +17,6 @@ return static function (PDO $pdo): void {
     if (!$st->fetchColumn()) {
         return;
     }
-
-    // Sep–Nov 2026 inclusive → [2026-09-01, 2026-12-01).
-    $from = (int)strtotime('2026-09-01 00:00:00');
-    $toExcl = (int)strtotime('2026-12-01 00:00:00');
-    if ($from < 1) {
-        $from = 1756684800;
-    }
-    if ($toExcl < 1) {
-        $toExcl = 1764547200;
-    }
-
-    // Everyone → not oasis.
-    $pdo->exec('UPDATE base_fullstats SET IS_OASIS = 2 WHERE IS_OASIS <> 2');
-
-    // Sep–Nov + name contains oasis → yes.
-    $upd = $pdo->prepare(
-        'UPDATE base_fullstats SET IS_OASIS = 1
-         WHERE DTSTART >= ? AND DTSTART < ?
-           AND (
-             TICKET_TYPE LIKE ?
-             OR TICKET_TYPE LIKE ?
-             OR TITLE_FULL LIKE ?
-             OR TITLE_FULL LIKE ?
-           )'
-    );
-    $upd->execute([
-        $from,
-        $toExcl,
-        '%оазис%',
-        '%oasis%',
-        '%оазис%',
-        '%oasis%',
-    ]);
 
     $ensureIdx = static function (PDO $pdo, string $name, string $ddl): void {
         $st = $pdo->prepare(
@@ -63,4 +33,33 @@ return static function (PDO $pdo): void {
     $ensureIdx($pdo, 'idx_is_limited', 'KEY idx_is_limited (IS_LIMITED)');
     $ensureIdx($pdo, 'idx_is_payer', 'KEY idx_is_payer (IS_PAYER)');
     $ensureIdx($pdo, 'idx_oasis_ticket', 'KEY idx_oasis_ticket (IS_OASIS, TICKET_TYPE(64))');
+
+    // Sep–Nov 2026 inclusive → [2026-09-01, 2026-12-01). Small window — safe for one tick.
+    $from = (int)strtotime('2026-09-01 00:00:00');
+    $toExcl = (int)strtotime('2026-12-01 00:00:00');
+    if ($from < 1) {
+        $from = 1756684800;
+    }
+    if ($toExcl < 1) {
+        $toExcl = 1764547200;
+    }
+    $upd = $pdo->prepare(
+        'UPDATE base_fullstats SET IS_OASIS = 1
+         WHERE DTSTART >= ? AND DTSTART < ?
+           AND IS_OASIS <> 1
+           AND (
+             TICKET_TYPE LIKE ?
+             OR TICKET_TYPE LIKE ?
+             OR TITLE_FULL LIKE ?
+             OR TITLE_FULL LIKE ?
+           )'
+    );
+    $upd->execute([
+        $from,
+        $toExcl,
+        '%оазис%',
+        '%oasis%',
+        '%оазис%',
+        '%oasis%',
+    ]);
 };

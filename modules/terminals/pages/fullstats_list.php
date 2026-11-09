@@ -67,6 +67,9 @@ if ($wantsJson) {
 
 $loadFrom = preg_match('/^\d{4}-\d{2}-\d{2}$/', $day) ? $day : date('Y-m-d');
 $loadTo = $loadFrom;
+$oasisBackfillRemaining = Auth::can('terminals.edit')
+    ? FullstatsRepository::oasisBackfillRemaining()
+    : 0;
 
 View::render('fullstats_list', [
     'title' => t('terminals.menu.fullstats'),
@@ -86,6 +89,7 @@ View::render('fullstats_list', [
     'loadTo' => $loadTo,
     'syncEnabled' => TerminalsConfig::syncEnabled(),
     'onecLive' => TerminalsConfig::onecLive(),
+    'oasisBackfillRemaining' => $oasisBackfillRemaining,
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],
     'page' => $lq['page'],

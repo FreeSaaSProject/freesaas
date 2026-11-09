@@ -59,15 +59,12 @@ final class FullstatsRepository
             $params[] = $to;
         }
         $mark = trim((string)($opts['mark'] ?? ''));
-        $hasOasis = self::hasOasisColumn();
+        // IS_OASIS=0 is provisional "not oasis" (mass 0→2 is chunked Cron/LongJob);
+        // do not treat it as unclassified — otherwise every row stays dirty until backfill.
         if ($mark === 'unclassified') {
-            $where[] = $hasOasis
-                ? '(ID_TYPE = 0 OR IS_LIMITED = 0 OR IS_PAYER = 0 OR IS_OASIS = 0)'
-                : '(ID_TYPE = 0 OR IS_LIMITED = 0 OR IS_PAYER = 0)';
+            $where[] = '(ID_TYPE = 0 OR IS_LIMITED = 0 OR IS_PAYER = 0)';
         } elseif ($mark === 'classified') {
-            $where[] = $hasOasis
-                ? '(ID_TYPE > 0 AND IS_LIMITED > 0 AND IS_PAYER > 0 AND IS_OASIS > 0)'
-                : '(ID_TYPE > 0 AND IS_LIMITED > 0 AND IS_PAYER > 0)';
+            $where[] = '(ID_TYPE > 0 AND IS_LIMITED > 0 AND IS_PAYER > 0)';
         }
         $q = trim((string)($opts['q'] ?? ''));
         if ($q !== '') {
@@ -294,11 +291,8 @@ final class FullstatsRepository
             WHEN DTEND > DTSTART THEN ROUND((DTEND - DTSTART) / 60)
             ELSE NULL
         END';
-        $hasOasis = self::hasOasisColumn();
-        $markSql = $hasOasis
-            ? '(ID_TYPE = 0 OR IS_LIMITED = 0 OR IS_PAYER = 0 OR IS_OASIS = 0)'
-            : '(ID_TYPE = 0 OR IS_LIMITED = 0 OR IS_PAYER = 0)';
-        $where = [$markSql, "TICKET_TYPE <> ''"];
+        // Oasis 0 = provisional not-oasis; classify only on type/limit/payer.
+        $where = ['(ID_TYPE = 0 OR IS_LIMITED = 0 OR IS_PAYER = 0)', "TICKET_TYPE <> ''"];
         $params = [];
         $q = trim($q);
         if ($q !== '') {
@@ -408,7 +402,8 @@ final class FullstatsRepository
                     $isPayer,
                 ];
                 if ($hasOasis) {
-                    $vals[] = $isOasis;
+                    // Fresh imports: unknown oasis → not oasis (chunked backfill same rule).
+                    $vals[] = $isOasis > 0 ? $isOasis : 2;
                 }
                 $ins->execute($vals);
                 $n++;
@@ -464,6 +459,77 @@ final class FullstatsRepository
     {
         self::$forDayCache = [];
         self::$hasOasis = null;
+    }
+
+    /**
+     * Mark Sep–Nov 2026 visits with oasis in the name (cheap; uses DTSTART range).
+     */
+    public static function ensureOasisNamedInWindow(): int
+    {
+        if (!self::hasOasisColumn()) {
+            return 0;
+        }
+        $upd = Database::pdo()->prepare(
+            'UPDATE base_fullstats SET IS_OASIS = 1
+             WHERE DTSTART >= ? AND DTSTART < ?
+               AND IS_OASIS <> 1
+               AND (
+                 TICKET_TYPE LIKE ?
+                 OR TICKET_TYPE LIKE ?
+                 OR TITLE_FULL LIKE ?
+                 OR TITLE_FULL LIKE ?
+               )'
+        );
+        $upd->execute([
+            TicketTypeEnums::oasisWindowStart(),
+            TicketTypeEnums::oasisWindowEndExclusive(),
+            '%оазис%',
+            '%oasis%',
+            '%оазис%',
+            '%oasis%',
+        ]);
+        return (int)$upd->rowCount();
+    }
+
+    /**
+     * One crumb of IS_OASIS 0→2 (not oasis). Safe for UI/Cron ticks (~25s budget).
+     *
+     * @return array{updated:int,remaining:int,named:int,done:bool}
+     */
+    public static function backfillOasisNotChunk(int $limit = 25000): array
+    {
+        if (!self::hasOasisColumn()) {
+            return ['updated' => 0, 'remaining' => 0, 'named' => 0, 'done' => true];
+        }
+        $limit = max(1000, min(100000, $limit));
+        $pdo = Database::pdo();
+        // Prefer naming oasis rows before flipping remaining zeros to "not".
+        $named = self::ensureOasisNamedInWindow();
+        $updated = (int)$pdo->exec(
+            'UPDATE base_fullstats SET IS_OASIS = 2
+             WHERE IS_OASIS = 0
+             LIMIT ' . $limit
+        );
+        $remaining = (int)$pdo->query(
+            'SELECT COUNT(*) FROM base_fullstats WHERE IS_OASIS = 0'
+        )->fetchColumn();
+        return [
+            'updated' => $updated,
+            'remaining' => $remaining,
+            'named' => $named,
+            'done' => $remaining < 1,
+        ];
+    }
+
+    /** Rows still pending IS_OASIS 0→2 backfill. */
+    public static function oasisBackfillRemaining(): int
+    {
+        if (!self::hasOasisColumn()) {
+            return 0;
+        }
+        return (int)Database::pdo()->query(
+            'SELECT COUNT(*) FROM base_fullstats WHERE IS_OASIS = 0'
+        )->fetchColumn();
     }
 
     /**

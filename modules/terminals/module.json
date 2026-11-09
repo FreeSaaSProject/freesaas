@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "1.0.9",
+    "version": "1.0.11",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -54,6 +54,7 @@
             "/terminals/fullstats",
             "/terminals/fullstats/{id}/edit",
             "/terminals/fullstats/longjob",
+            "/terminals/fullstats/oasis-backfill",
             "/terminals/fullstats/classify",
             "/terminals/settings",
             "/terminals/t/status",
@@ -336,10 +337,11 @@
         ]
     },
     "jobs": [
-        "platform Cron::register terminals.load|tickets|tickets_finalize → /cron/tick",
+        "platform Cron::register terminals.load|tickets|tickets_finalize|oasis_backfill → /cron/tick",
         "/terminals/jobs/load",
         "/terminals/jobs/tickets",
-        "LongJob terminals.tickets_import → /terminals/fullstats/longjob"
+        "LongJob terminals.tickets_import → /terminals/fullstats/longjob",
+        "LongJob terminals.oasis_backfill → /terminals/fullstats/oasis-backfill"
     ],
     "menu": [
         {

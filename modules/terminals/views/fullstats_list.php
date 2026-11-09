@@ -13,6 +13,7 @@ declare(strict_types=1);
 /** @var string $loadTo */
 /** @var bool $syncEnabled */
 /** @var bool $onecLive */
+/** @var int $oasisBackfillRemaining */
 /** @var string $sort */
 /** @var string $dir */
 /** @var int $page */
@@ -48,6 +49,7 @@ if ($dayNavActive) {
     $dayLabel = I18n::formatDate(strtotime($focus . ' 12:00:00') ?: time(), 'date');
 }
 $loadReady = $canSync && $syncEnabled && $onecLive;
+$oasisBackfillRemaining = (int)($oasisBackfillRemaining ?? 0);
 ?>
 <section class="page-head">
   <div class="page-actions" style="gap:0.5rem;align-items:center;flex-wrap:wrap">
@@ -149,6 +151,61 @@ $loadReady = $canSync && $syncEnabled && $onecLive;
       ev.preventDefault();
       lj.runFormData(new FormData(form), {
         title: <?= json_encode(t('terminals.fullstats.load.title'), JSON_UNESCAPED_UNICODE) ?>
+      });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<?php endif; ?>
+
+<?php if ($canEdit && $oasisBackfillRemaining > 0): ?>
+<section style="margin:1rem 0">
+  <h2><?= te('terminals.oasis_backfill.title') ?></h2>
+  <p class="muted"><?= te('terminals.oasis_backfill.hint', ['n' => $oasisBackfillRemaining]) ?></p>
+  <form method="post" data-terminals-oasis-backfill>
+    <button type="submit" class="btn-secondary"><?= te('terminals.oasis_backfill.btn') ?></button>
+  </form>
+</section>
+<?= View::capture('_longjob_panel', [
+  'longjobId' => 'terminals-oasis-backfill',
+  'longjobTitle' => t('terminals.oasis_backfill.title'),
+  'longjobDualBars' => false,
+  'longjobShowBytes' => false,
+], 'core') ?>
+<script>
+(function () {
+  function boot() {
+    var form = document.querySelector('[data-terminals-oasis-backfill]');
+    var overlay = document.getElementById('terminals-oasis-backfill-overlay');
+    if (!form || !overlay) return;
+    if (!window.LongJobPanel) { setTimeout(boot, 30); return; }
+    if (overlay.getAttribute('data-bound') === '1') return;
+    overlay.setAttribute('data-bound', '1');
+    var lj = LongJobPanel.mount({
+      root: overlay,
+      startUrl: '/terminals/fullstats/oasis-backfill',
+      tickUrl: '/terminals/fullstats/oasis-backfill',
+      cancelUrl: '/terminals/fullstats/oasis-backfill',
+      dualBars: false,
+      showBytes: false,
+      reloadOnOk: true,
+      csrf: <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>,
+      i18n: {
+        title: <?= json_encode(t('terminals.oasis_backfill.title'), JSON_UNESCAPED_UNICODE) ?>,
+        starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
+        badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+        doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+        errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+        cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
+        ok: <?= json_encode(t('core.longjob.ok'), JSON_UNESCAPED_UNICODE) ?>
+      }
+    });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      lj.runFormData(new FormData(form), {
+        title: <?= json_encode(t('terminals.oasis_backfill.title'), JSON_UNESCAPED_UNICODE) ?>
       });
     });
   }

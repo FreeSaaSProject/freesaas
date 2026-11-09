@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-09T05:54:26+00:00",
+    "generated_at": "2026-11-09T06:09:07+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -2112,7 +2112,7 @@
         },
         {
             "id": "terminals",
-            "version": "1.0.9",
+            "version": "1.0.11",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",

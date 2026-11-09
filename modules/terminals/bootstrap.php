@@ -13,6 +13,7 @@ require_once __DIR__ . '/lib/TicketTypeEnums.php';
 require_once __DIR__ . '/lib/TicketTypeClassifier.php';
 require_once __DIR__ . '/lib/TicketsImporter.php';
 require_once __DIR__ . '/lib/TicketsLongJob.php';
+require_once __DIR__ . '/lib/OasisBackfillLongJob.php';
 require_once __DIR__ . '/lib/CalendarLoadOverlay.php';
 require_once __DIR__ . '/lib/OnecClient.php';
 require_once __DIR__ . '/lib/OnecConsole.php';
@@ -36,6 +37,19 @@ LongJob::register(TicketsLongJob::TYPE_IMPORT, [
     'tick' => [TicketsLongJob::class, 'tick'],
 ]);
 
+LongJob::register(OasisBackfillLongJob::TYPE, [
+    'module' => 'terminals',
+    'permission' => 'terminals.edit',
+    'defaults' => ['tick_seconds' => 25],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 25],
+        'cli' => ['tick_seconds' => 60],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [OasisBackfillLongJob::class, 'onStart'],
+    'tick' => [OasisBackfillLongJob::class, 'tick'],
+]);
+
 EventBus::on('bi.datasets', [TerminalsBiContrib::class, 'onDatasets']);
 EventBus::on('bi.recipes', [TerminalsBiContrib::class, 'onRecipes']);
 
@@ -56,6 +70,7 @@ $pages = [
     '/terminals/termloads' => ['permission' => 'terminals.view', 'methods' => ['GET'], 'file' => 'termloads.php'],
     '/terminals/fullstats' => ['permission' => 'terminals.view', 'methods' => ['GET'], 'file' => 'fullstats_list.php'],
     '/terminals/fullstats/longjob' => ['permission' => 'terminals.sync', 'methods' => ['POST'], 'file' => 'longjob.php'],
+    '/terminals/fullstats/oasis-backfill' => ['permission' => 'terminals.edit', 'methods' => ['POST'], 'file' => 'oasis_backfill_longjob.php'],
     '/terminals/fullstats/classify' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'fullstats_classify.php'],
     '/terminals/fullstats/{id}/edit' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'fullstats_edit.php'],
     '/terminals/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
@@ -175,6 +190,29 @@ Cron::register('terminals.tickets_finalize', [
             'processed' => (int)($res['imported'] ?? 0),
             'imported' => (int)($res['imported'] ?? 0),
             'message' => (string)($res['message'] ?? $res['error'] ?? ''),
+        ];
+    },
+]);
+
+// Drain IS_OASIS=0 → 2 in crumbs (schema migrate must not full-scan millions of rows).
+Cron::register('terminals.oasis_backfill', [
+    'module' => 'terminals',
+    'label' => 'terminals.cron.oasis_backfill',
+    'every' => 5,
+    'handler' => static function (): array {
+        if (!Database::tableExists('base_fullstats') || !FullstatsRepository::hasOasisColumn()) {
+            return ['ok' => true, 'skipped' => 1, 'message' => 'no oasis column'];
+        }
+        $left = FullstatsRepository::oasisBackfillRemaining();
+        if ($left < 1) {
+            return ['ok' => true, 'skipped' => 1, 'message' => 'already done'];
+        }
+        $res = FullstatsRepository::backfillOasisNotChunk(50000);
+        return [
+            'ok' => true,
+            'processed' => (int)$res['updated'],
+            'written' => (int)$res['updated'],
+            'message' => 'updated=' . (int)$res['updated'] . ' remaining=' . (int)$res['remaining'],
         ];
     },
 ]);
