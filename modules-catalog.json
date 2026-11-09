@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-09T06:09:07+00:00",
+    "generated_at": "2026-11-09T06:56:11+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -505,7 +505,7 @@
         },
         {
             "id": "bi",
-            "version": "1.0.4",
+            "version": "1.0.5",
             "type": "product",
             "name": {
                 "en": "BI reports",
@@ -1415,7 +1415,7 @@
         },
         {
             "id": "llm",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "LLM",
@@ -2112,7 +2112,7 @@
         },
         {
             "id": "terminals",
-            "version": "1.0.11",
+            "version": "1.0.14",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",

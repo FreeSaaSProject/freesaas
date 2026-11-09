@@ -298,7 +298,20 @@ final class McpServer
         }
 
         $inv = AssistantTools::invoke((string)$op['id'], $args);
-        $payload = $inv['ok'] ? ($inv['data'] ?? ['ok' => true]) : ['ok' => false, 'error' => $inv['error']];
+        // Prefer full page JSON (detail/stages/…) on failure; do not strip to error alone.
+        if ($inv['ok']) {
+            $payload = is_array($inv['data'] ?? null) ? $inv['data'] : ['ok' => true];
+        } elseif (is_array($inv['data'] ?? null)) {
+            $payload = $inv['data'];
+            if (!array_key_exists('ok', $payload)) {
+                $payload['ok'] = false;
+            }
+            if (!isset($payload['error']) || (string)$payload['error'] === '') {
+                $payload['error'] = (string)($inv['error'] ?? 'error');
+            }
+        } else {
+            $payload = ['ok' => false, 'error' => (string)($inv['error'] ?? 'error')];
+        }
         $text = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($text === false) {
             $text = '{"ok":false,"error":"encode failed"}';

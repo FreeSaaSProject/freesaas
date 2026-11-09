@@ -130,6 +130,9 @@ try {
             }
             AgentHttp::emit($payload);
         } catch (Throwable $e) {
+            // In-process MCP/assistant capture: emit() unwinds via AgentHttpCaptureSignal —
+            // must not be turned into bi.err.run (would overwrite the success payload).
+            AgentHttp::rethrowIfCapture($e);
             $code = $e->getMessage() === 'family_not_ready' ? 422 : 500;
             AgentHttp::error(
                 $e->getMessage() === 'family_not_ready' ? t('bi.err.not_ready') : t('bi.err.run'),

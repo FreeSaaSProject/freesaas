@@ -103,7 +103,12 @@ if ($action === 'run' || ($doRun && ($wantsJson || !empty($req['stream'])))) {
                     'expires_at' => (int)$share['DT_EXPIRE'],
                 ]);
             } catch (Throwable $e) {
-                AgentHttp::error(t('bi.err.run'), 500, ['detail' => $e->getMessage()]);
+                AgentHttp::rethrowIfCapture($e);
+                AgentHttp::error(t('bi.err.run'), 500, [
+                    'detail' => $e->getMessage(),
+                    'family' => $familyId,
+                    'stages' => ReportProgress::collectStages(),
+                ]);
             }
             return;
         }

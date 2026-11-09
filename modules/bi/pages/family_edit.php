@@ -161,6 +161,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     return;
                 }
             } catch (Throwable $e) {
+                AgentHttp::rethrowIfCapture($e);
                 $error = t('bi.family.err.save');
                 if ($wantsJson) {
                     AgentHttp::error($error, 500, ['detail' => $e->getMessage()]);
