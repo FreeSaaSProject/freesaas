@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "1.0.13",
+    "version": "1.0.14",
     "type": "product",
     "runtime": "both",
     "requires": {

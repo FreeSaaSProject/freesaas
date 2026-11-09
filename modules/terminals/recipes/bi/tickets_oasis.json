@@ -1,23 +1,14 @@
 {
   "v": 1,
   "id": "tickets_oasis",
-  "title": "Билеты: оазис и обычные",
+  "title": "Билеты: оазис и конверсия BMSSG/BSPA",
   "requires": [
-    "guests"
+    "guests",
+    "procedures"
   ],
   "queries": [
     {
-      "as": "totals",
-      "from": "guests",
-      "select": [
-        {
-          "agg": "count",
-          "as": "total"
-        }
-      ]
-    },
-    {
-      "as": "oasis",
+      "as": "oasis_totals",
       "from": "guests",
       "where": [
         {
@@ -29,12 +20,12 @@
       "select": [
         {
           "agg": "count",
-          "as": "n"
+          "as": "oasis_guests"
         }
       ]
     },
     {
-      "as": "regular",
+      "as": "regular_totals",
       "from": "guests",
       "where": [
         {
@@ -46,81 +37,432 @@
       "select": [
         {
           "agg": "count",
-          "as": "n"
+          "as": "regular_guests"
         }
       ]
     },
     {
-      "as": "by_flag",
+      "as": "guest_totals",
       "from": "guests",
-      "group_by": [
-        "is_oasis"
+      "select": [
+        {
+          "agg": "count",
+          "as": "total_guests"
+        }
+      ]
+    },
+    {
+      "as": "oasis_raw",
+      "from": "guests",
+      "where": [
+        {
+          "field": "is_oasis",
+          "op": "=",
+          "value": 1
+        }
       ],
       "select": [
         {
-          "field": "is_oasis"
+          "field": "id",
+          "as": "guest_id"
         },
         {
-          "agg": "count",
-          "as": "n"
+          "field": "dtstart",
+          "as": "dtstart"
         }
       ],
-      "order_by": [
+      "limit": 100000
+    },
+    {
+      "as": "spa_totals",
+      "from": "procedures",
+      "where": [
         {
-          "field": "is_oasis",
-          "dir": "asc"
+          "field": "type",
+          "op": "in",
+          "value": [
+            48,
+            49
+          ]
+        },
+        {
+          "field": "enabled",
+          "op": ">",
+          "value": 0
+        },
+        {
+          "field": "restored",
+          "op": "<",
+          "value": 1
         }
       ],
-      "limit": 20
+      "select": [
+        {
+          "agg": "count",
+          "as": "spa_services"
+        },
+        {
+          "agg": "count_distinct",
+          "field": "id_user",
+          "as": "spa_clients"
+        }
+      ]
+    },
+    {
+      "as": "spa_raw",
+      "from": "procedures",
+      "where": [
+        {
+          "field": "type",
+          "op": "in",
+          "value": [
+            48,
+            49
+          ]
+        },
+        {
+          "field": "enabled",
+          "op": ">",
+          "value": 0
+        },
+        {
+          "field": "restored",
+          "op": "<",
+          "value": 1
+        }
+      ],
+      "select": [
+        {
+          "field": "id",
+          "as": "proc_id"
+        },
+        {
+          "field": "dtstart",
+          "as": "dtstart"
+        },
+        {
+          "field": "id_user",
+          "as": "id_user"
+        },
+        {
+          "field": "type",
+          "as": "type"
+        }
+      ],
+      "limit": 100000
     }
   ],
   "derive": [
     {
-      "as": "by_flag_labeled",
-      "from": "by_flag",
-      "select": [
-        "*"
-      ],
+      "as": "oasis_key",
+      "from": "oasis_totals",
       "compute": [
         {
-          "as": "kind",
+          "as": "k",
           "expr": {
-            "if": [
+            "lit": 1
+          }
+        }
+      ]
+    },
+    {
+      "as": "spa_key",
+      "from": "spa_totals",
+      "compute": [
+        {
+          "as": "k",
+          "expr": {
+            "lit": 1
+          }
+        }
+      ]
+    },
+    {
+      "as": "kpi",
+      "from": "oasis_key",
+      "join_frame": {
+        "frame": "spa_key",
+        "type": "left",
+        "left": "k",
+        "right": "k"
+      },
+      "compute": [
+        {
+          "as": "spa_services",
+          "expr": {
+            "coalesce": [
               {
-                "eq": [
-                  {
-                    "field": "is_oasis"
-                  },
-                  {
-                    "lit": 1
-                  }
-                ]
+                "field": "spa_services"
               },
               {
-                "lit": "Оазис"
+                "lit": 0
+              }
+            ]
+          }
+        },
+        {
+          "as": "spa_clients",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "spa_clients"
               },
               {
-                "if": [
+                "lit": 0
+              }
+            ]
+          }
+        },
+        {
+          "as": "conversion",
+          "expr": {
+            "round": [
+              {
+                "mul": [
                   {
-                    "eq": [
+                    "div": [
                       {
-                        "field": "is_oasis"
+                        "field": "spa_services"
                       },
                       {
-                        "lit": 2
+                        "nullif": [
+                          {
+                            "field": "oasis_guests"
+                          },
+                          {
+                            "lit": 0
+                          }
+                        ]
                       }
                     ]
                   },
                   {
-                    "lit": "Обычные"
-                  },
-                  {
-                    "lit": "Не размечено (0)"
+                    "lit": 100
                   }
                 ]
+              },
+              {
+                "lit": 1
               }
             ]
           }
+        }
+      ]
+    },
+    {
+      "as": "oasis_day",
+      "from": "oasis_raw",
+      "compute": [
+        {
+          "as": "day_start",
+          "expr": {
+            "day_start": [
+              {
+                "field": "dtstart"
+              }
+            ]
+          }
+        },
+        {
+          "as": "day_label",
+          "expr": {
+            "day_label": [
+              {
+                "field": "dtstart"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "as": "spa_day",
+      "from": "spa_raw",
+      "compute": [
+        {
+          "as": "day_start",
+          "expr": {
+            "day_start": [
+              {
+                "field": "dtstart"
+              }
+            ]
+          }
+        },
+        {
+          "as": "day_label",
+          "expr": {
+            "day_label": [
+              {
+                "field": "dtstart"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "as": "day_oasis",
+      "from": "oasis_day",
+      "group_by": [
+        "day_start",
+        "day_label"
+      ],
+      "aggs": [
+        {
+          "as": "oasis_guests",
+          "op": "count"
+        }
+      ]
+    },
+    {
+      "as": "day_spa",
+      "from": "spa_day",
+      "group_by": [
+        "day_start",
+        "day_label"
+      ],
+      "aggs": [
+        {
+          "as": "spa_services",
+          "op": "count"
+        },
+        {
+          "as": "spa_clients",
+          "op": "count_distinct",
+          "field": "id_user"
+        },
+        {
+          "as": "bmssg",
+          "op": "count_where",
+          "where": {
+            "eq": [
+              {
+                "field": "type"
+              },
+              {
+                "lit": 48
+              }
+            ]
+          }
+        },
+        {
+          "as": "bspa",
+          "op": "count_where",
+          "where": {
+            "eq": [
+              {
+                "field": "type"
+              },
+              {
+                "lit": 49
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "as": "day_merged",
+      "from": "day_oasis",
+      "join_frame": {
+        "frame": "day_spa",
+        "type": "left",
+        "left": "day_start",
+        "right": "day_start"
+      },
+      "compute": [
+        {
+          "as": "spa_services",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "spa_services"
+              },
+              {
+                "lit": 0
+              }
+            ]
+          }
+        },
+        {
+          "as": "spa_clients",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "spa_clients"
+              },
+              {
+                "lit": 0
+              }
+            ]
+          }
+        },
+        {
+          "as": "bmssg",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "bmssg"
+              },
+              {
+                "lit": 0
+              }
+            ]
+          }
+        },
+        {
+          "as": "bspa",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "bspa"
+              },
+              {
+                "lit": 0
+              }
+            ]
+          }
+        },
+        {
+          "as": "conversion",
+          "expr": {
+            "round": [
+              {
+                "mul": [
+                  {
+                    "div": [
+                      {
+                        "field": "spa_services"
+                      },
+                      {
+                        "nullif": [
+                          {
+                            "field": "oasis_guests"
+                          },
+                          {
+                            "lit": 0
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "lit": 100
+                  }
+                ]
+              },
+              {
+                "lit": 1
+              }
+            ]
+          }
+        }
+      ],
+      "sort": [
+        {
+          "field": "day_start",
+          "dir": "asc"
         }
       ]
     }
@@ -132,35 +474,75 @@
       "items": [
         {
           "label": "Всего билетов",
-          "from": "totals",
-          "field": "total"
+          "from": "guest_totals",
+          "field": "total_guests"
         },
         {
           "label": "Оазис",
-          "from": "oasis",
-          "field": "n"
+          "from": "oasis_totals",
+          "field": "oasis_guests"
         },
         {
           "label": "Обычные (не оазис)",
-          "from": "regular",
-          "field": "n"
+          "from": "regular_totals",
+          "field": "regular_guests"
+        },
+        {
+          "label": "Услуги BMSSG+BSPA (тип 48/49)",
+          "from": "kpi",
+          "field": "spa_services"
+        },
+        {
+          "label": "Клиенты BMSSG+BSPA",
+          "from": "kpi",
+          "field": "spa_clients"
+        },
+        {
+          "label": "Конверсия услуг/оазис, %",
+          "from": "kpi",
+          "field": "conversion"
         }
       ]
     },
     {
       "type": "table",
-      "title": "По флагу IS_OASIS",
-      "from": "by_flag_labeled",
+      "title": "По дням",
+      "from": "day_merged",
       "columns": [
-        "kind",
-        "is_oasis",
-        "n"
+        {
+          "id": "day_label",
+          "label": "День"
+        },
+        {
+          "id": "oasis_guests",
+          "label": "Оазис"
+        },
+        {
+          "id": "spa_services",
+          "label": "Услуги 48/49"
+        },
+        {
+          "id": "bmssg",
+          "label": "BMSSG"
+        },
+        {
+          "id": "bspa",
+          "label": "BSPA"
+        },
+        {
+          "id": "spa_clients",
+          "label": "Клиенты"
+        },
+        {
+          "id": "conversion",
+          "label": "Конверсия %"
+        }
       ]
     },
     {
       "type": "text",
       "title": "Пояснение",
-      "body": "Оазис = IS_OASIS=1 (сен–ноя 2026, имя с «оазис»). Обычные = все остальные визиты за выбранный месяц (включая 0 до дозаполнения)."
+      "body": "Оазис = IS_OASIS=1. Услуги — процедуры TYPE 48 (BMSSG, Баланс массажи) и 49 (BSPA, Баланс уходы), enabled, не restored. Конверсия = услуги / гости оазиса × 100 (операционный KPI по объёму, без склейки клиент↔билет)."
     }
   ]
 }
