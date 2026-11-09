@@ -44,6 +44,7 @@ final class OnecClient
 
     /**
      * Ticket detail for a calendar day (Y-m-d).
+     * Oper / Volga Termy nested shape: client.id, start_date, end_date, duration, ticket.title.
      *
      * @return array{ok:bool,rows?:list<array<string,mixed>>,error?:string,raw?:string}
      */
@@ -56,46 +57,98 @@ final class OnecClient
             return ['ok' => false, 'error' => 'invalid day'];
         }
         $cfg = TerminalsConfig::onec();
-        $url = self::v3Base($cfg['url']) . '/club_workload_detail?date=' . rawurlencode($day);
+        // Trailing slash matches oper tickets1c / 1C console.
+        $url = self::v3Base($cfg['url']) . '/club_workload_detail/?date=' . rawurlencode($day);
         $res = self::request('GET', $url, $cfg);
         if (!$res['ok']) {
             return $res;
         }
-        $json = json_decode((string)$res['raw'], true);
-        $rows = [];
-        $list = [];
-        if (is_array($json)) {
-            if (isset($json['data']) && is_array($json['data'])) {
-                $list = $json['data'];
-            } elseif (isset($json[0])) {
-                $list = $json;
-            }
+        $raw = (string)$res['raw'];
+        $json = json_decode($raw, true);
+        if (!is_array($json)) {
+            return ['ok' => false, 'error' => 'invalid json', 'raw' => $raw];
         }
+        if (array_key_exists('result', $json) && $json['result'] === false) {
+            $msg = (string)($json['error_message'] ?? $json['error'] ?? $json['message'] ?? '1c result=false');
+            return ['ok' => false, 'error' => $msg !== '' ? $msg : '1c result=false', 'raw' => $raw];
+        }
+        $list = null;
+        if (isset($json['data']) && is_array($json['data'])) {
+            $list = $json['data'];
+        } elseif (isset($json[0]) && is_array($json[0])) {
+            $list = $json;
+        }
+        if ($list === null) {
+            return ['ok' => false, 'error' => 'missing data array', 'raw' => $raw];
+        }
+        $rows = [];
         $now = time();
+        $dayStart = (int)strtotime($day . ' 00:00:00');
         foreach ($list as $item) {
             if (!is_array($item)) {
                 continue;
             }
-            $dtStart = self::parseTs($item['start'] ?? $item['DTSTART'] ?? $item['dtstart'] ?? 0);
-            $dtEnd = self::parseTs($item['end'] ?? $item['DTEND'] ?? $item['dtend'] ?? 0);
+            $client = is_array($item['client'] ?? null) ? $item['client'] : [];
+            $ticket = is_array($item['ticket'] ?? null) ? $item['ticket'] : [];
+
+            $dtStart = self::parseTs(
+                $item['start_date'] ?? $item['start'] ?? $item['DTSTART'] ?? $item['dtstart'] ?? 0
+            );
+            $dtEnd = self::parseTs(
+                $item['end_date'] ?? $item['end'] ?? $item['DTEND'] ?? $item['dtend'] ?? 0
+            );
+            // Oper: open-ended / sentinel end before midnight of the visit day → clamp to 23:00.
+            if ($dtStart > 0 && $dtEnd > 0 && $dtEnd < $dayStart) {
+                $dtEnd = (int)mktime(23, 0, 0, (int)date('n', $dtStart), (int)date('j', $dtStart), (int)date('Y', $dtStart));
+            }
+
             $duration = (int)($item['duration'] ?? $item['DURATION'] ?? 0);
             if ($duration < 1 && $dtStart > 0 && $dtEnd > $dtStart) {
-                $duration = $dtEnd - $dtStart;
+                // API duration is minutes (oper stores as-is); fallback from seconds.
+                $duration = (int)round(($dtEnd - $dtStart) / 60);
             }
+
+            $id1c = (string)($client['id']
+                ?? $item['user']
+                ?? $item['ID1C_USER']
+                ?? $item['id1c_user']
+                ?? '');
+            $titleFull = (string)($ticket['title']
+                ?? $item['title']
+                ?? $item['TITLE_FULL']
+                ?? $item['title_full']
+                ?? '');
+            $ticketType = (string)($item['type'] ?? $item['TICKET_TYPE'] ?? $item['ticket_type'] ?? '');
+            if ($ticketType === '' && $titleFull !== '') {
+                $ticketType = self::extractTicketType($titleFull);
+            }
+            if ($ticketType === '' && $titleFull !== '') {
+                $ticketType = $titleFull;
+            }
+
             $rows[] = [
                 'dtcreate' => $now,
                 'dtstart' => $dtStart,
                 'dtend' => $dtEnd,
                 'duration' => $duration,
-                'id1c_user' => (string)($item['user'] ?? $item['ID1C_USER'] ?? $item['id1c_user'] ?? ''),
-                'title_full' => (string)($item['title'] ?? $item['TITLE_FULL'] ?? $item['title_full'] ?? ''),
-                'ticket_type' => (string)($item['type'] ?? $item['TICKET_TYPE'] ?? $item['ticket_type'] ?? ''),
+                'id1c_user' => $id1c,
+                'title_full' => $titleFull,
+                'ticket_type' => $ticketType,
                 'id_type' => (int)($item['id_type'] ?? $item['ID_TYPE'] ?? 0),
                 'is_limited' => (int)($item['is_limited'] ?? $item['IS_LIMITED'] ?? 0),
                 'is_payer' => (int)($item['is_payer'] ?? $item['IS_PAYER'] ?? 0),
             ];
         }
-        return ['ok' => true, 'rows' => $rows, 'raw' => (string)$res['raw']];
+        return ['ok' => true, 'rows' => $rows, 'raw' => $raw];
+    }
+
+    /** Quoted substring from ticket title (oper ExtractText); empty if no quotes. */
+    public static function extractTicketType(string $title): string
+    {
+        if (preg_match('/"([^"]+)"/', $title, $m) === 1) {
+            return (string)$m[1];
+        }
+        return '';
     }
 
     /**

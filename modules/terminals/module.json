@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "1.0.4",
+    "version": "1.0.9",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -14,7 +14,8 @@
         "booking": ">=1.0.0",
         "procedures": ">=1.0.0",
         "orders": ">=1.0.0",
-        "bi": ">=1.0.0"
+        "bi": ">=1.0.0",
+        "llm": ">=1.0.0"
     },
     "provides": [
         "terminals.registry",
@@ -52,6 +53,8 @@
             "/terminals/termloads",
             "/terminals/fullstats",
             "/terminals/fullstats/{id}/edit",
+            "/terminals/fullstats/longjob",
+            "/terminals/fullstats/classify",
             "/terminals/settings",
             "/terminals/t/status",
             "/terminals/1c",
@@ -228,14 +231,22 @@
                 "method": "GET",
                 "path": "/terminals/fullstats",
                 "permission": "terminals.view",
-                "description": "Ticket visits; filters: day, from, to"
+                "description": "Ticket visits; filters: day, from, to, mark=unclassified|classified"
             },
             {
-                "id": "terminals.fullstats.classify",
+                "id": "terminals.fullstats.classify.row",
                 "method": "POST",
                 "path": "/terminals/fullstats/{id}/edit",
                 "permission": "terminals.edit",
-                "description": "Set ticket type flags; propagates by TICKET_TYPE"
+                "side_effect": "write",
+                "description": "Set ticket type enum flags; propagates by TICKET_TYPE"
+            },
+            {
+                "id": "terminals.fullstats.classify.wizard",
+                "method": "GET",
+                "path": "/terminals/fullstats/classify",
+                "permission": "terminals.edit",
+                "description": "Unique unclassified types; POST action=propose|apply|clear for regex+LLM batch classify"
             },
             {
                 "id": "terminals.settings.get",
@@ -291,14 +302,44 @@
                 "path": "/terminals/jobs/tickets",
                 "permission": "",
                 "assistant": false,
-                "description": "Sync 1C club_workload_detail → fullstats; auth X-Terminals-Token. Also Cron job terminals.tickets"
+                "description": "Sync 1C club_workload_detail → fullstats; auth X-Terminals-Token. Also Cron jobs terminals.tickets / terminals.tickets_finalize"
+            },
+            {
+                "id": "terminals.fullstats.load",
+                "method": "POST",
+                "path": "/terminals/fullstats/longjob",
+                "permission": "terminals.sync",
+                "side_effect": "write",
+                "description": "LongJob force-load ticket visits from/to (one day per tick)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "description": "job_start | job_tick | job_cancel"
+                        },
+                        "from": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD (job_start)"
+                        },
+                        "to": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD (job_start)"
+                        },
+                        "job_id": {
+                            "type": "string",
+                            "description": "Job id for tick/cancel"
+                        }
+                    }
+                }
             }
         ]
     },
     "jobs": [
-        "platform Cron::register terminals.load|tickets → /cron/tick",
+        "platform Cron::register terminals.load|tickets|tickets_finalize → /cron/tick",
         "/terminals/jobs/load",
-        "/terminals/jobs/tickets"
+        "/terminals/jobs/tickets",
+        "LongJob terminals.tickets_import → /terminals/fullstats/longjob"
     ],
     "menu": [
         {
@@ -364,6 +405,7 @@
             "core.user_edit.save",
             "core.user_edit.profile",
             "calendar.timeline.enrich",
+            "calendar.day.stats",
             "bi.datasets",
             "bi.recipes",
             "calendar.settings.sections",

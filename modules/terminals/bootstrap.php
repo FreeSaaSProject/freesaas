@@ -9,6 +9,10 @@ require_once __DIR__ . '/lib/ClientOnecBindingsRepository.php';
 require_once __DIR__ . '/lib/StaffBraceletsRepository.php';
 require_once __DIR__ . '/lib/TermloadsRepository.php';
 require_once __DIR__ . '/lib/FullstatsRepository.php';
+require_once __DIR__ . '/lib/TicketTypeEnums.php';
+require_once __DIR__ . '/lib/TicketTypeClassifier.php';
+require_once __DIR__ . '/lib/TicketsImporter.php';
+require_once __DIR__ . '/lib/TicketsLongJob.php';
 require_once __DIR__ . '/lib/CalendarLoadOverlay.php';
 require_once __DIR__ . '/lib/OnecClient.php';
 require_once __DIR__ . '/lib/OnecConsole.php';
@@ -18,6 +22,19 @@ require_once __DIR__ . '/lib/TerminalFloorCatalog.php';
 require_once __DIR__ . '/lib/TerminalFloor.php';
 require_once __DIR__ . '/lib/TerminalFormGuard.php';
 require_once __DIR__ . '/lib/TerminalsBiContrib.php';
+
+LongJob::register(TicketsLongJob::TYPE_IMPORT, [
+    'module' => 'terminals',
+    'permission' => 'terminals.sync',
+    'defaults' => ['tick_seconds' => 30],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 30],
+        'cli' => ['tick_seconds' => 60],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [TicketsLongJob::class, 'onStart'],
+    'tick' => [TicketsLongJob::class, 'tick'],
+]);
 
 EventBus::on('bi.datasets', [TerminalsBiContrib::class, 'onDatasets']);
 EventBus::on('bi.recipes', [TerminalsBiContrib::class, 'onRecipes']);
@@ -38,6 +55,8 @@ $pages = [
     '/terminals/bracelets/{id}/edit' => ['permission' => 'terminals.view', 'methods' => ['GET', 'POST'], 'file' => 'bracelets_edit.php'],
     '/terminals/termloads' => ['permission' => 'terminals.view', 'methods' => ['GET'], 'file' => 'termloads.php'],
     '/terminals/fullstats' => ['permission' => 'terminals.view', 'methods' => ['GET'], 'file' => 'fullstats_list.php'],
+    '/terminals/fullstats/longjob' => ['permission' => 'terminals.sync', 'methods' => ['POST'], 'file' => 'longjob.php'],
+    '/terminals/fullstats/classify' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'fullstats_classify.php'],
     '/terminals/fullstats/{id}/edit' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'fullstats_edit.php'],
     '/terminals/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/terminals/t/status' => ['permission' => 'terminals.view', 'methods' => ['GET'], 'file' => 't_status.php'],
@@ -132,29 +151,30 @@ Cron::register('terminals.tickets', [
     'label' => 'terminals.cron.tickets',
     'every' => 15,
     'handler' => static function (): array {
-        if (!TerminalsConfig::syncEnabled()) {
-            return ['ok' => true, 'skipped' => 1, 'message' => 'sync disabled'];
-        }
-        if (!TerminalsConfig::onecLive()) {
-            return [
-                'ok' => true,
-                'skipped' => 1,
-                'message' => TerminalsConfig::onecEnabled() ? '1c config incomplete' : '1c disabled',
-            ];
-        }
-        $day = date('Y-m-d');
-        $res = OnecClient::workloadDetail($day);
-        if (empty($res['ok'])) {
-            return ['ok' => false, 'message' => (string)($res['error'] ?? '1c failed')];
-        }
-        $rows = $res['rows'] ?? [];
-        $dayStart = (int)strtotime($day . ' 00:00:00');
-        $n = FullstatsRepository::replaceDay($dayStart, is_array($rows) ? $rows : []);
+        $res = TicketsImporter::importDay(date('Y-m-d'));
         return [
-            'ok' => true,
-            'processed' => $n,
-            'imported' => $n,
-            'message' => 'day=' . $day,
+            'ok' => !empty($res['ok']),
+            'skipped' => (int)($res['skipped'] ?? 0),
+            'processed' => (int)($res['imported'] ?? 0),
+            'imported' => (int)($res['imported'] ?? 0),
+            'message' => (string)($res['message'] ?? $res['error'] ?? ''),
+        ];
+    },
+]);
+
+Cron::register('terminals.tickets_finalize', [
+    'module' => 'terminals',
+    'label' => 'terminals.cron.tickets_finalize',
+    'daily_at' => '02:00',
+    'handler' => static function (): array {
+        $yesterday = date('Y-m-d', strtotime('-1 day') ?: time());
+        $res = TicketsImporter::importDay($yesterday);
+        return [
+            'ok' => !empty($res['ok']),
+            'skipped' => (int)($res['skipped'] ?? 0),
+            'processed' => (int)($res['imported'] ?? 0),
+            'imported' => (int)($res['imported'] ?? 0),
+            'message' => (string)($res['message'] ?? $res['error'] ?? ''),
         ];
     },
 ]);
@@ -361,6 +381,74 @@ EventBus::on('calendar.timeline.enrich', static function ($payload) {
         $days[$date] = $day;
     }
     $payload['days'] = $days;
+    return $payload;
+});
+
+// Calendar day/week footer: oasis / adult / child ticket counts (calendar stays ticket-agnostic).
+EventBus::on('calendar.day.stats', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!Auth::can('terminals.view') || !TerminalsConfig::analyticsEnabled()) {
+        return $payload;
+    }
+    if (!Database::tableExists('base_fullstats')) {
+        return $payload;
+    }
+    $ctx = is_array($payload['context'] ?? null) ? $payload['context'] : [];
+    if (empty($ctx['show_admin_data'])) {
+        return $payload;
+    }
+    $days = is_array($payload['days'] ?? null) ? $payload['days'] : [];
+    $dateList = [];
+    foreach ($days as $date => $day) {
+        if (!is_array($day) || !empty($day['is_future'])) {
+            continue;
+        }
+        $d = (string)($day['date'] ?? $date);
+        if ($d !== '' && (int)($day['ts_start'] ?? 0) > 0) {
+            $dateList[] = $d;
+        }
+    }
+    if ($dateList === []) {
+        return $payload;
+    }
+    $counts = FullstatsRepository::dayTypeCounts($dateList);
+    foreach ($days as $date => $day) {
+        if (!is_array($day) || !empty($day['is_future'])) {
+            continue;
+        }
+        $d = (string)($day['date'] ?? $date);
+        $c = $counts[$d] ?? null;
+        if (!is_array($c)) {
+            continue;
+        }
+        $oasis = (int)($c['oasis'] ?? 0);
+        $adult = (int)($c['adult'] ?? 0);
+        $child = (int)($c['child'] ?? 0);
+        if ($oasis < 1 && $adult < 1 && $child < 1) {
+            continue;
+        }
+        $sections = is_array($day['sections'] ?? null) ? $day['sections'] : [];
+        $sections[] = [
+            'id' => 'terminals.day_tickets',
+            'module' => 'terminals',
+            'order' => 35,
+            'html' => View::capture('_day_stats_tickets', [
+                'oasis' => $oasis,
+                'adult' => $adult,
+                'child' => $child,
+                'date' => $d,
+            ], 'terminals'),
+            'data' => [
+                'oasis' => $oasis,
+                'adult' => $adult,
+                'child' => $child,
+            ],
+        ];
+        $day['sections'] = $sections;
+        $payload['days'][$date] = $day;
+    }
     return $payload;
 });
 

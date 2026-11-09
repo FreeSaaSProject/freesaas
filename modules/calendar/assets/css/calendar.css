@@ -899,6 +899,7 @@ tr.is-block td { opacity: 0.75; }
 .cal-stat-totals {
   margin-top: 0.15rem;
 }
-.cal-stat-orders a {
+.cal-stat-orders a,
+.cal-stat-tickets a {
   font-weight: 600;
 }

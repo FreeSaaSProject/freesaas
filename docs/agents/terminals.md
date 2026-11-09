@@ -2,7 +2,7 @@
 
 Product module `terminals`: device registry (`base_terminals`, `base_bracelets`), therm occupancy analytics (`base_termloads`, `base_fullstats`), and HTTP sync jobs. Secrets/URLs live in `cfg/modules/terminals.ini` (not platform `config.ini`). Legacy table `base_term_orders` may still exist from older installs; UI/import removed (Volga Termy feed no longer used).
 
-Calendar day/week: chill/rest procedure chips are painted by `calendar.timeline.enrich` in this module (`TerminalsConfig::chillProductId()` + `notice` `chill#…`) — calendar only passes `id_good`/`notice`/`class`, no hardcoded product id.
+Calendar day/week: chill/rest procedure chips are painted by `calendar.timeline.enrich` in this module (`TerminalsConfig::chillProductId()` + `notice` `chill#…`) — calendar only passes `id_good`/`notice`/`class`, no hardcoded product id. Footer ticket counts (oasis / non-oasis adult / non-oasis child) via `calendar.day.stats` → `FullstatsRepository::dayTypeCounts` (admin-data gate); calendar stays ticket-agnostic.
 
 Live floor shell is **`GET|POST /t`**. **NFC entry stays GET forever** (Android WebView: `terminalid`=device CODE, `braceletid`; server issues `token` via redirect; staff claim / guest resolve on that GET). Navigation (`category`, `adminId`, `gids`, `getTime=1` slot UI, `doStart=2` cancel-confirm screen, `flyerOn`, `rename`) may stay GET. **Writes after page load are POST + CSRF** — same-site check plus session token *or* signed `tform` (HMAC of terminalid+braceletid+token, 24h; `TerminalFormGuard`), because the WebView may not keep the session cookie (slot commit `getTime`≥1e9, cancel with `doConfirm`, `braceletNum`, rename/phone, `unlinkClient`, `resetCache`). Mutating keys on GET are ignored (soft warn), not executed. Procedures written with **TIME_NET** + optional **chill** product (`chill_product_id`, default 16); cancel disables linked chill. Lead: `lead_sec` for `/t` **listing** (default 180); **commit** on `/t` uses `lead_sec=0` (oper parity — slot may slip inside the window). `lead_sec_api` for `/terminals/floor` (default 600). Own ini, not booking. `TerminalBooking` asserts the slot **before** 1C sale; on race after sale, best-effort unsale is shown in the `/t` stack. Soft-deps: `booking`, `procedures`, `workweeks`, optional spa instance pack (flyer/promoter discounts + term scans). Termy/legacy HTTP drop-in lives in the instance pack (`/api_termy.php`).
 
@@ -44,7 +44,8 @@ Permissions: `terminals.view`, `terminals.edit`, `terminals.sync` (jobs use `wor
 | `/terminals` | Device list / CRUD |
 | `/terminals/bracelets` | Bracelet UID ↔ NUM |
 | `/terminals/termloads` | Day occupancy series |
-| `/terminals/fullstats` | Ticket visits + classify |
+| `/terminals/fullstats` | Ticket visits; filter `mark=unclassified\|classified`; force-load from 1C (LongJob, `terminals.sync`) |
+| `/terminals/fullstats/classify` | Unique unclassified types → regex+LLM propose → apply (`terminals.edit`; soft `llm`) |
 | `/terminals/settings` | Superadmin: flags + secrets + floor/API lead + chill product + `ignore_staff_shift_windows` |
 | `/t` | Public NFC floor shell (no admin chrome) |
 | `/terminals/t/status` | Staff diagnose for /t (claim / 1C / soft-deps) |
@@ -80,7 +81,11 @@ curl -sS -X POST -H "X-Terminals-Token: $TOKEN" \
 ```
 
 - `load` → 1C `club_workload` → `base_termloads` (minute sample)
-- `tickets` → 1C `club_workload_detail` → replace day in `base_fullstats`
+- `tickets` → 1C `club_workload_detail` → replace day in `base_fullstats` (nested Volga fields; refuses wipe when no valid rows)
+
+Platform Cron: `terminals.tickets` every 15m (today); `terminals.tickets_finalize` daily at 02:00 (yesterday). Staff UI force-load: `/terminals/fullstats` LongJob `terminals.tickets_import` (`from`/`to`, one day per tick).
+
+Classification enums (oper parity + oasis): `ID_TYPE` 0/1 child/2 senior/3 adult; `IS_LIMITED` 0/1 unlim/2–5 hours/9=1h; `IS_PAYER` 0/1 yes/2 no; `IS_OASIS` 0/1 oasis/2 not. Unclassified = any of these is 0. Rules: certificates → adult; child → non-payer; adult/senior → payer; name with «оазис» → oasis **only** for visits in Sep–Nov 2026 (else always not-oasis). List search `q=` filters `TICKET_TYPE`/`TITLE_FULL` (no day default when searching). Wizard `/terminals/fullstats/classify` proposes via regex+visit stats then optional LLM, then one-click apply by `TICKET_TYPE`.
 
 ## Config keys
 

@@ -16,7 +16,13 @@ if (!TerminalsConfig::analyticsEnabled()) {
 $day = trim((string)($_GET['day'] ?? ''));
 $from = trim((string)($_GET['from'] ?? ''));
 $to = trim((string)($_GET['to'] ?? ''));
-if ($day === '' && $from === '' && $to === '') {
+$mark = trim((string)($_GET['mark'] ?? ''));
+$q = trim((string)($_GET['q'] ?? ''));
+if (!in_array($mark, ['', 'unclassified', 'classified'], true)) {
+    $mark = '';
+}
+// Default to today only when not searching by name (search spans all history).
+if ($day === '' && $from === '' && $to === '' && $q === '') {
     $day = date('Y-m-d');
 }
 
@@ -27,7 +33,13 @@ $lq = ListQuery::resolve([
     'default_dir' => 'desc',
     'per_page' => 50,
 ]);
-$filters = array_merge(['day' => $day, 'from' => $from, 'to' => $to], $lq['query']);
+$filters = array_merge([
+    'day' => $day,
+    'from' => $from,
+    'to' => $to,
+    'mark' => $mark,
+    'q' => $q,
+], $lq['query']);
 if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
 }
@@ -36,6 +48,8 @@ $result = FullstatsRepository::list([
     'day' => $day,
     'from' => $from,
     'to' => $to,
+    'mark' => $mark,
+    'q' => $q,
     'limit' => ListQuery::sqlLimit($lq),
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
@@ -46,10 +60,13 @@ if ($wantsJson) {
         'ok' => true,
         'total' => $result['total'],
         'items' => $result['items'],
-        'filters' => ['day' => $day, 'from' => $from, 'to' => $to],
+        'filters' => ['day' => $day, 'from' => $from, 'to' => $to, 'mark' => $mark, 'q' => $q],
     ]);
     return;
 }
+
+$loadFrom = preg_match('/^\d{4}-\d{2}-\d{2}$/', $day) ? $day : date('Y-m-d');
+$loadTo = $loadFrom;
 
 View::render('fullstats_list', [
     'title' => t('terminals.menu.fullstats'),
@@ -61,7 +78,14 @@ View::render('fullstats_list', [
     'day' => $day,
     'from' => $from,
     'to' => $to,
+    'mark' => $mark,
+    'q' => $q,
     'canEdit' => Auth::can('terminals.edit'),
+    'canSync' => Auth::can('terminals.sync'),
+    'loadFrom' => $loadFrom,
+    'loadTo' => $loadTo,
+    'syncEnabled' => TerminalsConfig::syncEnabled(),
+    'onecLive' => TerminalsConfig::onecLive(),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],
     'page' => $lq['page'],
