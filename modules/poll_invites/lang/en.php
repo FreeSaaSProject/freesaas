@@ -69,6 +69,8 @@ return [
     'poll_invites.field.score' => 'Score',
     'poll_invites.field.score_staff' => 'Score',
     'poll_invites.field.score_service' => 'Score',
+    'poll_invites.field.viewers' => 'Viewed by',
+    'poll_invites.viewers.count' => 'Viewed by ({n})',
     'poll_invites.score.save' => 'Save score',
     'poll_invites.score.saved' => 'Score saved: {score}',
     'poll_invites.speech.heading' => 'Speech and recording',

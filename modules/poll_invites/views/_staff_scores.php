@@ -6,7 +6,13 @@ declare(strict_types=1);
  * @var array<string,mixed> $staffMeta
  */
 $staffMeta = is_array($staffMeta ?? null) ? $staffMeta : [];
-if (empty($staffMeta['has_staff']) && empty($staffMeta['has_scores']) && empty($staffMeta['has_proc'])) {
+$viewers = is_array($viewers ?? null) ? $viewers : [];
+$viewers = array_values(array_filter(array_map('intval', $viewers), static function (int $id): bool {
+    return $id > 0;
+}));
+if (empty($staffMeta['has_staff']) && empty($staffMeta['has_scores']) && empty($staffMeta['has_proc'])
+    && $viewers === []
+) {
     return;
 }
 $staffBadge = static function (int $id): string {
@@ -101,6 +107,18 @@ if ($procStart > 0) {
       <dd class="poll-invites-audio-links">
         <?php foreach ($speechRecordIds as $rid): ?>
           <a href="/audio/<?= (int)$rid ?>" target="_blank" rel="noopener"><?= te('poll_invites.action.audio_record', ['id' => (int)$rid]) ?></a>
+        <?php endforeach; ?>
+      </dd>
+    </div>
+    <?php endif; ?>
+    <?php if ($viewers !== []): ?>
+    <div class="poll-invites-viewers-cell">
+      <dt><?= te('poll_invites.field.viewers') ?></dt>
+      <dd class="poll-invites-viewers" title="<?= te('poll_invites.field.viewers') ?>"
+          aria-label="<?= te('poll_invites.viewers.count', ['n' => count($viewers)]) ?>">
+        <span class="muted" aria-hidden="true">👁</span>
+        <?php foreach ($viewers as $vid): ?>
+          <?= $staffBadge((int)$vid) ?>
         <?php endforeach; ?>
       </dd>
     </div>

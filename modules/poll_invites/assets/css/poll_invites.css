@@ -89,6 +89,18 @@
   gap: 0.35rem 0.75rem;
   align-items: center;
 }
+.poll-invites-proc-cell .poll-invites-viewers {
+  margin-top: 0.35rem;
+}
+.poll-invites-viewers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.4rem;
+  align-items: center;
+}
+.poll-invites-viewers-cell {
+  grid-column: 1 / -1;
+}
 .poll-invites-transcript {
   max-width: 36rem;
   white-space: pre-wrap;

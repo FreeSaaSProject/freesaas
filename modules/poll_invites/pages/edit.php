@@ -125,6 +125,12 @@ if ($respRaw !== '' && preg_match_all('/#(\d+)#/', $respRaw, $m)) {
         $extraStaffIds[] = (int)$rid;
     }
 }
+$viewers = $isNew
+    ? []
+    : PollInvitesRepository::viewerIdsFromViewed((string)($row['resp_users_viewed'] ?? ''));
+foreach ($viewers as $vid) {
+    $extraStaffIds[] = $vid;
+}
 $staff = class_exists('UsersRepository', false)
     ? UsersRepository::staffNamesIncluding($extraStaffIds)
     : [];
@@ -201,6 +207,7 @@ View::render('edit', [
     'pollNames' => $pollNames,
     'staff' => $staff,
     'staffMeta' => $staffMeta,
+    'viewers' => $viewers,
     'showAudioLinks' => true,
     'canScoreEdit' => $canScoreEdit,
     'speechAudio' => $speechAudio,

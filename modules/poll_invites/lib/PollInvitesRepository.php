@@ -267,6 +267,26 @@ final class PollInvitesRepository
         return strpos($respUsersViewed, '#' . $uid . '#') !== false;
     }
 
+    /**
+     * Staff ids who marked the invite viewed (`RESP_USERS_VIEWED` tokens `#uid#`).
+     *
+     * @return list<int>
+     */
+    public static function viewerIdsFromViewed(string $respUsersViewed): array
+    {
+        if ($respUsersViewed === '' || !preg_match_all('/#(\d+)#/', $respUsersViewed, $m)) {
+            return [];
+        }
+        $ids = [];
+        foreach ($m[1] as $raw) {
+            $id = (int)$raw;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        return array_values($ids);
+    }
+
     public static function isResponsibleUser(array $invite, int $uid): bool
     {
         if ($uid < 1) {

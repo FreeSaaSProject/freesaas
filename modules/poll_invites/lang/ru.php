@@ -69,6 +69,8 @@ return [
     'poll_invites.field.score' => 'Оценка',
     'poll_invites.field.score_staff' => 'Оценка',
     'poll_invites.field.score_service' => 'Оценка',
+    'poll_invites.field.viewers' => 'Смотрели',
+    'poll_invites.viewers.count' => 'Смотрели ({n})',
     'poll_invites.score.save' => 'Сохранить оценку',
     'poll_invites.score.saved' => 'Оценка сохранена: {score}',
     'poll_invites.speech.heading' => 'Речь и запись',

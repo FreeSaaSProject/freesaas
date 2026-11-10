@@ -106,8 +106,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             return;
         }
         redirect(ListQuery::url('/poll-invites', ['progress' => 'unviewed', 'day' => 'all']));
+        return;
     }
-    return;
 }
 
 // UI $filters (incl. pager keys) for return URL; listWhere ignores unknown keys.
@@ -145,6 +145,9 @@ foreach ($result['items'] as $row) {
             $extraStaffIds[] = (int)$rid;
         }
     }
+    foreach (PollInvitesRepository::viewerIdsFromViewed((string)($row['resp_users_viewed'] ?? '')) as $vid) {
+        $extraStaffIds[] = $vid;
+    }
 }
 $staffNames = class_exists('UsersRepository', false)
     ? UsersRepository::staffNamesIncluding($extraStaffIds)
@@ -167,8 +170,9 @@ foreach ($result['items'] as $row) {
     $row['score'] = $meta['score'];
     $row['transcript'] = PollInvitesRepository::transcriptSnippet($row['data_text'] ?? '', 0);
     $row['speech_record_ids'] = PollInvitesRepository::speechRecordIdsFromLog((string)($row['log'] ?? ''));
-    $doneAt = (int)($row['dt_completed'] ?? 0);
     $viewed = (string)($row['resp_users_viewed'] ?? '');
+    $row['viewer_ids'] = PollInvitesRepository::viewerIdsFromViewed($viewed);
+    $doneAt = (int)($row['dt_completed'] ?? 0);
     $row['unviewed_for_me'] = $doneAt > 0
         && PollInvitesRepository::isResponsibleUser($row, $uid)
         && !PollInvitesRepository::isViewedByUser($viewed, $uid);

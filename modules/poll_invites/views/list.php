@@ -268,11 +268,26 @@ if ($urlNext !== '') {
             <?= (int)$u['id_user'] ?>
           <?php endif; ?>
         </td>
-        <td>
+        <td class="poll-invites-proc-cell">
           <?php if ($procId > 0 && ModuleManager::isEnabled('procedures')): ?>
             <a href="/procedures/<?= $procId ?>"><?= e($procLabel($u)) ?></a>
           <?php else: ?>
             <?= e($procLabel($u)) ?>
+          <?php endif; ?>
+          <?php
+            $viewerIds = is_array($u['viewer_ids'] ?? null) ? $u['viewer_ids'] : [];
+            $viewerIds = array_values(array_filter(array_map('intval', $viewerIds), static function (int $id): bool {
+                return $id > 0;
+            }));
+          ?>
+          <?php if ($viewerIds !== []): ?>
+            <div class="poll-invites-viewers" title="<?= te('poll_invites.field.viewers') ?>"
+                 aria-label="<?= te('poll_invites.viewers.count', ['n' => count($viewerIds)]) ?>">
+              <span class="muted" aria-hidden="true">👁</span>
+              <?php foreach ($viewerIds as $vid): ?>
+                <?= $staffBadge((int)$vid) ?>
+              <?php endforeach; ?>
+            </div>
           <?php endif; ?>
         </td>
         <td class="poll-invites-stack">
