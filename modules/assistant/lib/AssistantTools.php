@@ -204,6 +204,9 @@ final class AssistantTools
         if ($opId !== '' && preg_match('/\.copy$/i', $opId) && trim((string)($args['action'] ?? '')) === '') {
             $args['action'] = 'copy';
         }
+        if ($opId !== '' && preg_match('/\.publish$/i', $opId) && trim((string)($args['action'] ?? '')) === '') {
+            $args['action'] = 'publish';
+        }
         $idEmpty = !array_key_exists('id', $args) || $args['id'] === '' || $args['id'] === null;
         if ($idEmpty) {
             foreach (['event_id', 'eventId', 'ID'] as $alt) {

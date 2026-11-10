@@ -9,6 +9,7 @@ require_once __DIR__ . '/ClinicDemoMoney.php';
 require_once __DIR__ . '/ClinicDemoDocs.php';
 require_once __DIR__ . '/ClinicDemoForward.php';
 require_once __DIR__ . '/ClinicDemoAudio.php';
+require_once __DIR__ . '/ClinicDemoFeed.php';
 
 /**
  * Orchestrator: DemoStand safety, stage dispatch, manifest lifecycle, cleanup.
@@ -19,6 +20,8 @@ final class ClinicDemo
     private const CORE_MODULES = [
         'calendar', 'procedures', 'clients', 'catalog', 'workweeks', 'ledger', 'payments', 'rates',
     ];
+
+    private const STAGES = ['structure', 'clinical', 'money', 'forward', 'docs', 'audio', 'feed'];
 
     private const STAGE_MODULES = [
         'structure' => ['units', 'cabinets'],
@@ -94,7 +97,7 @@ final class ClinicDemo
 
         $needed = self::CORE_MODULES;
         if ($stages === []) {
-            $stages = ['structure', 'clinical', 'money', 'forward', 'docs', 'audio'];
+            $stages = self::STAGES;
         }
         foreach ($stages as $stage) {
             foreach (self::STAGE_MODULES[$stage] ?? [] as $mod) {
@@ -128,10 +131,10 @@ final class ClinicDemo
     /** @param array<string,mixed> $opts */
     public function seed(array $opts = []): array
     {
-        $steps = (array)($opts['only'] ?? ['structure', 'clinical', 'money', 'forward', 'docs', 'audio']);
+        $steps = (array)($opts['only'] ?? self::STAGES);
         $steps = array_values(array_filter(array_map('strval', $steps)));
         if ($steps === []) {
-            $steps = ['structure', 'clinical', 'money', 'forward', 'docs', 'audio'];
+            $steps = self::STAGES;
         }
 
         $locale = (string)($opts['locale'] ?? ClinicDemoPlan::locale());
@@ -234,7 +237,14 @@ final class ClinicDemo
             $this->manifest->save();
         }
 
-        foreach (['structure', 'clinical', 'money', 'forward', 'docs', 'audio'] as $stage) {
+        if ($should('feed')) {
+            $feed = new ClinicDemoFeed($this->manifest);
+            $result['stages']['feed'] = $feed->run();
+            $mark('feed');
+            $this->manifest->save();
+        }
+
+        foreach (self::STAGES as $stage) {
             if (in_array($stage, (array)($opts['only'] ?? [$stage]), true) && !isset($result['stages'][$stage])) {
                 $result['skipped'][] = $stage;
             }
@@ -254,7 +264,7 @@ final class ClinicDemo
             'base_users', 'base_admin_statuses', 'base_clients', 'base_products', 'base_categories',
             'base_procedure_types', 'base_cabinets', 'base_workweeks', 'base_events', 'base_event_items',
             'base_procedures', 'base_orders', 'base_account_moves', 'base_payments', 'base_doc_instances',
-            'base_records', 'base_records_instances',
+            'base_records', 'base_records_instances', 'base_news', 'base_comments',
         ] as $table) {
             if (!Database::tableExists($table)) {
                 continue;
@@ -304,6 +314,13 @@ final class ClinicDemo
         $moves = $this->manifest->ids('moves');
         $payments = $this->manifest->ids('payments');
         $docs = $this->manifest->ids('doc_instances');
+
+        if ($this->manifest->ids('news') !== [] || $this->manifest->ids('news_statuses') !== []) {
+            $feed = new ClinicDemoFeed($this->manifest);
+            $feed->purge();
+            $feed->purgeStatuses();
+            $deleted['base_news'] = true;
+        }
 
         if ($docs !== []) {
             $del('DELETE FROM base_doc_field_index WHERE ID_INSTANCE IN (' . $in($docs) . ')');

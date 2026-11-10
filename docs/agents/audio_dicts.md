@@ -98,7 +98,11 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `audio_dicts.scripts.download` | GET | `/audio/scripts/{id}/download` (`?keys=1` embeds dict keys) |
 | `audio_dicts.scripts.import` | POST | `/audio/scripts/import` (missing dicts → empty) |
 | `audio_dicts.scripts.copy` | GET | `/audio/scripts/{id}/copy` |
-| `audio_dicts.scripts.parts` | POST | `/audio/scripts/{id}/parts` |
+| `audio_dicts.scripts.parts` | POST | `/audio/scripts/{id}/parts` (canvas; not in MCP) |
+| `audio_dicts.scripts.part_save` | POST | `/audio/scripts/{id}/parts` (`action=add` / `action=save`+`part_id`, patch) |
+| `audio_dicts.scripts.publish` | POST | `/audio/scripts/{id}` (`action=publish` auto-filled by assistant/MCP) |
+
+**MCP: add a block to an existing script** — `scripts.get` (read-only) → `dicts.create` → `keys.create` per phrase (409 `force_needed` + `overlaps` → ask the user → retry `force=1`) → `scripts.part_save` `action=add` → `scripts.publish` (from today by default). JSON saves keep root meta (positions, rating) unless passed; the first edit backfills v1 from the pre-edit tree.
 
 ```bash
 curl -sS -b jar.txt 'https://example/audio/dicts?format=json'

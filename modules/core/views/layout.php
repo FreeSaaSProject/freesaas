@@ -101,9 +101,8 @@ $pageContextJson = (string)($layoutGate['page_context_json'] ?? '');
 // Admin UI and demo stands stay out of search; storefront (site.php) uses theme layouts, not this one.
 $demoNoIndex = (class_exists('DemoMode', false) && DemoMode::readonly())
     || (class_exists('AppRuntime', false) && AppRuntime::isAdmin());
-$showTimingPanel = $timingHtml !== ''
-    && !(class_exists('DemoMode', false) && DemoMode::readonly())
-    && Auth::capability('SUPERADMIN_ACCESS');
+// Superadmin always sees stage timings (incl. demo stands) — useful on slow hosts.
+$showTimingPanel = $timingHtml !== '' && Auth::capability('SUPERADMIN_ACCESS');
 
 $schemaSetup = ['needed' => false, 'pending' => 0, 'legacy_users' => false, 'ledger' => true];
 if (Auth::check() && class_exists('SchemaMigrator', false)) {

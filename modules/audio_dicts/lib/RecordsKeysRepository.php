@@ -97,12 +97,14 @@ final class RecordsKeysRepository
             time(), $data['name'], $data['disabled'],
             $data['id_dictonary'], $data['id_looklike'],
         ]);
+        // Listeners run their own queries and reset the connection's insert id.
+        $id = (int)Database::pdo()->lastInsertId();
         self::clearOverlapCatalogCache();
         if (class_exists('KeyStemConflict', false)) {
             KeyStemConflict::clearCache();
         }
-        EventBus::emit('audio_dicts.changed', ['entity' => 'keys']);
-        return (int)Database::pdo()->lastInsertId();
+        EventBus::emit('audio_dicts.changed', ['entity' => 'keys', 'id' => $id]);
+        return $id;
     }
 
     /** @param array<string,mixed> $data */

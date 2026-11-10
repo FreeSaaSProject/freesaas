@@ -110,7 +110,20 @@ try {
         if (is_array($dicts)) {
             $partData['dict_ids'] = array_values(array_filter(array_map('intval', $dicts)));
         }
-        if ($partData['name'] === '') {
+        if ($action === 'save') {
+            if ($partData['id'] < 1) {
+                throw new InvalidArgumentException(t('audio_dicts.scripts.err.part_not_found', ['id' => 0]));
+            }
+            // Patch semantics: fields absent from the body keep their stored values.
+            $present = array_flip(array_keys($_POST));
+            if (isset($present['role'])) {
+                $present['roles'] = true;
+            }
+            $partData = array_intersect_key($partData, $present) + ['id' => $partData['id']];
+            if (array_key_exists('name', $partData) && $partData['name'] === '') {
+                throw new InvalidArgumentException(t('audio_dicts.err.name_required'));
+            }
+        } elseif ($partData['name'] === '') {
             throw new InvalidArgumentException(t('audio_dicts.err.name_required'));
         }
         if ($action === 'add') {
@@ -118,7 +131,14 @@ try {
         }
         $part = RecordsScriptsRepository::savePart($scriptId, $partData);
         $fresh = RecordsScriptsRepository::findWithParts($scriptId);
-        echo json_encode(['ok' => true, 'part' => $part, 'parts' => $fresh['parts'] ?? []], JSON_UNESCAPED_UNICODE);
+        $payload = ['ok' => true, 'part' => $part, 'parts' => $fresh['parts'] ?? []];
+        if (class_exists('ScriptVersionsRepository', false) && ScriptVersionsRepository::tableReady()) {
+            $payload['dirty'] = ScriptVersionsRepository::isDirty($scriptId);
+            if ($payload['dirty']) {
+                $payload['next'] = 'Working copy only: call audio_dicts.scripts.publish for this script so collect/reports use it';
+            }
+        }
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         return;
     }
 

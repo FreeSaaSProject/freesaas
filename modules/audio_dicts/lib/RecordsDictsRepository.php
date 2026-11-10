@@ -326,8 +326,10 @@ final class RecordsDictsRepository
             time(), $data['name'], $data['descr'], $data['color'], $data['color_background'],
             $data['disabled'], $data['is_review_req'], $data['id_position'], $data['tracking_code'],
         ]);
-        EventBus::emit('audio_dicts.changed', ['entity' => 'dicts']);
-        return (int)Database::pdo()->lastInsertId();
+        // Listeners run their own queries and reset the connection's insert id.
+        $id = (int)Database::pdo()->lastInsertId();
+        EventBus::emit('audio_dicts.changed', ['entity' => 'dicts', 'id' => $id]);
+        return $id;
     }
 
     /** @param array<string,mixed> $data */

@@ -328,6 +328,12 @@ final class ClinicDemoPlan
         return (array)(self::pack()['audio'] ?? []);
     }
 
+    /** @return array<string,mixed> articles / tickets / messages for the home feed */
+    public static function feedPack(): array
+    {
+        return (array)(self::pack()['feed'] ?? []);
+    }
+
     /** @return array<string,mixed> */
     public static function moneyLabels(): array
     {
@@ -457,6 +463,7 @@ final class ClinicDemoPlan
             'docs' => self::docsRu(),
             'docs_org' => self::docsOrgRu(),
             'audio' => self::audioRu(),
+            'feed' => self::feedRu(),
             'name_surnames' => ['Иванов', 'Петров', 'Смирнов', 'Кузнецов', 'Попов', 'Васильев', 'Соколов', 'Михайлов',
                 'Новиков', 'Фёдоров', 'Морозов', 'Волков', 'Алексеев', 'Лебедев', 'Семёнов', 'Егоров',
                 'Павлов', 'Козлов', 'Степанов', 'Николаев', 'Орлов', 'Андреев', 'Макаров', 'Никитин',
@@ -583,6 +590,7 @@ final class ClinicDemoPlan
             'docs' => self::docsEn(),
             'docs_org' => self::docsOrgEn(),
             'audio' => self::audioEn(),
+            'feed' => self::feedEn(),
             'name_surnames' => ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis',
                 'Wilson', 'Anderson', 'Taylor', 'Thomas', 'Moore', 'Jackson', 'Martin', 'Lee',
                 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis',
@@ -1030,6 +1038,680 @@ final class ClinicDemoPlan
             'reminders' => ['please do not be late', 'arrive fifteen minutes early', 'bring your insurance card',
                 'do not forget lab results', 'bring prior reports'],
             'items_fallback' => 'consultation',
+        ];
+    }
+
+    /**
+     * Home feed. Placeholders: {org}, {patient} (tickets only), staff keys ({director}, {t_a}…).
+     * age = days before anchor; deadline = days from today (negative = overdue);
+     * repeat = add a second, older and closed copy with another patient.
+     *
+     * @return array<string,mixed>
+     */
+    private static function feedRu(): array
+    {
+        return [
+            'statuses' => [
+                'new' => ['Новая', '#2563eb', 'optional'],
+                'work' => ['В работе', '#f59e0b', 'optional'],
+                'wait' => ['Ждёт ответа', '#a855f7', 'optional'],
+                'done' => ['Выполнено', '#16a34a', 'forbidden'],
+            ],
+            'done_reply' => 'Сделано, закрываю.',
+            'articles' => [
+                [
+                    'from' => 'director', 'age' => 0,
+                    'title' => 'Санитарный день 20 ноября',
+                    'short' => 'Приём не ведётся: генеральная уборка и поверка оборудования.',
+                    'body' => '<p>Коллеги, 20 ноября клиника закрыта для пациентов. С 9:00 — генеральная уборка, с 13:00 — поверка оборудования в кабинетах кардиолога и УЗИ.</p><p>Администраторы переносят записи на ближайшие свободные окна и предупреждают пациентов.</p>',
+                    'checklist' => ['Перенести записи с 20.11', 'Предупредить пациентов по SMS', '+Заказать клининг', 'Подготовить кабинеты к поверке'],
+                    'comments' => [
+                        ['from' => 'admin1', 'text' => 'Записи на 20-е перенесла, осталось 4 пациента — обзвоню завтра утром.'],
+                        ['from' => 'nurse1', 'text' => 'Процедурный подготовим 19-го вечером.'],
+                        ['from' => 'director', 'text' => 'Спасибо! Напоминаю: 19-го уходим не позже 19:00.'],
+                    ],
+                ],
+                [
+                    'from' => 'manager', 'age' => 1,
+                    'title' => 'Новые правила записи на УЗИ',
+                    'short' => 'Подготовка пациента, длительность исследований и интервалы.',
+                    'body' => '<p>С понедельника УЗИ брюшной полости записываем только на утро (до 12:00) — исследование проводится натощак.</p><ul><li>Брюшная полость — 30 минут, натощак.</li><li>Щитовидная железа и сосуды шеи — 20 минут, без подготовки.</li><li>Между исследованиями — 5 минут на обработку датчика.</li></ul>',
+                    'comments' => [
+                        ['from' => 'uzi', 'text' => 'Добавлю памятку по подготовке в шаблон SMS-напоминания.'],
+                        ['from' => 'admin2', 'text' => 'Учтём при записи, спасибо!'],
+                    ],
+                ],
+                [
+                    'from' => 'director', 'age' => 2,
+                    'title' => 'Итоги октября',
+                    'short' => 'Визиты, отмены и что улучшаем в ноябре.',
+                    'body' => '<p>Октябрь закрыли хорошо: визитов больше, чем в сентябре, кардиология и УЗИ загружены почти полностью.</p><p>В ноябре работаем над двумя вещами: сокращаем ожидание у кабинетов и уменьшаем неявки — напоминание за день до визита обязательно.</p>',
+                    'comments' => [
+                        ['from' => 'manager', 'text' => 'Отдельно спасибо кабинету УЗИ — меньше всего отмен.'],
+                        ['from' => 'cardio', 'text' => 'Предлагаю добавить чек-ап «Здоровое сердце» в акции.'],
+                        ['from' => 'director', 'text' => '{cardio}, отличная идея — запускаем.'],
+                    ],
+                ],
+                [
+                    'from' => 'manager', 'age' => 3,
+                    'title' => 'Скрипт телефонного разговора администратора',
+                    'short' => 'Приветствие, уточнение жалобы, запись и напоминание.',
+                    'body' => '<p>Единый порядок разговора для всех администраторов. Проверяйте себя по чеклисту.</p><p>Цель — записать пациента к нужному специалисту за один звонок и не забыть про документы.</p>',
+                    'checklist' => ['+Представиться и назвать клинику', '+Уточнить жалобу и нужного специалиста', 'Спросить про полис ДМС', 'Предложить два ближайших окна', 'Напомнить о документах и подготовке', 'Назвать время визита и попрощаться'],
+                    'comments' => [
+                        ['from' => 'admin3', 'text' => 'Можно добавить вопрос про ДМС в начале разговора?'],
+                        ['from' => 'manager', 'text' => 'Да, добавил третьим пунктом.'],
+                    ],
+                ],
+                [
+                    'from' => 't_a', 'age' => 4,
+                    'title' => 'Памятка: медкарта 025/у в системе',
+                    'short' => 'Что заполняет врач, что — регистратура, что подставляется само.',
+                    'body' => '<p>Паспортные данные и полис вносит регистратура до приёма. Врач заполняет жалобы, анамнез, диагноз по МКБ-10 и рекомендации.</p><p>Код МКБ выбирается из справочника, ФИО врача и должность подставляются автоматически. Печать — кнопкой «Печать» в карточке документа.</p>',
+                    'comments' => [
+                        ['from' => 't_b', 'text' => 'Удобно, что МКБ подставляется из справочника.'],
+                        ['from' => 'admin1', 'text' => 'Паспортные данные заполняем на ресепшене до приёма — так быстрее.'],
+                    ],
+                ],
+                [
+                    'from' => 'director', 'age' => 6,
+                    'title' => 'Акция ноября: чек-ап «Здоровое сердце»',
+                    'short' => 'Консультация кардиолога + ЭКГ + ЭхоКГ со скидкой 15%.',
+                    'body' => '<p>До конца ноября комплексное обследование сердца со скидкой 15%: консультация кардиолога, ЭКГ с расшифровкой и ЭхоКГ в один день.</p><p>Запись — на вторник и четверг после 14:00.</p>',
+                    'comments' => [
+                        ['from' => 'cardio', 'text' => 'Слоты на чек-ап — вторник и четверг после 14:00, по два в день.'],
+                        ['from' => 'admin2', 'text' => 'Добавила в скрипт записи.'],
+                    ],
+                ],
+                [
+                    'from' => 'manager', 'age' => 8,
+                    'title' => 'График отпусков на 2027 год',
+                    'short' => 'Пожелания по отпускам — до 1 декабря.',
+                    'body' => '<p>Пожалуйста, до 1 декабря напишите в комментариях желаемые даты отпуска. Не больше двух врачей одной специальности одновременно.</p>',
+                    'comments' => [
+                        ['from' => 'neuro', 'text' => 'Хочу две недели в июле.'],
+                        ['from' => 'nurse2', 'text' => 'Мне удобнее май.'],
+                        ['from' => 't_b', 'text' => 'Август, вторая половина.'],
+                    ],
+                ],
+                [
+                    'from' => 'nurse1', 'age' => 10,
+                    'title' => 'Порядок обработки процедурного кабинета',
+                    'short' => 'Ежедневная и генеральная обработка, журнал кварцевания.',
+                    'body' => '<p>Текущая обработка — после каждого пациента, заключительная — в конце смены. Генеральная — раз в неделю, по субботам.</p>',
+                    'checklist' => ['+Обработка поверхностей после каждого пациента', '+Кварцевание 30 минут, запись в журнал', 'Генеральная уборка по субботам', 'Проверка сроков антисептиков'],
+                ],
+                [
+                    'from' => 'director', 'age' => 13,
+                    'title' => 'Добро пожаловать в {org}',
+                    'short' => 'Где календарь, медкарты, заявки и отчёты.',
+                    'body' => '<p>Запись пациентов — в «Календаре», медкарты и договоры — в «Документах», внутренние задачи — в «Заявках». Отчёты по выручке и загрузке — в разделе «БизнесАналитика».</p><p>Вопросы по системе пишите в личные сообщения {manager}.</p>',
+                    'comments' => [
+                        ['from' => 'admin1', 'text' => 'Разобрались за полдня, всё понятно.'],
+                        ['from' => 'uzi', 'text' => 'Нравится, что заключение сразу видно в карте пациента.'],
+                    ],
+                ],
+            ],
+            'tickets' => [
+                [
+                    'title' => 'Перезвонить пациенту по результатам УЗИ: {patient}',
+                    'short' => 'Заключение готово, нужна запись к терапевту.',
+                    'body' => '<p>Пациент {patient}: заключение УЗИ в медкарте. Записать на консультацию терапевта на этой неделе.</p>',
+                    'curator' => 'uzi', 'resp' => 'admin1', 'status' => 'new', 'age' => 0, 'deadline' => 0, 'repeat' => true,
+                    'comments' => [
+                        ['from' => 'uzi', 'text' => 'Заключение в карте, срочности нет, но лучше не затягивать.'],
+                        ['from' => 'admin1', 'text' => 'Набрала — не ответили. Перезвоню после обеда.'],
+                    ],
+                ],
+                [
+                    'title' => 'Не печатает принтер в кабинете терапевта',
+                    'short' => 'Направления приходится печатать в регистратуре.',
+                    'body' => '<p>С утра принтер в кабинете {t_a} не печатает — пишет «замените картридж».</p>',
+                    'curator' => 't_a', 'resp' => 'manager', 'status' => 'work', 'age' => 1, 'deadline' => 1,
+                    'comments' => [
+                        ['from' => 't_a', 'text' => 'Пока печатаю через регистратуру, но это неудобно.'],
+                        ['from' => 'manager', 'text' => 'Картридж заказал, привезут завтра до 12:00.'],
+                        ['from' => 't_a', 'text' => 'Спасибо!'],
+                    ],
+                ],
+                [
+                    'title' => 'Закупка расходников для процедурного кабинета',
+                    'short' => 'Перчатки, шприцы, салфетки — заканчиваются.',
+                    'body' => '<p>Остатков хватит на 3–4 дня. Нужна закупка по списку.</p>',
+                    'curator' => 'nurse1', 'resp' => 'manager', 'status' => 'wait', 'age' => 2, 'deadline' => 3,
+                    'checklist' => ['+Перчатки нитриловые M — 10 упаковок', 'Шприцы 5 мл — 500 шт.', 'Спиртовые салфетки — 20 упаковок', 'Пластырь фиксирующий — 10 рулонов'],
+                    'comments' => [
+                        ['from' => 'nurse1', 'text' => 'Перчаток осталось на три дня.'],
+                        ['from' => 'manager', 'text' => 'Счёт у поставщика, ждём оплату.'],
+                    ],
+                ],
+                [
+                    'title' => 'Поверка ЭКГ-аппарата в кабинете кардиолога',
+                    'short' => 'Срок поверки истекает — без неё работать нельзя.',
+                    'body' => '<p>Свидетельство о поверке действительно до конца месяца. Нужно согласовать выезд поверителя.</p>',
+                    'curator' => 'cardio', 'resp' => 'manager', 'status' => 'new', 'age' => 3, 'deadline' => -1,
+                    'comments' => [
+                        ['from' => 'cardio', 'text' => 'Без поверки ЭКГ снимать нельзя, а чек-ап уже идёт.'],
+                        ['from' => 'director', 'text' => '{manager}, это приоритет — проконтролируйте, пожалуйста.'],
+                    ],
+                ],
+                [
+                    'title' => 'График смен на декабрь',
+                    'short' => 'Собрать пожелания, учесть отпуска и субботы.',
+                    'body' => '<p>Опубликовать график в разделе «Смены» до 25 ноября.</p>',
+                    'curator' => 'director', 'resp' => 'manager', 'status' => 'work', 'age' => 4, 'deadline' => 5,
+                    'checklist' => ['+Собрать пожелания врачей', '+Учесть отпуска', 'Согласовать субботние смены', 'Опубликовать в «Сменах»'],
+                    'comments' => [
+                        ['from' => 'manager', 'text' => 'Пожелания собрал от всех, кроме кабинета УЗИ.'],
+                        ['from' => 'uzi', 'text' => 'Мне в декабре нужны свободные 14-е и 15-е.'],
+                        ['from' => 'manager', 'text' => 'Учёл.'],
+                    ],
+                ],
+                [
+                    'title' => 'Жалоба: долгое ожидание у кабинета невролога ({patient})',
+                    'short' => 'Пациент ждал приёма больше 30 минут.',
+                    'body' => '<p>Пациент {patient} оставил жалобу на ресепшене: ожидание у кабинета невролога более 30 минут.</p>',
+                    'curator' => 'director', 'resp' => 'admin3', 'status' => 'wait', 'age' => 2, 'deadline' => 1, 'repeat' => true,
+                    'comments' => [
+                        ['from' => 'admin3', 'text' => 'Приём задержался из-за сложного случая. Извинились, предложили скидку на следующий визит.'],
+                        ['from' => 'neuro', 'text' => 'Подтверждаю: предыдущему пациенту понадобился дополнительный осмотр.'],
+                        ['from' => 'director', 'text' => 'Ждём обратной связи от пациента и закрываем.'],
+                    ],
+                ],
+                [
+                    'title' => 'Обновить прайс на сайте: функциональная диагностика',
+                    'short' => 'Новые цены на ЭКГ и холтер.',
+                    'body' => '<p>Цены в каталоге уже обновлены, нужно проверить страницу на сайте.</p>',
+                    'curator' => 'manager', 'resp' => 'admin2', 'status' => 'done', 'age' => 6,
+                    'comments' => [
+                        ['from' => 'admin2', 'text' => 'Цены на ЭКГ и холтер обновлены, на сайте проверила.'],
+                    ],
+                ],
+                [
+                    'title' => 'Реестр для страховой компании за октябрь',
+                    'short' => 'Выгрузить визиты ДМС и сверить с договорами.',
+                    'body' => '<p>Реестр нужно отправить в страховую до конца недели.</p>',
+                    'curator' => 'director', 'resp' => 'admin1', 'status' => 'work', 'age' => 5, 'deadline' => 2,
+                    'checklist' => ['+Выгрузить визиты ДМС', 'Сверить с договорами', 'Подписать у директора', 'Отправить в страховую'],
+                    'comments' => [
+                        ['from' => 'admin1', 'text' => 'Нашла три визита без номера полиса — уточняю у пациентов.'],
+                    ],
+                ],
+                [
+                    'title' => 'Списать просроченные препараты',
+                    'short' => 'Процедурный кабинет, 7 позиций.',
+                    'body' => '<p>Список позиций — в акте. Нужна подпись управляющего.</p>',
+                    'curator' => 'nurse2', 'resp' => 'nurse1', 'status' => 'new', 'age' => 1, 'deadline' => 2,
+                    'comments' => [
+                        ['from' => 'nurse2', 'text' => 'Акт распечатан, лежит в процедурном.'],
+                    ],
+                ],
+                [
+                    'title' => 'Напомнить о повторном визите к кардиологу: {patient}',
+                    'short' => 'Контроль через две недели после смены терапии.',
+                    'body' => '<p>Пациент {patient}: повторный визит к кардиологу с результатами суточного мониторирования.</p>',
+                    'curator' => 'cardio', 'resp' => 'admin2', 'status' => 'new', 'age' => 0, 'deadline' => 1, 'repeat' => true,
+                    'comments' => [
+                        ['from' => 'cardio', 'text' => 'Перед визитом обязательно холтер, запишите на день раньше.'],
+                    ],
+                ],
+                [
+                    'title' => 'Настроить напоминания о записи в Telegram',
+                    'short' => 'Бот подключён, нужен текст напоминания.',
+                    'body' => '<p>Напоминание за сутки до визита: дата, время, врач, адрес и телефон регистратуры.</p>',
+                    'curator' => 'director', 'resp' => 'manager', 'status' => 'wait', 'age' => 7, 'deadline' => 7,
+                    'comments' => [
+                        ['from' => 'manager', 'text' => 'Бот подключён, жду согласования текста.'],
+                        ['from' => 'director', 'text' => 'Коротко: дата, время, врач, адрес и телефон. Без рекламы.'],
+                    ],
+                ],
+                [
+                    'title' => 'Заменить лампу в кабинете УЗИ',
+                    'short' => 'Мигает верхний свет.',
+                    'body' => '<p>Верхний свет мигает, мешает работе.</p>',
+                    'curator' => 'uzi', 'resp' => 'manager', 'status' => 'done', 'age' => 3,
+                    'comments' => [
+                        ['from' => 'manager', 'text' => 'Заменили.'],
+                        ['from' => 'uzi', 'text' => 'Спасибо, теперь отлично.'],
+                    ],
+                ],
+                [
+                    'title' => 'Оформить медкарту 025/у: {patient}',
+                    'short' => 'Новый пациент, нужен анамнез.',
+                    'body' => '<p>Пациент {patient} записан впервые. Паспортные данные внесены, анамнез заполнит врач.</p>',
+                    'curator' => 'admin1', 'resp' => 't_b', 'status' => 'work', 'age' => 0, 'deadline' => 0, 'repeat' => true,
+                    'comments' => [
+                        ['from' => 'admin1', 'text' => 'Паспорт и полис внесены.'],
+                        ['from' => 't_b', 'text' => 'Анамнез заполню после приёма.'],
+                    ],
+                ],
+                [
+                    'title' => 'Проверить запас бланков согласий',
+                    'short' => 'Информированное согласие на медвмешательство.',
+                    'body' => '<p>Проверить остаток бланков на ресепшене и в кабинетах, при необходимости распечатать из «Документов».</p>',
+                    'curator' => 'manager', 'resp' => 'admin3', 'status' => 'new', 'age' => 1, 'deadline' => 3,
+                ],
+            ],
+            'messages' => [
+                [
+                    'from' => 'director', 'to' => 'manager', 'age' => 0,
+                    'subject' => 'Встреча по итогам недели',
+                    'body' => '<p>{manager}, давайте в пятницу в 17:00 обсудим загрузку врачей и неявки.</p>',
+                    'replies' => [
+                        ['from' => 'manager', 'text' => 'Да, подготовлю цифры по загрузке.'],
+                        ['from' => 'director', 'text' => 'Отлично, жду.'],
+                    ],
+                ],
+                [
+                    'from' => 'manager', 'to' => 'admin1', 'age' => 0,
+                    'subject' => 'Пациент на 15:30 к терапевту',
+                    'body' => '<p>{admin1}, пациент на 15:30 просит перенести на 16:00 — посмотрите, пожалуйста.</p>',
+                    'replies' => [
+                        ['from' => 'admin1', 'text' => 'Перенесла на 16:00, пациент согласен.'],
+                        ['from' => 'manager', 'text' => 'Спасибо!'],
+                    ],
+                ],
+                [
+                    'from' => 't_a', 'to' => 'nurse1', 'age' => 1,
+                    'subject' => 'Забор крови перед приёмом',
+                    'body' => '<p>{nurse1}, завтра первому пациенту нужен забор крови до приёма.</p>',
+                    'replies' => [
+                        ['from' => 'nurse1', 'text' => 'Сделаю в 8:45, пробирки подготовлены.'],
+                    ],
+                ],
+                [
+                    'from' => 'cardio', 'to' => 'uzi', 'age' => 1,
+                    'subject' => 'ЭхоКГ вне очереди',
+                    'body' => '<p>{uzi}, можете сегодня посмотреть моего пациента на ЭхоКГ?</p>',
+                    'replies' => [
+                        ['from' => 'uzi', 'text' => 'Возьму в 13:30, в окне между пациентами.'],
+                        ['from' => 'cardio', 'text' => 'Благодарю!'],
+                    ],
+                ],
+                [
+                    'from' => 'admin2', 'to' => 'director', 'age' => 2,
+                    'subject' => 'Отзыв на картах',
+                    'body' => '<p>{director}, появился отзыв с тремя звёздами — пациент недоволен ожиданием.</p>',
+                    'replies' => [
+                        ['from' => 'director', 'text' => 'Ответим от имени клиники. Подготовьте текст.'],
+                        ['from' => 'admin2', 'text' => 'Черновик прислала, посмотрите, пожалуйста.'],
+                        ['from' => 'director', 'text' => 'Согласовано, публикуйте.'],
+                    ],
+                ],
+                [
+                    'from' => 'director', 'to' => 't_b', 'age' => 2,
+                    'subject' => 'Обучение по медкартам',
+                    'body' => '<p>{t_b}, сможете провести для врачей короткое обучение по электронной медкарте?</p>',
+                    'replies' => [
+                        ['from' => 't_b', 'text' => 'Готов в четверг после приёма, минут на 30.'],
+                    ],
+                ],
+                [
+                    'from' => 'manager', 'to' => 'nurse2', 'age' => 3,
+                    'subject' => 'Инвентаризация процедурного',
+                    'body' => '<p>{nurse2}, нужна инвентаризация расходников до конца недели.</p>',
+                    'replies' => [
+                        ['from' => 'nurse2', 'text' => 'Начну в субботу после приёма.'],
+                        ['from' => 'manager', 'text' => 'Хорошо, спасибо.'],
+                    ],
+                ],
+                [
+                    'from' => 'admin3', 'to' => 'neuro', 'age' => 1,
+                    'subject' => 'Пациент просит справку',
+                    'body' => '<p>{neuro}, пациент после приёма просит справку для работы.</p>',
+                    'replies' => [
+                        ['from' => 'neuro', 'text' => 'Подготовлю к концу приёма.'],
+                    ],
+                ],
+                [
+                    'from' => 'director', 'to' => 'admin', 'age' => 0,
+                    'subject' => 'Доступы для нового администратора',
+                    'body' => '<p>С понедельника выходит новый администратор ресепшена — нужна учётная запись.</p>',
+                    'replies' => [
+                        ['from' => 'admin', 'text' => 'Учётку создам, права — как у администратора ресепшена.'],
+                        ['from' => 'director', 'text' => 'Спасибо.'],
+                    ],
+                ],
+                [
+                    'from' => 'director', 'to' => 'demo', 'age' => 0,
+                    'subject' => 'Добро пожаловать в {org}',
+                    'body' => '<p>Это демо-клиника. Загляните в «Календарь», «Документы» (медкарты 025/у), «Заявки» и «БизнесАналитику».</p>',
+                ],
+            ],
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    private static function feedEn(): array
+    {
+        return [
+            'statuses' => [
+                'new' => ['New', '#2563eb', 'optional'],
+                'work' => ['In progress', '#f59e0b', 'optional'],
+                'wait' => ['Waiting', '#a855f7', 'optional'],
+                'done' => ['Done', '#16a34a', 'forbidden'],
+            ],
+            'done_reply' => 'Done, closing.',
+            'articles' => [
+                [
+                    'from' => 'director', 'age' => 0,
+                    'title' => 'Maintenance day on November 20',
+                    'short' => 'No appointments: deep cleaning and equipment calibration.',
+                    'body' => '<p>Colleagues, the clinic is closed to patients on November 20. Deep cleaning from 9:00, equipment calibration in cardiology and ultrasound from 13:00.</p><p>Front desk moves bookings to the nearest free slots and notifies patients.</p>',
+                    'checklist' => ['Move bookings from Nov 20', 'Notify patients by SMS', '+Book the cleaning crew', 'Prepare rooms for calibration'],
+                    'comments' => [
+                        ['from' => 'admin1', 'text' => 'Moved the 20th bookings, 4 patients left — will call tomorrow morning.'],
+                        ['from' => 'nurse1', 'text' => 'We will prepare the treatment room on the evening of the 19th.'],
+                        ['from' => 'director', 'text' => 'Thanks! Reminder: on the 19th we leave by 19:00.'],
+                    ],
+                ],
+                [
+                    'from' => 'manager', 'age' => 1,
+                    'title' => 'New ultrasound booking rules',
+                    'short' => 'Patient preparation, exam length and gaps.',
+                    'body' => '<p>From Monday abdominal ultrasound is booked in the morning only (before 12:00) — fasting is required.</p><ul><li>Abdomen — 30 minutes, fasting.</li><li>Thyroid and neck vessels — 20 minutes, no preparation.</li><li>5 minutes between exams for probe cleaning.</li></ul>',
+                    'comments' => [
+                        ['from' => 'uzi', 'text' => 'I will add the preparation note to the SMS reminder template.'],
+                        ['from' => 'admin2', 'text' => 'Noted for bookings, thanks!'],
+                    ],
+                ],
+                [
+                    'from' => 'director', 'age' => 2,
+                    'title' => 'October results',
+                    'short' => 'Visits, cancellations and what we improve in November.',
+                    'body' => '<p>October went well: more visits than in September, cardiology and ultrasound almost fully booked.</p><p>In November we focus on two things: shorter waiting at the door and fewer no-shows — a reminder the day before is mandatory.</p>',
+                    'comments' => [
+                        ['from' => 'manager', 'text' => 'Special thanks to ultrasound — the fewest cancellations.'],
+                        ['from' => 'cardio', 'text' => 'Let us add a "Healthy heart" check-up to promotions.'],
+                        ['from' => 'director', 'text' => 'Great idea — launching it.'],
+                    ],
+                ],
+                [
+                    'from' => 'manager', 'age' => 3,
+                    'title' => 'Front desk phone script',
+                    'short' => 'Greeting, complaint, booking and reminder.',
+                    'body' => '<p>One call flow for all front desk staff. Check yourself against the checklist.</p><p>The goal is to book the right specialist in one call and not forget the documents.</p>',
+                    'checklist' => ['+Introduce yourself and the clinic', '+Clarify the complaint and specialist', 'Ask about insurance', 'Offer the two nearest slots', 'Remind about documents and preparation', 'Confirm the visit time and say goodbye'],
+                    'comments' => [
+                        ['from' => 'admin3', 'text' => 'Can we ask about insurance early in the call?'],
+                        ['from' => 'manager', 'text' => 'Yes, added as step three.'],
+                    ],
+                ],
+                [
+                    'from' => 't_a', 'age' => 4,
+                    'title' => 'How-to: outpatient medical record in the system',
+                    'short' => 'What the doctor fills, what the front desk fills, what is automatic.',
+                    'body' => '<p>The front desk enters passport and insurance data before the visit. The doctor fills complaints, history, ICD-10 diagnosis and recommendations.</p><p>The ICD code comes from the directory; doctor name and position are filled automatically. Print with the "Print" button on the document card.</p>',
+                    'comments' => [
+                        ['from' => 't_b', 'text' => 'Handy that ICD codes come from the directory.'],
+                        ['from' => 'admin1', 'text' => 'We fill passport data at the front desk before the visit — faster.'],
+                    ],
+                ],
+                [
+                    'from' => 'director', 'age' => 6,
+                    'title' => 'November promo: "Healthy heart" check-up',
+                    'short' => 'Cardiologist + ECG + echocardiography, 15% off.',
+                    'body' => '<p>Until the end of November: cardiologist consultation, ECG with interpretation and echocardiography in one day, 15% off.</p><p>Booking on Tuesdays and Thursdays after 14:00.</p>',
+                    'comments' => [
+                        ['from' => 'cardio', 'text' => 'Check-up slots: Tuesday and Thursday after 14:00, two per day.'],
+                        ['from' => 'admin2', 'text' => 'Added to the booking script.'],
+                    ],
+                ],
+                [
+                    'from' => 'manager', 'age' => 8,
+                    'title' => 'Vacation schedule 2027',
+                    'short' => 'Vacation requests until December 1.',
+                    'body' => '<p>Please post your preferred vacation dates in the comments by December 1. No more than two doctors of the same specialty at once.</p>',
+                    'comments' => [
+                        ['from' => 'neuro', 'text' => 'Two weeks in July, please.'],
+                        ['from' => 'nurse2', 'text' => 'May works best for me.'],
+                        ['from' => 't_b', 'text' => 'Second half of August.'],
+                    ],
+                ],
+                [
+                    'from' => 'nurse1', 'age' => 10,
+                    'title' => 'Treatment room disinfection routine',
+                    'short' => 'Daily and weekly cleaning, UV log.',
+                    'body' => '<p>Routine cleaning after each patient, final cleaning at the end of the shift. Deep cleaning weekly on Saturdays.</p>',
+                    'checklist' => ['+Wipe surfaces after each patient', '+UV lamp 30 minutes, log entry', 'Deep cleaning on Saturdays', 'Check antiseptic expiry dates'],
+                ],
+                [
+                    'from' => 'director', 'age' => 13,
+                    'title' => 'Welcome to {org}',
+                    'short' => 'Where to find the calendar, records, tickets and reports.',
+                    'body' => '<p>Book patients in "Calendar", medical records and contracts live in "Documents", internal tasks in "Tickets". Revenue and workload reports are in "Business analytics".</p><p>Questions about the system — send a personal message to {manager}.</p>',
+                    'comments' => [
+                        ['from' => 'admin1', 'text' => 'Figured it out in half a day, all clear.'],
+                        ['from' => 'uzi', 'text' => 'I like that the report shows up right in the patient record.'],
+                    ],
+                ],
+            ],
+            'tickets' => [
+                [
+                    'title' => 'Call patient about ultrasound results: {patient}',
+                    'short' => 'Report is ready, book a GP visit.',
+                    'body' => '<p>Patient {patient}: ultrasound report is in the record. Book a GP consultation this week.</p>',
+                    'curator' => 'uzi', 'resp' => 'admin1', 'status' => 'new', 'age' => 0, 'deadline' => 0, 'repeat' => true,
+                    'comments' => [
+                        ['from' => 'uzi', 'text' => 'Report is in the record — not urgent, but do not delay.'],
+                        ['from' => 'admin1', 'text' => 'Called — no answer. Will try again after lunch.'],
+                    ],
+                ],
+                [
+                    'title' => 'Printer not working in the GP office',
+                    'short' => 'Referrals have to be printed at the front desk.',
+                    'body' => '<p>Since this morning the printer in {t_a}\'s office says "replace cartridge".</p>',
+                    'curator' => 't_a', 'resp' => 'manager', 'status' => 'work', 'age' => 1, 'deadline' => 1,
+                    'comments' => [
+                        ['from' => 't_a', 'text' => 'Printing at the front desk for now, not convenient.'],
+                        ['from' => 'manager', 'text' => 'Cartridge ordered, delivery tomorrow before 12:00.'],
+                        ['from' => 't_a', 'text' => 'Thanks!'],
+                    ],
+                ],
+                [
+                    'title' => 'Treatment room supplies purchase',
+                    'short' => 'Gloves, syringes, wipes — running low.',
+                    'body' => '<p>Stock lasts 3–4 days. Purchase per the list.</p>',
+                    'curator' => 'nurse1', 'resp' => 'manager', 'status' => 'wait', 'age' => 2, 'deadline' => 3,
+                    'checklist' => ['+Nitrile gloves M — 10 boxes', 'Syringes 5 ml — 500 pcs', 'Alcohol wipes — 20 packs', 'Medical tape — 10 rolls'],
+                    'comments' => [
+                        ['from' => 'nurse1', 'text' => 'Gloves left for three days.'],
+                        ['from' => 'manager', 'text' => 'Invoice is with the supplier, waiting for payment.'],
+                    ],
+                ],
+                [
+                    'title' => 'ECG machine calibration in cardiology',
+                    'short' => 'Calibration expires — cannot work without it.',
+                    'body' => '<p>The calibration certificate is valid until the end of the month. Schedule the technician visit.</p>',
+                    'curator' => 'cardio', 'resp' => 'manager', 'status' => 'new', 'age' => 3, 'deadline' => -1,
+                    'comments' => [
+                        ['from' => 'cardio', 'text' => 'No ECG without calibration, and the check-up promo is running.'],
+                        ['from' => 'director', 'text' => '{manager}, this is a priority — please follow up.'],
+                    ],
+                ],
+                [
+                    'title' => 'December shift schedule',
+                    'short' => 'Collect preferences, account for vacations and Saturdays.',
+                    'body' => '<p>Publish the schedule in "Shifts" by November 25.</p>',
+                    'curator' => 'director', 'resp' => 'manager', 'status' => 'work', 'age' => 4, 'deadline' => 5,
+                    'checklist' => ['+Collect doctors\' preferences', '+Account for vacations', 'Agree Saturday shifts', 'Publish in "Shifts"'],
+                    'comments' => [
+                        ['from' => 'manager', 'text' => 'Preferences collected from everyone except ultrasound.'],
+                        ['from' => 'uzi', 'text' => 'I need December 14 and 15 off.'],
+                        ['from' => 'manager', 'text' => 'Noted.'],
+                    ],
+                ],
+                [
+                    'title' => 'Complaint: long wait at the neurologist ({patient})',
+                    'short' => 'Patient waited more than 30 minutes.',
+                    'body' => '<p>Patient {patient} complained at the front desk: waited over 30 minutes at the neurologist\'s door.</p>',
+                    'curator' => 'director', 'resp' => 'admin3', 'status' => 'wait', 'age' => 2, 'deadline' => 1, 'repeat' => true,
+                    'comments' => [
+                        ['from' => 'admin3', 'text' => 'The visit ran late because of a complex case. We apologized and offered a discount next time.'],
+                        ['from' => 'neuro', 'text' => 'Confirmed: the previous patient needed an extra examination.'],
+                        ['from' => 'director', 'text' => 'Waiting for the patient\'s feedback, then close.'],
+                    ],
+                ],
+                [
+                    'title' => 'Update website prices: functional diagnostics',
+                    'short' => 'New ECG and Holter prices.',
+                    'body' => '<p>Catalog prices are updated, check the website page.</p>',
+                    'curator' => 'manager', 'resp' => 'admin2', 'status' => 'done', 'age' => 6,
+                    'comments' => [
+                        ['from' => 'admin2', 'text' => 'ECG and Holter prices updated, checked on the website.'],
+                    ],
+                ],
+                [
+                    'title' => 'October register for the insurance company',
+                    'short' => 'Export insured visits and reconcile with contracts.',
+                    'body' => '<p>Send the register to the insurer by the end of the week.</p>',
+                    'curator' => 'director', 'resp' => 'admin1', 'status' => 'work', 'age' => 5, 'deadline' => 2,
+                    'checklist' => ['+Export insured visits', 'Reconcile with contracts', 'Get director\'s signature', 'Send to the insurer'],
+                    'comments' => [
+                        ['from' => 'admin1', 'text' => 'Found three visits without a policy number — checking with patients.'],
+                    ],
+                ],
+                [
+                    'title' => 'Write off expired medicines',
+                    'short' => 'Treatment room, 7 items.',
+                    'body' => '<p>The item list is in the act. Manager\'s signature needed.</p>',
+                    'curator' => 'nurse2', 'resp' => 'nurse1', 'status' => 'new', 'age' => 1, 'deadline' => 2,
+                    'comments' => [
+                        ['from' => 'nurse2', 'text' => 'The act is printed and in the treatment room.'],
+                    ],
+                ],
+                [
+                    'title' => 'Remind about cardiology follow-up: {patient}',
+                    'short' => 'Follow-up two weeks after therapy change.',
+                    'body' => '<p>Patient {patient}: follow-up with the cardiologist with 24-hour monitoring results.</p>',
+                    'curator' => 'cardio', 'resp' => 'admin2', 'status' => 'new', 'age' => 0, 'deadline' => 1, 'repeat' => true,
+                    'comments' => [
+                        ['from' => 'cardio', 'text' => 'Holter is required before the visit — book it a day earlier.'],
+                    ],
+                ],
+                [
+                    'title' => 'Set up Telegram booking reminders',
+                    'short' => 'Bot is connected, reminder text needed.',
+                    'body' => '<p>Reminder one day before the visit: date, time, doctor, address and front desk phone.</p>',
+                    'curator' => 'director', 'resp' => 'manager', 'status' => 'wait', 'age' => 7, 'deadline' => 7,
+                    'comments' => [
+                        ['from' => 'manager', 'text' => 'Bot connected, waiting for the text approval.'],
+                        ['from' => 'director', 'text' => 'Short: date, time, doctor, address and phone. No ads.'],
+                    ],
+                ],
+                [
+                    'title' => 'Replace the lamp in the ultrasound room',
+                    'short' => 'Ceiling light is flickering.',
+                    'body' => '<p>The ceiling light flickers and gets in the way.</p>',
+                    'curator' => 'uzi', 'resp' => 'manager', 'status' => 'done', 'age' => 3,
+                    'comments' => [
+                        ['from' => 'manager', 'text' => 'Replaced.'],
+                        ['from' => 'uzi', 'text' => 'Thanks, much better now.'],
+                    ],
+                ],
+                [
+                    'title' => 'Open an outpatient record: {patient}',
+                    'short' => 'New patient, history needed.',
+                    'body' => '<p>Patient {patient} is booked for the first time. Passport data is in, the doctor fills the history.</p>',
+                    'curator' => 'admin1', 'resp' => 't_b', 'status' => 'work', 'age' => 0, 'deadline' => 0, 'repeat' => true,
+                    'comments' => [
+                        ['from' => 'admin1', 'text' => 'Passport and insurance entered.'],
+                        ['from' => 't_b', 'text' => 'Will fill the history after the visit.'],
+                    ],
+                ],
+                [
+                    'title' => 'Check consent form stock',
+                    'short' => 'Informed consent for medical intervention.',
+                    'body' => '<p>Check the forms at the front desk and in the offices; print more from "Documents" if needed.</p>',
+                    'curator' => 'manager', 'resp' => 'admin3', 'status' => 'new', 'age' => 1, 'deadline' => 3,
+                ],
+            ],
+            'messages' => [
+                [
+                    'from' => 'director', 'to' => 'manager', 'age' => 0,
+                    'subject' => 'Weekly review meeting',
+                    'body' => '<p>{manager}, let us discuss doctor workload and no-shows on Friday at 17:00.</p>',
+                    'replies' => [
+                        ['from' => 'manager', 'text' => 'Sure, I will prepare the workload numbers.'],
+                        ['from' => 'director', 'text' => 'Great, see you.'],
+                    ],
+                ],
+                [
+                    'from' => 'manager', 'to' => 'admin1', 'age' => 0,
+                    'subject' => 'GP patient at 15:30',
+                    'body' => '<p>{admin1}, the 15:30 patient asks to move to 16:00 — please check.</p>',
+                    'replies' => [
+                        ['from' => 'admin1', 'text' => 'Moved to 16:00, the patient agreed.'],
+                        ['from' => 'manager', 'text' => 'Thanks!'],
+                    ],
+                ],
+                [
+                    'from' => 't_a', 'to' => 'nurse1', 'age' => 1,
+                    'subject' => 'Blood draw before the visit',
+                    'body' => '<p>{nurse1}, tomorrow\'s first patient needs a blood draw before the visit.</p>',
+                    'replies' => [
+                        ['from' => 'nurse1', 'text' => 'At 8:45, tubes are ready.'],
+                    ],
+                ],
+                [
+                    'from' => 'cardio', 'to' => 'uzi', 'age' => 1,
+                    'subject' => 'Urgent echocardiography',
+                    'body' => '<p>{uzi}, could you see my patient for echo today?</p>',
+                    'replies' => [
+                        ['from' => 'uzi', 'text' => 'I can take them at 13:30 between patients.'],
+                        ['from' => 'cardio', 'text' => 'Thank you!'],
+                    ],
+                ],
+                [
+                    'from' => 'admin2', 'to' => 'director', 'age' => 2,
+                    'subject' => 'Review on maps',
+                    'body' => '<p>{director}, a three-star review appeared — the patient is unhappy about waiting.</p>',
+                    'replies' => [
+                        ['from' => 'director', 'text' => 'We reply on behalf of the clinic. Please draft the text.'],
+                        ['from' => 'admin2', 'text' => 'Draft sent, please take a look.'],
+                        ['from' => 'director', 'text' => 'Approved, publish it.'],
+                    ],
+                ],
+                [
+                    'from' => 'director', 'to' => 't_b', 'age' => 2,
+                    'subject' => 'Medical records training',
+                    'body' => '<p>{t_b}, could you run a short training on electronic records for the doctors?</p>',
+                    'replies' => [
+                        ['from' => 't_b', 'text' => 'Thursday after appointments, about 30 minutes.'],
+                    ],
+                ],
+                [
+                    'from' => 'manager', 'to' => 'nurse2', 'age' => 3,
+                    'subject' => 'Treatment room inventory',
+                    'body' => '<p>{nurse2}, we need a supplies inventory by the end of the week.</p>',
+                    'replies' => [
+                        ['from' => 'nurse2', 'text' => 'Starting on Saturday after appointments.'],
+                        ['from' => 'manager', 'text' => 'Good, thanks.'],
+                    ],
+                ],
+                [
+                    'from' => 'admin3', 'to' => 'neuro', 'age' => 1,
+                    'subject' => 'Patient asks for a certificate',
+                    'body' => '<p>{neuro}, a patient asks for a sick-note certificate after the visit.</p>',
+                    'replies' => [
+                        ['from' => 'neuro', 'text' => 'Will prepare it by the end of the visit.'],
+                    ],
+                ],
+                [
+                    'from' => 'director', 'to' => 'admin', 'age' => 0,
+                    'subject' => 'Access for the new receptionist',
+                    'body' => '<p>A new front desk receptionist starts on Monday — an account is needed.</p>',
+                    'replies' => [
+                        ['from' => 'admin', 'text' => 'Will create it with front desk permissions.'],
+                        ['from' => 'director', 'text' => 'Thanks.'],
+                    ],
+                ],
+                [
+                    'from' => 'director', 'to' => 'demo', 'age' => 0,
+                    'subject' => 'Welcome to {org}',
+                    'body' => '<p>This is a demo clinic. Have a look at "Calendar", "Documents" (outpatient records), "Tickets" and "Business analytics".</p>',
+                ],
+            ],
         ];
     }
 }

@@ -137,7 +137,7 @@ php bin/freesaas.php demo seed --locale=en --reset --format=json
 php bin/freesaas.php demo seed --profile=clinic --locale=ru --reset --format=json
 ```
 
-Spa profile fills cabinets, catalog, clients, staff, calendar, ledger/finance, audio demo, rates/procents, etc. Clinic profile runs staged `ClinicDemo` (structure → clinical → money → forward → docs → audio). `--reset` clears prior demo domain rows (spa wipe tables / clinic manifest clean). Domain dates follow `DemoMode::now()` (wall clock, or `frozen_at` when set).
+Spa profile fills cabinets, catalog, clients, staff, calendar, ledger/finance, audio demo, rates/procents, etc. Clinic profile runs staged `ClinicDemo` (structure → clinical → money → forward → docs → audio → feed). `feed` fills the home feed (articles, tickets with threads, personal messages, likes, favorites; creates ticket statuses 1/2/3/99 if missing); `--only=feed --force` replaces only its own rows. `--reset` clears prior demo domain rows (spa wipe tables / clinic manifest clean). Domain dates follow `DemoMode::now()` (wall clock, or `frozen_at` when set).
 
 `bin/demo-restore.example.sh` (host crontab calling `demo seed`) remains as a CLI fallback; with `cron_token` + `demo.reseed` it is not needed.
 

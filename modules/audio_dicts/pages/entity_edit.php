@@ -51,6 +51,7 @@ $error = '';
 $keyOverlaps = [];
 $keyStemConflicts = [];
 $keyForceChecked = false;
+$keyErrorCode = '';
 
 if (!$isNew && EntityDelete::tryHandle($listId, $id, $path, [
     'stay_path' => $path . '/' . $id . '/edit',
@@ -116,6 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 if ($hasExact) {
+                    $keyErrorCode = 'exact_duplicate';
                     throw new InvalidArgumentException(t('audio_dicts.keys.err_exact'));
                 }
                 // Soft "contains" (existing key is wider) — allow without force, same as coach apply.
@@ -129,6 +131,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ((int)($data['id_looklike'] ?? 0) < 1 && is_array($lookSrc)) {
                         $data['id_looklike'] = (int)($lookSrc['id'] ?? 0);
                     }
+                    $keyErrorCode = $keyStemConflicts !== []
+                        ? 'stem_conflict_force_required'
+                        : 'overlap_force_required';
                     throw new InvalidArgumentException(
                         $keyStemConflicts !== []
                             ? t('audio_dicts.keys.err_stem_conflict')
@@ -175,7 +180,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect($path . '/' . $id . '/edit');
     } catch (Throwable $e) {
         if ($wantsJson) {
-            AgentHttp::error($e->getMessage(), 400);
+            AgentHttp::rethrowIfCapture($e);
+            $extra = [];
+            if ($keyErrorCode !== '') {
+                $extra = [
+                    'code' => $keyErrorCode,
+                    'force_needed' => $keyErrorCode !== 'exact_duplicate',
+                    'overlaps' => $keyOverlaps,
+                    'stem_conflicts' => $keyStemConflicts,
+                    'hint' => $keyErrorCode === 'exact_duplicate'
+                        ? 'Key already exists; reuse it or pick another phrase'
+                        : 'Show overlaps to the user; after consent retry the same call with force=1',
+                ];
+            }
+            AgentHttp::error($e->getMessage(), $keyErrorCode !== '' ? 409 : 400, $extra);
             return;
         }
         // Keys: make clear that DB was not updated (form still shows the attempted draft).

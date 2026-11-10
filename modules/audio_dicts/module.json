@@ -2,7 +2,7 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "1.0.26",
+    "version": "1.0.27",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -236,7 +236,18 @@
                 "method": "POST",
                 "path": "/audio/dicts/new",
                 "permission": "audio_dicts.edit",
-                "description": "Create dictionary"
+                "description": "Create dictionary; returns id. Add phrases after with audio_dicts.keys.create",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Dictionary name"},
+                        "descr": {"type": "string", "description": "What the phrases mean (used by LLM studies)"},
+                        "positions": {"type": "array", "items": {"type": "integer"}, "description": "Staff position ids; empty = all"},
+                        "disabled": {"type": "integer", "enum": [0, 1]}
+                    },
+                    "required": ["name"],
+                    "additionalProperties": true
+                }
             },
             {
                 "id": "audio_dicts.dicts.update",
@@ -271,14 +282,38 @@
                 "method": "POST",
                 "path": "/audio/keys/new",
                 "permission": "audio_dicts.edit",
-                "description": "Create key"
+                "description": "Create key phrase in a dictionary; returns id. HTTP 409 code=overlap_force_required|stem_conflict_force_required lists overlaps/stem_conflicts: show them to the user, then retry with force=1",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Phrase as spoken, e.g. «по QR-коду»"},
+                        "id_dictonary": {"type": "integer", "description": "Dictionary id"},
+                        "force": {"type": "integer", "enum": [0, 1], "description": "1 = save despite nested/stem overlaps (after user consent)"},
+                        "id_looklike": {"type": "integer", "description": "Optional similar key id"},
+                        "disabled": {"type": "integer", "enum": [0, 1]}
+                    },
+                    "required": ["name", "id_dictonary"],
+                    "additionalProperties": true
+                }
             },
             {
                 "id": "audio_dicts.keys.update",
                 "method": "POST",
                 "path": "/audio/keys/{id}/edit",
                 "permission": "audio_dicts.edit",
-                "description": "Update key"
+                "description": "Update key; send name + id_dictonary. Same 409 overlap rules and force=1 as keys.create",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "id_dictonary": {"type": "integer"},
+                        "force": {"type": "integer", "enum": [0, 1]},
+                        "id_looklike": {"type": "integer"},
+                        "disabled": {"type": "integer", "enum": [0, 1]}
+                    },
+                    "required": ["name", "id_dictonary"],
+                    "additionalProperties": true
+                }
             },
             {
                 "id": "audio_dicts.tags.list",
@@ -348,7 +383,7 @@
                 "method": "GET",
                 "path": "/audio/scripts/{id}",
                 "permission": "audio_dicts.view",
-                "description": "Script tree with parts; POST to save"
+                "description": "Read-only: script root + parts (roles, dict_ids, score, timeout) + versioning. Edit a block with audio_dicts.scripts.part_save, then audio_dicts.scripts.publish"
             },
             {
                 "id": "audio_dicts.scripts.create",
@@ -387,12 +422,54 @@
                 "description": "Canvas part API: reorder|save|add|delete"
             },
             {
+                "id": "audio_dicts.scripts.part_save",
+                "method": "POST",
+                "path": "/audio/scripts/{id}/parts",
+                "permission": "audio_dicts.edit",
+                "side_effect": "write",
+                "description": "Add a block to an existing script (action=add) or patch one block (action=save + part_id; omitted fields keep values). Other blocks untouched. Changes the working copy only: then call audio_dicts.scripts.publish",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string", "description": "Script root id"},
+                        "action": {"type": "string", "enum": ["add", "save"]},
+                        "part_id": {"type": "integer", "description": "Block id for action=save"},
+                        "name": {"type": "string", "description": "Block name, max 40 chars"},
+                        "roles": {"type": "array", "items": {"type": "string", "enum": ["ordinary", "trigger", "conversion", "closer", "breaker", "killer"]}, "description": "ordinary = adds score only; trigger = makes the collection saveable; conversion = marks conversion; closer = saves+closes; breaker = restarts on repeat; killer = discards (exclusive)"},
+                        "dict_ids": {"type": "array", "items": {"type": "integer"}, "description": "Dictionaries whose keys activate the block"},
+                        "score": {"type": "integer", "description": "Funnel points added to a saved collection"},
+                        "score_rate": {"type": "integer", "description": "Rating ® points (negative = penalty)"},
+                        "timeout": {"type": "integer", "description": "Collection idle timeout, sec (0 = none)"},
+                        "diversity": {"type": "integer", "description": "Min distinct keys (0 = any)"},
+                        "instances_min": {"type": "integer", "description": "Min hits (0 = any)"},
+                        "start_gate": {"type": "integer", "enum": [0, 1, 2], "description": "trigger only: 1 primary (all required), 2 alt (any)"},
+                        "gate_red_max": {"type": "number"},
+                        "gate_yellow_max": {"type": "number"},
+                        "hide_from_reports": {"type": "integer", "enum": [0, 1]},
+                        "disabled": {"type": "integer", "enum": [0, 1]}
+                    },
+                    "required": ["id", "action"],
+                    "additionalProperties": true
+                }
+            },
+            {
                 "id": "audio_dicts.scripts.publish",
                 "method": "POST",
                 "path": "/audio/scripts/{id}",
                 "permission": "audio_dicts.edit",
                 "side_effect": "write",
-                "description": "Publish working tree; POST action=publish, publish_mode=from_date|rewrite, valid_from_date, publish_rewrite_confirm"
+                "description": "Publish the working copy as a new version so collect/reports use it. Default publish_mode=from_date (valid_from_date YYYY-MM-DD, empty = today); rewrite replaces history and needs publish_rewrite_confirm=1. Root meta is kept unless passed",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string", "description": "Script root id"},
+                        "publish_mode": {"type": "string", "enum": ["from_date", "rewrite"]},
+                        "valid_from_date": {"type": "string", "description": "YYYY-MM-DD"},
+                        "publish_rewrite_confirm": {"type": "integer", "enum": [0, 1]}
+                    },
+                    "required": ["id"],
+                    "additionalProperties": true
+                }
             },
             {
                 "id": "audio_dicts.scripts.delete",

@@ -78,8 +78,9 @@ final class RecordsTrashesRepository
             'INSERT INTO base_records_trashes (DT_CREATE, NAME, ENABLED) VALUES (?, ?, ?)'
         );
         $st->execute([time(), $data['name'], $data['enabled']]);
-        EventBus::emit('audio_dicts.changed', ['entity' => 'trashes']);
-        return (int)Database::pdo()->lastInsertId();
+        $id = (int)Database::pdo()->lastInsertId();
+        EventBus::emit('audio_dicts.changed', ['entity' => 'trashes', 'id' => $id]);
+        return $id;
     }
 
     /** @param array<string,mixed> $data */

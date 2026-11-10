@@ -323,6 +323,10 @@ final class RecordsScriptsRepository
         if ($tree === null) {
             throw new InvalidArgumentException(t('audio_dicts.scripts.err.not_found', ['id' => $id]));
         }
+        // v1 must snapshot the tree as it was before this edit, or history gets rewritten.
+        if (class_exists('ScriptVersionsRepository', false) && ScriptVersionsRepository::tableReady()) {
+            ScriptVersionsRepository::ensureBackfilled($id);
+        }
         $name = trim((string)($meta['name'] ?? ''));
         if ($name !== '' && self::rootExistsByName($name, $id)) {
             throw new InvalidArgumentException(t('audio_dicts.scripts.err.name_taken', ['name' => $name]));
@@ -869,6 +873,47 @@ final class RecordsScriptsRepository
             'day_gates' => self::dayGatesFromPost($post),
             'proc_ratio_min' => 0,
         ];
+    }
+
+    /**
+     * Partial JSON body over the current root: only keys present in $post change.
+     * HTML forms keep metaFromPost (absent checkbox = off); agents send just what they edit.
+     *
+     * @param array<string,mixed> $post
+     * @param array<string,mixed> $root
+     * @return array<string,mixed>
+     */
+    public static function metaFromPostOverRoot(array $post, array $root): array
+    {
+        $meta = self::metaFromRoot($root);
+        if (array_key_exists('name', $post)) {
+            $name = trim((string)$post['name']);
+            if ($name === '') {
+                throw new InvalidArgumentException(t('audio_dicts.err.name_required'));
+            }
+            $meta['name'] = mb_substr($name, 0, 40);
+        }
+        foreach (['disabled', 'rating_enabled', 'is_hidden', 'day_bonus'] as $flag) {
+            if (array_key_exists($flag, $post)) {
+                $meta[$flag] = !empty($post[$flag]) ? 1 : 0;
+            }
+        }
+        foreach (['num', 'legacy_type_id', 'day_bonus_sum'] as $int) {
+            if (array_key_exists($int, $post)) {
+                $meta[$int] = max(0, (int)$post[$int]);
+            }
+        }
+        if (array_key_exists('id_position', $post) || array_key_exists('positions', $post)) {
+            $posRaw = $post['id_position'] ?? $post['positions'] ?? [];
+            if (!is_array($posRaw)) {
+                $posRaw = self::parseIds((string)$posRaw);
+            }
+            $meta['id_position'] = self::joinIds($posRaw);
+        }
+        if (array_key_exists('day_gates', $post) || array_key_exists('day_gates_json', $post)) {
+            $meta['day_gates'] = self::dayGatesFromPost($post);
+        }
+        return $meta;
     }
 
     /**

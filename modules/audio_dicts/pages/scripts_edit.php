@@ -92,9 +92,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
             ) {
                 throw new InvalidArgumentException(t('audio_dicts.scripts.versions.err.rewrite_confirm'));
             }
-            $meta = RecordsScriptsRepository::metaFromPost($_POST);
             $parts = RecordsScriptsRepository::partsFromPost($_POST);
             if ($parts !== []) {
+                $meta = $wantsJson
+                    ? RecordsScriptsRepository::metaFromPostOverRoot($_POST, $tree['root'])
+                    : RecordsScriptsRepository::metaFromPost($_POST);
                 RecordsScriptsRepository::update($id, $meta, $parts);
             }
             $result = ScriptVersionsRepository::publish($id, [
@@ -170,7 +172,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
     } else {
         // Default save — with versioning, target comes from dialog.
         try {
-            $meta = RecordsScriptsRepository::metaFromPost($_POST);
+            $meta = $wantsJson
+                ? RecordsScriptsRepository::metaFromPostOverRoot($_POST, $tree['root'])
+                : RecordsScriptsRepository::metaFromPost($_POST);
             $parts = RecordsScriptsRepository::partsFromPost($_POST);
             if ($parts === []) {
                 throw new InvalidArgumentException(t('audio_dicts.scripts.err.parts_required'));
