@@ -2,7 +2,7 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.1.30",
+    "version": "0.1.32",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -64,10 +64,14 @@
                 "method": "GET",
                 "path": "/poll-invites",
                 "permission": "poll_invites.view",
-                "description": "List poll invites; filters: q, id_poll, progress (open|done|expired|unviewed|unfilled), id_operator, id_resp",
+                "description": "List poll invites; filters: day (YYYY-MM-DD|all, default today), q, id_poll, progress (open|done|expired|unviewed|unfilled), id_operator, id_resp",
                 "parameters": {
                     "type": "object",
                     "properties": {
+                        "day": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD procedure day; omit=today; all=no day filter"
+                        },
                         "q": { "type": "string" },
                         "id_poll": { "type": "integer" },
                         "progress": {

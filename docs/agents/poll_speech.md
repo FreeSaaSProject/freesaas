@@ -37,10 +37,12 @@ Permissions: `poll_speech.view`, `poll_speech.edit` (settings: `SUPERADMIN_ACCES
 
 1. Calendar chip «собран отзыв» (if `oral_btn_enabled=1`) → `POST /poll-invites/oral-asked` → invite with empty `CODE`.
 2. Re-® emits `audio_reports.day.analyzed`.
-3. `PollSpeechFiller` searches cabin audio around **invite `DT_CREATE` ± `window_sec`** (default 900 / ±15 min): procedure **executor** cabin first, then linked/floor admin. Picks the extract/key hit **closest** to the oral-ask moment; each record+snippet is claimed once so overlapping procedures with the same floor admin do not share one transcript.
-   Rating-only transcript snippet (ask → guest reply) is stored in `DATA_TEXT` on the rating questions for review in `/poll-speech`.
+3. `PollSpeechFiller` searches cabin audio around **invite `DT_CREATE` ± `window_sec`** (default 900 / ±15 min): procedure **executor** cabin first, then linked/floor admin. Picks the cabin record **closest** to the oral-ask moment; each record is claimed once so overlapping procedures with the same floor admin do not share one transcript.
+   **Score ratchet (per record):** among transcript extracts + dict keys, the **highest** score wins («10» + «хорошо»→8 + «три»→3 ⇒ **10**); softer keys never lower an explicit digit. A fill needs a non-empty ask→reply snippet in `DATA_TEXT`.
    On save, denormalizes procedure staff + digits: `ID_PROC_OPERATOR` / `ID_PROC_ADMIN` from the procedure, `SCORE_STAFF` / `SCORE_SERVICE` (1–10) from answer maps, and refreshes `RESP_USERS` as `#executor#,#admin#`.
-   **No spoken score → no invite** (empty oral polls are not kept). Full rebuild: `POST /poll-speech/fill-day` with `recreate=1` (superadmin) or `PollSpeechFiller::recreateAllFromSpeech()` (preserves original oral-ask `DT_CREATE`).
+   **No spoken score / no dialogue → no fill** (empty oral polls may be dropped when cabin audio exists). Day rebuild: `POST /poll-speech/fill-day` with `day=YYYY-MM-DD` + `recreate=1` (superadmin) or `PollSpeechFiller::recreateAllFromSpeech(['date'=>$day])` (preserves original oral-ask `DT_CREATE`; scopes deletes/creates to that procedure day).
+   Cleanup key-only junk (safe): `php bin/data-migrate.php --module=poll_speech --id=purge_without_snippet`.
+   Skips fills younger than 12h (`POLL_SPEECH_PURGE_MIN_AGE_HOURS`) and any invite whose cabin `record=` still has empty `TRANSCRIPTION` (ASR pending). Tries snippet backfill before DELETE.
    Period backfill without wiping: `PollSpeechFiller::fillRangeFromSpeech(['from'=>'YYYY-MM-DD','to'=>'YYYY-MM-DD'])` + `PollSpeechDictEnrich::enrichRange([...])`. One cabin `record` fills at most one invite (`dedupeSharedSpeechRecords()`).
 4. `admin_field=both` (default): mark may be clicked by a supervisor (`ID_OPERATOR_LINKED`) while ASR is on the floor `proc_admin`. List/BI use procedure executor/admin, not the linked marker.
 
@@ -48,12 +50,13 @@ Instance default dictionary: **50** («Отзывы 10»). Oral 10-point poll vi
 
 ## Human UI
 
+Day list / fill / recreate live on **`/poll-invites`** (hub). This module keeps settings + filler API.
+
 | Path | Permission |
 |------|------------|
-| `/poll-speech` | `poll_speech.view` |
 | `/poll-speech/settings` | `poll_speech.edit` + superadmin |
 | `/polls/settings` | same fields via EventBus `polls.settings.sections` / `.save` |
-| `/poll-speech/fill-day` | `poll_speech.edit` (POST) |
+| `/poll-speech/fill-day` | `poll_speech.edit` (POST); recreate scopes to posted `day`; `ret=/poll-invites…` returns to invites list |
 
 ## Agent JSON
 
@@ -61,10 +64,10 @@ Surface B (staff session / MCP). Settings require `SUPERADMIN_ACCESS`. `settings
 
 | Op | Method | Path | Notes |
 |----|--------|------|-------|
-| `poll_speech.list` | GET | `/poll-speech` | `day`, `progress`, `q` |
 | `poll_speech.settings` | GET | `/poll-speech/settings` | returns `cfg` |
 | `poll_speech.settings.save` | POST | `/poll-speech/settings` | patch fields → `cfg` |
 | `poll_speech.fill_day` | POST | `/poll-speech/fill-day` | `day=YYYY-MM-DD`; `recreate=1` superadmin |
+| (list) | GET | `/poll-invites` | day hub — use `poll_invites.list` |
 
 ## Hooks
 
@@ -80,4 +83,4 @@ Dataset `poll_speech_scores`: period `DT_COMPLETED`, filters by executor/admin/p
 - Do not treat `base_records.KEY_TYPES` as scores — use `base_records_instances`.
 - Ask phrases in dict 50 stay unmapped; only `key_score_map` keys fill answers.
 - Speech analytics core stays generic; this module is the product channel.
-- `/poll-speech` shows executor + admin names and numeric 1–10 scores (not raw `DATA_OPTS` answer ids).
+- Oral invites list / scores UI: `/poll-invites` (not a separate speech path).

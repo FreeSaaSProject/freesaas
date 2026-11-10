@@ -68,7 +68,7 @@ Seq resets to `s001` after each successful light/full. Listing FTP shows missing
 4. Cron starts a CDC pack when journal has rows past `incr_cursor`.
 5. After light/full, CDC baseline = journal watermark taken **at dump start** (not after upload). Capture uses `LOCK TABLES base_backup_changes WRITE` so in-flight journal inserts commit before `MAX(ID)` is frozen (avoids AUTO_INCREMENT holes skipping a late commit). If the lock fails, baseline stays at 0 (no prune; next differential re-exports the whole journal). Mid-dump/mid-upload changes stay in the journal for the next CDC pack. CDC **incr** packs use the same locked watermark for `cursor_to` (start refuses the run if the lock fails — no orphaned `running` row).
 
-Standby/replica full redeploy refuses DROP unless `preflightDumpBeforeDrop` passes: (1) whole dump streams with quote-aware `;` — truncated INSERT / open string at EOF fails; (2) exactly one `CREATE TABLE base_*` is taken (never TAB-chunk multi-statements like `CREATE…; SET …`); (3) only that rewritten DDL runs on a throwaway `__fs_pf_*` table, then DROP. Live `base_*` untouched until preflight ok. Not a full import into a separate staging database.
+Standby/replica full redeploy refuses DROP unless `preflightDumpBeforeDrop` passes: (1) `.sql.gz` → native `gzip -t` (CRC; truncated member fails) — **not** a PHP quote-scan of hundreds of MiB (that hung HTTP workers on local replica wipe); plain `.sql` → quote-aware scan with a size cap; (2) exactly one `CREATE TABLE base_*` (never TAB-chunk multi-statements like `CREATE…; SET …`); (3) only that rewritten DDL on a throwaway `__fs_pf_*` table, then DROP. Live `base_*` untouched until preflight ok.
 
 ```bash
 php bin/freesaas.php backups cdc-install --format=json

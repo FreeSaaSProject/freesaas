@@ -128,7 +128,8 @@ final class PollSpeechFiller
             }
 
             $built = self::buildAnswers($score, $snippet, $qidStaff, $qidService, $ansStaff, $ansService);
-            if ($built['data_opts'] === []) {
+            // Score without dialogue snippet must not enter stats.
+            if ($built['data_opts'] === [] || $built['data_text'] === []) {
                 $skipped++;
                 continue;
             }
@@ -141,7 +142,7 @@ final class PollSpeechFiller
                     true,
                     'speech',
                     '[SPEECH] score=' . $score . ' ' . $via
-                        . ($snippet !== '' ? ' snippet=' . mb_substr($snippet, 0, 120) : '')
+                        . ' snippet=' . mb_substr($snippet, 0, 120)
                 );
                 $claim = (string)($resolved['claim'] ?? '');
                 if ($claim !== '') {
@@ -166,14 +167,26 @@ final class PollSpeechFiller
 
     /**
      * Wipe oral invites and recreate only when a score is found in speech.
-     * No speech answer → no invite.
+     * No speech answer → no invite. Pass date=YYYY-MM-DD to scope to that procedure day.
      *
-     * @param array{log?:callable|null} $ctx
-     * @return array{ok:bool,deleted:int,created:int,filled:int,skipped:int,errors:list<string>}
+     * @param array{date?:string,log?:callable|null} $ctx
+     * @return array{ok:bool,deleted:int,created:int,filled:int,skipped:int,errors:list<string>,date:string}
      */
     public static function recreateAllFromSpeech(array $ctx = []): array
     {
         $log = is_callable($ctx['log'] ?? null) ? $ctx['log'] : null;
+        $date = trim((string)($ctx['date'] ?? ''));
+        if ($date !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return [
+                'ok' => false,
+                'deleted' => 0,
+                'created' => 0,
+                'filled' => 0,
+                'skipped' => 0,
+                'errors' => [t('poll_speech.err.day')],
+                'date' => $date,
+            ];
+        }
         $dictId = PollSpeechConfig::dictId();
         $keyScores = PollSpeechConfig::keyScoreMap();
         $qidStaff = PollSpeechConfig::qidStaff();
@@ -196,6 +209,7 @@ final class PollSpeechFiller
             'filled' => 0,
             'skipped' => 0,
             'errors' => [],
+            'date' => $date,
         ];
         if ($pollId < 1 || $dictId < 1 || ($qidStaff < 1 && $qidService < 1)) {
             $out['errors'][] = t('poll_speech.err.tables');
@@ -206,7 +220,7 @@ final class PollSpeechFiller
             return $out;
         }
 
-        $marks = PollSpeechRepository::listAllOralMarks();
+        $marks = PollSpeechRepository::listAllOralMarks($date !== '' ? $date : null);
         if ($marks === []) {
             $out['ok'] = true;
             return $out;
@@ -281,7 +295,7 @@ final class PollSpeechFiller
                 continue;
             }
             $built = self::buildAnswers($score, $snippet, $qidStaff, $qidService, $ansStaff, $ansService);
-            if ($built['data_opts'] === []) {
+            if ($built['data_opts'] === [] || $built['data_text'] === []) {
                 $out['skipped']++;
                 continue;
             }
@@ -300,7 +314,7 @@ final class PollSpeechFiller
                     true,
                     'speech',
                     '[SPEECH] recreate score=' . $score . ' ' . $via
-                        . ($snippet !== '' ? ' snippet=' . mb_substr($snippet, 0, 120) : '')
+                        . ' snippet=' . mb_substr($snippet, 0, 120)
                 );
                 $claim = (string)($resolved['claim'] ?? '');
                 if ($claim !== '') {
@@ -443,7 +457,7 @@ final class PollSpeechFiller
                 continue;
             }
             $built = self::buildAnswers($score, $snippet, $qidStaff, $qidService, $ansStaff, $ansService);
-            if ($built['data_opts'] === []) {
+            if ($built['data_opts'] === [] || $built['data_text'] === []) {
                 $out['skipped']++;
                 continue;
             }
@@ -461,7 +475,7 @@ final class PollSpeechFiller
                     true,
                     'speech',
                     '[SPEECH] range score=' . $score . ' ' . $via
-                        . ($snippet !== '' ? ' snippet=' . mb_substr($snippet, 0, 120) : '')
+                        . ' snippet=' . mb_substr($snippet, 0, 120)
                 );
                 $claim = (string)($resolved['claim'] ?? '');
                 if ($claim !== '') {
@@ -640,6 +654,70 @@ final class PollSpeechFiller
     }
 
     /**
+     * Superadmin manual score override (keeps existing dialogue snippet).
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function applyManualScore(int $inviteId, int $score): void
+    {
+        if ($inviteId < 1 || $score < 1 || $score > 10) {
+            throw new InvalidArgumentException(t('poll_invites.err.score_range'));
+        }
+        if (!class_exists('PollInvitesRepository', false)) {
+            throw new InvalidArgumentException(t('poll_speech.err.tables'));
+        }
+        $invite = PollInvitesRepository::find($inviteId);
+        if ($invite === null) {
+            throw new InvalidArgumentException(t('poll_invites.err.not_found', ['id' => $inviteId]));
+        }
+        $qidStaff = PollSpeechConfig::qidStaff();
+        $qidService = PollSpeechConfig::qidService();
+        $ansStaff = PollSpeechConfig::answersStaff();
+        $ansService = PollSpeechConfig::answersService();
+        if (($qidStaff < 1 && $qidService < 1) || ($ansStaff === [] && $ansService === [])) {
+            throw new InvalidArgumentException(t('poll_invites.err.speech_score'));
+        }
+        $snippet = '';
+        if (class_exists('PollInvitesRepository', false)) {
+            $snippet = PollInvitesRepository::transcriptSnippet($invite['data_text'] ?? '', 0);
+        }
+        if ($snippet === '' && class_exists('PollAnswersCodec', false)) {
+            $texts = PollAnswersCodec::decode((string)($invite['data_text'] ?? ''));
+            if (is_array($texts)) {
+                foreach ($texts as $tv) {
+                    $tv = trim((string)$tv);
+                    if ($tv !== '') {
+                        $snippet = $tv;
+                        break;
+                    }
+                }
+            }
+        }
+        $built = self::buildAnswers($score, $snippet, $qidStaff, $qidService, $ansStaff, $ansService);
+        if ($built['data_opts'] === []) {
+            throw new InvalidArgumentException(t('poll_invites.err.speech_score'));
+        }
+        // Keep prior text slots if new build has empty text (no snippet).
+        if ($built['data_text'] === [] && class_exists('PollAnswersCodec', false)) {
+            $prev = PollAnswersCodec::decode((string)($invite['data_text'] ?? ''));
+            if (is_array($prev) && $prev !== []) {
+                $built['data_text'] = [];
+                foreach ($prev as $k => $v) {
+                    $built['data_text'][(string)$k] = (string)$v;
+                }
+            }
+        }
+        PollInvitesRepository::saveAnswersFromChannel(
+            $inviteId,
+            $built['data_opts'],
+            $built['data_text'],
+            true,
+            'manual',
+            '[SCORE] manual=' . $score
+        );
+    }
+
+    /**
      * @param array<int,int> $ansStaff
      * @param array<int,int> $ansService
      * @return array{data_opts:array<string,int>,data_text:array<string,string>}
@@ -785,12 +863,29 @@ final class PollSpeechFiller
             return $empty;
         }
 
-        // Dedupe key+transcript doubles of the same ask snippet.
+        // Ratchet per cabin record: higher scores never get lowered by softer keys
+        // («10» + «хорошо»→8 + «три»→3 ⇒ 10). Same score → prefer transcript via / richer snippet.
         $uniq = [];
         foreach ($candidates as $c) {
-            $uniq[(string)$c['claim']] = $c;
+            $claim = (string)$c['claim'];
+            if (!isset($uniq[$claim])) {
+                $uniq[$claim] = $c;
+                continue;
+            }
+            $uniq[$claim] = self::ratchetPreferCandidate($uniq[$claim], $c);
         }
         $candidates = array_values($uniq);
+
+        // Key-only hits without an ask→reply dialogue are noise for stats — drop them.
+        $candidates = array_values(array_filter(
+            $candidates,
+            static function (array $c): bool {
+                return trim((string)($c['snippet'] ?? '')) !== '';
+            }
+        ));
+        if ($candidates === []) {
+            return $empty;
+        }
 
         usort($candidates, static function (array $a, array $b) use ($preferTs): int {
             $da = abs((int)$a['dt'] - $preferTs);
@@ -798,7 +893,12 @@ final class PollSpeechFiller
             if ($da !== $db) {
                 return $da <=> $db;
             }
-            // Prefer richer snippet when equally close.
+            // Same distance: still ratchet upward, then richer snippet.
+            $sa = (int)$a['score'];
+            $sb = (int)$b['score'];
+            if ($sa !== $sb) {
+                return $sb <=> $sa;
+            }
             return strlen((string)$b['snippet']) <=> strlen((string)$a['snippet']);
         });
 
@@ -809,6 +909,297 @@ final class PollSpeechFiller
             'snippet' => (string)$best['snippet'],
             'claim' => (string)$best['claim'],
         ];
+    }
+
+    /**
+     * Keep the higher score; never replace a stronger hit with a weaker soft key.
+     *
+     * @param array{score:int,phrase:string,snippet:string,record_id:int,dt:int,claim:string,via:string} $a
+     * @param array{score:int,phrase:string,snippet:string,record_id:int,dt:int,claim:string,via:string} $b
+     * @return array{score:int,phrase:string,snippet:string,record_id:int,dt:int,claim:string,via:string}
+     */
+    private static function ratchetPreferCandidate(array $a, array $b): array
+    {
+        $sa = (int)($a['score'] ?? 0);
+        $sb = (int)($b['score'] ?? 0);
+        if ($sb > $sa) {
+            // Keep the better dialogue text when the winner has none.
+            if (trim((string)($b['snippet'] ?? '')) === '' && trim((string)($a['snippet'] ?? '')) !== '') {
+                $b['snippet'] = $a['snippet'];
+            }
+            return $b;
+        }
+        if ($sa > $sb) {
+            if (trim((string)($a['snippet'] ?? '')) === '' && trim((string)($b['snippet'] ?? '')) !== '') {
+                $a['snippet'] = $b['snippet'];
+            }
+            return $a;
+        }
+        // Equal score: prefer transcript extract over dict key; then longer snippet.
+        $aTr = str_starts_with((string)($a['via'] ?? ''), 'transcript');
+        $bTr = str_starts_with((string)($b['via'] ?? ''), 'transcript');
+        if ($bTr && !$aTr) {
+            return $b;
+        }
+        if ($aTr && !$bTr) {
+            return $a;
+        }
+        return strlen((string)($b['snippet'] ?? '')) > strlen((string)($a['snippet'] ?? '')) ? $b : $a;
+    }
+
+    /**
+     * True when DATA_TEXT has at least one non-empty dialogue snippet.
+     */
+    public static function hasDialogueSnippet($dataText): bool
+    {
+        if (class_exists('PollInvitesRepository', false)) {
+            return PollInvitesRepository::transcriptSnippet($dataText, 0) !== '';
+        }
+        if (!is_array($dataText)) {
+            $dataText = class_exists('PollAnswersCodec', false)
+                ? PollAnswersCodec::decode((string)$dataText)
+                : [];
+        }
+        if (!is_array($dataText)) {
+            return false;
+        }
+        foreach ($dataText as $v) {
+            if (trim((string)$v) !== '') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Safe cleanup of completed [SPEECH] fills without dialogue snippet.
+     *
+     * Does NOT delete:
+     * - open oral marks (not completed);
+     * - fills that already have DATA_TEXT;
+     * - recent fills (default grace 12h) — ASR/collect may still be running;
+     * - fills whose cabin record(s) still have empty TRANSCRIPTION.
+     *
+     * Before delete: one backfill attempt (attach ask→reply if transcript now exists).
+     *
+     * @param array{log?:callable|null,limit?:int,min_age_hours?:int,try_backfill?:bool} $ctx
+     * @return array{ok:bool,deleted:int,scanned:int,backfilled:int,skipped_young:int,skipped_asr:int,skipped_other:int}
+     */
+    public static function purgeFilledWithoutSnippet(array $ctx = []): array
+    {
+        $log = is_callable($ctx['log'] ?? null) ? $ctx['log'] : null;
+        $out = [
+            'ok' => true,
+            'deleted' => 0,
+            'scanned' => 0,
+            'backfilled' => 0,
+            'skipped_young' => 0,
+            'skipped_asr' => 0,
+            'skipped_other' => 0,
+        ];
+        if (!Database::tableExists('base_poll_invites')) {
+            $out['ok'] = false;
+            return $out;
+        }
+        $minAgeHours = (int)($ctx['min_age_hours'] ?? 12);
+        if ($minAgeHours < 0) {
+            $minAgeHours = 0;
+        }
+        $cutoff = time() - ($minAgeHours * 3600);
+        $tryBackfill = !array_key_exists('try_backfill', $ctx) || !empty($ctx['try_backfill']);
+        $limit = max(0, (int)($ctx['limit'] ?? 0));
+
+        $sql = "SELECT ID AS id, ID_PROC AS id_proc, DT_CREATE AS dt_create, DT_COMPLETED AS dt_completed,
+                       DATA_TEXT AS data_text, LOG AS log,
+                       ID_OPERATOR_LINKED AS id_operator_linked,
+                       ID_PROC_OPERATOR AS id_proc_operator, ID_PROC_ADMIN AS id_proc_admin
+                FROM base_poll_invites
+                WHERE DT_COMPLETED > 0
+                  AND LOG LIKE '%[SPEECH]%'
+                ORDER BY ID ASC";
+        if ($limit > 0) {
+            $sql .= ' LIMIT ' . $limit;
+        }
+        $st = Database::pdo()->query($sql);
+        $toDelete = [];
+        $window = class_exists('PollSpeechConfig', false) ? PollSpeechConfig::windowSec() : 900;
+        $adminField = class_exists('PollSpeechConfig', false)
+            ? PollSpeechConfig::adminField()
+            : 'both';
+        $dictId = class_exists('PollSpeechConfig', false) ? PollSpeechConfig::dictId() : 0;
+        $keyScores = class_exists('PollSpeechConfig', false) ? PollSpeechConfig::keyScoreMap() : [];
+        $qidStaff = class_exists('PollSpeechConfig', false) ? PollSpeechConfig::qidStaff() : 0;
+        $qidService = class_exists('PollSpeechConfig', false) ? PollSpeechConfig::qidService() : 0;
+
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $out['scanned']++;
+            $id = (int)($row['id'] ?? 0);
+            if ($id < 1 || self::hasDialogueSnippet($row['data_text'] ?? '')) {
+                continue;
+            }
+            $completed = (int)($row['dt_completed'] ?? 0);
+            if ($completed > $cutoff) {
+                $out['skipped_young']++;
+                continue;
+            }
+
+            $recordIds = class_exists('PollInvitesRepository', false)
+                ? PollInvitesRepository::speechRecordIdsFromLog((string)($row['log'] ?? ''))
+                : [];
+            $asrState = self::recordsAsrState($recordIds);
+            if ($asrState === 'pending') {
+                $out['skipped_asr']++;
+                continue;
+            }
+
+            // No record id in log: inspect cabin window (may still be waiting for upload/ASR).
+            if ($asrState === 'unknown') {
+                $procId = (int)($row['id_proc'] ?? 0);
+                $proc = ($procId > 0 && class_exists('ProceduresRepository', false))
+                    ? ProceduresRepository::find($procId)
+                    : null;
+                if ($proc === null) {
+                    $out['skipped_other']++;
+                    continue;
+                }
+                $center = self::oralAskCenter((int)($row['dt_create'] ?? 0), (int)($proc['dtend'] ?? 0));
+                $adminIds = self::resolveAdminIds($row, $proc, $adminField);
+                $records = PollSpeechRepository::recordsInWindow(
+                    $adminIds,
+                    max(0, $center - $window),
+                    $center + $window
+                );
+                if ($records === []) {
+                    // No cabin audio yet — do not purge; files may arrive later.
+                    $out['skipped_asr']++;
+                    continue;
+                }
+                $pending = false;
+                foreach ($records as $rec) {
+                    if (trim((string)($rec['transcription'] ?? '')) === '') {
+                        $pending = true;
+                        break;
+                    }
+                }
+                if ($pending) {
+                    $out['skipped_asr']++;
+                    continue;
+                }
+                // ASR done in window — try backfill once.
+                if ($tryBackfill) {
+                    $used = [];
+                    $resolved = self::resolveScoreAndSnippet(
+                        $adminIds,
+                        max(0, $center - $window),
+                        $center + $window,
+                        $dictId,
+                        $keyScores,
+                        $center,
+                        $used
+                    );
+                    $snippet = trim((string)($resolved['snippet'] ?? ''));
+                    if ($snippet !== '' && self::attachSnippetToInvite($id, $snippet, $qidStaff, $qidService)) {
+                        $out['backfilled']++;
+                        continue;
+                    }
+                }
+                $toDelete[] = $id;
+                continue;
+            }
+
+            // Linked record(s) have transcription — try backfill, else delete confirmed junk.
+            if ($tryBackfill) {
+                $procId = (int)($row['id_proc'] ?? 0);
+                $proc = ($procId > 0 && class_exists('ProceduresRepository', false))
+                    ? ProceduresRepository::find($procId)
+                    : null;
+                if ($proc !== null) {
+                    $center = self::oralAskCenter((int)($row['dt_create'] ?? 0), (int)($proc['dtend'] ?? 0));
+                    $adminIds = self::resolveAdminIds($row, $proc, $adminField);
+                    $used = [];
+                    $resolved = self::resolveScoreAndSnippet(
+                        $adminIds,
+                        max(0, $center - $window),
+                        $center + $window,
+                        $dictId,
+                        $keyScores,
+                        $center,
+                        $used
+                    );
+                    $snippet = trim((string)($resolved['snippet'] ?? ''));
+                    if ($snippet !== '' && self::attachSnippetToInvite($id, $snippet, $qidStaff, $qidService)) {
+                        $out['backfilled']++;
+                        continue;
+                    }
+                }
+            }
+            $toDelete[] = $id;
+        }
+
+        if ($toDelete !== [] && class_exists('PollInvitesRepository', false)) {
+            foreach (array_chunk($toDelete, 500) as $chunk) {
+                $out['deleted'] += PollInvitesRepository::deleteByIds($chunk);
+            }
+        }
+        self::say(
+            $log,
+            'poll_speech: purge without snippet'
+            . ' deleted=' . $out['deleted']
+            . ' backfilled=' . $out['backfilled']
+            . ' young=' . $out['skipped_young']
+            . ' asr=' . $out['skipped_asr']
+            . ' scanned=' . $out['scanned']
+        );
+        return $out;
+    }
+
+    /**
+     * @param list<int> $recordIds
+     * @return 'pending'|'ready'|'unknown'
+     */
+    private static function recordsAsrState(array $recordIds): string
+    {
+        if ($recordIds === [] || !Database::tableExists('base_records')) {
+            return 'unknown';
+        }
+        $ph = implode(',', array_fill(0, count($recordIds), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID AS id, TRANSCRIPTION AS transcription FROM base_records WHERE ID IN ($ph)"
+        );
+        $st->execute($recordIds);
+        $found = 0;
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $found++;
+            if (trim((string)($row['transcription'] ?? '')) === '') {
+                return 'pending';
+            }
+        }
+        return $found > 0 ? 'ready' : 'unknown';
+    }
+
+    private static function attachSnippetToInvite(int $inviteId, string $snippet, int $qidStaff, int $qidService): bool
+    {
+        $snippet = trim($snippet);
+        if ($inviteId < 1 || $snippet === '' || !class_exists('PollInvitesRepository', false)) {
+            return false;
+        }
+        $snippet = mb_substr($snippet, 0, 500);
+        $dataText = [];
+        if ($qidStaff > 0) {
+            $dataText[(string)$qidStaff] = $snippet;
+        }
+        if ($qidService > 0) {
+            $dataText[(string)$qidService] = $snippet;
+        }
+        if ($dataText === []) {
+            return false;
+        }
+        try {
+            PollInvitesRepository::mergeDataText($inviteId, $dataText, '[SPEECH] snippet backfill (purge)');
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     /**

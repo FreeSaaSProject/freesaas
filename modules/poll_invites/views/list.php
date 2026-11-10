@@ -12,6 +12,12 @@ declare(strict_types=1);
 /** @var array<int,string> $staffNames */
 /** @var bool $canEdit */
 /** @var bool $canDelete */
+/** @var bool $canSpeechFill */
+/** @var string $day */
+/** @var string $today */
+/** @var bool $isToday */
+/** @var string $prevDay */
+/** @var string $nextDay */
 /** @var string $sort */
 /** @var string $dir */
 /** @var int $page */
@@ -26,11 +32,27 @@ $idResp = (int)($idResp ?? 0);
 $unviewedTotal = (int)($unviewedTotal ?? 0);
 $unfilledInFilter = (int)($unfilledInFilter ?? 0);
 $canDelete = !empty($canDelete);
+$canSpeechFill = !empty($canSpeechFill);
+$day = (string)($day ?? '');
+$today = (string)($today ?? date('Y-m-d'));
+$isToday = !empty($isToday);
+$prevDay = (string)($prevDay ?? '');
+$nextDay = (string)($nextDay ?? '');
 $staffNames = is_array($staffNames ?? null) ? $staffNames : [];
+$filters = is_array($filters ?? null) ? $filters : [];
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
-$colSpan = 10 + BulkActions::colSpanExtra($listId);
+$colSpan = 9 + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
 $retPath = ListQuery::url($path, $filters, []);
+$urlToday = ListQuery::url($path, $filters, ['day' => $today, 'page' => 1]);
+$urlAllDays = ListQuery::url($path, $filters, ['day' => 'all', 'page' => 1]);
+$urlPrev = $prevDay !== ''
+    ? ListQuery::url($path, $filters, ['day' => $prevDay, 'page' => 1])
+    : '';
+$urlNext = $nextDay !== ''
+    ? ListQuery::url($path, $filters, ['day' => $nextDay, 'page' => 1])
+    : '';
+$fillRet = ListQuery::url($path, $filters, []);
 $staffBadge = static function (int $id): string {
     if ($id < 1) {
         return '—';
@@ -61,13 +83,41 @@ $procLabel = static function (array $u): string {
     }
     return implode(' · ', $parts);
 };
+$pagerAttrs = '';
+if ($urlPrev !== '') {
+    $pagerAttrs .= ' data-pager-prev="' . e($urlPrev) . '"';
+}
+if ($urlNext !== '') {
+    $pagerAttrs .= ' data-pager-next="' . e($urlNext) . '"';
+}
 ?>
+<nav class="pager date-day-nav" aria-label="<?= te('poll_invites.list.nav_aria') ?>"<?= $pagerAttrs ?>>
+  <?php if ($day !== ''): ?>
+    <?php if ($urlPrev !== ''): ?>
+      <a class="btn-secondary" href="<?= e($urlPrev) ?>" title="<?= te('poll_invites.list.prev_day') ?>" aria-label="<?= te('poll_invites.list.prev_day') ?>">‹</a>
+    <?php endif; ?>
+    <strong><?= e(date('d.m.Y', strtotime($day) ?: time())) ?></strong>
+    <?php if ($urlNext !== ''): ?>
+      <a class="btn-secondary" href="<?= e($urlNext) ?>" title="<?= te('poll_invites.list.next_day') ?>" aria-label="<?= te('poll_invites.list.next_day') ?>">›</a>
+    <?php endif; ?>
+    <?php if (!$isToday): ?>
+      <a class="btn-secondary" href="<?= e($urlToday) ?>"><?= te('poll_invites.list.today') ?></a>
+    <?php else: ?>
+      <span class="pill"><?= te('poll_invites.list.today') ?></span>
+    <?php endif; ?>
+    <a class="btn-secondary" href="<?= e($urlAllDays) ?>"><?= te('poll_invites.list.all_days') ?></a>
+    <span class="muted"><?= te('poll_invites.list.keyboard') ?></span>
+  <?php else: ?>
+    <a class="btn-secondary" href="<?= e($urlToday) ?>"><?= te('poll_invites.list.today') ?></a>
+  <?php endif; ?>
+</nav>
+
 <section class="page-head">
   <div class="page-head-row">
     <div>
       <?php if ($unviewedTotal > 0): ?>
         <a class="btn-secondary<?= $progress === 'unviewed' ? ' is-active' : '' ?>"
-           href="<?= e(ListQuery::url($path, array_merge($filters, ['progress' => 'unviewed', 'page' => '']), [])) ?>">
+           href="<?= e(ListQuery::url($path, $filters, ['progress' => 'unviewed', 'day' => 'all', 'page' => 1])) ?>">
           <?= te('poll_invites.list.unviewed_chip', ['n' => $unviewedTotal]) ?>
         </a>
       <?php endif; ?>
@@ -86,6 +136,11 @@ $procLabel = static function (array $u): string {
 
 <form class="filters" method="get" action="<?= e($path) ?>" data-auto-filter>
   <?= ListQuery::sortHiddenInputs($sort, $dir, (int)$perPage) ?>
+  <?php if ($day !== ''): ?>
+    <input type="hidden" name="day" value="<?= e($day) ?>">
+  <?php else: ?>
+    <input type="hidden" name="day" value="all">
+  <?php endif; ?>
   <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= te('poll_invites.list.search_placeholder') ?>" data-filter-debounce>
   <label><?= te('poll_invites.list.filter_poll') ?>
     <select name="id_poll">
@@ -114,6 +169,25 @@ $procLabel = static function (array $u): string {
     </select>
   </label>
 </form>
+
+<?php if ($canSpeechFill): ?>
+  <div class="page-actions" style="gap:0.5rem;flex-wrap:wrap;margin:0.75rem 0">
+    <form method="post" action="/poll-speech/fill-day" class="inline-form" style="margin:0">
+      <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+      <input type="hidden" name="day" value="<?= e($day) ?>">
+      <input type="hidden" name="ret" value="<?= e($fillRet) ?>">
+      <button type="submit" class="btn-primary"><?= te('poll_invites.list.fill_day') ?></button>
+    </form>
+    <form method="post" action="/poll-speech/fill-day" class="inline-form" style="margin:0"
+          onsubmit="return confirm('<?= e(t('poll_invites.recreate.confirm', ['date' => $day])) ?>');">
+      <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+      <input type="hidden" name="day" value="<?= e($day) ?>">
+      <input type="hidden" name="recreate" value="1">
+      <input type="hidden" name="ret" value="<?= e($fillRet) ?>">
+      <button type="submit" class="btn-secondary"><?= te('poll_invites.list.recreate_day') ?></button>
+    </form>
+  </div>
+<?php endif; ?>
 
 <?php if ($canDelete && $unfilledInFilter > 0): ?>
   <p class="muted poll-invites-unfilled-hint">
@@ -156,7 +230,6 @@ $procLabel = static function (array $u): string {
         <th><?= te('poll_invites.col.score') ?></th>
         <th><?= te('poll_invites.col.transcript') ?></th>
         <th><?= te('poll_invites.col.dates') ?></th>
-        <th><?= te('poll_invites.col.actions') ?></th>
       </tr>
     </thead>
     <tbody>
@@ -181,6 +254,10 @@ $procLabel = static function (array $u): string {
             <a href="/poll-invites/<?= (int)$u['id'] ?>/edit"><?= (int)$u['id'] ?></a>
           <?php else: ?>
             <?= (int)$u['id'] ?>
+          <?php endif; ?>
+          <?php if ($unviewed): ?>
+            <button type="submit" form="poll-invites-mark-form" class="btn-secondary btn-small"
+                    name="id" value="<?= (int)$u['id'] ?>"><?= te('poll_invites.unviewed.mark') ?></button>
           <?php endif; ?>
         </td>
         <td><?= e((string)(($u['poll_name'] ?? '') !== '' ? $u['poll_name'] : ('#' . $u['id_poll']))) ?></td>
@@ -209,29 +286,6 @@ $procLabel = static function (array $u): string {
         <td class="poll-invites-stack">
           <div><?= e(PollInvitesRepository::dtDisplay($askedAt)) ?></div>
           <div class="muted"><?= e(PollInvitesRepository::dtDisplay($doneAt)) ?></div>
-        </td>
-        <td class="nowrap">
-          <?php if ($unviewed): ?>
-            <button type="submit" form="poll-invites-mark-form" class="btn-secondary btn-small"
-                    name="id" value="<?= (int)$u['id'] ?>"><?= te('poll_invites.unviewed.mark') ?></button>
-          <?php endif; ?>
-          <?php if ($canEdit): ?>
-            <?php if ($doneAt < 1): ?>
-              <a href="/poll-invites/<?= (int)$u['id'] ?>/fill"><?= te('poll_invites.action.fill') ?></a>
-              ·
-            <?php endif; ?>
-            <a href="/poll-invites/<?= (int)$u['id'] ?>/edit"><?= te('poll_invites.action.edit') ?></a>
-          <?php endif; ?>
-          <?php
-            $recordIds = is_array($u['speech_record_ids'] ?? null) ? $u['speech_record_ids'] : [];
-            if ($canEdit && ModuleManager::isEnabled('audio') && $recordIds !== []):
-              foreach ($recordIds as $rid):
-          ?>
-            · <a href="/audio/<?= (int)$rid ?>" target="_blank" rel="noopener"><?= te('poll_invites.action.audio_record', ['id' => (int)$rid]) ?></a>
-          <?php
-              endforeach;
-            endif;
-          ?>
         </td>
       </tr>
     <?php endforeach; ?>

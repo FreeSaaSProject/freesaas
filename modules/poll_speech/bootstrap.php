@@ -14,11 +14,6 @@ Assets::register('poll_speech', [
 ]);
 
 $pages = [
-    '/poll-speech' => [
-        'permission' => 'poll_speech.view',
-        'methods' => ['GET'],
-        'file' => 'list.php',
-    ],
     '/poll-speech/settings' => [
         'permission' => 'poll_speech.edit',
         'capability' => 'SUPERADMIN_ACCESS',

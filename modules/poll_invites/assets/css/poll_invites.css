@@ -54,6 +54,29 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
+.poll-invites-score-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.poll-invites-speech-review {
+  margin: 0 0 1rem;
+}
+.poll-invites-speech-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
+}
+.poll-invites-speech-player,
+.poll-invites-speech-transcript {
+  margin: 0.75rem 0 0;
+}
+.poll-invites-speech-transcript .transcript {
+  max-height: 28rem;
+  overflow: auto;
+}
 .poll-invites-stack {
   display: flex;
   flex-direction: column;

@@ -50,7 +50,7 @@ View::render('settings', [
     'pollOptions' => $pollOptions,
     'dictKeys' => PollSpeechConfig::dictKeysForUi(),
     'breadcrumbs' => Breadcrumbs::withHome([
-        ['label' => t('poll_speech.menu.list'), 'href' => '/poll-speech'],
+        ['label' => t('poll_invites.menu.list'), 'href' => '/poll-invites'],
         ['label' => t('poll_speech.menu.settings'), 'current' => true],
     ]),
 ], 'layout', 'poll_speech');

@@ -27,7 +27,13 @@ $chk = static function (string $key) use ($row): string {
 
 <?php
 $staffMeta = is_array($staffMeta ?? null) ? $staffMeta : [];
+$canScoreEdit = !empty($canScoreEdit);
 require __DIR__ . '/_staff_scores.php';
+$speechAudio = is_array($speechAudio ?? null) ? $speechAudio : [];
+$activeRecordId = (int)($activeRecordId ?? 0);
+if ($speechAudio !== []) {
+    require __DIR__ . '/_speech_review.php';
+}
 ?>
 
 <form method="post" class="form-grid form-wide">

@@ -5,11 +5,28 @@ $uid = Auth::userId();
 $message = '';
 $error = '';
 
+$today = date('Y-m-d');
 $q = trim((string)($_GET['q'] ?? ''));
 $idPoll = (int)($_GET['id_poll'] ?? 0);
 $progress = (string)($_GET['progress'] ?? '');
 $idOperator = (int)($_GET['id_operator'] ?? 0);
 $idResp = (int)($_GET['id_resp'] ?? 0);
+
+// Absent day → today; progress=unviewed without day → all days; day=all → all.
+$dayRaw = array_key_exists('day', $_GET) ? trim((string)$_GET['day']) : null;
+if ($dayRaw === null) {
+    $day = ($progress === 'unviewed') ? '' : $today;
+} elseif ($dayRaw === '' || $dayRaw === 'all') {
+    $day = '';
+} elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dayRaw)) {
+    $day = $dayRaw;
+} else {
+    $day = $today;
+}
+
+$isToday = ($day === $today);
+$prevDay = $day !== '' ? date('Y-m-d', strtotime($day . ' -1 day') ?: time()) : '';
+$nextDay = $day !== '' ? date('Y-m-d', strtotime($day . ' +1 day') ?: time()) : '';
 
 $lq = ListQuery::resolve([
     'list_id' => 'poll_invites',
@@ -25,6 +42,7 @@ $listFilters = [
     'progress' => $progress,
     'id_operator' => $idOperator,
     'id_resp' => $idResp,
+    'day' => $day,
     'user_id' => $uid,
 ];
 
@@ -34,6 +52,7 @@ $filters = array_merge([
     'progress' => $progress,
     'id_operator' => $idOperator > 0 ? (string)$idOperator : '',
     'id_resp' => $idResp > 0 ? (string)$idResp : '',
+    'day' => $day !== '' ? $day : 'all',
 ], $lq['query']);
 if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
@@ -86,9 +105,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             redirect($ret);
             return;
         }
-        redirect('/poll-invites?progress=unviewed');
-        return;
+        redirect(ListQuery::url('/poll-invites', ['progress' => 'unviewed', 'day' => 'all']));
     }
+    return;
 }
 
 // UI $filters (incl. pager keys) for return URL; listWhere ignores unknown keys.
@@ -100,6 +119,7 @@ $result = PollInvitesRepository::list([
     'progress' => $progress,
     'id_operator' => $idOperator,
     'id_resp' => $idResp,
+    'day' => $day,
     'user_id' => $uid,
     'limit' => ListQuery::sqlLimit($lq),
     'offset' => $lq['offset'],
@@ -169,6 +189,11 @@ if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['poll_invites_lo
     }
 }
 
+$canSuper = Auth::capability('SUPERADMIN_ACCESS');
+$canSpeechFill = $canSuper
+    && ModuleManager::isEnabled('poll_speech')
+    && $day !== '';
+
 if (AgentHttp::wantsJson()) {
     AgentHttp::emit([
         'ok' => true,
@@ -177,6 +202,8 @@ if (AgentHttp::wantsJson()) {
         'unviewed_total' => $unviewedTotal,
         'unfilled_in_filter' => $unfilledInFilter,
         'progress' => $progress,
+        'day' => $day,
+        'today' => $today,
     ]);
     return;
 }
@@ -194,9 +221,15 @@ View::render('list', [
     'progress' => $progress,
     'idOperator' => $idOperator,
     'idResp' => $idResp,
+    'day' => $day,
+    'today' => $today,
+    'isToday' => $isToday,
+    'prevDay' => $prevDay,
+    'nextDay' => $nextDay,
     'pollNames' => $pollNames,
     'staffNames' => $staffNames,
-    'canEdit' => Auth::capability('SUPERADMIN_ACCESS'),
+    'canEdit' => $canSuper,
+    'canSpeechFill' => $canSpeechFill,
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],
     'page' => $lq['page'],

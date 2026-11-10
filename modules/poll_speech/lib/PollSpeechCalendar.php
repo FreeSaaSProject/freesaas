@@ -68,7 +68,7 @@ final class PollSpeechCalendar
         $renderMarked = static function (int $inviteId): string {
             return '<div class="calendar-info-actions poll-speech-oral">'
                 . '<span class="poll-speech-oral-done">' . e(t('poll_speech.oral.marked')) . '</span> '
-                . '<a href="/poll-speech?q=' . $inviteId . '" data-nav-no-ret>#' . $inviteId . '</a>'
+                . '<a href="/poll-invites/' . $inviteId . '/edit" data-nav-no-ret>#' . $inviteId . '</a>'
                 . '</div>';
         };
 

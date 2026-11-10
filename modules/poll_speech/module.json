@@ -2,7 +2,7 @@
     "id": "poll_speech",
     "name": "poll_speech.module.name",
     "description": "poll_speech.module.description",
-    "version": "0.1.16",
+    "version": "0.1.23",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -33,7 +33,6 @@
     ],
     "routes": {
         "pages": [
-            "/poll-speech",
             "/poll-speech/settings",
             "/poll-speech/fill-day"
         ]
@@ -41,30 +40,6 @@
     "agent": {
         "docs": "docs/agents/poll_speech.md",
         "ops": [
-            {
-                "id": "poll_speech.list",
-                "method": "GET",
-                "path": "/poll-speech",
-                "permission": "poll_speech.view",
-                "description": "List oral invites pending/filled from speech; filters: day, progress, q",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "day": {
-                            "type": "string",
-                            "description": "YYYY-MM-DD (procedure day)"
-                        },
-                        "progress": {
-                            "type": "string",
-                            "description": "open|speech|done|empty; speech=filled from ASR"
-                        },
-                        "q": {
-                            "type": "integer",
-                            "description": "Invite id"
-                        }
-                    }
-                }
-            },
             {
                 "id": "poll_speech.settings",
                 "method": "GET",
@@ -122,17 +97,17 @@
                 "path": "/poll-speech/fill-day",
                 "permission": "poll_speech.edit",
                 "side_effect": "write",
-                "description": "Fill oral invites from speech for a day; recreate=1 rebuilds all (superadmin)",
+                "description": "Fill oral invites from speech for a day; recreate=1 rebuilds that day (superadmin)",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "day": {
                             "type": "string",
-                            "description": "YYYY-MM-DD (ignored when recreate=1)"
+                            "description": "YYYY-MM-DD procedure day (default today; required scope for recreate=1)"
                         },
                         "recreate": {
                             "type": "string",
-                            "description": "1 = wipe+rebuild speech invites (SUPERADMIN)"
+                            "description": "1 = wipe+rebuild speech invites for day (SUPERADMIN)"
                         }
                     }
                 }
@@ -141,13 +116,6 @@
     },
     "jobs": [],
     "menu": [
-        {
-            "group": "polls.menu.group",
-            "num": 30,
-            "path": "/poll-speech",
-            "title": "poll_speech.menu.list",
-            "kind": "work"
-        },
         {
             "group": "polls.menu.group",
             "num": 90,
@@ -210,6 +178,17 @@
                 "cfg/modules/poll_speech.ini"
             ],
             "description": "poll_speech.migrator.seed_and_backfill_oct_nov"
+        },
+        {
+            "id": "purge_without_snippet",
+            "mode": "transform",
+            "source": [
+                "base_poll_invites"
+            ],
+            "target": [
+                "base_poll_invites"
+            ],
+            "description": "poll_speech.migrator.purge_without_snippet"
         }
     ],
     "hooks": {

@@ -41,7 +41,7 @@ if (!$isNew) {
 
 $message = '';
 $error = '';
-
+$canSuper = Auth::capability('SUPERADMIN_ACCESS');
 
 if (!$isNew && EntityDelete::tryHandle('poll_invites', $id, '/poll-invites', [
     'stay_path' => '/poll-invites/' . $id . '/edit',
@@ -50,23 +50,62 @@ if (!$isNew && EntityDelete::tryHandle('poll_invites', $id, '/poll-invites', [
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    try {
-        $data = PollInvitesRepository::dataFromPost($_POST, $isNew ? null : $row);
-        if ($isNew) {
-            $newId = PollInvitesRepository::create($data);
-            if (AgentHttp::wantsJson()) {
-                AgentHttp::emit(['ok' => true, 'id' => $newId]);
-                return;
-            }
-            redirect('/poll-invites/' . $newId . '/edit?saved=1');
+    $action = trim((string)($_POST['action'] ?? ''));
+    if ($action === 'set_score' && !$isNew) {
+        if (class_exists('Csrf', false) && !AgentHttp::wantsJson() && !Csrf::verify()) {
+            Csrf::deny('csrf');
             return;
         }
-        PollInvitesRepository::update($id, $data);
-        $message = t('core.common.saved');
-        $row = PollInvitesRepository::find($id) ?: $row;
-    } catch (Throwable $e) {
-        $error = $e->getMessage();
-        $row = array_merge($row, $_POST);
+        if (!$canSuper) {
+            if (AgentHttp::wantsJson()) {
+                AgentHttp::error(t('poll_invites.err.forbidden'), 403);
+                return;
+            }
+            flash_set('error', t('poll_invites.err.forbidden'));
+            redirect('/poll-invites/' . $id . '/edit');
+            return;
+        }
+        if (!ModuleManager::isEnabled('poll_speech') || !class_exists('PollSpeechFiller', false)) {
+            $error = t('poll_invites.err.speech_score');
+        } else {
+            try {
+                $score = (int)($_POST['score'] ?? 0);
+                PollSpeechFiller::applyManualScore($id, $score);
+                if (AgentHttp::wantsJson()) {
+                    AgentHttp::emit(['ok' => true, 'id' => $id, 'score' => $score]);
+                    return;
+                }
+                flash_set('ok', t('poll_invites.score.saved', ['score' => $score]));
+                redirect('/poll-invites/' . $id . '/edit');
+                return;
+            } catch (Throwable $e) {
+                AgentHttp::rethrowIfCapture($e);
+                $error = $e->getMessage();
+                if (AgentHttp::wantsJson()) {
+                    AgentHttp::error($error, 400);
+                    return;
+                }
+            }
+        }
+    } else {
+        try {
+            $data = PollInvitesRepository::dataFromPost($_POST, $isNew ? null : $row);
+            if ($isNew) {
+                $newId = PollInvitesRepository::create($data);
+                if (AgentHttp::wantsJson()) {
+                    AgentHttp::emit(['ok' => true, 'id' => $newId]);
+                    return;
+                }
+                redirect('/poll-invites/' . $newId . '/edit?saved=1');
+                return;
+            }
+            PollInvitesRepository::update($id, $data);
+            $message = t('core.common.saved');
+            $row = PollInvitesRepository::find($id) ?: $row;
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+            $row = array_merge($row, $_POST);
+        }
     }
 }
 
@@ -96,9 +135,62 @@ $staffMeta = $isNew ? [
     'admin_name' => '',
     'score_staff' => null,
     'score_service' => null,
+    'score' => null,
     'has_scores' => false,
     'has_staff' => false,
+    'speech_record_ids' => [],
 ] : PollInvitesRepository::staffScoreMeta($row, $staff);
+
+$canScoreEdit = $canSuper
+    && !$isNew
+    && ModuleManager::isEnabled('poll_speech')
+    && class_exists('PollSpeechConfig', false)
+    && (PollSpeechConfig::qidStaff() > 0 || PollSpeechConfig::qidService() > 0)
+    && (PollSpeechConfig::answersStaff() !== [] || PollSpeechConfig::answersService() !== []);
+
+$speechAudio = [];
+$activeRecordId = max(0, (int)($_GET['record'] ?? 0));
+if ($canSuper && !$isNew && ModuleManager::isEnabled('audio')) {
+    $recordIds = PollInvitesRepository::speechRecordIdsFromLog((string)($row['log'] ?? ''));
+    if ($recordIds !== []) {
+        require_once base_path('modules/audio/lib/RecordsRepository.php');
+        require_once base_path('modules/audio/lib/TranscriptHighlighter.php');
+        require_once base_path('modules/audio/lib/FileStorage.php');
+        Assets::need('audio');
+        $storage = FileStorage::fromSettings();
+        $demoBlock = class_exists('DemoMode', false) && DemoMode::readonly();
+        $trash = RecordsRepository::trashPhrases();
+        foreach ($recordIds as $rid) {
+            $rec = RecordsRepository::find($rid);
+            if ($rec === null) {
+                continue;
+            }
+            $playUrl = '';
+            if (!$demoBlock) {
+                $rel = RecordsRepository::playbackRelativePath($rec);
+                if ($rel !== '') {
+                    $playUrl = $storage->getPlaybackUrl($rel);
+                }
+            }
+            $instances = RecordsRepository::instancesForRecords([$rid]);
+            $transcript = TranscriptHighlighter::render(
+                (string)($rec['transcription'] ?? ''),
+                $instances,
+                $trash
+            );
+            $speechAudio[] = [
+                'id' => $rid,
+                'play_url' => $playUrl,
+                'transcript_html' => (string)($transcript['html'] ?? ''),
+                'lines' => (int)($transcript['lines'] ?? 0),
+                'keys' => (int)($transcript['keys'] ?? 0),
+            ];
+        }
+        if ($activeRecordId < 1 && $speechAudio !== []) {
+            $activeRecordId = (int)$speechAudio[0]['id'];
+        }
+    }
+}
 
 View::render('edit', [
     'title' => $isNew
@@ -110,6 +202,9 @@ View::render('edit', [
     'staff' => $staff,
     'staffMeta' => $staffMeta,
     'showAudioLinks' => true,
+    'canScoreEdit' => $canScoreEdit,
+    'speechAudio' => $speechAudio,
+    'activeRecordId' => $activeRecordId,
     'message' => $message,
     'error' => $error,
     'breadcrumbs' => Breadcrumbs::withHome([

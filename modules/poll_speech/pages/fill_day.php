@@ -7,7 +7,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
         return;
     }
     flash_set('error', t('poll_speech.err.method'));
-    redirect('/poll-speech');
+    redirect('/poll-invites');
 }
 
 if (class_exists('Csrf', false) && !AgentHttp::wantsJson() && !Csrf::verify()) {
@@ -17,9 +17,24 @@ if (class_exists('Csrf', false) && !AgentHttp::wantsJson() && !Csrf::verify()) {
 
 $recreate = !empty($_POST['recreate']) || !empty($_GET['recreate']);
 $day = trim((string)($_POST['day'] ?? $_GET['day'] ?? ''));
-if (!$recreate && ($day === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $day))) {
+if ($day === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
     $day = date('Y-m-d');
 }
+
+$ret = trim((string)($_POST['ret'] ?? $_GET['ret'] ?? ''));
+$retOk = $ret !== '' && str_starts_with($ret, '/poll-invites');
+
+$listRedirect = static function (string $day, string $progress = '') use ($ret, $retOk): void {
+    if ($retOk) {
+        redirect($ret);
+        return;
+    }
+    $qs = ['day' => $day];
+    if ($progress !== '') {
+        $qs['progress'] = $progress;
+    }
+    redirect(ListQuery::url('/poll-invites', $qs));
+};
 
 if ($recreate) {
     if (!Auth::capability('SUPERADMIN_ACCESS')) {
@@ -28,14 +43,16 @@ if ($recreate) {
             return;
         }
         flash_set('error', t('poll_speech.err.forbidden'));
-        redirect('/poll-speech');
+        $listRedirect($day);
+        return;
     }
-    $result = PollSpeechFiller::recreateAllFromSpeech();
+    $result = PollSpeechFiller::recreateAllFromSpeech(['date' => $day]);
     if (AgentHttp::wantsJson()) {
         AgentHttp::emit(array_merge(['ok' => !empty($result['ok']), 'mode' => 'recreate'], $result));
         return;
     }
     $msg = t('poll_speech.recreate.done', [
+        'date' => $day,
         'deleted' => (string)(int)$result['deleted'],
         'created' => (string)(int)$result['created'],
         'filled' => (string)(int)$result['filled'],
@@ -48,7 +65,8 @@ if ($recreate) {
     } else {
         flash_set('ok', $msg);
     }
-    redirect('/poll-speech?progress=speech');
+    $listRedirect($day);
+    return;
 }
 
 $result = PollSpeechFiller::fillDay(['date' => $day]);
@@ -70,4 +88,4 @@ if (!empty($result['errors'])) {
 } else {
     flash_set('ok', $msg);
 }
-redirect('/poll-speech?day=' . rawurlencode($day));
+$listRedirect($day);

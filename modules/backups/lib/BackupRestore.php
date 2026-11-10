@@ -192,49 +192,49 @@ final class BackupRestore
     }
 
     /**
-     * Stream the whole dump: every SQL statement must end with `;` (quote-aware).
-     * Truncated INSERT / open string at EOF → fail. Does not execute SQL.
+     * Integrity gate before DROP (does not execute dump SQL).
      *
-     * @return array{ok:bool,error:string,statements?:int}
+     * - `.sql.gz`: native `gzip -t` (CRC of full member). Truncated/corrupt gzip fails.
+     *   Full quote-aware SQL scan of hundreds of MiB in PHP hung HTTP workers — do not do that.
+     * - plain `.sql`: quote-aware stream; incomplete statement at EOF fails.
+     *   Soft cap ~48 MiB plain text so a runaway file cannot wedgereplica ticks.
+     *
+     * @return array{ok:bool,error:string,statements?:int,method?:string}
      */
     public static function assertDumpStatementsComplete(string $path): array
     {
         if (preg_match('/\.gz$/i', $path)) {
-            $fh = @gzopen($path, 'rb');
-            if ($fh === false) {
-                return ['ok' => false, 'error' => 'cannot gunzip dump'];
+            $gzOk = self::gzipTestsOk($path);
+            if (empty($gzOk['ok'])) {
+                return ['ok' => false, 'error' => (string)($gzOk['error'] ?? 'gzip test failed'), 'method' => 'gzip -t'];
             }
-            $read = static function () use ($fh) {
-                if (gzeof($fh)) {
-                    return false;
-                }
-                $c = gzread($fh, 65536);
-                return ($c === false || $c === '') ? false : $c;
-            };
-            $close = static function () use ($fh): void {
-                gzclose($fh);
-            };
-        } else {
-            $fh = fopen($path, 'rb');
-            if ($fh === false) {
-                return ['ok' => false, 'error' => 'cannot open dump'];
-            }
-            $read = static function () use ($fh) {
-                if (feof($fh)) {
-                    return false;
-                }
-                $c = fread($fh, 65536);
-                return ($c === false || $c === '') ? false : $c;
-            };
-            $close = static function () use ($fh): void {
-                fclose($fh);
-            };
+            // CRC covers the full uncompressed stream — truncated mid-INSERT breaks gzip.
+            return ['ok' => true, 'error' => '', 'method' => 'gzip -t'];
         }
 
+        $fh = fopen($path, 'rb');
+        if ($fh === false) {
+            return ['ok' => false, 'error' => 'cannot open dump'];
+        }
+        $maxPlain = 48 * 1024 * 1024;
+        $readBytes = 0;
         $scan = self::sqlScanStateNew();
         $statements = 0;
         try {
-            while (($chunk = $read()) !== false) {
+            while (!feof($fh)) {
+                $chunk = fread($fh, 65536);
+                if ($chunk === false || $chunk === '') {
+                    break;
+                }
+                $readBytes += strlen($chunk);
+                if ($readBytes > $maxPlain) {
+                    return [
+                        'ok' => false,
+                        'error' => 'plain dump exceeds ' . (string)$maxPlain . ' bytes — refuse sync preflight (use .sql.gz)',
+                        'statements' => $statements,
+                        'method' => 'plain-scan',
+                    ];
+                }
                 if ($statements === 0 && $scan['buf'] === '' && strncmp($chunk, "\xEF\xBB\xBF", 3) === 0) {
                     $chunk = substr($chunk, 3);
                 }
@@ -247,14 +247,54 @@ final class BackupRestore
                     'ok' => false,
                     'error' => 'dump ends with an incomplete SQL statement' . ($hint !== '' ? ' (' . $hint . ')' : ''),
                     'statements' => $statements,
+                    'method' => 'plain-scan',
                 ];
             }
             if ($statements < 1) {
-                return ['ok' => false, 'error' => 'dump has no SQL statements', 'statements' => 0];
+                return ['ok' => false, 'error' => 'dump has no SQL statements', 'statements' => 0, 'method' => 'plain-scan'];
             }
-            return ['ok' => true, 'error' => '', 'statements' => $statements];
+            return ['ok' => true, 'error' => '', 'statements' => $statements, 'method' => 'plain-scan'];
         } finally {
-            $close();
+            fclose($fh);
+        }
+    }
+
+    /**
+     * Native gzip CRC check (streams once in C — safe for large light packs).
+     *
+     * @return array{ok:bool,error:string}
+     */
+    private static function gzipTestsOk(string $path): array
+    {
+        $bin = is_file('/usr/bin/gzip') ? '/usr/bin/gzip'
+            : (is_file('/bin/gzip') ? '/bin/gzip' : '');
+        if ($bin !== '') {
+            $out = [];
+            $code = 1;
+            @exec($bin . ' -t ' . escapeshellarg($path) . ' 2>&1', $out, $code);
+            if ($code === 0) {
+                return ['ok' => true, 'error' => ''];
+            }
+            return ['ok' => false, 'error' => 'gzip -t failed: ' . trim(implode(' ', $out))];
+        }
+        // Fallback: inflate fully via zlib (slower than gzip -t, still faster than SQL scan).
+        $gz = @gzopen($path, 'rb');
+        if ($gz === false) {
+            return ['ok' => false, 'error' => 'cannot gunzip dump'];
+        }
+        try {
+            while (!gzeof($gz)) {
+                $c = gzread($gz, 1024 * 1024);
+                if ($c === false) {
+                    return ['ok' => false, 'error' => 'gzip inflate failed mid-stream'];
+                }
+                if ($c === '') {
+                    break;
+                }
+            }
+            return ['ok' => true, 'error' => ''];
+        } finally {
+            gzclose($gz);
         }
     }
 

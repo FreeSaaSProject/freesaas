@@ -21,7 +21,7 @@ final class PollInvitesRepository
      *
      * @param array{
      *   q?:string,id_poll?:int|string,progress?:string,id_operator?:int|string,id_resp?:int|string,
-     *   user_id?:int
+     *   day?:string,user_id?:int
      * } $opts
      * @return array{sql:string,params:list<mixed>}
      */
@@ -30,6 +30,20 @@ final class PollInvitesRepository
         $where = ['1=1'];
         $params = [];
         $hasProcStaff = Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR');
+
+        $day = trim((string)($opts['day'] ?? ''));
+        if ($day !== '' && $day !== 'all' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)
+            && Database::tableExists('base_procedures')
+        ) {
+            $from = (int)strtotime($day . ' 00:00:00');
+            $to = (int)strtotime($day . ' 23:59:59');
+            $where[] = 'EXISTS (
+                SELECT 1 FROM base_procedures prd
+                WHERE prd.ID = i.ID_PROC AND prd.DTSTART >= ? AND prd.DTSTART <= ?
+            )';
+            $params[] = $from;
+            $params[] = $to;
+        }
 
         $q = trim((string)($opts['q'] ?? ''));
         if ($q !== '') {
@@ -114,16 +128,18 @@ final class PollInvitesRepository
      */
     public static function hasListScope(array $filters): bool
     {
+        $day = trim((string)($filters['day'] ?? ''));
         return (int)($filters['id_poll'] ?? 0) > 0
             || trim((string)($filters['progress'] ?? '')) !== ''
             || trim((string)($filters['q'] ?? '')) !== ''
             || (int)($filters['id_operator'] ?? 0) > 0
-            || (int)($filters['id_resp'] ?? 0) > 0;
+            || (int)($filters['id_resp'] ?? 0) > 0
+            || ($day !== '' && $day !== 'all' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $day));
     }
 
     /**
      * @param array{
-     *   q?:string,id_poll?:int,progress?:string,id_operator?:int,id_resp?:int,
+     *   q?:string,id_poll?:int,progress?:string,id_operator?:int,id_resp?:int,day?:string,
      *   order?:string,limit?:int,offset?:int
      * } $opts
      * @return array{items:list<array<string,mixed>>,total:int}

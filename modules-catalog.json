@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-09T19:10:40+00:00",
+    "generated_at": "2026-11-10T09:12:00+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -426,7 +426,7 @@
         },
         {
             "id": "backups",
-            "version": "0.4.14",
+            "version": "0.4.15",
             "type": "product",
             "name": {
                 "en": "Backups",
@@ -1559,7 +1559,7 @@
         },
         {
             "id": "poll_invites",
-            "version": "0.1.30",
+            "version": "0.1.32",
             "type": "product",
             "name": {
                 "en": "Poll invites",
@@ -1599,7 +1599,7 @@
         },
         {
             "id": "poll_speech",
-            "version": "0.1.16",
+            "version": "0.1.23",
             "type": "product",
             "name": {
                 "en": "Speech polls",

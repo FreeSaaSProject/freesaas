@@ -5,23 +5,38 @@ declare(strict_types=1);
 final class PollSpeechRepository
 {
     /**
-     * All oral marks (for recreate), newest last.
+     * Oral marks for recreate (optionally limited to procedure day YYYY-MM-DD).
      *
      * @return list<array<string,mixed>>
      */
-    public static function listAllOralMarks(): array
+    public static function listAllOralMarks(?string $day = null): array
     {
         if (!Database::tableExists('base_poll_invites')) {
             return [];
         }
-        $join = Database::tableExists('base_procedures')
-            ? 'LEFT JOIN base_procedures p ON p.ID = i.ID_PROC'
+        $day = $day !== null ? trim($day) : null;
+        $dayOk = $day !== null && $day !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $day);
+        $hasProc = Database::tableExists('base_procedures');
+        if ($dayOk && !$hasProc) {
+            return [];
+        }
+        $join = $hasProc
+            ? ($dayOk
+                ? 'INNER JOIN base_procedures p ON p.ID = i.ID_PROC'
+                : 'LEFT JOIN base_procedures p ON p.ID = i.ID_PROC')
             : '';
         $procCols = $join !== ''
             ? ', p.DTSTART AS proc_dtstart, p.DTEND AS proc_dtend, p.ID_OPERATOR AS proc_operator, p.ID_ADMIN AS proc_admin, p.ID_USER AS proc_user, p.SUMM AS proc_summ, p.ID_EVENT_PARENT AS proc_event_parent'
             : '';
-        $st = Database::pdo()->query(
-            "SELECT i.ID AS id, i.ID_POLL AS id_poll, i.ID_USER AS id_user, i.ID_PROC AS id_proc,
+        $where = "i.ID_PROC > 0
+               AND (i.CODE = '' OR i.LOG LIKE '%[ORAL_ASKED]%' OR i.LOG LIKE '%[POLL_SPEECH]%')";
+        $params = [];
+        if ($dayOk) {
+            $where .= ' AND p.DTSTART >= ? AND p.DTSTART <= ?';
+            $params[] = (int)strtotime($day . ' 00:00:00');
+            $params[] = (int)strtotime($day . ' 23:59:59');
+        }
+        $sql = "SELECT i.ID AS id, i.ID_POLL AS id_poll, i.ID_USER AS id_user, i.ID_PROC AS id_proc,
                     i.ID_EVENT AS id_event, i.ID_OPERATOR_LINKED AS id_operator_linked,
                     i.ID_OPERATOR_CREATE AS id_operator_create, i.RESP_USERS AS resp_users,
                     i.DATA_OPTS AS data_opts, i.DATA_TEXT AS data_text,
@@ -32,10 +47,15 @@ final class PollSpeechRepository
                     $procCols
              FROM base_poll_invites i
              $join
-             WHERE i.ID_PROC > 0
-               AND (i.CODE = '' OR i.LOG LIKE '%[ORAL_ASKED]%' OR i.LOG LIKE '%[POLL_SPEECH]%')
-             ORDER BY i.ID ASC"
-        );
+             WHERE $where
+             ORDER BY i.ID ASC";
+        $pdo = Database::pdo();
+        if ($params !== []) {
+            $st = $pdo->prepare($sql);
+            $st->execute($params);
+            return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        }
+        $st = $pdo->query($sql);
         return $st ? ($st->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
     }
 

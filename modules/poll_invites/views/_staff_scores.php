@@ -69,7 +69,23 @@ if ($procStart > 0) {
     </div>
     <div>
       <dt><?= te('poll_invites.field.score') ?></dt>
-      <dd class="poll-invites-score"><?= $score !== null && (int)$score >= 1 ? (int)$score : '—' ?></dd>
+      <dd class="poll-invites-score">
+        <?php if (!empty($canScoreEdit)): ?>
+          <form method="post" class="inline-form poll-invites-score-form" action="">
+            <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+            <input type="hidden" name="action" value="set_score">
+            <select name="score" aria-label="<?= te('poll_invites.field.score') ?>">
+              <option value="0">—</option>
+              <?php for ($n = 1; $n <= 10; $n++): ?>
+                <option value="<?= $n ?>"<?= ($score !== null && (int)$score === $n) ? ' selected' : '' ?>><?= $n ?></option>
+              <?php endfor; ?>
+            </select>
+            <button type="submit" class="btn-secondary btn-sm"><?= te('poll_invites.score.save') ?></button>
+          </form>
+        <?php else: ?>
+          <?= $score !== null && (int)$score >= 1 ? (int)$score : '—' ?>
+        <?php endif; ?>
+      </dd>
     </div>
     <div>
       <dt><?= te('poll_invites.field.executor') ?></dt>
