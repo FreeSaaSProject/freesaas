@@ -259,7 +259,7 @@ Not part of `/cron/tick`. Messenger voice queue (`/asr/voice-transcribe/*`) is a
 
 ### 6.1 Push mode (FreeSaaS → worker, inbound HTTPS)
 
-Alternative to polling: FreeSaaS Cron (`audio_pipeline.asr_push`, every 5 min) calls the worker, sends jobs, collects results and acks them. The worker keeps every result in `var/push/queue.db` until FreeSaaS confirms; audio is deleted right after recognition. Pull and push may run together (`modes.pull` + `modes.push`) and with several workers — server-side leases prevent double dispatch. Server side: [audio_pipeline.md](audio_pipeline.md) § Dispatch channels.
+Alternative to polling: FreeSaaS Cron (`audio_pipeline.asr_push`, every `asr_push_every_min`, default 2 min; host `/cron/tick` must run at least that often) calls the worker, sends jobs, collects results and acks them. The worker keeps every result in `var/push/queue.db` until FreeSaaS confirms; audio is deleted right after recognition. Pull and push may run together (`modes.pull` + `modes.push`) and with several workers — server-side leases prevent double dispatch. Server side: [audio_pipeline.md](audio_pipeline.md) § Dispatch channels.
 
 **Network prerequisites (new client / new site):**
 

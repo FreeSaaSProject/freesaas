@@ -25,6 +25,13 @@ final class AsrLease
         return (string)Config::get('audio', 'asr_push_enabled', '0') === '1';
     }
 
+    /** Cron interval of audio_pipeline.asr_push (minutes; host tick must be at least this frequent). */
+    public static function pushEveryMin(): int
+    {
+        $n = (int)Config::get('audio', 'asr_push_every_min', 2);
+        return max(1, min(60, $n > 0 ? $n : 2));
+    }
+
     public static function pullTtl(): int
     {
         $n = (int)Config::get('audio', 'asr_pull_lease_ttl_sec', 1800);

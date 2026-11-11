@@ -16,8 +16,8 @@ final class AsrPushAgentOps
             'body' => ['confirm', 'worker', 'test'],
         ]);
         AgentOps::registerModuleOp('POST', '/agent/audio_pipeline/asr-push/config', 'audio_pipeline.asr_push_config', [self::class, 'config'], [
-            'description' => 'Set ASR dispatch switches (confirm=1); pull=0|1, push=0|1 (omit to keep)',
-            'body' => ['confirm', 'pull', 'push'],
+            'description' => 'Set ASR dispatch switches (confirm=1); pull=0|1, push=0|1, every_min=1..60 push sync interval (omit to keep)',
+            'body' => ['confirm', 'pull', 'push', 'every_min'],
         ]);
         AgentOps::registerModuleOp('POST', '/agent/audio_pipeline/asr-push/worker', 'audio_pipeline.asr_push_worker', [self::class, 'worker'], [
             'description' => 'Manage push worker (confirm=1): action=create|update|rotate|promote|delete; id, name, base_url, pin, max_inflight, enabled. Secret returned once on create/rotate',
@@ -71,6 +71,7 @@ final class AsrPushAgentOps
             'tables_ready' => $ready,
             'pull_enabled' => AsrLease::pullEnabled(),
             'push_enabled' => AsrLease::pushEnabled(),
+            'push_every_min' => AsrLease::pushEveryMin(),
             'pending_records' => $ready ? AsrLease::pendingCount() : null,
             'leases' => $ready ? AsrLease::counts() : null,
             'workers' => $workers,
@@ -89,10 +90,18 @@ final class AsrPushAgentOps
                 Config::set('audio', $key, self::truthy($in[$field]) ? '1' : '0');
             }
         }
+        if (array_key_exists('every_min', $in)) {
+            $n = (int)$in['every_min'];
+            if ($n < 1 || $n > 60) {
+                return ['ok' => false, 'error' => 'every_min must be 1..60', 'http' => 400];
+            }
+            Config::set('audio', 'asr_push_every_min', (string)$n);
+        }
         $out = [
             'ok' => true,
             'pull_enabled' => AsrLease::pullEnabled(),
             'push_enabled' => AsrLease::pushEnabled(),
+            'push_every_min' => AsrLease::pushEveryMin(),
         ];
         if (!$out['pull_enabled'] && !$out['push_enabled']) {
             $out['warning'] = 'both channels off — nothing transcribes';

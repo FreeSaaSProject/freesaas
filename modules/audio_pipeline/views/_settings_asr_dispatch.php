@@ -4,6 +4,7 @@ declare(strict_types=1);
  * @var bool $tablesReady
  * @var bool $pullEnabled
  * @var bool $pushEnabled
+ * @var int $pushEveryMin
  * @var array{active_pull:int,active_push:int} $counts
  * @var int $pending
  * @var list<array<string,mixed>> $workers
@@ -42,6 +43,12 @@ $fmtTime = static function (int $ts): string {
     <?= te('audio_pipeline.asr.push') ?>
   </label>
   <p class="muted small"><?= te('audio_pipeline.asr.push_hint') ?></p>
+  <div class="form-row-inline">
+    <label><?= te('audio_pipeline.asr.every_min') ?>
+      <input type="number" min="1" max="60" name="asr_push_every_min" value="<?= (int)($pushEveryMin ?? 2) ?>" style="width:5em">
+    </label>
+  </div>
+  <p class="muted small"><?= te('audio_pipeline.asr.every_min_hint') ?></p>
   <?php if ($tablesReady): ?>
     <p class="muted small"><?= te('audio_pipeline.asr.queue_state', [
         'pending' => (int)$pending,

@@ -18,6 +18,7 @@ final class AsrDispatchSettings
             'tablesReady' => $ready,
             'pullEnabled' => AsrLease::pullEnabled(),
             'pushEnabled' => AsrLease::pushEnabled(),
+            'pushEveryMin' => AsrLease::pushEveryMin(),
             'counts' => $ready ? AsrLease::counts() : ['active_pull' => 0, 'active_push' => 0],
             'pending' => $ready ? AsrLease::pendingCount() : 0,
             'workers' => $ready ? AsrPushWorkers::all() : [],
@@ -41,6 +42,9 @@ final class AsrDispatchSettings
         $push = !empty($post['asr_push_enabled']);
         Config::set('audio', 'asr_pull_enabled', $pull ? '1' : '0');
         Config::set('audio', 'asr_push_enabled', $push ? '1' : '0');
+        if (isset($post['asr_push_every_min'])) {
+            Config::set('audio', 'asr_push_every_min', (string)max(1, min(60, (int)$post['asr_push_every_min'])));
+        }
         if (!$pull && !$push) {
             $warnings[] = t('audio_pipeline.asr.warn_both_off');
         }

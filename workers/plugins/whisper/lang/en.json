@@ -18,6 +18,7 @@
   "activity.claim": "polling FreeSaaS",
   "activity.idle_no_files": "no files",
   "activity.idle_sleep": "next claim in {sec}s",
+  "activity.push_wait": "waiting for FreeSaaS jobs",
   "activity.stem": "idle analytics / stem",
   "activity.download": "{name}",
   "activity.transcribe": "{name}",

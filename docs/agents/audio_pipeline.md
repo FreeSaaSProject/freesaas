@@ -141,7 +141,8 @@ Two independent switches in `cfg/modules/audio.ini` `[audio]` (UI `/audio/settin
 | Key | Default | Meaning |
 |-----|---------|---------|
 | `asr_pull_enabled` | `1` | Workers poll `/audio/asr/claim` (returns `None` when off) |
-| `asr_push_enabled` | `0` | Cron `audio_pipeline.asr_push` (every 5 min) hands records to inbound push workers |
+| `asr_push_enabled` | `0` | Cron `audio_pipeline.asr_push` hands records to inbound push workers |
+| `asr_push_every_min` | `2` | Push sync interval (1–60 min); needs host `/cron/tick` at least that often (e.g. every minute) |
 | `asr_pull_lease_ttl_sec` | `1800` | Pull lease; released on result; record returns after TTL if the worker died |
 | `asr_push_lease_ttl_sec` | `21600` | Push lease; extended on every sync while the worker still holds the job |
 
@@ -167,7 +168,7 @@ curl -sS "${H[@]}" -X POST -d 'confirm=1&worker=1&test=1' "$HOST/agent/audio_pip
 curl -sS "${H[@]}" -X POST --data-urlencode 'pin=<SPKI>' \
   -d 'confirm=1&action=create&name=macstudio&base_url=https://203.0.113.10:18443' "$HOST/agent/audio_pipeline/asr-push/worker"
 curl -sS "${H[@]}" -X POST -d 'confirm=1&action=update&id=1&enabled=1' "$HOST/agent/audio_pipeline/asr-push/worker"
-curl -sS "${H[@]}" -X POST -d 'confirm=1&push=1&pull=0' "$HOST/agent/audio_pipeline/asr-push/config"
+curl -sS "${H[@]}" -X POST -d 'confirm=1&push=1&pull=0&every_min=2' "$HOST/agent/audio_pipeline/asr-push/config"
 ```
 
 ### After ASR (instead of `recordParser3.php`)

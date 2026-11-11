@@ -18,6 +18,7 @@
   "activity.claim": "опрос FreeSaaS",
   "activity.idle_no_files": "нет файлов",
   "activity.idle_sleep": "следующий claim через {sec}с",
+  "activity.push_wait": "ждём задания от FreeSaaS",
   "activity.stem": "аналитика / stem",
   "activity.download": "{name}",
   "activity.transcribe": "{name}",

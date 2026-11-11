@@ -69,7 +69,10 @@ def idle_sleep(total_sec: int) -> None:
 	chunk = 15
 	left = total
 	while left > 0:
-		set_activity("idle", tl("activity.idle_sleep", sec=left))
+		if PULL_ENABLED:
+			set_activity("idle", tl("activity.idle_sleep", sec=left))
+		else:
+			set_activity("idle", tl("activity.push_wait"))
 		step = min(chunk, left)
 		if PUSH_WAKE is not None:
 			if PUSH_WAKE.wait(step):

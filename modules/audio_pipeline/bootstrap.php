@@ -137,7 +137,7 @@ Cron::register('audio_pipeline.stem_nightly', [
 Cron::register('audio_pipeline.asr_push', [
     'module' => 'audio_pipeline',
     'label' => 'audio_pipeline.cron.asr_push',
-    'every' => 5,
+    'every' => AsrLease::pushEveryMin(),
     'handler' => static function (): array {
         $out = AsrPushDispatcher::syncAll();
         return [
