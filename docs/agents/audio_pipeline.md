@@ -65,6 +65,8 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `audio_pipeline.jobs.collect` | GET|POST | `/audio/jobs/collect` |
 | `audio_pipeline.asr_push_status` | GET | `/agent/audio_pipeline/asr-push/status` (agent_token; switches, leases, push workers — no secrets) |
 | `audio_pipeline.asr_push_sync` | POST | `/agent/audio_pipeline/asr-push/sync` (agent_token; `confirm=1`, optional `worker=<id>`, `test=1`) |
+| `audio_pipeline.asr_push_config` | POST | `/agent/audio_pipeline/asr-push/config` (agent_token; `confirm=1`, `pull=0|1`, `push=0|1`) |
+| `audio_pipeline.asr_push_worker` | POST | `/agent/audio_pipeline/asr-push/worker` (agent_token; `confirm=1`, `action=create|update|rotate|promote|delete`; secret returned once) |
 
 ```bash
 curl -sS -b jar.txt 'https://example/audio/asr/claim?format=json'
@@ -161,6 +163,11 @@ Security: HTTPS only, worker cert is self-signed and trusted via SPKI pin (`CURL
 H=(-H "X-FreeSaaS-Agent-Token: $TOKEN" -H "Accept: application/json")
 curl -sS "${H[@]}" "$HOST/agent/audio_pipeline/asr-push/status"
 curl -sS "${H[@]}" -X POST -d 'confirm=1&worker=1&test=1' "$HOST/agent/audio_pipeline/asr-push/sync"
+# Register a worker (secret in the response — put it into worker push.secret, never into chat/logs)
+curl -sS "${H[@]}" -X POST --data-urlencode 'pin=<SPKI>' \
+  -d 'confirm=1&action=create&name=macstudio&base_url=https://203.0.113.10:18443' "$HOST/agent/audio_pipeline/asr-push/worker"
+curl -sS "${H[@]}" -X POST -d 'confirm=1&action=update&id=1&enabled=1' "$HOST/agent/audio_pipeline/asr-push/worker"
+curl -sS "${H[@]}" -X POST -d 'confirm=1&push=1&pull=0' "$HOST/agent/audio_pipeline/asr-push/config"
 ```
 
 ### After ASR (instead of `recordParser3.php`)

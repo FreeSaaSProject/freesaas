@@ -1,7 +1,7 @@
 {
   "id": "whisper",
   "title": "Whisper (cabin ASR)",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "entrypoint": "worker.py",
   "requirements": "requirements.txt",
   "status_file": "logs/status.json",

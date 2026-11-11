@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -40,7 +40,9 @@
             "/agent/audio_pipeline/day-reparse",
             "/agent/audio_pipeline/backfill-playtime",
             "/agent/audio_pipeline/asr-push/status",
-            "/agent/audio_pipeline/asr-push/sync"
+            "/agent/audio_pipeline/asr-push/sync",
+            "/agent/audio_pipeline/asr-push/config",
+            "/agent/audio_pipeline/asr-push/worker"
         ]
     },
     "agent": {
@@ -128,6 +130,24 @@
                 "assistant": false,
                 "side_effect": "write",
                 "description": "Agent-token: run push sync now; body confirm=1, optional worker=<id> (ignores backoff), test=1 for status probe only"
+            },
+            {
+                "id": "audio_pipeline.asr_push_config",
+                "method": "POST",
+                "path": "/agent/audio_pipeline/asr-push/config",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: set ASR dispatch switches; body confirm=1, pull=0|1, push=0|1 (omit to keep)"
+            },
+            {
+                "id": "audio_pipeline.asr_push_worker",
+                "method": "POST",
+                "path": "/agent/audio_pipeline/asr-push/worker",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: manage push worker; body confirm=1, action=create|update|rotate|promote|delete, id, name, base_url, pin, max_inflight, enabled. Secret returned once on create/rotate"
             },
             {
                 "id": "audio_pipeline.asr.claim",

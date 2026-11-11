@@ -127,6 +127,8 @@ $allowed = [
     '/agent/audio_pipeline/backfill-playtime' => ['methods' => ['POST'], 'why' => 'agent_token audio playtime backfill'],
     '/agent/audio_pipeline/asr-push/status' => ['methods' => ['GET'], 'why' => 'agent_token ASR push workers status'],
     '/agent/audio_pipeline/asr-push/sync' => ['methods' => ['POST'], 'why' => 'agent_token ASR push sync (confirm=1)'],
+    '/agent/audio_pipeline/asr-push/config' => ['methods' => ['POST'], 'why' => 'agent_token ASR pull/push switches (confirm=1)'],
+    '/agent/audio_pipeline/asr-push/worker' => ['methods' => ['POST'], 'why' => 'agent_token push worker registry (confirm=1)'],
     '/agent/audio_dicts/scripts' => ['methods' => ['GET'], 'why' => 'agent_token audio scripts list'],
     '/agent/audio_dicts/script' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token audio script get/save'],
     '/agent/audio_dicts/script/part' => ['methods' => ['POST'], 'why' => 'agent_token audio script part upsert'],

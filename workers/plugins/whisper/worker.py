@@ -1451,6 +1451,7 @@ def push_status_meta() -> Dict[str, Any]:
 		"processing": c.get("processing", 0),
 		"unacked": c.get("done", 0) + c.get("failed", 0),
 		"last_contact": int(PUSH_API.last_contact) if PUSH_API is not None else 0,
+		"last_contact_ip": PUSH_API.last_contact_ip if PUSH_API is not None else "",
 		"whisper_down": WHISPER_DOWN,
 	}
 
