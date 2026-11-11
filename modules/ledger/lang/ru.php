@@ -142,7 +142,6 @@ return [
     'ledger.moves.attach_act.err.not_req' => 'Отмечено «акт не требуется»',
     'ledger.moves.attach_act.err.type' => 'Тип движения не требует акт прихода',
     'ledger.moves.attach_act.err.empty_list' => 'Нет актов прихода с суммой > 0',
-    'ledger.moves.field.fund_movement' => 'Фондовое движение',
     'ledger.moves.field.unconfirmed' => 'Неподтверждённое',
     'ledger.moves.promised.legend' => 'Обещанный платёж',
     'ledger.moves.promised.hint' => 'Дата учёта (поле выше) — для фин.отчёта; дата выполнения — когда платёж сделают физически. Пусто = обычное движение без обещания.',

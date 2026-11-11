@@ -1000,17 +1000,25 @@ final class AgentOps
                 $ms = self::migrateStatus(null);
                 $pendingList = is_array($ms['pending'] ?? null) ? $ms['pending'] : [];
                 $pending = count($pendingList);
-                if ($pending === 0) {
-                    foreach (($ms['modules'] ?? []) as $row) {
-                        if (is_array($row)) {
-                            $pending += (int)($row['pending'] ?? 0);
-                        }
+                // Disabled modules keep their migrations unapplied by design (applied on enable).
+                $pendingEnabled = 0;
+                $pendingDisabled = 0;
+                foreach (($ms['modules'] ?? []) as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    if (!empty($row['enabled'])) {
+                        $pendingEnabled += (int)($row['pending'] ?? 0);
+                    } else {
+                        $pendingDisabled += (int)($row['pending'] ?? 0);
                     }
                 }
+                $pending = max($pending, $pendingEnabled);
                 $setupNeeded = !empty($ms['setup']['needed']);
                 $migrate = [
                     'ok' => $pending === 0 && !$setupNeeded,
                     'pending_total' => $pending,
+                    'pending_disabled_modules' => $pendingDisabled,
                     'setup_needed' => $setupNeeded,
                 ];
                 if ($setupNeeded || $pending > 0) {

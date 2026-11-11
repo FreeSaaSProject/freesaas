@@ -33,7 +33,9 @@ if (!$isNew && EntityDelete::tryHandle('ledger_types', $id, '/ledger/types', [
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
-        $data = AccountMoveTypesRepository::dataFromPost($_POST);
+        // Agents may send only the fields they change; HTML checkboxes still mean "absent = off".
+        $input = ($wantsJson && !$isNew) ? $_POST + $row : $_POST;
+        $data = AccountMoveTypesRepository::dataFromPost($input);
         if ($isNew) {
             $newId = AccountMoveTypesRepository::create($data);
             if ($wantsJson) {

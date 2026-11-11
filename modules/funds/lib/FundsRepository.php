@@ -43,14 +43,146 @@ final class FundsRepository
         $st = $pdo->prepare($sql);
         $st->execute($params);
         $items = [];
+        $balances = FundMovementsRepository::balances();
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
             $row['id'] = (int)$row['id'];
             $row['pid'] = (int)$row['pid'];
             $row['type'] = (int)$row['type'];
-            $row['balance'] = FundMovementsRepository::fundBalance((int)$row['id']);
+            $row['balance'] = (float)($balances[$row['id']] ?? 0.0);
             $items[] = $row;
         }
         return ['items' => $items, 'total' => $total];
+    }
+
+    /** @var array<int,array{id:int,name:string,pid:int,type:int,real_price:float}>|null */
+    private static $rowsCache = null;
+
+    /** @return array<int,array{id:int,name:string,pid:int,type:int,real_price:float}> */
+    public static function allRows(): array
+    {
+        if (self::$rowsCache !== null) {
+            return self::$rowsCache;
+        }
+        if (!Database::tableExists('base_funds')) {
+            return self::$rowsCache = [];
+        }
+        $out = [];
+        $rows = Database::pdo()->query(
+            'SELECT ID, NAME, PID, TYPE, REAL_PRICE FROM base_funds ORDER BY NAME ASC'
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($rows as $r) {
+            $out[(int)$r['ID']] = [
+                'id' => (int)$r['ID'],
+                'name' => (string)$r['NAME'],
+                'pid' => (int)$r['PID'],
+                'type' => (int)$r['TYPE'],
+                'real_price' => (float)$r['REAL_PRICE'],
+            ];
+        }
+        return self::$rowsCache = $out;
+    }
+
+    /** @return array<int,int> fund id => children count */
+    public static function childCounts(): array
+    {
+        $out = [];
+        foreach (self::allRows() as $r) {
+            if ($r['pid'] > 0) {
+                $out[$r['pid']] = ($out[$r['pid']] ?? 0) + 1;
+            }
+        }
+        return $out;
+    }
+
+    /** A fund with children is a group: movements are posted to its leaves only. */
+    public static function isGroup(int $id): bool
+    {
+        return isset(self::childCounts()[$id]);
+    }
+
+    /**
+     * Groups (funds with children) with their children, plus standalone root leaves.
+     *
+     * @return list<array{id:int,name:string,type:int,is_group:bool,balance:float,children:list<array<string,mixed>>}>
+     */
+    public static function tree(string $q = ''): array
+    {
+        $rows = self::allRows();
+        $balances = FundMovementsRepository::balances();
+        $counts = self::childCounts();
+        $q = trim($q);
+        $match = static function (array $r) use ($q): bool {
+            if ($q === '') {
+                return true;
+            }
+            return (string)$r['id'] === $q || mb_stripos($r['name'], $q) !== false;
+        };
+        $children = [];
+        foreach ($rows as $r) {
+            if ($r['pid'] > 0 && isset($rows[$r['pid']])) {
+                $r['balance'] = (float)($balances[$r['id']] ?? 0.0);
+                $children[$r['pid']][] = $r;
+            }
+        }
+        $out = [];
+        foreach ($rows as $r) {
+            if ($r['pid'] > 0 && isset($rows[$r['pid']])) {
+                continue;
+            }
+            $isGroup = isset($counts[$r['id']]);
+            $kids = $children[$r['id']] ?? [];
+            if (!$match($r)) {
+                $kids = array_values(array_filter($kids, $match));
+                if ($kids === []) {
+                    continue;
+                }
+            }
+            $sum = (float)($balances[$r['id']] ?? 0.0);
+            foreach ($kids as $k) {
+                $sum += (float)$k['balance'];
+            }
+            $out[] = [
+                'id' => $r['id'],
+                'name' => $r['name'],
+                'type' => $r['type'],
+                'is_group' => $isGroup,
+                'balance' => $sum,
+                'children' => $kids,
+            ];
+        }
+        usort($out, static function (array $a, array $b): int {
+            if ($a['is_group'] !== $b['is_group']) {
+                return $a['is_group'] ? -1 : 1;
+            }
+            return strcmp($a['name'], $b['name']);
+        });
+        return $out;
+    }
+
+    /**
+     * Selectable funds (leaves) grouped by parent name for <optgroup>.
+     *
+     * @return list<array{label:string,options:array<int,string>}>
+     */
+    public static function leafOptions(): array
+    {
+        $groups = [];
+        $standalone = [];
+        foreach (self::tree() as $node) {
+            if ($node['is_group']) {
+                $opts = [];
+                foreach ($node['children'] as $k) {
+                    $opts[(int)$k['id']] = (string)$k['name'];
+                }
+                $groups[] = ['label' => (string)$node['name'], 'options' => $opts];
+            } else {
+                $standalone[(int)$node['id']] = (string)$node['name'];
+            }
+        }
+        if ($standalone !== []) {
+            $groups[] = ['label' => '', 'options' => $standalone];
+        }
+        return $groups;
     }
 
     /** @return array<int,string> */
@@ -109,14 +241,25 @@ final class FundsRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_funds (NAME, PID, TYPE, DT_CREATE, ID_USER_CREATE, ID_AMT_OUT, INVENTORY_REQ, REAL_PRICE)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
+        $cols = ['NAME', 'PID', 'TYPE', 'DT_CREATE', 'ID_USER_CREATE', 'ID_AMT_OUT', 'INVENTORY_REQ', 'REAL_PRICE'];
+        $params = [
             $data['name'], $data['pid'], $data['type'], $data['dt_create'], $data['user_create'],
             $data['amt_out'], $data['inventory_req'], $data['real_price'],
-        ]);
+        ];
+        // Legacy oper schemas: NOT NULL columns without DEFAULT under strict SQL mode.
+        $optional = ['PID_2' => 0, 'SORT_TYPE' => 0, 'DT_REPRICING' => 0, 'DESCR_REPRICING' => '', 'REPRICING_AMORT' => 0];
+        foreach ($optional as $col => $val) {
+            if (Database::columnExists('base_funds', $col)) {
+                $cols[] = $col;
+                $params[] = $val;
+            }
+        }
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_funds (' . implode(', ', $cols) . ') VALUES ('
+            . implode(', ', array_fill(0, count($cols), '?')) . ')'
+        );
+        $st->execute($params);
+        self::$rowsCache = null;
         return (int)Database::pdo()->lastInsertId();
     }
 
@@ -130,6 +273,7 @@ final class FundsRepository
             $data['name'], $data['pid'], $data['type'], $data['amt_out'], $data['inventory_req'],
             $data['real_price'], $id,
         ]);
+        self::$rowsCache = null;
     }
 
     /** @param list<int> $ids @return int */
@@ -144,6 +288,7 @@ final class FundsRepository
         $ph = implode(',', array_fill(0, count($ids), '?'));
         $st = Database::pdo()->prepare("DELETE FROM base_funds WHERE ID IN ($ph)");
         $st->execute($ids);
+        self::$rowsCache = null;
         return $st->rowCount();
     }
 

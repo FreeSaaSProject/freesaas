@@ -59,7 +59,13 @@ final class AccountMoveTypesRepository
         }
         $st = $pdo->prepare($sql);
         $st->execute($params);
-        return ['items' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [], 'total' => $total];
+        $byId = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+            $r['odds_type'] = (int)$r['odds_type'];
+            $r['fund_enabled'] = (int)$r['fund_enabled'];
+            $byId[(int)$r['id']] = $r;
+        }
+        return ['items' => array_values(self::extendMeta($byId)), 'total' => $total];
     }
 
     /** @return array<int,string> */
@@ -114,6 +120,7 @@ final class AccountMoveTypesRepository
         $out = [];
         $rows = Database::pdo()->query(
             'SELECT ID AS id, NAME AS name, ID_ACCOUNT AS account_id, DIRECTION AS direction,
+                    ID_TYPE AS odds_type,
                     ID_PAYMENT_ENABLED AS payment_enabled' . $fotCol . ',
                     ID_USER_PAYMENT_ENABLED AS user_payment_enabled,
                     ID_SUPPLIER_ENABLED AS supplier_enabled,
@@ -130,6 +137,7 @@ final class AccountMoveTypesRepository
                 'name' => (string)$r['name'],
                 'account_id' => (int)$r['account_id'],
                 'direction' => (int)$r['direction'],
+                'odds_type' => (int)$r['odds_type'],
                 'payment_enabled' => (int)$r['payment_enabled'],
                 'fot_kind' => (int)($r['fot_kind'] ?? 0),
                 'user_payment_enabled' => (int)$r['user_payment_enabled'],
@@ -138,6 +146,27 @@ final class AccountMoveTypesRepository
                 'linked_enabled' => (int)$r['linked_enabled'],
                 'act_in_enabled' => (int)$r['act_in_enabled'],
             ];
+        }
+        return self::extendMeta($out);
+    }
+
+    /**
+     * Lets enabled modules add derived keys to type metadata (EventBus ledger.types.meta).
+     *
+     * @param array<int,array<string,mixed>> $meta
+     * @return array<int,array<string,mixed>>
+     */
+    public static function extendMeta(array $meta): array
+    {
+        if ($meta === []) {
+            return $meta;
+        }
+        $payload = EventBus::emit('ledger.types.meta', ['meta' => $meta]);
+        $out = is_array($payload['meta'] ?? null) ? $payload['meta'] : $meta;
+        foreach ($meta as $id => $row) {
+            if (!isset($out[$id]) || !is_array($out[$id])) {
+                $out[$id] = $row;
+            }
         }
         return $out;
     }
@@ -172,7 +201,10 @@ final class AccountMoveTypesRepository
             return null;
         }
         $row['fot_kind'] = (int)($row['fot_kind'] ?? 0);
-        return $row;
+        $row['odds_type'] = (int)($row['odds_type'] ?? 0);
+        $row['fund_enabled'] = (int)($row['fund_enabled'] ?? 0);
+        $ext = self::extendMeta([$id => $row]);
+        return $ext[$id] ?? $row;
     }
 
     public static function findByName(string $name): ?array
@@ -278,37 +310,37 @@ final class AccountMoveTypesRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $hasFot = Database::columnExists('base_account_move_types', 'FOT_KIND');
-        if ($hasFot) {
-            $st = Database::pdo()->prepare(
-                'INSERT INTO base_account_move_types
-                 (NAME, DESCR, DT, PID, ENABLED, ID_ACCOUNT, NUM, DIRECTION, ID_TYPE,
-                  ID_PAYMENT_ENABLED, FOT_KIND, ID_USER_PAYMENT_ENABLED, ID_SUPPLIER_ENABLED,
-                  ID_MOVEMENT_LINKED_ENABLED, ID_FUND_ENABLED, ID_ACT_IN_ENABLED, EXCLUDE_PL)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-            );
-            $st->execute([
-                $data['name'], $data['descr'], $data['dt'], $data['pid'], $data['enabled'],
-                $data['account_id'], $data['num'], $data['direction'], $data['odds_type'],
-                $data['payment_enabled'], self::normalizeFotKind((int)($data['fot_kind'] ?? 0)),
-                $data['user_payment_enabled'], $data['supplier_enabled'],
-                $data['linked_enabled'], $data['fund_enabled'], $data['act_in_enabled'], $data['exclude_pl'],
-            ]);
-        } else {
-            $st = Database::pdo()->prepare(
-                'INSERT INTO base_account_move_types
-                 (NAME, DESCR, DT, PID, ENABLED, ID_ACCOUNT, NUM, DIRECTION, ID_TYPE,
-                  ID_PAYMENT_ENABLED, ID_USER_PAYMENT_ENABLED, ID_SUPPLIER_ENABLED,
-                  ID_MOVEMENT_LINKED_ENABLED, ID_FUND_ENABLED, ID_ACT_IN_ENABLED, EXCLUDE_PL)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-            );
-            $st->execute([
-                $data['name'], $data['descr'], $data['dt'], $data['pid'], $data['enabled'],
-                $data['account_id'], $data['num'], $data['direction'], $data['odds_type'],
-                $data['payment_enabled'], $data['user_payment_enabled'], $data['supplier_enabled'],
-                $data['linked_enabled'], $data['fund_enabled'], $data['act_in_enabled'], $data['exclude_pl'],
-            ]);
+        $cols = [
+            'NAME', 'DESCR', 'DT', 'PID', 'ENABLED', 'ID_ACCOUNT', 'NUM', 'DIRECTION', 'ID_TYPE',
+            'ID_PAYMENT_ENABLED', 'ID_USER_PAYMENT_ENABLED', 'ID_SUPPLIER_ENABLED',
+            'ID_MOVEMENT_LINKED_ENABLED', 'ID_FUND_ENABLED', 'ID_ACT_IN_ENABLED', 'EXCLUDE_PL',
+        ];
+        $params = [
+            $data['name'], $data['descr'], $data['dt'], $data['pid'], $data['enabled'],
+            $data['account_id'], $data['num'], $data['direction'], $data['odds_type'],
+            $data['payment_enabled'], $data['user_payment_enabled'], $data['supplier_enabled'],
+            $data['linked_enabled'], $data['fund_enabled'], $data['act_in_enabled'], $data['exclude_pl'],
+        ];
+        // FOT_KIND is additive; the rest are legacy oper NOT NULL columns without DEFAULT (strict SQL mode).
+        $optional = [
+            'FOT_KIND' => self::normalizeFotKind((int)($data['fot_kind'] ?? 0)),
+            'ID_INCASS_ENABLED' => 0,
+            'IS_VARIABLE' => 0,
+            'IS_USNO_DISCOUNTING' => 0,
+            'IS_USNO_PAYING' => 0,
+            'IS_DIV' => 0,
+        ];
+        foreach ($optional as $col => $val) {
+            if (Database::columnExists('base_account_move_types', $col)) {
+                $cols[] = $col;
+                $params[] = $val;
+            }
         }
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_account_move_types (' . implode(', ', $cols) . ') VALUES ('
+            . implode(', ', array_fill(0, count($cols), '?')) . ')'
+        );
+        $st->execute($params);
         return (int)Database::pdo()->lastInsertId();
     }
 

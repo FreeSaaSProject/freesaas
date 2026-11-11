@@ -142,7 +142,6 @@ return [
     'ledger.moves.attach_act.err.not_req' => 'Marked as act not required',
     'ledger.moves.attach_act.err.type' => 'Move type does not require a receipt act',
     'ledger.moves.attach_act.err.empty_list' => 'No receipt acts with amount > 0',
-    'ledger.moves.field.fund_movement' => 'Fund movement',
     'ledger.moves.field.unconfirmed' => 'Unconfirmed',
     'ledger.moves.promised.legend' => 'Promised payment',
     'ledger.moves.promised.hint' => 'Posted date (above) is for financial reporting; execution date is when the payment is made physically. Empty = normal move without a promise.',

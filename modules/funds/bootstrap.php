@@ -4,10 +4,16 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/FundMovementsRepository.php';
 require_once __DIR__ . '/lib/FundsRepository.php';
 require_once __DIR__ . '/lib/FundsAccrualRepository.php';
+require_once __DIR__ . '/lib/FundsLedgerHooks.php';
+
+Assets::register('funds', [
+    'css' => ['funds.css'],
+]);
 
 $pages = [
     '/funds' => ['permission' => 'funds.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/funds/new' => ['permission' => 'funds.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
+    '/funds/{id}' => ['permission' => 'funds.view', 'methods' => ['GET'], 'file' => 'view.php'],
     '/funds/{id}/edit' => ['permission' => 'funds.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/fund-movements' => ['permission' => 'funds.view', 'methods' => ['GET', 'POST'], 'file' => 'moves_list.php'],
     '/fund-movements/new' => ['permission' => 'funds.edit', 'methods' => ['GET', 'POST'], 'file' => 'moves_edit.php'],
@@ -40,3 +46,5 @@ BulkActions::register('fund_movements', 'delete', [
         return ['done' => FundMovementsRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
+
+FundsLedgerHooks::register();

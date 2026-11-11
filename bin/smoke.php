@@ -6,7 +6,8 @@ declare(strict_types=1);
  * Minimal agent/CI smoke: system + module validate + locale validate + health
  * + check-safe-html / check-csrf / check-password / check-session / check-bots-webhook
  * + check-terminals-floor / check-booking-procedures / check-certificates
- * + check-audio-queue / check-day-payroll / check-assistant-confirm / check-assistant-relations.
+ * + check-audio-queue / check-day-payroll / check-assistant-confirm / check-assistant-relations
+ * + check-funds-agent.
  * PHP lint (`php -l`) and public-route allow-list (`bin/check-routes.php`) run in
  * `.github/workflows/ci.yml` static job — not here (no need for a DB-less lint loop in smoke).
  *
@@ -221,6 +222,7 @@ $extraChecks = [
     'day_payroll' => 'check-day-payroll.php',
     'assistant_confirm' => 'check-assistant-confirm.php',
     'assistant_relations' => 'check-assistant-relations.php',
+    'funds_agent' => 'check-funds-agent.php',
 ];
 foreach ($extraChecks as $sec => $script) {
     $lines = [];

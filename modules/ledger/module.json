@@ -1,7 +1,7 @@
 {
     "id": "ledger",
     "name": "ledger.module.name",
-    "version": "1.0.13",
+    "version": "1.0.14",
     "type": "product",
     "description": "ledger.module.description",
     "catalog": {
@@ -106,21 +106,82 @@
                 "method": "GET",
                 "path": "/account-move-types",
                 "permission": "ledger.types",
-                "description": "List account move types; filter q"
+                "description": "List account move types; filter q. Items include odds_type, *_enabled flags and keys added by enabled modules via ledger.types.meta (e.g. fund_link from funds)."
             },
             {
                 "id": "ledger.types.get",
                 "method": "GET",
                 "path": "/account-move-types/{id}/edit",
                 "permission": "ledger.types",
-                "description": "Get one move type"
+                "description": "Get one move type (row with odds_type, *_enabled flags and module meta keys such as fund_link)"
             },
             {
                 "id": "ledger.types.save",
                 "method": "POST",
                 "path": "/account-move-types/new",
                 "permission": "ledger.types",
-                "description": "Create move type; also POST /account-move-types/{id}/edit"
+                "description": "Create move type; update via POST /account-move-types/{id}/edit. JSON updates are partial: omitted fields keep current values, so send only what changes (e.g. fund_enabled=1).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Type name (required on create)"
+                        },
+                        "pid": {
+                            "type": "integer",
+                            "description": "Parent type id; 0 = root"
+                        },
+                        "direction": {
+                            "type": "integer",
+                            "description": "-1 expense, 1 income, 0 both"
+                        },
+                        "odds_type": {
+                            "type": "integer",
+                            "description": "Cash-flow class: 1 operations, 2 investments, 3 financing"
+                        },
+                        "account_id": {
+                            "type": "integer",
+                            "description": "Default base_accounts.ID"
+                        },
+                        "enabled": {
+                            "type": "integer",
+                            "description": "0/1"
+                        },
+                        "payment_enabled": {
+                            "type": "integer",
+                            "description": "0/1 link to staff payment"
+                        },
+                        "user_payment_enabled": {
+                            "type": "integer",
+                            "description": "0/1 staff member field"
+                        },
+                        "supplier_enabled": {
+                            "type": "integer",
+                            "description": "0/1 supplier (required on moves when on)"
+                        },
+                        "linked_enabled": {
+                            "type": "integer",
+                            "description": "0/1 paired transfer"
+                        },
+                        "fund_enabled": {
+                            "type": "integer",
+                            "description": "0/1 fund movement link flag (consumed by the funds module)"
+                        },
+                        "act_in_enabled": {
+                            "type": "integer",
+                            "description": "0/1 receipt act (stickers)"
+                        },
+                        "exclude_pl": {
+                            "type": "integer",
+                            "description": "0/1 exclude from P&L"
+                        },
+                        "fot_kind": {
+                            "type": "integer",
+                            "description": "Payroll role: 0 none, 1 bank, 2 cash"
+                        }
+                    }
+                }
             },
             {
                 "id": "ledger.moves.list",
@@ -141,7 +202,7 @@
                 "method": "GET",
                 "path": "/ledger/moves/{id}/edit",
                 "permission": "ledger.edit",
-                "description": "Get one move (+ type flags when type_id set on new)"
+                "description": "Get one move (+ type flags when type_id set on new). extensions.<module> carries data from enabled modules (e.g. extensions.funds: fund_link, linked fund movement, sums)."
             },
             {
                 "id": "ledger.moves.save",
@@ -179,6 +240,10 @@
                         "dt": {
                             "type": "string",
                             "description": "Optional datetime; default now"
+                        },
+                        "fund_movement_id": {
+                            "type": "integer",
+                            "description": "External reference to a fund movement; validated by the funds module when enabled (0 = unlink). Omit to keep current value."
                         }
                     },
                     "required": [
@@ -284,7 +349,10 @@
             "ledger.moves.badges",
             "ledger.moves.list.toolbar",
             "ledger.moves.edit.sections",
-            "ledger.moves.deleted"
+            "ledger.moves.form.fields",
+            "ledger.moves.validate",
+            "ledger.moves.deleted",
+            "ledger.types.meta"
         ]
     },
     "bulkActions": [

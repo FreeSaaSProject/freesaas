@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-10T17:20:27+00:00",
+    "generated_at": "2026-11-11T10:37:25+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -1191,7 +1191,7 @@
         },
         {
             "id": "funds",
-            "version": "1.0.2",
+            "version": "1.1.0",
             "type": "product",
             "name": {
                 "en": "Funds",
@@ -1294,7 +1294,7 @@
         },
         {
             "id": "ledger",
-            "version": "1.0.13",
+            "version": "1.0.14",
             "type": "product",
             "name": {
                 "en": "Account ledger",

@@ -30,11 +30,15 @@ $result = FundMovementsRepository::list([
     'limit' => ListQuery::sqlLimit($lq), 'offset' => $lq['offset'], 'order' => $lq['order_sql'],
 ]);
 
+$result['items'] = FundMovementsRepository::attachDps($result['items']);
+$fundRow = $fundId > 0 ? (FundsRepository::allRows()[$fundId] ?? null) : null;
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'total' => $result['total'],
         'items' => $result['items'],
+        'fund_options' => FundsRepository::leafOptions(),
         'funds' => FundsRepository::names(),
         'filters' => [
             'q' => $q,
@@ -53,13 +57,24 @@ if ($wantsJson) {
     return;
 }
 
+$crumbs = [['label' => t('funds.menu.movements'), 'current' => true]];
+if ($fundRow !== null) {
+    $crumbs = [
+        ['label' => t('funds.menu.list'), 'href' => '/funds'],
+        ['label' => $fundRow['name'], 'href' => '/funds/' . $fundRow['id']],
+        ['label' => t('funds.menu.movements'), 'current' => true],
+    ];
+}
+
 View::render('moves_list', [
     'title' => t('funds.menu.movements'),
-    'breadcrumbs' => Breadcrumbs::withHome([['label' => t('funds.menu.movements'), 'current' => true]]),
+    'breadcrumbs' => Breadcrumbs::withHome($crumbs),
     'items' => $result['items'], 'total' => $result['total'], 'q' => $q,
     'fundId' => $fundId, 'typeId' => $typeId, 'fundType' => $fundType,
     'year' => $year, 'month' => $month,
     'funds' => FundsRepository::names(),
+    'fundOptions' => FundsRepository::leafOptions(),
+    'canLedger' => Auth::can('ledger.edit'),
     'canEdit' => Auth::can('funds.edit'),
     'sort' => $lq['sort'], 'dir' => $lq['dir'], 'page' => $lq['page'], 'perPage' => $lq['per_page'],
     'showAll' => $lq['show_all'], 'filters' => $filters, 'bulkFlash' => BulkActions::consumeFlash(),

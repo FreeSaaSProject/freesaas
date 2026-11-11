@@ -1,0 +1,7 @@
+.funds-table .num { text-align: right; white-space: nowrap; }
+.funds-table tr.funds-group-row td { font-weight: 600; background: color-mix(in srgb, var(--text, #000) 4%, transparent); }
+.funds-table tr.funds-child-row td.funds-name { padding-left: 1.75rem; }
+.funds-table tr.funds-row-mismatch td { background: color-mix(in srgb, var(--danger, #c00) 7%, transparent); }
+.funds-table .funds-count { font-weight: 400; }
+.funds-dps-section { margin-top: 1.5rem; }
+.funds-sources-total { margin-top: 0.5rem; }

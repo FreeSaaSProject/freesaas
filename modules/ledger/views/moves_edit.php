@@ -15,8 +15,8 @@ declare(strict_types=1);
 /** @var string $dtPromisedValue */
 /** @var string $message */
 /** @var string $error */
-/** @var bool $fundsEnabled */
 /** @var bool $stickersEnabled */
+/** @var string $extraFieldsHtml */
 /** @var string $extraSectionsHtml */
 /** @var bool $canConvertToTransfer */
 /** @var array<int,string> $transferTypes */
@@ -137,12 +137,7 @@ $postedTransferAccountTo = $convertOpen ? (int)($_POST['transfer_account_to'] ??
   </label>
   <?php endif; ?>
 
-  <?php if (!empty($fundsEnabled)): ?>
-  <label data-ledger-field="fund"<?= ($hasType && !empty($type['fund_enabled'])) ? '' : ' hidden' ?>><?= te('ledger.moves.field.fund_movement') ?>
-    <input type="text" name="fund_movement_id" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
-           value="<?= e((string)((int)($row['fund_movement_id'] ?? 0))) ?>">
-  </label>
-  <?php endif; ?>
+  <?= $extraFieldsHtml ?? '' ?>
   <label class="check" data-ledger-field="unconfirmed"<?= $hasType ? '' : ' hidden' ?>>
     <input type="checkbox" name="unconfirmed" value="1"<?= !empty($row['unconfirmed']) ? ' checked' : '' ?>> <?= te('ledger.moves.field.unconfirmed') ?>
   </label>

@@ -5,7 +5,7 @@ $wantsJson = AgentHttp::wantsJson();
 
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
-$row = ['name' => '', 'pid' => 0, 'type' => 2, 'amt_out' => 0, 'inventory_req' => 0, 'real_price' => 0];
+$row = ['name' => '', 'pid' => max(0, (int)($_GET['pid'] ?? 0)), 'type' => 2, 'amt_out' => 0, 'inventory_req' => 0, 'real_price' => 0];
 if (!$isNew) {
     $found = FundsRepository::find($id);
     if (!$found) {
@@ -36,7 +36,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 AgentHttp::emit(['ok' => true, 'id' => $newId, 'item' => FundsRepository::find($newId)]);
                 return;
             }
-            redirect('/funds/' . $newId . '/edit?saved=1');
+            flash_set('ok', t('core.common.saved'));
+            redirect('/funds/' . $newId);
             return;
         }
         FundsRepository::update($id, $data);
@@ -56,8 +57,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 if (isset($_GET['saved']) && $message === '') { $message = t('core.common.saved'); }
-$parents = [0 => t('funds.root')] + FundsRepository::names();
-if (!$isNew) { unset($parents[$id]); }
+$parents = [0 => t('funds.root')];
+foreach (FundsRepository::allRows() as $r) {
+    if ($r['pid'] === 0 && $r['id'] !== $id) {
+        $parents[$r['id']] = $r['name'];
+    }
+}
+$currentPid = (int)($row['pid'] ?? 0);
+if ($currentPid > 0 && !isset($parents[$currentPid])) {
+    $parents[$currentPid] = (string)(FundsRepository::allRows()[$currentPid]['name'] ?? ('#' . $currentPid));
+}
+$parentRow = $currentPid > 0 ? (FundsRepository::allRows()[$currentPid] ?? null) : null;
 $amtTypes = class_exists('AccountMoveTypesRepository') ? AccountMoveTypesRepository::leafNames() : [];
 
 if ($wantsJson) {
@@ -71,12 +81,18 @@ if ($wantsJson) {
     return;
 }
 
+$crumbs = [['label' => t('funds.menu.list'), 'href' => '/funds']];
+if ($parentRow !== null) {
+    $crumbs[] = ['label' => $parentRow['name'], 'href' => '/funds/' . $parentRow['id']];
+}
+if (!$isNew) {
+    $crumbs[] = ['label' => (string)($row['name'] ?? ''), 'href' => '/funds/' . $id];
+}
+$crumbs[] = ['label' => $isNew ? t('funds.edit_new') : t('core.common.edit'), 'current' => true];
+
 View::render('edit', [
     'title' => $isNew ? t('funds.edit_new') : t('funds.edit', ['name' => (string)($row['name'] ?? '')]),
-    'breadcrumbs' => Breadcrumbs::withHome([
-        ['label' => t('funds.menu.list'), 'href' => '/funds'],
-        ['label' => $isNew ? t('funds.edit_new') : (string)($row['name'] ?? ''), 'current' => true],
-    ]),
+    'breadcrumbs' => Breadcrumbs::withHome($crumbs),
     'isNew' => $isNew, 'row' => $row, 'parents' => $parents, 'amtTypes' => $amtTypes,
     'message' => $message, 'error' => $error,
 ], 'layout', 'funds');

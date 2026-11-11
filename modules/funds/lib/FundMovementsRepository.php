@@ -40,6 +40,140 @@ final class FundMovementsRepository
         return (float)$st->fetchColumn();
     }
 
+    /** @return array<int,float> fund id => signed balance */
+    public static function balances(): array
+    {
+        if (!Database::tableExists('base_fund_movements')) {
+            return [];
+        }
+        $out = [];
+        $rows = Database::pdo()->query(
+            'SELECT ID_FUND, COALESCE(SUM(DIRECTION * SUMM), 0) AS BAL FROM base_fund_movements GROUP BY ID_FUND'
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($rows as $r) {
+            $out[(int)$r['ID_FUND']] = (float)$r['BAL'];
+        }
+        return $out;
+    }
+
+    public static function fmt(float $amount): string
+    {
+        return number_format(round($amount, 2), 2, '.', ' ');
+    }
+
+    /** Fund movement types that must be fully covered by linked DPS (oper DPS_REQ). */
+    public static function requiresDps(int $typeId): bool
+    {
+        return $typeId === self::TYPE_CAPUSE;
+    }
+
+    /**
+     * Linked DPS per fund movement (via ledger public API).
+     *
+     * @param list<int> $fmIds
+     * @return array<int, list<array<string,mixed>>>
+     */
+    public static function linkedDps(array $fmIds): array
+    {
+        if (!class_exists('LedgerMovesRepository')) {
+            return [];
+        }
+        return LedgerMovesRepository::listByFundMovements($fmIds);
+    }
+
+    /**
+     * Adds dps[], dps_sum, mismatch to movement rows.
+     *
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    public static function attachDps(array $items): array
+    {
+        $ids = [];
+        foreach ($items as $it) {
+            $ids[] = (int)($it['id'] ?? 0);
+        }
+        $linked = self::linkedDps($ids);
+        foreach ($items as $i => $it) {
+            $dps = $linked[(int)$it['id']] ?? [];
+            $sum = 0.0;
+            foreach ($dps as $d) {
+                $sum += (float)$d['summ'];
+            }
+            $items[$i]['dps'] = $dps;
+            $items[$i]['dps_sum'] = round($sum, 2);
+            $items[$i]['mismatch'] = self::requiresDps((int)$it['type_id'])
+                && round((float)$it['summ'], 2) !== round($sum, 2);
+        }
+        return $items;
+    }
+
+    /**
+     * Candidate fund movements for a DPS select, grouped by fund (oper rules):
+     * expense DPS → movements with capital/fund sources; income DPS → incoming movements of the DPS day.
+     * Only movements not yet fully covered by DPS, plus the currently linked one.
+     *
+     * @return list<array{label:string,options:array<int,string>}>
+     */
+    public static function optionsForDps(int $currentFmId, int $direction, int $dt): array
+    {
+        if (!Database::tableExists('base_fund_movements')) {
+            return [];
+        }
+        $params = [];
+        if ($direction > 0) {
+            $day = $dt > 0 ? $dt : time();
+            $start = mktime(0, 0, 0, (int)date('n', $day), (int)date('j', $day), (int)date('Y', $day)) ?: 0;
+            $where = '(DIRECTION > 0 AND DT_AMORT_START >= ? AND DT_AMORT_START <= ?)';
+            $params[] = $start;
+            $params[] = $start + 86399;
+        } else {
+            $where = '(SUMM_OUT_CAP > 0 OR SUMM_OUT_FUND > 0)';
+        }
+        if ($currentFmId > 0) {
+            $where = '(' . $where . ' OR ID = ?)';
+            $params[] = $currentFmId;
+        }
+        $st = Database::pdo()->prepare(
+            "SELECT ID, ID_FUND, NAME, SUMM FROM base_fund_movements WHERE $where ORDER BY DT_AMORT_START DESC, ID DESC"
+        );
+        $st->execute($params);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $ids = array_map(static function (array $r): int {
+            return (int)$r['ID'];
+        }, $rows);
+        $linked = self::linkedDps($ids);
+        $funds = FundsRepository::allRows();
+        $byFund = [];
+        foreach ($rows as $r) {
+            $fmId = (int)$r['ID'];
+            $paid = 0.0;
+            foreach ($linked[$fmId] ?? [] as $d) {
+                $paid += (float)$d['summ'];
+            }
+            $summ = round((float)$r['SUMM'], 2);
+            if ($fmId !== $currentFmId && round($paid, 2) === $summ) {
+                continue;
+            }
+            $fundId = (int)$r['ID_FUND'];
+            $label = t('funds.dps.option', [
+                'id' => $fmId,
+                'name' => (string)$r['NAME'],
+                'sum' => self::fmt($summ),
+                'paid' => self::fmt($paid),
+            ]);
+            $byFund[$fundId][$fmId] = $label;
+        }
+        $out = [];
+        foreach ($byFund as $fundId => $opts) {
+            $out[] = ['label' => (string)($funds[$fundId]['name'] ?? ('#' . $fundId)), 'options' => $opts];
+        }
+        usort($out, static function (array $a, array $b): int {
+            return strcmp($a['label'], $b['label']);
+        });
+        return $out;
+    }
+
     /**
      * @param array{
      *   q?:string,fund_id?:int,type_id?:int,fund_type?:int,
@@ -65,8 +199,16 @@ final class FundMovementsRepository
         }
         $fundId = (int)($opts['fund_id'] ?? 0);
         if ($fundId > 0) {
-            $where[] = 'fm.ID_FUND = ?';
-            $params[] = $fundId;
+            $fundIds = [$fundId];
+            foreach (FundsRepository::allRows() as $r) {
+                if ($r['pid'] === $fundId) {
+                    $fundIds[] = $r['id'];
+                }
+            }
+            $where[] = 'fm.ID_FUND IN (' . implode(',', array_fill(0, count($fundIds), '?')) . ')';
+            foreach ($fundIds as $fid) {
+                $params[] = $fid;
+            }
         }
         $typeId = (int)($opts['type_id'] ?? 0);
         if ($typeId > 0) {
@@ -116,7 +258,10 @@ final class FundMovementsRepository
         $offset = max(0, (int)($opts['offset'] ?? 0));
         $sql = "SELECT fm.ID AS id, fm.ID_FUND AS fund_id, fm.ID_TYPE AS type_id, fm.DIRECTION AS direction,
                        fm.SUMM AS summ, fm.NAME AS name, fm.DESCR AS descr, fm.DT_CREATE AS dt_create,
-                       fm.ID_USER_CREATE AS user_create
+                       fm.ID_USER_CREATE AS user_create, fm.DT_AMORT_START AS dt_amort_start,
+                       fm.SUMM_OUT_CAP AS summ_out_cap, fm.SUMM_OUT_FUND AS summ_out_fund,
+                       fm.SUMM_OUT_INFL AS summ_out_infl, fm.SUMM_OUT_DESTROY AS summ_out_destroy,
+                       fm.AMORT_MONTHS AS amort_months
                 FROM base_fund_movements fm $join WHERE $sqlWhere ORDER BY $order";
         if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
@@ -147,22 +292,25 @@ final class FundMovementsRepository
     public static function dataFromPost(array $post): array
     {
         $fundId = (int)($post['fund_id'] ?? 0);
-        if ($fundId < 1) {
+        if ($fundId < 1 || !isset(FundsRepository::allRows()[$fundId])) {
             throw new InvalidArgumentException(t('funds.moves.err.fund'));
+        }
+        if (FundsRepository::isGroup($fundId)) {
+            throw new InvalidArgumentException(t('funds.moves.err.fund_group'));
         }
         $typeId = (int)($post['type_id'] ?? 0);
         $dirs = self::typeDirections();
         if (!isset($dirs[$typeId])) {
             throw new InvalidArgumentException(t('funds.moves.err.type'));
         }
-        $sum = (float)str_replace(',', '.', (string)($post['summ'] ?? '0'));
+        $sum = money_parse((string)($post['summ'] ?? '0'));
         if ($sum <= 0) {
             throw new InvalidArgumentException(t('funds.moves.err.sum'));
         }
-        $sumOutCap = (float)str_replace(',', '.', (string)($post['summ_out_cap'] ?? '0'));
-        $sumOutFund = (float)str_replace(',', '.', (string)($post['summ_out_fund'] ?? '0'));
-        $sumOutInfl = (float)str_replace(',', '.', (string)($post['summ_out_infl'] ?? '0'));
-        $sumOutDestroy = (float)str_replace(',', '.', (string)($post['summ_out_destroy'] ?? '0'));
+        $sumOutCap = money_parse((string)($post['summ_out_cap'] ?? '0'));
+        $sumOutFund = money_parse((string)($post['summ_out_fund'] ?? '0'));
+        $sumOutInfl = money_parse((string)($post['summ_out_infl'] ?? '0'));
+        $sumOutDestroy = money_parse((string)($post['summ_out_destroy'] ?? '0'));
         if ($typeId === self::TYPE_REVAL && $sumOutInfl <= 0) {
             $sumOutInfl = $sum;
         }
@@ -170,7 +318,11 @@ final class FundMovementsRepository
             $sumOutDestroy = $sum;
         }
         $amortStart = trim((string)($post['dt_amort_start'] ?? ''));
-        $dtAmort = $amortStart !== '' ? (strtotime($amortStart) ?: time()) : time();
+        if ($amortStart !== '' && ctype_digit($amortStart)) {
+            $dtAmort = (int)$amortStart;
+        } else {
+            $dtAmort = $amortStart !== '' ? (strtotime($amortStart) ?: time()) : time();
+        }
         return [
             'fund_id' => $fundId,
             'type_id' => $typeId,
@@ -192,18 +344,35 @@ final class FundMovementsRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_fund_movements
-             (ID_FUND, ID_TYPE, DIRECTION, SUMM, SUMM_OUT_CAP, SUMM_OUT_FUND, SUMM_OUT_INFL, SUMM_OUT_DESTROY,
-              NAME, DESCR, DT_AMORT_START, DT_CREATE, ID_USER_CREATE, AMORT_MONTHS)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
+        $cols = [
+            'ID_FUND', 'ID_TYPE', 'DIRECTION', 'SUMM', 'SUMM_OUT_CAP', 'SUMM_OUT_FUND', 'SUMM_OUT_INFL', 'SUMM_OUT_DESTROY',
+            'NAME', 'DESCR', 'DT_AMORT_START', 'DT_CREATE', 'ID_USER_CREATE', 'AMORT_MONTHS',
+        ];
+        $params = [
             $data['fund_id'], $data['type_id'], $data['direction'], $data['summ'],
             $data['summ_out_cap'], $data['summ_out_fund'], $data['summ_out_infl'], $data['summ_out_destroy'],
             $data['name'], $data['descr'], $data['dt_amort_start'], $data['dt_create'], $data['user_create'],
             $data['amort_months'],
-        ]);
+        ];
+        // Legacy oper schemas: NOT NULL columns without DEFAULT under strict SQL mode.
+        $optional = [
+            'ID_FUND_TYPE' => (int)(FundsRepository::allRows()[(int)$data['fund_id']]['type'] ?? 0),
+            'ID_USER_UPDATE' => 0,
+            'DT_AMORT_END' => 0,
+            'DT_UPDATE' => 0,
+            'VALUE' => 0,
+        ];
+        foreach ($optional as $col => $val) {
+            if (Database::columnExists('base_fund_movements', $col)) {
+                $cols[] = $col;
+                $params[] = $val;
+            }
+        }
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_fund_movements (' . implode(', ', $cols) . ') VALUES ('
+            . implode(', ', array_fill(0, count($cols), '?')) . ')'
+        );
+        $st->execute($params);
         return (int)Database::pdo()->lastInsertId();
     }
 

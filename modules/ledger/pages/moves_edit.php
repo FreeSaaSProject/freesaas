@@ -167,7 +167,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'payment_id' => (int)($_POST['payment_id'] ?? 0),
             'supplier_id' => (int)($_POST['supplier_id'] ?? 0),
             'user_payment' => (int)($_POST['user_payment'] ?? 0),
-            'fund_movement_id' => (int)($_POST['fund_movement_id'] ?? 0),
+            'fund_movement_id' => (int)($_POST['fund_movement_id'] ?? ($row['fund_movement_id'] ?? 0)),
             'act2_in' => (int)($_POST['act2_in'] ?? 0),
             'act2_not_req' => !empty($_POST['act2_not_req']) ? 1 : 0,
             'dt_promised' => (string)($_POST['dt_promised'] ?? ''),
@@ -277,6 +277,20 @@ if ($stickersEnabled && class_exists('Acts2InRepository')) {
 
 $moveBadgeHtml = '';
 $extraSectionsHtml = '';
+$extensions = [];
+$formFieldsPayload = EventBus::emit('ledger.moves.form.fields', [
+    'id' => $isNew ? 0 : $id,
+    'row' => $row,
+    'type' => is_array($type) ? $type : null,
+    'type_meta' => $typeMeta,
+    'html' => [],
+]);
+$extraFieldsHtml = '';
+foreach ($formFieldsPayload['html'] ?? [] as $chunk) {
+    if (is_string($chunk) && $chunk !== '') {
+        $extraFieldsHtml .= $chunk;
+    }
+}
 if (!$isNew && $id > 0) {
     $badgePayload = EventBus::emit('ledger.moves.badges', [
         'ids' => [$id],
@@ -292,11 +306,15 @@ if (!$isNew && $id > 0) {
         'row' => $row,
         'type' => is_array($type) ? $type : null,
         'html' => [],
+        'data' => [],
     ]);
     foreach ($sectionsPayload['html'] ?? [] as $chunk) {
         if (is_string($chunk) && $chunk !== '') {
             $extraSectionsHtml .= $chunk;
         }
+    }
+    if (is_array($sectionsPayload['data'] ?? null)) {
+        $extensions = $sectionsPayload['data'];
     }
 }
 $flash = flash_take();
@@ -326,12 +344,12 @@ if ($wantsJson) {
             'payments' => ModuleManager::isEnabled('payments'),
             'suppliers' => ModuleManager::isEnabled('suppliers'),
             'stickers' => $stickersEnabled,
-            'funds' => ModuleManager::isEnabled('funds'),
         ],
         'dt_value' => $dtValue,
         'dt_promised_value' => $dtPromisedValue,
         'badge_html' => $moveBadgeHtml,
         'extra_sections_html' => $extraSectionsHtml,
+        'extensions' => $extensions === [] ? new stdClass() : $extensions,
         'can_convert_to_transfer' => $canConvertToTransfer,
         'transfer_types' => $transferTypes,
     ]);
@@ -355,8 +373,8 @@ View::render('moves_edit', [
     'staff' => $staff,
     'suppliers' => $suppliers,
     'actOptions' => $actOptions,
-    'fundsEnabled' => ModuleManager::isEnabled('funds'),
     'stickersEnabled' => $stickersEnabled,
+    'extraFieldsHtml' => $extraFieldsHtml,
     'canConvertToTransfer' => $canConvertToTransfer,
     'transferTypes' => $transferTypes,
     'dtValue' => $dtValue,

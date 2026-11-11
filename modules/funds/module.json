@@ -2,7 +2,7 @@
     "id": "funds",
     "name": "funds.module.name",
     "description": "funds.module.description",
-    "version": "1.0.2",
+    "version": "1.1.0",
     "type": "product",
     "catalog": {
         "categories": [
@@ -41,6 +41,7 @@
         "pages": [
             "/funds",
             "/funds/new",
+            "/funds/{id}",
             "/funds/{id}/edit",
             "/fund-movements",
             "/fund-movements/new",
@@ -55,7 +56,14 @@
                 "method": "GET",
                 "path": "/funds",
                 "permission": "funds.view",
-                "description": "List fund tree nodes; filter: q"
+                "description": "List funds; filter: q. Returns items (flat), tree (groups with children and balances) and leaf_options (selectable funds grouped by parent)."
+            },
+            {
+                "id": "funds.get",
+                "method": "GET",
+                "path": "/funds/{id}",
+                "permission": "funds.view",
+                "description": "Fund card: fund, parent, children (for groups), balance, movements with linked account moves (dps[], dps_sum, mismatch), totals"
             },
             {
                 "id": "funds.accrual",
@@ -90,28 +98,93 @@
                 "method": "GET",
                 "path": "/fund-movements",
                 "permission": "funds.view",
-                "description": "List fund movements; filters: q, fund_id, type_id, fund_type, year, month, yearE, monthE"
+                "description": "List fund movements; filters: q, fund_id (a group id includes its children), type_id, fund_type, year, month, yearE, monthE. Items include dps[] (linked account moves), dps_sum, mismatch."
             },
             {
                 "id": "funds.movements.get_edit",
                 "method": "GET",
                 "path": "/fund-movements/{id}/edit",
                 "permission": "funds.edit",
-                "description": "Fund movement edit payload; new at /fund-movements/new"
+                "description": "Fund movement edit payload with linked account moves; new at /fund-movements/new (fund_id= to preselect, dps= to prefill from an account move)"
             },
             {
                 "id": "funds.movements.create",
                 "method": "POST",
                 "path": "/fund-movements/new",
                 "permission": "funds.edit",
-                "description": "Create fund movement"
+                "description": "Create fund movement. fund_id must be a leaf fund (groups are rejected). Pass dps=<account move id> to also link that account move (see funds.movements.from_dps).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "fund_id": {
+                            "type": "integer",
+                            "description": "base_funds.ID of a leaf fund (not a group)"
+                        },
+                        "type_id": {
+                            "type": "integer",
+                            "description": "1 CAPUSE, 2 REFUND, 3 REVAL, 4 DEVAL, 5 DESTROY"
+                        },
+                        "summ": {
+                            "type": "string",
+                            "description": "Amount > 0"
+                        },
+                        "summ_out_cap": {
+                            "type": "string",
+                            "description": "Source: shareholder capital (CAPUSE)"
+                        },
+                        "summ_out_fund": {
+                            "type": "string",
+                            "description": "Source: accumulated fund (CAPUSE)"
+                        },
+                        "summ_out_infl": {
+                            "type": "string",
+                            "description": "Source: revaluation (REVAL defaults to summ)"
+                        },
+                        "summ_out_destroy": {
+                            "type": "string",
+                            "description": "Liquidation amount (DESTROY defaults to summ)"
+                        },
+                        "dt_amort_start": {
+                            "type": "string",
+                            "description": "Posting date / amortization start (datetime or unix ts); default now"
+                        },
+                        "amort_months": {
+                            "type": "integer",
+                            "description": "Amortization months"
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Short name"
+                        },
+                        "descr": {
+                            "type": "string",
+                            "description": "Description"
+                        },
+                        "dps": {
+                            "type": "integer",
+                            "description": "Optional base_account_moves.ID to link after create"
+                        }
+                    },
+                    "required": [
+                        "fund_id",
+                        "type_id",
+                        "summ"
+                    ]
+                }
+            },
+            {
+                "id": "funds.movements.from_dps",
+                "method": "GET",
+                "path": "/fund-movements/new",
+                "permission": "funds.edit",
+                "description": "Prefill a fund movement from an account move: query dps=<id> (optional fund_id=). Returns item prefill and fund_options; then POST /fund-movements/new with the same dps= and fund_id to create and link. Errors if the move type is not fund-linked or the move is already linked."
             },
             {
                 "id": "funds.movements.update",
                 "method": "POST",
                 "path": "/fund-movements/{id}/edit",
                 "permission": "funds.edit",
-                "description": "Update fund movement"
+                "description": "Update fund movement (full form: fund_id, type_id, summ, sources, dates, name, descr)"
             }
         ]
     },
@@ -137,7 +210,13 @@
     ],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "ledger.types.meta",
+            "ledger.moves.form.fields",
+            "ledger.moves.validate",
+            "ledger.moves.edit.sections",
+            "ledger.moves.badges"
+        ],
         "publish": []
     },
     "setup": {

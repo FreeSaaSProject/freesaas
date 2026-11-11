@@ -68,6 +68,26 @@ Sums (`summ`, recon `bank_balance`) accept clipboard forms like `1 203 323,23`.
 
 With `account_id`, JSON includes `balance`, `recon_today`, `recs_by_move_id`, `orphan_recs`.
 
+### Move types (`ledger.types.*`)
+
+`POST /account-move-types/{id}/edit?format=json` is a **partial** update: omitted fields keep their current values, so send only what changes (e.g. `fund_enabled=1`). The HTML form still treats an unchecked checkbox as `0`. Create (`/account-move-types/new`) needs `name`; omitted flags default to `0`.
+
+`ledger.types.get` / `.list` return the raw flags plus keys added by enabled modules through `ledger.types.meta` (for example `fund_link` from `funds`).
+
+### Extension hooks
+
+Ledger does not know about other modules; they plug in via EventBus:
+
+| Event | Payload | Use |
+|-------|---------|-----|
+| `ledger.types.meta` | `{meta: {typeId: row}}` | Add derived keys to type metadata (form gating, JSON) |
+| `ledger.moves.form.fields` | `{id, row, type, type_meta, html[]}` | Extra fields inside the move form. Wrap them in `data-ledger-requires-meta="<key>"` to show only when the selected type has `meta[key] > 0` (inputs inside are disabled otherwise) |
+| `ledger.moves.validate` | `{data, type, post, move_id, existing, error}` | Validate before save; set `error` to reject (400 in JSON). Only `fund_movement_id` in `data` is writable |
+| `ledger.moves.edit.sections` | `{id, row, type, html[], data{}}` | Sections under the form; `data.<module>` is returned to agents as `extensions.<module>` in `ledger.moves.get` |
+| `ledger.moves.badges` | `{ids, type_by_move, by_id}` | Chips in list / edit header |
+
+`fund_movement_id` is ledger's own column (`ID_FUND_MOVEMENT`): when the form or agent omits it, the current value is kept. Without a `funds` listener it is stored as sent.
+
 ### Reconciliations (`ledger.reconcile`)
 
 Advisory bank-balance markers only — they do **not** lock create/edit/delete of moves.
@@ -97,7 +117,7 @@ POST `/ledger/moves` with `recon_action` (op `ledger.moves.recon`):
 | `banks` | Statement sync toolbar on `/ledger/moves` when account is linked (`ledger.moves.list.toolbar` → `/banks/sync-account`); badges; filter `bank_review=1` for unclassified bank moves |
 | `suppliers` | Counterparty field |
 | `stickers` | Act-in attach |
-| `funds` | Fund movement id |
+| `funds` | Fund movement select, «create fund movement from this move», fund badge, `extensions.funds`; type meta `fund_link` = flag `ID_FUND_ENABLED` or cash-flow class Investments — see [funds.md](funds.md) |
 
 ## Health
 

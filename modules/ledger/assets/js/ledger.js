@@ -55,7 +55,16 @@
     setHidden(form.querySelector('[data-ledger-field="supplier"]'), !supplierOn);
     setHidden(form.querySelector('[data-ledger-field="act"]'), !(hasType && Number(meta.act_in_enabled) > 0));
     setHidden(form.querySelector('[data-ledger-field="act_not_req"]'), !(hasType && Number(meta.act_in_enabled) > 0));
-    setHidden(form.querySelector('[data-ledger-field="fund"]'), !(hasType && Number(meta.fund_enabled) > 0));
+    var metaGated = form.querySelectorAll('[data-ledger-requires-meta]');
+    for (var mi = 0; mi < metaGated.length; mi++) {
+      var metaKey = metaGated[mi].getAttribute('data-ledger-requires-meta') || '';
+      var metaOn = hasType && metaKey !== '' && Number(meta[metaKey]) > 0;
+      setHidden(metaGated[mi], !metaOn);
+      var gatedInputs = metaGated[mi].querySelectorAll('input, select, textarea');
+      for (var gi = 0; gi < gatedInputs.length; gi++) {
+        gatedInputs[gi].disabled = !metaOn;
+      }
+    }
     setHidden(form.querySelector('[data-ledger-field="unconfirmed"]'), !hasType);
     setHidden(form.querySelector('[data-ledger-field="promised"]'), !hasType);
     setHidden(form.querySelector('[data-ledger-save]'), !hasType);

@@ -1,22 +1,21 @@
 <?php
 declare(strict_types=1);
-/** @var list<array<string,mixed>> $items */
-/** @var int $total */
+/** @var list<array<string,mixed>> $tree */
 /** @var string $q */
-/** @var array<int,string> $names */
 /** @var bool $canEdit */
 /** @var string $sort */
 /** @var string $dir */
-/** @var int $page */
 /** @var int $perPage */
-/** @var bool $showAll */
 /** @var array $filters */
 /** @var array|null $bulkFlash */
 /** @var array{ok:bool,message:string}|null $accrualFlash */
 /** @var list<array<string,mixed>> $accrualRows */
 $path = '/funds'; $listId = 'funds';
-$pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, !empty($showAll));
-$colSpan = 5 + BulkActions::colSpanExtra($listId);
+$colSpan = 4 + BulkActions::colSpanExtra($listId);
+$grandTotal = 0.0;
+foreach ($tree as $node) {
+    $grandTotal += (float)$node['balance'];
+}
 ?>
 <section class="page-head">
   <?php if ($canEdit): ?>
@@ -69,20 +68,34 @@ $colSpan = 5 + BulkActions::colSpanExtra($listId);
   <?= ListQuery::sortHiddenInputs($sort, $dir, (int)$perPage) ?>
   <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= te('funds.list.search') ?>" data-filter-debounce>
 </form>
-<?= $pager ?>
+<p class="muted"><?= te('funds.list.hint') ?></p>
 <?= BulkActions::beginForm($listId, ListQuery::url($path, $filters, [])) ?><?= BulkActions::bar($listId) ?>
-<div class="table-wrap"><table class="data">
-<thead><tr><?= BulkActions::th($listId) ?><?= ListQuery::sortTh('ID', 'id', $sort, $dir, $path, $filters) ?><?= ListQuery::sortTh(t('funds.col.name'), 'name', $sort, $dir, $path, $filters) ?><th><?= te('funds.col.parent') ?></th><th><?= te('funds.col.balance') ?></th></tr></thead>
+<div class="table-wrap"><table class="data funds-table">
+<thead><tr><?= BulkActions::th($listId) ?><th>ID</th><th><?= te('funds.col.name') ?></th><th><?= te('funds.col.type') ?></th><th class="num"><?= te('funds.col.balance') ?></th></tr></thead>
 <tbody>
-<?php foreach ($items as $r): ?>
-<tr>
-  <?= BulkActions::td($listId, (int)$r['id']) ?>
-  <td class="muted"><?php if ($canEdit): ?><a href="/funds/<?= (int)$r['id'] ?>/edit"><?= (int)$r['id'] ?></a><?php else: ?><?= (int)$r['id'] ?><?php endif; ?></td>
-  <td><?= e((string)$r['name']) ?> <span class="muted"><?= e(FundsRepository::typeLabel((int)$r['type'])) ?></span></td>
-  <td class="muted"><?= (int)$r['pid'] > 0 ? e((string)($names[(int)$r['pid']] ?? '#' . (int)$r['pid'])) : '—' ?></td>
-  <td><?= e(number_format((float)$r['balance'], 2, '.', ' ')) ?></td>
+<?php foreach ($tree as $node): ?>
+<tr class="<?= $node['is_group'] ? 'funds-group-row' : '' ?>">
+  <?= BulkActions::td($listId, (int)$node['id']) ?>
+  <td class="muted"><?php if ($canEdit): ?><a href="/funds/<?= (int)$node['id'] ?>/edit"><?= (int)$node['id'] ?></a><?php else: ?><?= (int)$node['id'] ?><?php endif; ?></td>
+  <td><a href="/funds/<?= (int)$node['id'] ?>"><?= e((string)$node['name']) ?></a>
+    <?php if ($node['is_group']): ?> <span class="muted funds-count"><?= te('funds.list.children', ['n' => count($node['children'])]) ?></span><?php endif; ?></td>
+  <td class="muted"><?= e(FundsRepository::typeLabel((int)$node['type'])) ?></td>
+  <td class="num"><?= e(FundMovementsRepository::fmt((float)$node['balance'])) ?></td>
+</tr>
+<?php foreach ($node['children'] as $c): ?>
+<tr class="funds-child-row">
+  <?= BulkActions::td($listId, (int)$c['id']) ?>
+  <td class="muted"><?php if ($canEdit): ?><a href="/funds/<?= (int)$c['id'] ?>/edit"><?= (int)$c['id'] ?></a><?php else: ?><?= (int)$c['id'] ?><?php endif; ?></td>
+  <td class="funds-name"><a href="/funds/<?= (int)$c['id'] ?>"><?= e((string)$c['name']) ?></a></td>
+  <td class="muted"><?= e(FundsRepository::typeLabel((int)$c['type'])) ?></td>
+  <td class="num"><?= e(FundMovementsRepository::fmt((float)$c['balance'])) ?></td>
 </tr>
 <?php endforeach; ?>
-<?php if (!$items): ?><tr><td colspan="<?= (int)$colSpan ?>" class="muted"><?= te('funds.list.empty') ?></td></tr><?php endif; ?>
-</tbody></table></div>
-<?= BulkActions::endForm($listId) ?><?= $pager ?>
+<?php endforeach; ?>
+<?php if (!$tree): ?><tr><td colspan="<?= (int)$colSpan ?>" class="muted"><?= te('funds.list.empty') ?></td></tr><?php endif; ?>
+</tbody>
+<?php if ($tree): ?>
+<tfoot><tr><td colspan="<?= (int)$colSpan - 1 ?>"><?= te('funds.view.total') ?></td><td class="num"><strong><?= e(FundMovementsRepository::fmt($grandTotal)) ?></strong></td></tr></tfoot>
+<?php endif; ?>
+</table></div>
+<?= BulkActions::endForm($listId) ?>

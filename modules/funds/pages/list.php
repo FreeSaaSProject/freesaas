@@ -40,13 +40,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && Auth::can('funds.edit'))
 }
 
 BulkActions::tryHandle('funds', '/funds', $filters);
-$result = FundsRepository::list(['q' => $q, 'limit' => ListQuery::sqlLimit($lq), 'offset' => $lq['offset'], 'order' => $lq['order_sql']]);
+$tree = FundsRepository::tree($q);
 
 if ($wantsJson) {
+    $result = FundsRepository::list(['q' => $q, 'limit' => ListQuery::sqlLimit($lq), 'offset' => $lq['offset'], 'order' => $lq['order_sql']]);
     AgentHttp::emit([
         'ok' => true,
         'total' => $result['total'],
         'items' => $result['items'],
+        'tree' => $tree,
+        'leaf_options' => FundsRepository::leafOptions(),
         'names' => FundsRepository::names(),
         'filters' => ['q' => $q],
         'page' => $lq['page'],
@@ -59,9 +62,8 @@ if ($wantsJson) {
 View::render('list', [
     'title' => t('funds.menu.list'),
     'breadcrumbs' => Breadcrumbs::withHome([['label' => t('funds.menu.list'), 'current' => true]]),
-    'items' => $result['items'], 'total' => $result['total'], 'q' => $q,
-    'names' => FundsRepository::names(), 'canEdit' => Auth::can('funds.edit'),
-    'sort' => $lq['sort'], 'dir' => $lq['dir'], 'page' => $lq['page'], 'perPage' => $lq['per_page'],
-    'showAll' => $lq['show_all'], 'filters' => $filters, 'bulkFlash' => BulkActions::consumeFlash(),
+    'tree' => $tree, 'q' => $q, 'canEdit' => Auth::can('funds.edit'),
+    'sort' => $lq['sort'], 'dir' => $lq['dir'], 'perPage' => $lq['per_page'],
+    'filters' => $filters, 'bulkFlash' => BulkActions::consumeFlash(),
     'accrualFlash' => $accrualFlash, 'accrualRows' => $accrualRows,
 ], 'layout', 'funds');

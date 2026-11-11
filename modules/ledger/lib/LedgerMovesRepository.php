@@ -676,10 +676,10 @@ final class LedgerMovesRepository
         if (!empty($type['supplier_enabled']) && $supplierId < 1) {
             throw new InvalidArgumentException(t('ledger.moves.err.supplier'));
         }
-        $fundMovementId = 0;
-        if (!empty($type['fund_enabled']) && Database::tableExists('base_fund_movements')) {
-            $fundMovementId = max(0, (int)($post['fund_movement_id'] ?? 0));
-        }
+        // External reference owned by another module; validated via ledger.moves.validate.
+        $fundMovementId = array_key_exists('fund_movement_id', $post)
+            ? max(0, (int)$post['fund_movement_id'])
+            : (int)($existing['fund_movement_id'] ?? 0);
         $act2In = 0;
         $act2NotReq = 0;
         if (!empty($type['act_in_enabled']) && ModuleManager::isEnabled('stickers')) {
@@ -700,7 +700,7 @@ final class LedgerMovesRepository
             $promiseExecuted = !empty($post['promise_executed']) ? 1 : 0;
         }
 
-        return [
+        $data = [
             'account_id' => $accountId,
             'type_id' => $typeId,
             'direction' => $direction,
@@ -722,6 +722,113 @@ final class LedgerMovesRepository
             'account_to' => (int)($existing['account_to'] ?? 0),
             'deleted' => (int)($existing['deleted'] ?? 0),
         ];
+        return self::applyValidateHook($data, $type, $post, $existing);
+    }
+
+    /** Keys of $data that ledger.moves.validate subscribers may change. */
+    private const VALIDATE_WRITABLE = ['fund_movement_id'];
+
+    /**
+     * @param array<string,mixed> $data
+     * @param array<string,mixed> $type
+     * @param array<string,mixed> $post
+     * @param array<string,mixed>|null $existing
+     * @return array<string,mixed>
+     */
+    private static function applyValidateHook(array $data, array $type, array $post, ?array $existing): array
+    {
+        $payload = EventBus::emit('ledger.moves.validate', [
+            'data' => $data,
+            'type' => $type,
+            'post' => $post,
+            'move_id' => (int)($existing['id'] ?? 0),
+            'existing' => $existing,
+            'error' => '',
+        ]);
+        $err = trim((string)($payload['error'] ?? ''));
+        if ($err !== '') {
+            throw new InvalidArgumentException($err);
+        }
+        $changed = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+        foreach (self::VALIDATE_WRITABLE as $key) {
+            if (array_key_exists($key, $changed)) {
+                $data[$key] = max(0, (int)$changed[$key]);
+            }
+        }
+        return $data;
+    }
+
+    /** Link (or unlink with 0) an external fund movement reference on one move. */
+    public static function setFundMovement(int $moveId, int $fundMovementId): void
+    {
+        if ($moveId < 1) {
+            return;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_account_moves SET ID_FUND_MOVEMENT = ?, ID_USER_UPDATE = ?, DT_UPDATE = ? WHERE ID = ?'
+        );
+        $st->execute([max(0, $fundMovementId), Auth::userId(), time(), $moveId]);
+    }
+
+    /**
+     * @param list<int> $moveIds
+     * @return array<int,int> move id => fund movement id (only linked moves)
+     */
+    public static function fundMovementRefs(array $moveIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $moveIds), static function (int $id): bool {
+            return $id > 0;
+        })));
+        if ($ids === [] || !Database::tableExists('base_account_moves')) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID, ID_FUND_MOVEMENT FROM base_account_moves WHERE ID IN ($ph) AND ID_FUND_MOVEMENT > 0"
+        );
+        $st->execute($ids);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+            $out[(int)$r['ID']] = (int)$r['ID_FUND_MOVEMENT'];
+        }
+        return $out;
+    }
+
+    /**
+     * Non-deleted moves referencing given fund movement ids.
+     *
+     * @param list<int> $fundMovementIds
+     * @return array<int, list<array{id:int,dt:int,summ:float,direction:int,descr:string,account_id:int,type_id:int}>>
+     */
+    public static function listByFundMovements(array $fundMovementIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $fundMovementIds), static function (int $id): bool {
+            return $id > 0;
+        })));
+        if ($ids === [] || !Database::tableExists('base_account_moves')) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID, ID_FUND_MOVEMENT, DT, SUMM, DIRECTION, DESCR, ID_ACCOUNT, ID_TYPE
+             FROM base_account_moves
+             WHERE ID_FUND_MOVEMENT IN ($ph) AND DELETED = 0
+             ORDER BY DT ASC, ID ASC"
+        );
+        $st->execute($ids);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+            $out[(int)$r['ID_FUND_MOVEMENT']][] = [
+                'id' => (int)$r['ID'],
+                'dt' => (int)$r['DT'],
+                'summ' => (float)$r['SUMM'],
+                'direction' => (int)$r['DIRECTION'],
+                'descr' => (string)$r['DESCR'],
+                'account_id' => (int)$r['ID_ACCOUNT'],
+                'type_id' => (int)$r['ID_TYPE'],
+            ];
+        }
+        return $out;
     }
 
     /** @param array<string,mixed> $data */

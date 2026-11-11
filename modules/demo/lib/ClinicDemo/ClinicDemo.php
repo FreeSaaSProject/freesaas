@@ -308,7 +308,8 @@ final class ClinicDemo
 
         $events = array_values(array_unique(array_merge(
             $this->manifest->ids('events'),
-            $this->manifest->ids('events_forward')
+            $this->manifest->ids('events_forward'),
+            $this->eventsOfSeededPeople()
         )));
         $procedures = $this->manifest->ids('procedures');
         $moves = $this->manifest->ids('moves');
@@ -432,6 +433,30 @@ final class ClinicDemo
 
         $this->manifest->reset();
         return ['ok' => true, 'deleted' => array_keys($deleted), 'manifest_removed' => true];
+    }
+
+    /**
+     * Events booked for seeded clients or seeded staff, including ones whose ids
+     * were lost from the manifest (they would otherwise outlive the people they reference).
+     *
+     * @return list<int>
+     */
+    private function eventsOfSeededPeople(): array
+    {
+        $parts = [];
+        $clients = $this->manifest->ids('clients');
+        $users = $this->manifest->ids('users');
+        if ($clients !== []) {
+            $parts[] = 'ID_USER IN (' . implode(',', $clients) . ')';
+        }
+        if ($users !== []) {
+            $parts[] = 'ID_OPERATOR IN (' . implode(',', $users) . ')';
+        }
+        if ($parts === [] || !Database::tableExists('base_events')) {
+            return [];
+        }
+        $st = Database::pdo()->query('SELECT ID FROM base_events WHERE ' . implode(' OR ', $parts));
+        return array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN) ?: []);
     }
 
     /** @return array<string,mixed> */

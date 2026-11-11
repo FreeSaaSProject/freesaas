@@ -148,6 +148,8 @@ Add only when asked:
 
 Keep financing/investing out of “operating costs” by class, not by scattering `EXCLUDE_PL` on ordinary opex.
 
+With `funds` enabled, every type with `odds_type=2` (investing) automatically gets the fund movement link on its moves (meta `fund_link`). For other classes set `fund_enabled=1` explicitly when the operator wants moves of that type tied to funds (e.g. capex booked as operating). Toggle it with a partial JSON update: `POST /account-move-types/{id}/edit?format=json` with just `fund_enabled=1`.
+
 ## How to insert
 
 Prefer product UI/JSON:
@@ -157,7 +159,7 @@ GET/POST /accounts, /accounts/new
 GET/POST /account-move-types, /account-move-types/new
 ```
 
-Fields of interest on types: `odds_type` (1|2|3), `exclude_pl`, `direction`, `account_id`, `pid`, `num`, flags (`act_in_enabled`, `payment_enabled`, `fot_kind`, `supplier_enabled`, …).
+Fields of interest on types: `odds_type` (1|2|3), `exclude_pl`, `direction`, `account_id`, `pid`, `num`, flags (`act_in_enabled`, `payment_enabled`, `fot_kind`, `supplier_enabled`, `fund_enabled`, …). JSON updates of an existing type are partial — send only the changed fields.
 
 On virgin DB with SQL access: insert accounts first, then parents, then leaves (`PID` after parents exist). No second table-prefix family.
 
