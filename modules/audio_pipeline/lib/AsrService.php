@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/AsrLease.php';
+
 /**
  * ASR claim/result for Whisper workers (port of oper getFileName / saveFileDescription).
  */
@@ -24,9 +26,21 @@ final class AsrService
     /** Claim next untranscribed FILENAME or "None". */
     public static function claim(): string
     {
-        if (!Database::tableExists('base_records')) {
+        if (!Database::tableExists('base_records') || !AsrLease::pullEnabled()) {
             return 'None';
         }
+        if (AsrLease::available()) {
+            $got = AsrLease::leaseNext(AsrLease::CHANNEL_PULL, 0, AsrLease::pullTtl(), 1);
+
+            return $got === [] ? 'None' : $got[0]['file_name'];
+        }
+
+        return self::claimLegacyFileLock();
+    }
+
+    /** Pre-migration fallback (base_asr_leases missing). */
+    private static function claimLegacyFileLock(): string
+    {
         $lockFile = self::lockPath('asr_claim.lock');
         $fp = @fopen($lockFile, 'c+');
         if ($fp === false) {
@@ -229,6 +243,13 @@ final class AsrService
             return ['ok' => false, 'diag' => 'not_found'];
         }
         $dtTrans = (int)$row['DT_TRANSCRIBED'];
+        if ($dtTrans > 1) {
+            // First result wins across pull/push workers; ack so the late worker drops its copy.
+            if (AsrLease::available()) {
+                AsrLease::releaseRecord((int)$row['ID']);
+            }
+            return ['ok' => true, 'diag' => 'DUPLICATE_IGNORED=1'];
+        }
         $sets = [];
         $params = [];
         $diagChunk = '';
@@ -293,6 +314,9 @@ final class AsrService
         $diag .= ' PLAYTIME=' . ($writePlaytime ? $ptInt : 'NO');
         $diag .= ' VOLUME=' . (($volume !== null && $volume !== '') ? $volume : 'NO');
         $diag .= $diagChunk;
+        if ($ok && $dtTrans !== 1 && AsrLease::available()) {
+            AsrLease::releaseRecord((int)$row['ID']);
+        }
         if ($ok && $dtTrans !== 1) {
             $queuedDay = self::enqueueStemForRecordDay((int)($row['DT_RECORDED'] ?? 0));
             if ($queuedDay !== '') {

@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-11T10:37:25+00:00",
+    "generated_at": "2026-11-11T18:39:46+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -312,7 +312,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.0.15",
+            "version": "1.1.0",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",

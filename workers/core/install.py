@@ -136,6 +136,51 @@ def which(bin_name: str) -> str:
     return shutil.which(bin_name) or ""
 
 
+def _default_route_iface() -> str:
+    try:
+        if sys.platform == "darwin":
+            out = subprocess.run(["route", "-n", "get", "default"], capture_output=True, text=True, timeout=5).stdout
+            for line in out.splitlines():
+                if line.strip().startswith("interface:"):
+                    return line.split(":", 1)[1].strip()
+        else:
+            out = subprocess.run(["ip", "route", "show", "default"], capture_output=True, text=True, timeout=5).stdout
+            parts = out.split()
+            if "dev" in parts:
+                return parts[parts.index("dev") + 1]
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return ""
+
+
+def _doctor_whisper_push(root: Path, local: Dict[str, Any], add: Any) -> None:
+    push = local.get("push") if isinstance(local.get("push"), dict) else {}
+    secret = str(push.get("secret") or "").strip()
+    add(
+        "whisper.push.secret",
+        len(secret) >= 32 and secret != "CHANGE_ME",
+        "set" if len(secret) >= 32 else "paste secret from FreeSaaS /audio/settings → push workers",
+    )
+    for key, default in (("tls_cert", "var/push/tls/cert.pem"), ("tls_key", "var/push/tls/key.pem")):
+        p = Path(str(push.get(key) or default)).expanduser()
+        if not p.is_absolute():
+            p = (root / p).resolve()
+        add(f"whisper.push.{key}", p.is_file(), str(p) if p.is_file() else f"missing {p} — run push_cli.py init")
+    allowed = push.get("allowed_ips") or []
+    add(
+        "whisper.push.allowed_ips",
+        True,
+        ", ".join(str(x) for x in allowed) if allowed else "WARN: empty — any IP may try (signature still required)",
+    )
+    iface = _default_route_iface()
+    tunnel = iface.startswith(("ppp", "utun", "tun", "wg"))
+    add(
+        "whisper.push.default_route",
+        bool(iface) and not tunnel,
+        (f"{iface} — VPN holds default route; inbound replies will not reach FreeSaaS" if tunnel else (iface or "unknown")),
+    )
+
+
 def doctor() -> Dict[str, Any]:
     ensure_var_dirs()
     host = load_host()
@@ -207,6 +252,9 @@ def doctor() -> Dict[str, Any]:
         if s.id == "whisper":
             script = s.root / "start_whisper_server.sh"
             add("whisper.start_script", script.is_file(), str(script) if script.is_file() else "copy start_whisper_server.example.sh")
+            modes = local.get("modes") if isinstance(local.get("modes"), dict) else {}
+            if modes.get("push"):
+                _doctor_whisper_push(s.root, local, add)
         if s.id == "audioloader":
             ftp = local.get("ftp") if isinstance(local.get("ftp"), dict) else {}
             ftp_host = str(ftp.get("host") or "").strip()

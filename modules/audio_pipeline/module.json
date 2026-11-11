@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "1.0.15",
+    "version": "1.1.0",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -38,7 +38,9 @@
             "/agent/audio_pipeline/collection",
             "/agent/audio_pipeline/instances",
             "/agent/audio_pipeline/day-reparse",
-            "/agent/audio_pipeline/backfill-playtime"
+            "/agent/audio_pipeline/backfill-playtime",
+            "/agent/audio_pipeline/asr-push/status",
+            "/agent/audio_pipeline/asr-push/sync"
         ]
     },
     "agent": {
@@ -109,6 +111,23 @@
                 "assistant": false,
                 "side_effect": "write",
                 "description": "Agent-token: backfill PLAYTIME=0 from transcript cue end; body date=, admin=, dry_run=1|0, confirm=1 when writing"
+            },
+            {
+                "id": "audio_pipeline.asr_push_status",
+                "method": "GET",
+                "path": "/agent/audio_pipeline/asr-push/status",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token: ASR dispatch switches (pull/push), lease counts, push workers state (no secrets)"
+            },
+            {
+                "id": "audio_pipeline.asr_push_sync",
+                "method": "POST",
+                "path": "/agent/audio_pipeline/asr-push/sync",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: run push sync now; body confirm=1, optional worker=<id> (ignores backoff), test=1 for status probe only"
             },
             {
                 "id": "audio_pipeline.asr.claim",
@@ -199,7 +218,9 @@
         "base_records_collections_datas",
         "base_records_stem_word_cache",
         "base_records_stem_key_cache",
-        "base_records_coverage_profiles"
+        "base_records_coverage_profiles",
+        "base_asr_leases",
+        "base_asr_push_workers"
     ],
     "migrators": [],
     "hooks": {

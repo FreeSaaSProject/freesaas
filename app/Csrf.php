@@ -197,25 +197,38 @@ final class Csrf
         if ($field === '') {
             return $html;
         }
-        $out = preg_replace_callback(
-            '/<form\b([^>]*)>(.*?)<\/form>/is',
-            static function (array $m) use ($field): string {
-                $attrs = $m[1];
-                $body = $m[2];
-                $methodPost = preg_match('/\bmethod\s*=\s*(["\']?)post\1/i', $attrs)
-                    || preg_match('/\bmethod\s*=\s*post\b/i', $attrs);
-                if (!$methodPost) {
-                    return $m[0];
-                }
-                // Already has a csrf field (nested forms are rare; skip re-inject).
-                if (preg_match('/\bname\s*=\s*(["\']?)csrf\1/i', $attrs . $body)) {
-                    return $m[0];
-                }
-                return '<form' . $attrs . '>' . $field . $body . '</form>';
-            },
-            $html
-        );
-        return is_string($out) ? $out : $html;
+        // Match only opening tags; bodies are scanned with stripos. A lazy (.*?) over the form
+        // body hits pcre.backtrack_limit on long lists (~1 MB) and silently drops every token.
+        if (preg_match_all('/<form\b([^>]*)>/i', $html, $tags, PREG_OFFSET_CAPTURE | PREG_SET_ORDER) === false) {
+            return $html;
+        }
+        $out = '';
+        $pos = 0;
+        foreach ($tags as $tag) {
+            $attrs = (string)$tag[1][0];
+            $tagEnd = (int)$tag[0][1] + strlen((string)$tag[0][0]);
+            $methodPost = preg_match('/\bmethod\s*=\s*(["\']?)post\1/i', $attrs) === 1
+                || preg_match('/\bmethod\s*=\s*post\b/i', $attrs) === 1;
+            if (!$methodPost) {
+                continue;
+            }
+            $close = stripos($html, '</form>', $tagEnd);
+            $body = $close === false ? '' : substr($html, $tagEnd, $close - $tagEnd);
+            if (self::hasCsrfField($attrs) || self::hasCsrfField($body)) {
+                continue;
+            }
+            $out .= substr($html, $pos, $tagEnd - $pos) . $field;
+            $pos = $tagEnd;
+        }
+        return $pos === 0 ? $html : $out . substr($html, $pos);
+    }
+
+    private static function hasCsrfField(string $chunk): bool
+    {
+        if ($chunk === '' || stripos($chunk, self::FIELD) === false) {
+            return false;
+        }
+        return preg_match('/\bname\s*=\s*(["\']?)' . self::FIELD . '\1/i', $chunk) === 1;
     }
 
     /**

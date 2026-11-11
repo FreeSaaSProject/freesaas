@@ -73,6 +73,15 @@ $inj = Csrf::injectForms($html);
 $assert(substr_count($inj, 'name="csrf"') === 1, 'inject only POST forms');
 $assert(preg_match('/<form method="get"[^>]*>\s*<input name="b"/', $inj) === 1, 'GET form untouched');
 
+// Long lists (e.g. 600 ledger moves in a bulk form) must not exceed pcre.backtrack_limit.
+$bigBody = str_repeat('<tr><td>row</td><td>1 000,00</td></tr>', 60000);
+$bigHtml = '<form method="post" id="bulk">' . $bigBody . '</form>'
+    . '<form id="recon" method="post" hidden><input name="recon_action" value="save"></form>';
+$bigInj = Csrf::injectForms($bigHtml);
+$assert(substr_count($bigInj, 'name="csrf"') === 2, 'inject into forms after >1MB form body');
+$already = '<form method="post"><input type="hidden" name="csrf" value="x"></form>';
+$assert(substr_count(Csrf::injectForms($already), 'name="csrf"') === 1, 'no double inject');
+
 $_SERVER['HTTP_SEC_FETCH_SITE'] = 'cross-site';
 $assert(!Csrf::isSameSiteRequest(), 'cross-site denied');
 $_SERVER['HTTP_SEC_FETCH_SITE'] = 'same-origin';

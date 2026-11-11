@@ -12,7 +12,8 @@ import tempfile
 import subprocess
 import re
 import math
-from typing import Any, Dict, List, Optional, Tuple
+import threading
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import requests
 import urllib3
 
@@ -62,14 +63,20 @@ def status_update(**kwargs: Any) -> None:
 
 
 def idle_sleep(total_sec: int) -> None:
-	"""Sleep with heartbeat so dashboard/logs do not look frozen during idle."""
+	"""Sleep with heartbeat so dashboard/logs do not look frozen during idle.
+	Push mode: returns early when FreeSaaS delivers new jobs."""
 	total = max(1, int(total_sec))
 	chunk = 15
 	left = total
 	while left > 0:
 		set_activity("idle", tl("activity.idle_sleep", sec=left))
 		step = min(chunk, left)
-		time.sleep(step)
+		if PUSH_WAKE is not None:
+			if PUSH_WAKE.wait(step):
+				PUSH_WAKE.clear()
+				return
+		else:
+			time.sleep(step)
 		left -= step
 
 
@@ -126,6 +133,18 @@ NOTIFY_SETTINGS: Any = None
 NOTIFY_WHISPER_DOWN = True
 NOTIFY_RECOGNITION_SUMMARY = True
 NOTIFY_NOVAD_FALLBACK = True
+# Dispatch modes: pull = poll FreeSaaS claim; push = inbound HTTPS API (push_server.py).
+PULL_ENABLED = True
+PUSH_ENABLED = False
+PUSH_CFG: Dict[str, Any] = {}
+PUSH_MAX_ATTEMPTS = 5
+PUSH_RETRY_DELAY_SEC = 120.0
+PUSH_STORE: Any = None
+PUSH_API: Any = None
+PUSH_WAKE: Optional[threading.Event] = None
+# Push mode keeps serving results/acks while whisper-server is down (no SystemExit).
+WHISPER_DOWN = False
+WHISPER_DOWN_RETRY_SEC = 120
 
 # Copy configs/example.json → configs/local.json (gitignored) and fill secrets.
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "configs" / "local.json"
@@ -136,6 +155,14 @@ PENDING_RESULTS_DIR = CLIENT_ROOT / "var" / "pending_results"
 
 class BackendUploadError(RuntimeError):
 	"""FreeSaaS rejected or did not confirm saving a transcription (do not mark file done)."""
+
+
+class WhisperServerDown(RuntimeError):
+	"""whisper-server dead and not recoverable right now (push mode: wait instead of exit)."""
+
+
+# deliver(file_name, text, playtime, volume): pull → POST to FreeSaaS; push → local store.
+Deliver = Callable[[str, str, Optional[float], Optional[float]], None]
 
 
 def backend_headers() -> Dict[str, str]:
@@ -165,9 +192,17 @@ def load_config(config_path: Path) -> None:
 	global RETRY_TEMPERATURES_ON_GARBAGE, RETRY_TEMPERATURES_ON_EMPTY_RESPONSE
 	global LOOP_SLEEP_SECONDS_IDLE, LOOP_SLEEP_SECONDS_RUN, SLEEP_HOUR
 	global NOTIFY_SETTINGS, NOTIFY_WHISPER_DOWN, NOTIFY_RECOGNITION_SUMMARY, NOTIFY_NOVAD_FALLBACK
+	global PULL_ENABLED, PUSH_ENABLED, PUSH_CFG, PUSH_MAX_ATTEMPTS, PUSH_RETRY_DELAY_SEC
 
 	with open(config_path, "r", encoding="utf-8") as f:
 		cfg = json.load(f)
+
+	modes = cfg.get("modes") or {}
+	PULL_ENABLED = bool(modes.get("pull", True))
+	PUSH_ENABLED = bool(modes.get("push", False))
+	PUSH_CFG = cfg.get("push") or {}
+	PUSH_MAX_ATTEMPTS = max(1, int(PUSH_CFG.get("max_attempts", 5)))
+	PUSH_RETRY_DELAY_SEC = float(PUSH_CFG.get("retry_delay_sec", 120))
 
 	SERVER = str(cfg["server"]).rstrip("/")
 	FTPSERVER = str(cfg["ftp_server"]).rstrip("/")
@@ -419,12 +454,17 @@ def fatal_whisper_server_down(detail: str) -> None:
 	)
 	if NOTIFY_WHISPER_DOWN:
 		notify_ops(
-			"❌ Whisper-server недоступен — клиент остановлен<br>"
+			"❌ Whisper-server недоступен — "
+			+ ("приём заданий приостановлен" if PUSH_ENABLED else "клиент остановлен")
+			+ "<br>"
 			f"Сервер: {SERVER}<br>"
 			f"Whisper: {WHISPER_SERVER_BASE}<br>"
 			f"Деталь: {detail}",
 			"whisper_down",
 		)
+	if PUSH_ENABLED:
+		# Push API must keep answering /v1/results + ack; main loop waits and retries.
+		raise WhisperServerDown(detail)
 	raise SystemExit(2)
 
 def handle_whisper_server_down(exc: BaseException) -> None:
@@ -450,6 +490,7 @@ def recover_crash_with_novad(
 	playtime: Any,
 	volume: Any,
 	crash_detail: str,
+	deliver: Optional[Deliver] = None,
 ) -> str:
 	"""
 	После падения whisper (обычно VAD segfault):
@@ -496,7 +537,7 @@ def recover_crash_with_novad(
 	# Повтор проблемного файла на novad
 	try:
 		log("🧠 Повтор на novad (output=srt)...")
-		transcribe_upload_srt(audio_path, file_name, playtime=playtime, volume=volume)
+		transcribe_upload_srt(audio_path, file_name, playtime=playtime, volume=volume, deliver=deliver)
 	except BackendUploadError:
 		# Transcript ready but FreeSaaS did not confirm — leave claim for retry.
 		raise
@@ -506,7 +547,7 @@ def recover_crash_with_novad(
 				f"novad тоже упал на файле {fname}: {e}"
 			)
 		log("❌ Ошибка на novad (сервер жив):", e)
-		upload_error_marker(file_name, str(e), playtime=playtime, volume=volume)
+		upload_error_marker(file_name, str(e), playtime=playtime, volume=volume, deliver=deliver)
 
 	# Вернуть VAD для следующих файлов
 	log("🔁 Возвращаем whisper-server С VAD...")
@@ -1122,6 +1163,7 @@ def upload_error_marker(
 	err_msg: str,
 	playtime: Optional[float] = None,
 	volume: Optional[float] = None,
+	deliver: Optional[Deliver] = None,
 ):
 	"""Отправляем «служебную строку» об ошибке, чтобы файл вышел из очереди без повторов.
 	PLAYTIME/VOLUME шлём и здесь — серверу не нужно потом самому оценивать аудио.
@@ -1130,7 +1172,7 @@ def upload_error_marker(
 	clean = " ".join(err_msg.split())
 	clean = clean[:300]
 	marker = f" {clean}"
-	upload_transcription(file_name, marker, playtime=playtime, volume=volume)
+	(deliver or upload_transcription)(file_name, marker, playtime, volume)
 
 def post_to_whisper_server(audio_path: Path, temperature: Optional[float] = None) -> str:
 	"""
@@ -1198,9 +1240,10 @@ def transcribe_upload_srt(
 	file_name: str,
 	playtime: Optional[float] = None,
 	volume: Optional[float] = None,
+	deliver: Optional[Deliver] = None,
 ):
 	"""
-	whisper-server → кастомный формат.
+	whisper-server → кастомный формат → deliver (pull: POST в FreeSaaS, push: локальное хранилище).
 	Вторые прогоны только если после первого: мусор и/или не больше одной строки сегмента.
 	Ретраи идут по возрастанию temperature; как только сегментов > 1 и мусора нет — стоп (экономия CPU).
 	Если за все попытки условие не выполнено — остаётся лучший по transcription_quality_key.
@@ -1220,8 +1263,9 @@ def transcribe_upload_srt(
 	formatted = run_once(None)
 	best = formatted
 
+	send = deliver or upload_transcription
 	if quality_ok(formatted):
-		upload_transcription(file_name, best, playtime=playtime, volume=volume)
+		send(file_name, best, playtime, volume)
 		return
 
 	retry_temps: list[float] = []
@@ -1265,7 +1309,182 @@ def transcribe_upload_srt(
 			elif custom_format_nonempty_line_count(best) <= 1:
 				log("ℹ️ После повторов по-прежнему одна строка — отправляем лучший из доступных прогонов.")
 
-	upload_transcription(file_name, best, playtime=playtime, volume=volume)
+	send(file_name, best, playtime, volume)
+
+
+def _on_whisper_unreachable(
+	err: BaseException,
+	audio_path: Path,
+	file_name: str,
+	playtime: Any,
+	volume: Any,
+	deliver: Optional[Deliver],
+) -> bool:
+	"""True = file delivered (novad fallback); False = leave it in the queue."""
+	if WHISPER_AUTO_NOVAD_FALLBACK:
+		return recover_crash_with_novad(
+			audio_path, file_name, playtime, volume, str(err), deliver=deliver
+		) == "ok"
+	handle_whisper_server_down(err)
+	return False
+
+
+def run_file(
+	audio_path: Path,
+	file_name: str,
+	playtime: Optional[float],
+	volume: Optional[float],
+	deliver: Optional[Deliver] = None,
+) -> bool:
+	"""
+	Whisper one downloaded file and deliver transcript or error marker.
+	True = delivered (done). False = transient, file stays queued.
+	BackendUploadError (pull) and WhisperServerDown (push) propagate.
+	"""
+	try:
+		transcribe_upload_srt(audio_path, file_name, playtime=playtime, volume=volume, deliver=deliver)
+		return True
+	except (BackendUploadError, WhisperServerDown):
+		raise
+	except Exception as ws_err:
+		# Локальный сервер лёг → novad-fallback или стоп клиента.
+		if is_whisper_server_unreachable_error(ws_err):
+			return _on_whisper_unreachable(ws_err, audio_path, file_name, playtime, volume, deliver)
+		err_msg = str(ws_err)
+		lower = err_msg.lower()
+		# Как в voice_transcribe_poll: при ошибке чтения аудио — один retry через ffmpeg → mp3
+		if "failed to read audio data" in lower or "failed to read" in lower:
+			try:
+				log("🔁 Retry: конвертация в mp3 и повтор whisper…")
+				mp3_path = convert_audio_to_mp3(audio_path)
+				try:
+					transcribe_upload_srt(
+						mp3_path, file_name, playtime=playtime, volume=volume, deliver=deliver
+					)
+					return True
+				finally:
+					try:
+						mp3_path.unlink(missing_ok=True)
+					except Exception:
+						pass
+			except (BackendUploadError, WhisperServerDown):
+				raise
+			except Exception as retry_e:
+				if is_whisper_server_unreachable_error(retry_e):
+					return _on_whisper_unreachable(retry_e, audio_path, file_name, playtime, volume, deliver)
+				log("❌ Ошибка whisper-server (retry mp3):", retry_e)
+				upload_error_marker(file_name, str(retry_e), playtime=playtime, volume=volume, deliver=deliver)
+				return True
+		log("❌ Ошибка whisper-server:", ws_err)
+		upload_error_marker(file_name, err_msg, playtime=playtime, volume=volume, deliver=deliver)
+		return True
+
+
+# ---------- Push mode ----------
+
+def push_deliver_for(job_id: str) -> Deliver:
+	def deliver(file_name: str, text: str, playtime: Optional[float], volume: Optional[float]) -> None:
+		pt = effective_playtime(playtime, text)
+		pt_out = float(max(1, int(round(pt)))) if pt is not None and pt >= 1.0 else None
+		PUSH_STORE.finish(job_id, text, pt_out, volume)
+		log(f"💾 push: результат сохранён локально ({Path(file_name).name}), ждёт подтверждения FreeSaaS")
+	return deliver
+
+
+def process_push_job(job: Dict[str, Any]) -> bool:
+	"""One push job end-to-end. True = delivered into the local store."""
+	job_id = str(job["job_id"])
+	filename = str(job["file_name"])
+	base_name = Path(filename).name
+	log(f"📦 push: задание {job_id[:8]} {base_name} (попытка {job.get('attempts')})")
+	with tempfile.TemporaryDirectory() as tmpdir:
+		tmp_path = Path(tmpdir) / base_name
+		set_activity("download", tl("activity.download", name=base_name))
+		try:
+			download_file(f"{FTPSERVER}{filename}", tmp_path)
+		except Exception as e:
+			requeued = PUSH_STORE.retry_later(
+				job_id, f"download: {e}", PUSH_RETRY_DELAY_SEC, PUSH_MAX_ATTEMPTS
+			)
+			log("❌ push: скачивание не удалось:", e, "→", "повтор позже" if requeued else "failed")
+			return False
+		playtime, volume = probe_audio_metadata(tmp_path)
+		set_activity("transcribe", tl("activity.transcribe", name=base_name))
+		try:
+			done = run_file(tmp_path, filename, playtime, volume, deliver=push_deliver_for(job_id))
+		except WhisperServerDown:
+			PUSH_STORE.requeue(job_id)
+			raise
+		except Exception as e:
+			requeued = PUSH_STORE.retry_later(job_id, str(e), PUSH_RETRY_DELAY_SEC, PUSH_MAX_ATTEMPTS)
+			log("❌ push: ошибка обработки:", e, "→", "повтор позже" if requeued else "failed")
+			return False
+		if not done:
+			PUSH_STORE.requeue(job_id)
+		return done
+
+
+def wait_whisper_recovery() -> None:
+	"""Push mode: whisper-server down — keep API alive, retry restart periodically."""
+	global WHISPER_DOWN
+	WHISPER_DOWN = True
+	status_update(ok=False)
+	while True:
+		set_activity("error", "whisper-server down — retry in %ss" % WHISPER_DOWN_RETRY_SEC)
+		log(f"⏳ whisper-server недоступен, повторная попытка через {WHISPER_DOWN_RETRY_SEC} сек")
+		time.sleep(WHISPER_DOWN_RETRY_SEC)
+		if whisper_server_health_ok() or restart_whisper_server(vad=True):
+			WHISPER_DOWN = False
+			status_update(ok=True)
+			log("✅ whisper-server снова доступен — приём заданий возобновлён")
+			if NOTIFY_WHISPER_DOWN:
+				notify_ops(f"✅ Whisper-server снова доступен<br>Сервер: {SERVER}", "whisper_down")
+			return
+
+
+def push_status_meta() -> Dict[str, Any]:
+	if PUSH_STORE is None:
+		return {}
+	c = PUSH_STORE.counts()
+	return {
+		"queued": c.get("queued", 0),
+		"processing": c.get("processing", 0),
+		"unacked": c.get("done", 0) + c.get("failed", 0),
+		"last_contact": int(PUSH_API.last_contact) if PUSH_API is not None else 0,
+		"whisper_down": WHISPER_DOWN,
+	}
+
+
+def start_push_mode() -> None:
+	global PUSH_STORE, PUSH_API, PUSH_WAKE
+	from push_store import PushStore
+	import push_server
+
+	PUSH_WAKE = threading.Event()
+	db_path = push_server.resolve_path(str(PUSH_CFG.get("db") or "var/push/queue.db"), CLIENT_ROOT)
+	PUSH_STORE = PushStore(
+		db_path,
+		capacity=int(PUSH_CFG.get("capacity", 50)),
+		max_unacked=int(PUSH_CFG.get("max_unacked", 2000)),
+	)
+	n = PUSH_STORE.reset_processing()
+	if n:
+		log(f"♻️  push: {n} незавершённых заданий возвращено в очередь после рестарта")
+	version = ""
+	try:
+		version = str(json.loads((CLIENT_ROOT / "plugin.json").read_text(encoding="utf-8")).get("version") or "")
+	except Exception:
+		pass
+	PUSH_API = push_server.PushApi(
+		PUSH_CFG,
+		PUSH_STORE,
+		worker_name=str(PUSH_CFG.get("worker_name") or "whisper"),
+		version=version,
+		whisper_ok=lambda: not WHISPER_DOWN,
+		wake=PUSH_WAKE,
+		log=log,
+	)
+	push_server.start(PUSH_CFG, PUSH_API, CLIENT_ROOT)
 
 # ---------- Аналитика ----------
 
@@ -1355,9 +1574,35 @@ def main():
 	if server_bo is not None:
 		log("⚙️  FreeSaaS backoff: 3m→5m→10m→30m→1h→2h on refuse/timeout")
 
+	log(f"⚙️  modes: pull={PULL_ENABLED} push={PUSH_ENABLED}")
+	if PUSH_ENABLED:
+		start_push_mode()
+	if not PULL_ENABLED and not PUSH_ENABLED:
+		raise SystemExit("modes.pull and modes.push are both off — nothing to do")
+
 	while True:
 		try:
+			if PUSH_STORE is not None:
+				status_update(meta={"push": push_status_meta()})
+				job = PUSH_STORE.next_job()
+				if job is not None:
+					if process_push_job(job):
+						if session_started_at is None:
+							session_started_at = time.time()
+						session_processed += 1
+						status_update(counters={"files_ok": session_processed})
+					continue
+
+			if not PULL_ENABLED:
+				idle_sleep(LOOP_SLEEP_SECONDS_IDLE)
+				continue
+
 			if server_bo is not None and server_bo.active():
+				if PUSH_STORE is not None:
+					# Pull backoff must not stall push jobs: short interruptible naps.
+					set_activity("backoff", f"FreeSaaS backoff {int(server_bo.remaining())}s")
+					idle_sleep(min(60, max(1, int(server_bo.remaining()))))
+					continue
 				backoff_sleep(server_bo)
 				continue
 
@@ -1422,9 +1667,9 @@ def main():
 						if left > 0:
 							log(tl("log.analytics_wait", sec=left))
 
-				# ночной сон
+				# ночной сон (не в push-режиме: спящий Mac не принимает задания)
 				now = datetime.now()
-				if now.hour >= SLEEP_HOUR:
+				if now.hour >= SLEEP_HOUR and not PUSH_ENABLED:
 					set_activity("sleep", f"sleep_hour={SLEEP_HOUR}")
 					sleep_mac()
 					break
@@ -1474,86 +1719,12 @@ def main():
 				try:
 					log(tl("log.send_whisper"))
 					set_activity("transcribe", tl("activity.transcribe", name=base_name))
-					transcribe_upload_srt(
-						tmp_path, filename, playtime=playtime, volume=volume
-					)
-					file_done = True
-
+					file_done = run_file(tmp_path, filename, playtime, volume)
 				except BackendUploadError as up_err:
 					# Текст уже есть в памяти/был отправлен, но FreeSaaS не подтвердил.
 					# Не ставим file_done — claim TTL вернёт файл; pending остаётся на диске.
 					log("❌ Сохранение результата не подтверждено:", up_err)
 					continue
-
-				except Exception as ws_err:
-					# Локальный сервер лёг → novad-fallback или стоп клиента.
-					if is_whisper_server_unreachable_error(ws_err):
-						if WHISPER_AUTO_NOVAD_FALLBACK:
-							outcome = recover_crash_with_novad(
-								tmp_path,
-								filename,
-								playtime,
-								volume,
-								str(ws_err),
-							)
-							if outcome == "ok":
-								file_done = True
-							else:
-								# transient: файл останется в очереди
-								continue
-						else:
-							handle_whisper_server_down(ws_err)
-							continue
-					else:
-						err_msg = str(ws_err)
-						lower = err_msg.lower()
-						# Как в voice_transcribe_poll: при ошибке чтения аудио — один retry через ffmpeg → mp3
-						if "failed to read audio data" in lower or "failed to read" in lower:
-							try:
-								log("🔁 Retry: конвертация в mp3 и повтор whisper…")
-								mp3_path = convert_audio_to_mp3(tmp_path)
-								try:
-									transcribe_upload_srt(
-										mp3_path,
-										filename,
-										playtime=playtime,
-										volume=volume,
-									)
-									file_done = True
-								finally:
-									try:
-										mp3_path.unlink(missing_ok=True)
-									except Exception:
-										pass
-							except Exception as retry_e:
-								if is_whisper_server_unreachable_error(retry_e):
-									if WHISPER_AUTO_NOVAD_FALLBACK:
-										outcome = recover_crash_with_novad(
-											tmp_path,
-											filename,
-											playtime,
-											volume,
-											str(retry_e),
-										)
-										if outcome == "ok":
-											file_done = True
-										else:
-											continue
-									else:
-										handle_whisper_server_down(retry_e)
-										continue
-								else:
-									log("❌ Ошибка whisper-server (retry mp3):", retry_e)
-									upload_error_marker(
-										filename, str(retry_e), playtime=playtime, volume=volume
-									)
-									file_done = True
-						else:
-							log("❌ Ошибка whisper-server:", ws_err)
-							upload_error_marker(
-								filename, err_msg, playtime=playtime, volume=volume
-							)
-							file_done = True
 
 				if file_done:
 					if session_started_at is None:
@@ -1561,6 +1732,10 @@ def main():
 					session_processed += 1
 
 
+		except WhisperServerDown as e:
+			log("❌ whisper-server down:", e)
+			wait_whisper_recovery()
+			continue
 		except Exception as e:
 			log("❌ Error:", e)
 			set_activity("error", str(e)[:200])
@@ -1572,7 +1747,8 @@ def main():
 			):
 				delay = server_bo.fail(str(e))
 				log(f"⛔ FreeSaaS unreachable — backoff {int(delay)}s (no requests until then)")
-				backoff_sleep(server_bo)
+				if PUSH_STORE is None:
+					backoff_sleep(server_bo)
 				continue
 
 		log(tl("log.cycle_wait", sec=LOOP_SLEEP_SECONDS_RUN))

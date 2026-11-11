@@ -3,7 +3,13 @@ declare(strict_types=1);
 
 require_once base_path('modules/asr/lib/AsrWorkerAuth.php');
 require_once __DIR__ . '/lib/AsrClaimLock.php';
+require_once __DIR__ . '/lib/AsrLease.php';
 require_once __DIR__ . '/lib/AsrService.php';
+require_once __DIR__ . '/lib/AsrPushClient.php';
+require_once __DIR__ . '/lib/AsrPushWorkers.php';
+require_once __DIR__ . '/lib/AsrPushDispatcher.php';
+require_once __DIR__ . '/lib/AsrDispatchSettings.php';
+require_once __DIR__ . '/lib/AsrPushAgentOps.php';
 require_once __DIR__ . '/lib/JobLock.php';
 require_once __DIR__ . '/lib/JobRunner.php';
 require_once __DIR__ . '/lib/AudioJobQueue.php';
@@ -16,6 +22,7 @@ require_once __DIR__ . '/lib/AudioCoverageProfiles.php';
 require_once __DIR__ . '/lib/AudioPipelineAgentOps.php';
 
 AudioPipelineAgentOps::register();
+AsrPushAgentOps::register();
 
 /**
  * Cabin audio analytics workers (ingest / base_records ASR / stem / collect).
@@ -125,6 +132,23 @@ Cron::register('audio_pipeline.stem_nightly', [
     },
 ]);
 
+// Push ASR channel: FreeSaaS calls inbound workers (status → results+ack → dispatch).
+// Runs even with push off so already finished results still get collected and acked.
+Cron::register('audio_pipeline.asr_push', [
+    'module' => 'audio_pipeline',
+    'label' => 'audio_pipeline.cron.asr_push',
+    'every' => 5,
+    'handler' => static function (): array {
+        $out = AsrPushDispatcher::syncAll();
+        return [
+            'ok' => $out['ok'],
+            'processed' => $out['saved'] + $out['sent'],
+            'skipped' => 0,
+            'message' => $out['message'],
+        ];
+    },
+]);
+
 EventBus::on('audio_dicts.changed', static function ($payload) {
     // NEVER wipe instances / collections / SCORE for the whole DB here.
     // A single key/dict/type/trash save used to call markAllForReparse() and
@@ -202,6 +226,7 @@ EventBus::on('audio.settings.sections', static function ($payload) {
         'weight' => 40,
         'html' => $html,
     ];
+    $payload['sections'][] = AsrDispatchSettings::section();
     return $payload;
 });
 
@@ -211,6 +236,7 @@ EventBus::on('audio.settings.save', static function ($payload) {
     }
     $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
     $warnings = is_array($payload['warnings'] ?? null) ? $payload['warnings'] : [];
+    $warnings = AsrDispatchSettings::save($post, $warnings);
 
     $deleteId = max(0, (int)($post['audio_coverage_delete_id'] ?? 0));
     if ($deleteId > 0) {
@@ -279,3 +305,29 @@ Health::register('audio_pipeline.stem_cache', 'audio_pipeline', static function 
     }
     return ['status' => 'ok', 'message' => 'stem cache dir writable'];
 }, 'Stem cache directory');
+
+Health::register('audio_pipeline.asr_push', 'audio_pipeline', static function (): array {
+    if (!AsrLease::pullEnabled() && !AsrLease::pushEnabled()) {
+        return ['status' => 'fail', 'message' => 'asr_pull_enabled=0 and asr_push_enabled=0 — nothing transcribes'];
+    }
+    if (!AsrLease::available() || !AsrPushWorkers::available()) {
+        return ['status' => 'degraded', 'message' => 'base_asr_leases / base_asr_push_workers missing — run migrate'];
+    }
+    if (!AsrLease::pushEnabled()) {
+        return ['status' => 'ok', 'message' => 'push off (pull only)'];
+    }
+    $workers = AsrPushWorkers::enabled();
+    if ($workers === []) {
+        return ['status' => 'degraded', 'message' => 'push on but no enabled push workers'];
+    }
+    $stale = [];
+    foreach ($workers as $w) {
+        if ((int)$w['LAST_SEEN'] < time() - 1800) {
+            $stale[] = (string)$w['NAME'] . ((string)$w['LAST_ERROR'] !== '' ? ' (' . (string)$w['LAST_ERROR'] . ')' : '');
+        }
+    }
+    if ($stale !== []) {
+        return ['status' => 'degraded', 'message' => 'push workers not seen >30m: ' . implode('; ', $stale)];
+    }
+    return ['status' => 'ok', 'message' => count($workers) . ' push worker(s) reachable'];
+}, 'Push ASR workers');

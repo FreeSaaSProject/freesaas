@@ -40,6 +40,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_records*` (split by domain) | audio / audio_dicts / audio_pipeline / audio_reports / audio_llm | Shared naming; ownership by domain |
 | `base_records_badges`, `base_badge_assignments`, `base_records_reviews`, `base_records_balances` | audio | Badges, assignments; storage settings in `cfg/modules/audio.ini` |
 | `base_records_coverage_profiles` | audio_pipeline | Per-status / per-staff coverage overrides |
+| `base_asr_leases` | audio_pipeline | One active ASR lease per record across pull + push channels |
+| `base_asr_push_workers` | audio_pipeline | Push (inbound HTTPS) ASR workers: URL, secret, SPKI pin, state |
 | `base_records_llm_studies`, `base_records_llm_study_results` | audio_llm | LLM studies over transcripts + cyclic templates |
 | `base_script_coach_runs`, `base_script_coach_artifacts`, `base_script_coach_proposals` | audio_script_coach | Day investigation jobs + LLM dict enrichment proposals |
 | `base_records_phrases`, `base_records_phrase_days` | audio_phrases | Top N-gram harvest (coach is soft successor for script enrichment) |

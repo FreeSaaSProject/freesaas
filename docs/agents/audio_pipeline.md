@@ -27,6 +27,8 @@ Permissions: `audio_pipeline.view`.
 | `base_records_stem_word_cache` | Owned by `audio_pipeline` |
 | `base_records_stem_key_cache` | Owned by `audio_pipeline` |
 | `base_records_coverage_profiles` | Owned by `audio_pipeline` |
+| `base_asr_leases` | Owned by `audio_pipeline` |
+| `base_asr_push_workers` | Owned by `audio_pipeline` |
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
@@ -61,6 +63,8 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `audio_pipeline.jobs.stem` | GET|POST | `/audio/jobs/stem` (enqueue 202) |
 | `audio_pipeline.jobs.stem_run` | GET|POST | `/audio/jobs/stem/run` (sync) |
 | `audio_pipeline.jobs.collect` | GET|POST | `/audio/jobs/collect` |
+| `audio_pipeline.asr_push_status` | GET | `/agent/audio_pipeline/asr-push/status` (agent_token; switches, leases, push workers — no secrets) |
+| `audio_pipeline.asr_push_sync` | POST | `/agent/audio_pipeline/asr-push/sync` (agent_token; `confirm=1`, optional `worker=<id>`, `test=1`) |
 
 ```bash
 curl -sS -b jar.txt 'https://example/audio/asr/claim?format=json'
@@ -126,7 +130,38 @@ Handoff for updating an external Mac/Whisper pull worker and post-ASR parse.
 - Result POST fields: `file_name`, `result`; optional `PLAYTIME`, `VOLUME`.
 - Result save for a **past** day (`DT_RECORDED` before today, within `LOOKBACK_DAYS`) enqueues that day with `not_before = now + late_stem_delay_sec` (`cfg/modules/audio.ini` `[audio]`, default 3600); diag line shows `STEM_QUEUED=YYYY-MM-DD`. Further results for the same day merge into the same job and do **not** postpone it (earliest `not_before` wins). Why deferred: when a day drains, collect for all staff of the day + staff report publish (quality per employee, reward contract, gratitude board, optional cyclic LLM) run — too heavy to repeat every 5 min while uploads trickle in. Today's records are left to the Whisper idle ping; older than lookback: calendar Re-®.
 - Queue jobs carry `not_before` (0 = next tick). `drainStem` takes the first **due** job in order; if only deferred jobs remain the cron journal shows `stem_deferred`.
-- ASR claim/result are **not** part of `/cron/tick` — the Whisper worker polls FreeSaaS itself.
+- ASR claim/result are **not** part of `/cron/tick` — the Whisper worker polls FreeSaaS itself (pull channel).
+
+### Dispatch channels: pull and push
+
+Two independent switches in `cfg/modules/audio.ini` `[audio]` (UI `/audio/settings` → tab «Recognition: channels», superadmin):
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `asr_pull_enabled` | `1` | Workers poll `/audio/asr/claim` (returns `None` when off) |
+| `asr_push_enabled` | `0` | Cron `audio_pipeline.asr_push` (every 5 min) hands records to inbound push workers |
+| `asr_pull_lease_ttl_sec` | `1800` | Pull lease; released on result; record returns after TTL if the worker died |
+| `asr_push_lease_ttl_sec` | `21600` | Push lease; extended on every sync while the worker still holds the job |
+
+Both channels may run at once with any number of workers. **No double dispatch:** `base_asr_leases` keeps one live lease per `base_records.ID` (atomic `INSERT IGNORE` / conditional `UPDATE … WHERE LEASED_UNTIL < now`). **First result wins:** `saveResult` on an already transcribed record (`DT_TRANSCRIBED > 1`) returns `true` with `DUPLICATE_IGNORED=1` and does not overwrite, so a late worker drops its copy.
+
+Push sync per enabled worker (`AsrPushDispatcher::syncWorker`, per-worker `JobLock`):
+
+1. Signed `GET /v1/status` → `held_job_ids`, `free_slots`, `whisper_ok`.
+2. Release leases the worker no longer holds (wiped store, cancelled); extend the rest.
+3. `GET /v1/results` → `AsrService::saveResult` → `POST /v1/results/ack` only for stored rows (and `not_found`). Worker-side `failed` (e.g. download failed N times) → lease cooldown 1 h, then any channel may retry.
+4. If push is on and the worker accepts: lease `min(free_slots, MAX_INFLIGHT − inflight)` records → `POST /v1/jobs` (`job_id`, `file_name`; the worker downloads `{ftp_server}{file_name}` itself).
+5. Results saved, nothing sent, worker queue empty → enqueue stem for today (replaces the pull worker's idle ping; ≥5 min apart).
+
+Errors put the worker into backoff 5m → 10m → 30m → 1h; its leases simply expire and other channels take the records. Results are collected even with push switched off. Health: `audio_pipeline.asr_push`.
+
+Security: HTTPS only, worker cert is self-signed and trusted via SPKI pin (`CURLOPT_PINNEDPUBLICKEY`), every request HMAC-SHA256-signed with a per-worker secret (`X-FS-Ts`, `X-FS-Nonce`, `X-FS-Sig` over method, path+query, ts, nonce, sha256(body); ±300 s, nonce replay cache). Secret rotation: «New secret» → put into worker `push.secret_next` → «Apply new secret». Worker setup: [workers.md](workers.md) § whisper push mode.
+
+```bash
+H=(-H "X-FreeSaaS-Agent-Token: $TOKEN" -H "Accept: application/json")
+curl -sS "${H[@]}" "$HOST/agent/audio_pipeline/asr-push/status"
+curl -sS "${H[@]}" -X POST -d 'confirm=1&worker=1&test=1' "$HOST/agent/audio_pipeline/asr-push/sync"
+```
 
 ### After ASR (instead of `recordParser3.php`)
 
