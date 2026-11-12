@@ -37,10 +37,10 @@ class GatewayTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.tmp = Path(tempfile.mkdtemp())
-        cert, key = cls.tmp / "cert.pem", cls.tmp / "key.pem"
+        cert_path, key_path = cls.tmp / "cert.pem", cls.tmp / "key.pem"
         subprocess.run(
-            ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", str(key),
-             "-out", str(cert), "-days", "1", "-subj", "/CN=test"],
+            ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", str(key_path),
+             "-out", str(cert_path), "-days", "1", "-subj", "/CN=test"],
             check=True, capture_output=True,
         )
         cls.seen = []
@@ -57,13 +57,15 @@ class GatewayTest(unittest.TestCase):
         cls.local = local_api.serve(cls.plugin_port, handler, log=lambda *a: None)
         svc = Service("asr", "whisper", "Whisper", "1", cls.plugin_port, ["jobs"], ["audio_sec"], [])
         cls.port = _free_port()
+        nonce_db = cls.tmp / "n.db"
         cfg = GatewayConfig(
             enabled=True, name="t", bind="127.0.0.1", port=cls.port,
             clients=[
                 Client("owner", "owner", [OWNER], ["owner"]),
                 Client("tenant", "tenant", [TENANT], ["asr.jobs"]),
             ],
-            allowed=[], skew=300, tls_cert=cert, tls_key=key, nonce_db=cls.tmp / "n.db",
+            allowed=[], skew=300, nonce_db=nonce_db,
+            tls_cert=cert_path, tls_key=key_path,
         )
         cls.srv = server.start(cfg, log=lambda *a: None, services_fn=lambda: {"asr": svc})
         cls.ctx = ssl.create_default_context()

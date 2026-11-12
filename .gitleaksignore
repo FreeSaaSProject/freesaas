@@ -1,0 +1,2 @@
+# False positive: Path to a throwaway self-signed test key (tls_key=key), not a secret.
+c51e9864ecbc032f47846346c8cf2718086fa9c0:workers/core/tests/test_gateway.py:generic-api-key:66
