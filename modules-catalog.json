@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-11T19:11:19+00:00",
+    "generated_at": "2026-11-12T08:16:50+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -312,7 +312,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.1.2",
+            "version": "1.2.0",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -327,7 +327,7 @@
                 "ru": "Включайте для фоновой обработки записей кабинета. Требует asr + audio + audio_dicts. Мягко procedures. Голосовые боты — в модуле asr."
             },
             "requires": {
-                "core": ">=1.0.0",
+                "core": ">=1.1.0",
                 "asr": ">=1.0.0",
                 "audio": ">=1.0.0",
                 "audio_dicts": ">=1.0.0"
@@ -2253,7 +2253,7 @@
         },
         {
             "id": "video",
-            "version": "0.3.7",
+            "version": "0.4.0",
             "type": "product",
             "name": {
                 "en": "Video analytics",
@@ -2268,7 +2268,7 @@
                 "ru": "Включайте для RTSP-мониторинга и инференса YOLO через исходящий Mac worker. Мягко зависит от bots (алерты) и video_label (датасеты)."
             },
             "requires": {
-                "core": ">=1.0.0"
+                "core": ">=1.1.0"
             },
             "optionalRequires": {
                 "bots": ">=1.0.0",

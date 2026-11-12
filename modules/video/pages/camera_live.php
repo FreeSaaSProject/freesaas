@@ -2,6 +2,10 @@
 declare(strict_types=1);
 
 $id = (int)(Router::param('id') ?? 0);
+$wantsJson = AgentHttp::wantsJson();
+if ($wantsJson) {
+    VideoPushDispatcher::syncThrottled();
+}
 $row = VideoCamerasRepository::find($id);
 if ($row === null) {
     http_response_code(404);
@@ -25,7 +29,6 @@ if (isset($detWrap['detections']) && is_array($detWrap['detections'])) {
 } elseif (is_array($detWrap) && isset($detWrap[0])) {
     $detections = $detWrap;
 }
-$wantsJson = AgentHttp::wantsJson();
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
@@ -52,4 +55,5 @@ View::render('camera_live', [
     ]),
     'row' => $public,
     'classes' => $classes,
+    'edgeLive' => VideoPushDispatcher::onlineHosts() > 0,
 ], 'layout', 'video');

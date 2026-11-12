@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "1.0.36",
+    "version": "1.1.0",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -147,7 +147,9 @@
             "/cron",
             "/cron/tick",
             "/cron/status",
-            "/ops/access-extend"
+            "/ops/access-extend",
+            "/edge-hosts",
+            "/agent/edge-hosts"
         ]
     },
     "agent": {
@@ -1064,6 +1066,13 @@
             "num": 4,
             "path": "/cron",
             "title": "core.menu.cron"
+        },
+        {
+            "group": "core.menu.group.system",
+            "kind": "settings",
+            "num": 5,
+            "path": "/edge-hosts",
+            "title": "core.menu.edge_hosts"
         }
     ],
     "configSchema": {
@@ -1096,7 +1105,8 @@
         "base_views",
         "base_likes",
         "base_user_prefs",
-        "base_user_login_links"
+        "base_user_login_links",
+        "base_edge_hosts"
     ],
     "migrators": [
         {
@@ -1129,6 +1139,7 @@
             "bi.datasets"
         ],
         "publish": [
+            "core.edge_host.deleted",
             "core.auth.after_login",
             "core.auth.before_logout",
             "core.dashboard.catalog",

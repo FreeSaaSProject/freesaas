@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FreeSaaS video worker: Ultralytics YOLO + ffmpeg RTSP, outbound poll."""
+"""FreeSaaS video worker: Ultralytics YOLO + ffmpeg RTSP; pull (claim) and/or push (host gateway)."""
 from __future__ import annotations
 
 import argparse
@@ -11,6 +11,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -54,6 +55,22 @@ LOOP: Dict[str, Any] = {}
 FFMPEG: Dict[str, Any] = {}
 TUNNEL: Dict[str, Any] = {}
 LIVE: Dict[str, Any] = {}
+# Dispatch modes: pull = poll FreeSaaS claim; push = jobs arrive via host gateway /v1/video/*.
+PULL_ENABLED = True
+PUSH_ENABLED = False
+PUSH_CFG: Dict[str, Any] = {}
+PUSH_STORE: Any = None
+PUSH_WAKE = threading.Event()
+PUSH_LAST_CONTACT = 0.0
+CURRENT_PUSH_JOB: Optional[str] = None
+PUSH_DELIVERED = False
+FRAME_CACHE_SEC = 1.0
+_FRAME_CACHE: Dict[int, Tuple[float, Dict[str, Any]]] = {}
+_FRAME_LOCKS: Dict[int, threading.Lock] = {}
+# Gateway threads (live frame) and the job loop share YOLO + os.chdir in load_yolo.
+_INFER_LOCK = threading.RLock()
+_MODEL_CACHE: Dict[str, Any] = {}
+MODEL_CACHE_MAX = 4
 
 log = logging.getLogger("video_worker")
 STATUS_PATH = CLIENT_ROOT / "logs" / "status.json"
@@ -157,8 +174,13 @@ def req_kwargs(**extra: Any) -> Dict[str, Any]:
 def load_config(path: Path) -> None:
     global SERVER, WORKER_TOKEN, WORKER_KEY, VERIFY_SSL, HOST_HEADER
     global EP, MODELS, LOOP, FFMPEG, TUNNEL, LIVE
+    global PULL_ENABLED, PUSH_ENABLED, PUSH_CFG
     with open(path, "r", encoding="utf-8") as f:
         cfg = json.load(f)
+    modes = cfg.get("modes") if isinstance(cfg.get("modes"), dict) else {}
+    PULL_ENABLED = bool(modes.get("pull", True))
+    PUSH_ENABLED = bool(modes.get("push", False))
+    PUSH_CFG = dict(cfg.get("push") or {})
     SERVER = str(cfg["server"]).rstrip("/")
     WORKER_TOKEN = str(cfg.get("worker_token") or "").strip()
     WORKER_KEY = str(cfg.get("worker_key") or "default").strip()
@@ -259,6 +281,9 @@ def post_result(job_id: int, result: dict, error: Optional[str] = None, **extra:
     if error:
         body["error"] = error
     body.update(extra)
+    if PUSH_STORE is not None and CURRENT_PUSH_JOB == str(job_id):
+        push_finish(str(job_id), body)
+        return
     raw = json.dumps(body, ensure_ascii=False).encode("utf-8")
     r = requests.post(
         url("result", "/video/worker/result"),
@@ -334,6 +359,22 @@ def class_bgr(class_id: int, classes_meta: Optional[List[dict]] = None) -> Tuple
 
 
 def load_yolo(weights: str):
+    name = (weights or "").strip() or "yolo11n.pt"
+    try:
+        key = f"{name}@{Path(name).expanduser().stat().st_mtime_ns}"
+    except OSError:
+        key = name
+    with _INFER_LOCK:
+        model = _MODEL_CACHE.get(key)
+        if model is None:
+            model = _load_yolo_uncached(name)
+            if len(_MODEL_CACHE) >= MODEL_CACHE_MAX:
+                _MODEL_CACHE.pop(next(iter(_MODEL_CACHE)))
+            _MODEL_CACHE[key] = model
+        return model
+
+
+def _load_yolo_uncached(weights: str):
     """Load Ultralytics weights; auto-download stock names like yolo11n.pt on first use."""
     from ultralytics import YOLO
 
@@ -390,12 +431,13 @@ def run_infer_bytes(
     import cv2
     import numpy as np
 
-    model = load_yolo(weights)
     arr = np.frombuffer(image_bytes, dtype=np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if img is None:
         raise RuntimeError("cannot decode image")
-    results = model.predict(img, conf=conf, iou=iou, verbose=False)
+    with _INFER_LOCK:
+        model = load_yolo(weights)
+        results = model.predict(img, conf=conf, iou=iou, verbose=False)
     boxes: List[dict] = []
     annotated = img.copy()
     if results:
@@ -940,6 +982,178 @@ def process_job(job: dict) -> None:
         _status_save()
 
 
+# ---------- Push mode (host gateway → 127.0.0.1) ----------
+
+def push_finish(job_id: str, body: Dict[str, Any]) -> None:
+    """Keep the result locally until FreeSaaS acks it; weights go to a side file."""
+    global PUSH_DELIVERED
+    weights_b64 = body.pop("weights_b64", None)
+    if weights_b64:
+        name = PUSH_STORE.save_file(job_id, str(body.get("weights_name") or "best.pt"), base64.b64decode(weights_b64))
+        body["weights_name"] = name
+        body["files"] = {"weights": name}
+    PUSH_STORE.finish(job_id, body)
+    PUSH_DELIVERED = True
+
+
+def run_push_job(job: dict) -> None:
+    global CURRENT_PUSH_JOB, PUSH_DELIVERED
+    jid = str(job["id"])
+    CURRENT_PUSH_JOB = jid
+    PUSH_DELIVERED = False
+    try:
+        try:
+            process_job(job)
+        except Exception as e:  # noqa: BLE001
+            log.exception("push job failed")
+            if not PUSH_DELIVERED:
+                post_result(int(jid), {}, error=str(e))
+        if not PUSH_DELIVERED:
+            post_result(int(jid), {}, error="worker produced no result")
+    finally:
+        CURRENT_PUSH_JOB = None
+
+
+def live_frame(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Fresh annotated frame for a camera the staff is watching (1 s cache, one grab per camera)."""
+    camera_id = int(data.get("camera_id") or 0)
+    rtsp = str(data.get("rtsp_url") or "")
+    if camera_id <= 0 or not rtsp:
+        raise ValueError("camera_id and rtsp_url required")
+    lock = _FRAME_LOCKS.setdefault(camera_id, threading.Lock())
+    with lock:
+        cached = _FRAME_CACHE.get(camera_id)
+        if cached and time.time() - cached[0] < FRAME_CACHE_SEC:
+            return cached[1]
+        frame = grab_rtsp_jpeg(rtsp)
+        weights = resolve_weights(int(data.get("model_id") or 0), data)
+        classes_meta = data.get("classes") if isinstance(data.get("classes"), list) else None
+        boxes, ann = run_infer_bytes(
+            weights,
+            frame,
+            float(data.get("conf_threshold") or 0.25),
+            float(data.get("iou_threshold") or 0.45),
+            classes_meta,
+        )
+        out = {
+            "ok": True,
+            "camera_id": camera_id,
+            "at": int(time.time()),
+            "detections": boxes,
+            "annotated_b64": base64.b64encode(jpeg_for_upload(ann, max_side=1280, quality=70)).decode("ascii"),
+        }
+        _FRAME_CACHE[camera_id] = (time.time(), out)
+        return out
+
+
+def push_status() -> Dict[str, Any]:
+    counts = PUSH_STORE.counts()
+    free = PUSH_STORE.free_slots()
+    return {
+        "ok": True,
+        "api": 2,
+        "worker_key": WORKER_KEY,
+        "hostname": socket.gethostname(),
+        "version": _plugin_manifest().get("version", ""),
+        "accepting": free > 0,
+        "capacity": PUSH_STORE.capacity,
+        "free_slots": free,
+        "counts": counts,
+        "held_job_ids": PUSH_STORE.held_job_ids(),
+        "oldest_unacked_sec": int(PUSH_STORE.oldest_unacked_age()),
+        "pull": PULL_ENABLED,
+        "tunnel": bool(TUNNEL.get("enabled")),
+        "activity": _STATUS.get("activity"),
+        "time": int(time.time()),
+    }
+
+
+def push_handle(req: Any) -> Tuple[int, Any]:
+    """req: workers.core.gateway.local_api.LocalRequest."""
+    global PUSH_LAST_CONTACT
+    PUSH_LAST_CONTACT = time.time()
+    method, path = req.method, req.path
+    if method == "GET" and path == "/status":
+        return 200, push_status()
+    if method == "GET" and path == "/results":
+        try:
+            limit = int(req.arg("limit", "20"))
+        except ValueError:
+            limit = 20
+        return 200, {"ok": True, "results": PUSH_STORE.results(limit)}
+    if method == "GET" and path == "/results/file":
+        p = PUSH_STORE.file_path(req.arg("job_id"), req.arg("name"))
+        if p is None:
+            return 404, {"ok": False, "error": "not_found"}
+        return 200, (p.read_bytes(), "application/octet-stream")
+    if method != "POST":
+        return 404, {"ok": False, "error": "not_found"}
+    data = req.json()
+    if not isinstance(data, dict):
+        return 400, {"ok": False, "error": "bad_json"}
+    if path == "/jobs":
+        jobs = data.get("jobs")
+        if not isinstance(jobs, list) or len(jobs) > 100:
+            return 400, {"ok": False, "error": "bad_jobs"}
+        accepted, rejected = PUSH_STORE.add_jobs(jobs)
+        if accepted:
+            PUSH_WAKE.set()
+            log.info("push: accepted %d job(s), rejected %d", len(accepted), len(rejected))
+        return 200, {"ok": True, "accepted": accepted, "rejected": rejected}
+    if path == "/frame":
+        try:
+            return 200, live_frame(data)
+        except ValueError as e:
+            return 400, {"ok": False, "error": str(e)}
+        except Exception as e:  # noqa: BLE001
+            return 502, {"ok": False, "error": f"frame: {e}"[:300]}
+    ids = data.get("job_ids")
+    if not isinstance(ids, list) or len(ids) > 500:
+        return 400, {"ok": False, "error": "bad_job_ids"}
+    ids = [str(i) for i in ids]
+    if path == "/results/ack":
+        return 200, {"ok": True, "deleted": PUSH_STORE.ack(ids)}
+    if path == "/jobs/cancel":
+        return 200, {"ok": True, "cancelled": PUSH_STORE.cancel(ids)}
+    return 404, {"ok": False, "error": "not_found"}
+
+
+def _plugin_manifest() -> Dict[str, Any]:
+    try:
+        return json.loads((CLIENT_ROOT / "plugin.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def start_push_mode() -> None:
+    global PUSH_STORE
+    from push_store import PushStore
+    from workers.core.gateway import local_api
+
+    db_raw = Path(str(PUSH_CFG.get("db") or "var/push/queue.db")).expanduser()
+    db_path = db_raw if db_raw.is_absolute() else (CLIENT_ROOT / db_raw).resolve()
+    PUSH_STORE = PushStore(
+        db_path,
+        capacity=int(PUSH_CFG.get("capacity", 20)),
+        max_unacked=int(PUSH_CFG.get("max_unacked", 500)),
+    )
+    n = PUSH_STORE.reset_processing()
+    if n:
+        log.info("push: %d unfinished job(s) requeued after restart", n)
+    port = int(_plugin_manifest().get("local_api_port") or 18472)
+    local_api.serve(port, push_handle, log=log.warning)
+    log.info("push API 127.0.0.1:%d (behind host gateway /v1/video/*)", port)
+
+
+def nap(seconds: float) -> None:
+    """Idle sleep that a pushed job interrupts."""
+    if PUSH_STORE is None:
+        time.sleep(seconds)
+        return
+    PUSH_WAKE.wait(max(0.0, seconds))
+    PUSH_WAKE.clear()
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     ap = argparse.ArgumentParser(description="FreeSaaS video YOLO worker")
@@ -969,8 +1183,23 @@ def main() -> int:
     server_bo = ServerBackoff(name="freesaas") if ServerBackoff is not None else None
     if server_bo is not None:
         log.info("FreeSaaS backoff: 3m→5m→10m→30m→1h→2h on refuse/timeout")
+    log.info("modes: pull=%s push=%s", PULL_ENABLED, PUSH_ENABLED)
+    if PUSH_ENABLED:
+        start_push_mode()
+    if not PULL_ENABLED and not PUSH_ENABLED:
+        log.error("modes.pull and modes.push are both off — nothing to do")
+        return 2
     try:
         while True:
+            if PUSH_STORE is not None:
+                pjob = PUSH_STORE.next_job()
+                if pjob is not None:
+                    run_push_job(pjob)
+                    continue
+            if not PULL_ENABLED:
+                set_activity("idle", "waiting for push")
+                nap(idle)
+                continue
             if server_bo is not None and server_bo.active():
                 left = int(server_bo.remaining())
                 detail = f"FreeSaaS backoff {left}s"
@@ -978,7 +1207,10 @@ def main() -> int:
                     detail += f": {server_bo.last_error[:120]}"
                 set_activity("backoff", detail)
                 log.warning("%s", detail)
-                server_bo.sleep_slice(30.0)
+                if PUSH_STORE is not None:
+                    nap(min(30.0, max(1.0, server_bo.remaining())))
+                else:
+                    server_bo.sleep_slice(30.0)
                 continue
 
             now = time.time()
@@ -1031,13 +1263,13 @@ def main() -> int:
                     delay = server_bo.fail(str(e))
                     log.warning("FreeSaaS unreachable — backoff %ss", int(delay))
                     continue
-                time.sleep(idle)
+                nap(idle)
                 continue
             if not job:
                 set_activity("idle", "no job")
                 if args.once:
                     return 0
-                time.sleep(idle)
+                nap(idle)
                 continue
             try:
                 process_job(job)
@@ -1049,7 +1281,7 @@ def main() -> int:
                     pass
             if args.once:
                 return 0
-            time.sleep(busy)
+            nap(busy)
     finally:
         tunnel_down()
 

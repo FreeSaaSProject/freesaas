@@ -232,6 +232,8 @@ Job types: `infer_image`, `infer_batch`, `monitor_tick`, `capture_frame`, `on_de
 
 **Poll politeness (shared hosting):** `loop.sleep_seconds_idle≥60`, `hello_every_sec≥120–180`. Keep `live.push_enabled=false` on prod.
 
+**Push mode** (`modes.push`, host with a public IP — § 14): FreeSaaS sends jobs to `/v1/video/jobs` (Cron `video.push_dispatch`, plus right after an on-demand / labeling / train enqueue), pulls `/v1/video/results` and acks; trained weights are fetched separately (`/v1/video/results/file`) instead of base64 in JSON. `/v1/video/frame` returns a fresh annotated frame for `/video/cameras/{id}/live` (1 s cache). With `modes.pull=false` the plugin skips `hello`/`claim` entirely; presence comes from the push status. Server switches: `/video/settings` → Job delivery (`dispatch_pull_enabled` / `dispatch_push_enabled`). Store: `plugins/video/var/push/`.
+
 **Camera VPN (optional):** `plugins/video/scripts/camera_vpn_*.sh` + `~/video-tunnel/vpn.env` (`VPN_NAME`, `CAMERA_HOST`, …). Prefer camera-only route — **not** full-tunnel. Dashboard shows **FULL TUNNEL** when default if is `ppp*`.
 
 **Dataset collect:** prefer local collect then one zip upload:
@@ -257,46 +259,20 @@ Idle: up to `analytics.max_runs_per_idle` stem runs (`day=today`); HTTP **202** 
 
 Not part of `/cron/tick`. Messenger voice queue (`/asr/voice-transcribe/*`) is a **different** client (same token family).
 
-### 6.1 Push mode (FreeSaaS → worker, inbound HTTPS)
+### 6.1 Push mode
 
-Alternative to polling: FreeSaaS Cron (`audio_pipeline.asr_push`, every `asr_push_every_min`, default 2 min; host `/cron/tick` must run at least that often) calls the worker, sends jobs, collects results and acks them. The worker keeps every result in `var/push/queue.db` until FreeSaaS confirms; audio is deleted right after recognition. Pull and push may run together (`modes.pull` + `modes.push`) and with several workers — server-side leases prevent double dispatch. Server side: [audio_pipeline.md](audio_pipeline.md) § Dispatch channels.
+With `modes.push` the whisper plugin takes jobs from the host gateway (§ 14) on `/v1/asr/*` instead of polling. FreeSaaS Cron `audio_pipeline.asr_push` (every `asr_push_every_min`, default 2 min) sends jobs, collects results and acks them; results stay in `plugins/whisper/var/push/queue.db` until acked; audio is deleted right after recognition. Pull and push may run together — server-side leases prevent double dispatch ([audio_pipeline.md](audio_pipeline.md) § Dispatch channels).
 
-**Network prerequisites (new client / new site):**
+Jobs carry `job_id` + `file_name` and optionally `source_url` (FreeSaaS `audio.asr_source_base_url`); without it the plugin downloads `{ftp_server}{file_name}`. If whisper-server dies the plugin stops accepting (`free_slots=0`), keeps serving results/acks and retries the server every 2 min.
 
-| Need | Why |
-|------|-----|
-| Static public IP (or stable DNS) | FreeSaaS stores `https://IP:port` per worker |
-| **DHCP reservation for the worker host on the LAN router** | Port forwarding targets a LAN IP; without a reservation the Mac/PC gets a new address after reboot or lease expiry and push silently stops |
-| Router port forward `<public port> → <worker LAN IP>:18443` (TCP) | Only this port; dashboard stays on 127.0.0.1 |
-| Outbound from the FreeSaaS host to that port | Shared hosting may block non-standard ports — test with «Test connection»; if blocked, forward public 443 → 18443 |
-| Default route not via VPN | Full-tunnel VPN sends replies into the tunnel; `doctor` check `whisper.push.default_route` |
-| macOS: worker must not sleep | `loop.sleep_hour` is ignored in push mode; disable system sleep in Energy settings |
-
-**Worker setup:**
-
-```bash
-cd workers/plugins/whisper
-# configs/local.json: "modes": {"pull": true, "push": true}, fill "push": {...} (see configs/example.json)
-../../.venv/bin/python push_cli.py init        # self-signed cert in var/push/tls/, prints SPKI pin
-# FreeSaaS /audio/settings → «Recognition: channels» → Add worker (name, https://PUBLIC_IP:PORT, pin)
-#   → copy the secret shown once into push.secret; set push.allowed_ips to the FreeSaaS egress IP
-../../bin/freesaas-workers restart whisper
-../../.venv/bin/python push_cli.py selftest    # signed GET /v1/status on 127.0.0.1
-../../bin/freesaas-workers doctor              # whisper.push.* checks
-# FreeSaaS: Test connection → enable worker → tick «Push» channel
-```
-
-| `push.*` key | Default | Notes |
+| `push.*` key (plugin) | Default | Notes |
 |--------------|---------|-------|
-| `port` / `bind` | `18443` / `0.0.0.0` | |
-| `secret` / `secret_next` | — | From FreeSaaS (shown once). Rotation: «New secret» → `secret_next` → restart → «Apply new secret» → move to `secret` |
-| `allowed_ips` | `[]` | CIDR list; empty = any IP may try (signature still required) |
-| `capacity` / `max_unacked` | `50` / `2000` | Queue depth; worker stops accepting when results pile up unacked |
+| `capacity` / `max_unacked` | `50` / `2000` | Queue depth; stops accepting when results pile up unacked |
 | `max_attempts` / `retry_delay_sec` | `5` / `120` | Download/transient retries before reporting `failed` |
 
-API (all signed — HMAC-SHA256 over method, path+query, `X-FS-Ts`, `X-FS-Nonce`, sha256(body); ±300 s; nonce replay cache; 5 bad signatures → 15 min IP ban): `GET /v1/status`, `POST /v1/jobs`, `GET /v1/results`, `POST /v1/results/ack`, `POST /v1/jobs/cancel`. Jobs carry only `job_id` + `file_name`; the worker downloads `{ftp_server}{file_name}` itself (no arbitrary URLs). If whisper-server dies in push mode the plugin does not exit: it stops accepting (`free_slots=0`), keeps serving results/acks and retries the server every 2 min.
+Port, TLS cert, secrets and `allowed_ips` are host-level (`gateway{}`), not plugin keys.
 
-Tests: `python3 -m unittest workers/plugins/whisper/tests/test_push.py` (from the plugin dir).
+Tests: `python3 -m unittest tests/test_push.py` (from the plugin dir).
 
 ---
 
@@ -312,9 +288,10 @@ Tests: `python3 -m unittest workers/plugins/whisper/tests/test_push.py` (from th
 | FULL TUNNEL | VPN Down; uncheck “Send all traffic”; camera host route only |
 | Claim always `None` (audio) | No rows `DT_TRANSCRIBED < 1`; ingest |
 | Download 404 (audio) | `ftp_server` base vs `FILENAME` prefix |
-| Push: `pin_mismatch` | Cert regenerated (`push_cli.py init --force`) — paste new pin (`push_cli.py pin`) in FreeSaaS |
-| Push: `curl 7/28` on Test connection | Port forward / DHCP reservation / hosting blocks outbound port / worker not running |
-| Push: `unauthorized` | Secret mismatch, clock skew >300 s, or IP banned after bad signatures (restart plugin to clear) |
+| Push: `pin_mismatch` | Cert regenerated (`gateway init --force`) — paste new pin (`gateway pin`) on `/edge-hosts` |
+| Push: `curl 7/28` on Test | Port forward / DHCP reservation / hosting blocks outbound port / dashboard (gateway) not running |
+| Push: `asr_service_down` / `video_service_down` | Gateway up, plugin down or `modes.push` off — `status <plugin>`, restart |
+| Push: `unauthorized` | Secret / key_id mismatch, clock skew >300 s, or IP banned after bad signatures (restart dashboard to clear) |
 | High CPU / OOM | `status` RSS; stop other plugin; smaller YOLO / whisper model |
 | Dashboard 403 | Must use 127.0.0.1, not LAN IP; POST `/action` needs CSRF from the page (`X-CSRF-Token`) + local Origin/Host |
 
@@ -424,6 +401,63 @@ Insurance without the plugin: PHP cron `backups.standby_sync` every 15 min on st
 - Working local-LLM plugin
 - Single shared worker token across plugins
 - Mac volume adapter for `audioloader`; Whisper/YOLO plugins on Windows
+
+---
+
+## 14. Push gateway (FreeSaaS → host, all plugins)
+
+One inbound HTTPS endpoint per machine, inside the dashboard process (LaunchAgent `ru.freesaas.workers` / Windows task keeps it alive — `autostart on` is required). FreeSaaS registers the machine once under **`/edge-hosts`** (address, key, pin, secret, services `asr` / `video`). Plugins serve plain handlers on `127.0.0.1:<local_api_port>` (from `plugin.json`); the gateway does TLS, signature, scopes, bans and forwards.
+
+```
+FreeSaaS ──https://IP:18443/v1/<service>/…──▶ gateway (dashboard process)
+                                              ├─ /v1/status        host + per-service status
+                                              ├─ /v1/asr/*   ──▶ whisper 127.0.0.1:18471
+                                              ├─ /v1/video/* ──▶ video   127.0.0.1:18472
+                                              └─ /v1/host/*        reserved (remote control, later)
+```
+
+**Network prerequisites:**
+
+| Need | Why |
+|------|-----|
+| Static public IP (or stable DNS) | FreeSaaS stores `https://IP:port` per host |
+| DHCP reservation for the host on the LAN router | Port forward targets a LAN IP; without it push silently stops after a lease change |
+| Router port forward `<public port> → <host LAN IP>:18443` (TCP) | Only this port; dashboard stays on 127.0.0.1 |
+| Outbound from the FreeSaaS server to that port | Shared hosting may block non-standard ports — «Test» on `/edge-hosts`; if blocked forward public 443 → 18443 |
+| Default route not via VPN | Full-tunnel VPN sends replies into the tunnel; doctor check `gateway.default_route` |
+| macOS must not sleep | Disable system sleep in Energy settings |
+
+**Setup (new host):**
+
+```bash
+# host.local.json → gateway{} (see host.example.json); existing whisper push config:
+./workers/bin/freesaas-workers gateway migrate   # moves whisper push{} secret/port/allowlist + cert
+./workers/bin/freesaas-workers gateway init      # cert (reuses whisper cert → pin unchanged) + prints pin
+# FreeSaaS /edge-hosts → Add host (name, https://PUBLIC_IP:18443, key owner, pin, services)
+#   → secret shown once → gateway.clients[].secret; gateway.allowed_ips = FreeSaaS egress IP
+./workers/bin/freesaas-workers autostart on
+./workers/bin/freesaas-workers restart whisper   # plugins with modes.push open their local API
+./workers/bin/freesaas-workers gateway selftest  # signed GET /v1/status → services up?
+./workers/bin/freesaas-workers doctor            # gateway.* checks
+# FreeSaaS: Test → enable host + services → tick Push in /audio/settings and /video/settings
+```
+
+Same via agent_token (no UI): `GET /agent/edge-hosts`; `POST /agent/edge-hosts` with `confirm=1&action=create|update|service|test|rotate|promote|delete` (`service=video&service_enabled=1`); video switches `POST /agent/video/settings` `dispatch_push_enabled=1` / `dispatch_pull_enabled=0`; ASR switches `POST /agent/audio_pipeline/asr-push/config`.
+
+| `gateway.*` key | Default | Notes |
+|--------------|---------|-------|
+| `enabled` / `bind` / `port` | `false` / `0.0.0.0` / `18443` | |
+| `clients[]` | — | `key_id`, `secret`, `secret_next`, `scopes`, `allowed_ips`. Header `X-FS-Key` selects the client; no header = first `owner` (pre-gateway FreeSaaS) |
+| `scopes` | `["owner"]` | `owner` = all services; `<service>.jobs` (e.g. `asr.jobs`) = only status/jobs/results/ack/cancel of that service — for foreign instances later |
+| `allowed_ips` | `[]` | Host-wide CIDR list; per-client list in `clients[].allowed_ips` |
+| `tls_cert` / `tls_key` | `var/gateway/tls/*.pem` | Self-signed; FreeSaaS pins SPKI sha256 |
+| `clock_skew_sec` | `300` | |
+
+Signature: HMAC-SHA256 over method, path+query, `X-FS-Ts`, `X-FS-Nonce`, sha256(body) (`workers/core/gateway/signing.py` ⇔ `app/EdgeHostClient.php`); nonce replay cache; 5 bad requests → 15 min IP ban. Rotation: «New secret» → `secret_next` → restart → «Apply new secret» → move to `secret`.
+
+Contract for plugins: `plugin.json` → `service`, `local_api_port`, `capabilities`, `billing_units` (declared for future metering), `remote_actions` (declared for future remote control). Job submits pass `workers/core/gateway/admission.py` (always allows now). Legacy root paths `/v1/jobs|results|results/ack|jobs/cancel` alias to `/v1/asr/*`, and `/v1/status` repeats asr fields at the top level for FreeSaaS that predates `/v1/asr/*`.
+
+Tests: `python3 -m unittest workers/core/tests/test_gateway.py` (repo root).
 
 ---
 

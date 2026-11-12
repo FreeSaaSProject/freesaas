@@ -5,3 +5,4 @@ models/*.pt
 configs/local.json
 __pycache__/
 *.pyc
+var/

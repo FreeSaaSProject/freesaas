@@ -52,19 +52,12 @@
   },
   "push": {
     "worker_name": "whisper",
-    "bind": "0.0.0.0",
-    "port": 18443,
-    "secret": "CHANGE_ME",
-    "secret_next": "",
-    "tls_cert": "var/push/tls/cert.pem",
-    "tls_key": "var/push/tls/key.pem",
     "db": "var/push/queue.db",
-    "allowed_ips": [],
     "capacity": 50,
     "max_unacked": 2000,
     "max_attempts": 5,
     "retry_delay_sec": 120,
-    "clock_skew_sec": 300
+    "comment": "Inbound port, TLS cert, secrets and allowed_ips live in workers/host.local.json → gateway{} (freesaas-workers gateway migrate)."
   },
   "comment_notify": "Ops alerts live in workers/host.local.json → notify (Max + Telegram). Legacy max{} here is still read as fallback until migrated."
 }

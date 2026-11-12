@@ -13,8 +13,8 @@ if (isset($detWrap['detections']) && is_array($detWrap['detections'])) {
 $classes = $classes ?? [];
 $frameRel = $ann !== '' ? $ann : $raw;
 ?>
-<section class="video-live" data-camera-id="<?= (int)$row['ID'] ?>" data-poll-url="/video/cameras/<?= (int)$row['ID'] ?>/live?format=json">
-  <p class="muted"><?= te('video.live.hint') ?></p>
+<section class="video-live" data-camera-id="<?= (int)$row['ID'] ?>" data-poll-url="/video/cameras/<?= (int)$row['ID'] ?>/live?format=json"<?php if (!empty($edgeLive)): ?> data-edge-url="/video/cameras/<?= (int)$row['ID'] ?>/live-frame?format=json"<?php endif; ?>>
+  <p class="muted"><?= te(!empty($edgeLive) ? 'video.live.hint_edge' : 'video.live.hint') ?></p>
   <p class="video-live-toolbar actions">
     <form method="post" action="/video/cameras" class="inline">
       <input type="hidden" name="action" value="enqueue_ondemand">

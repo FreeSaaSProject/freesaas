@@ -21,7 +21,27 @@ final class VideoConfig
             'latest_frame_ring' => (int)Config::get('video', 'latest_frame_ring', 3),
             'purge_mode' => (string)Config::get('video', 'purge_mode', 'default'),
             'storage_bytes' => VideoStorage::monitoringBytes(),
+            'dispatch_pull_enabled' => self::pullEnabled(),
+            'dispatch_push_enabled' => self::pushEnabled(),
+            'edge_hosts' => array_map(static fn (array $h): array => [
+                'id' => (int)$h['ID'],
+                'name' => (string)$h['NAME'],
+                'last' => EdgeHosts::lastStatus($h, VideoPushDispatcher::SERVICE),
+                'error' => (string)$h['LAST_ERROR'],
+            ], EdgeHosts::forService(VideoPushDispatcher::SERVICE)),
         ];
+    }
+
+    /** Mac workers poll /video/worker/claim. */
+    public static function pullEnabled(): bool
+    {
+        return (int)Config::get('video', 'dispatch_pull_enabled', 1) === 1;
+    }
+
+    /** FreeSaaS sends jobs to edge hosts with the video service (EdgeHosts). */
+    public static function pushEnabled(): bool
+    {
+        return (int)Config::get('video', 'dispatch_push_enabled', 0) === 1;
     }
 
     /** @param array<string, mixed> $post */
@@ -51,5 +71,10 @@ final class VideoConfig
             $mode = 'default';
         }
         Config::set('video', 'purge_mode', $mode);
+
+        if (!empty($post['dispatch_save'])) {
+            Config::set('video', 'dispatch_pull_enabled', !empty($post['dispatch_pull_enabled']) ? '1' : '0');
+            Config::set('video', 'dispatch_push_enabled', !empty($post['dispatch_push_enabled']) ? '1' : '0');
+        }
     }
 }

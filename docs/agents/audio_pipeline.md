@@ -28,7 +28,7 @@ Permissions: `audio_pipeline.view`.
 | `base_records_stem_key_cache` | Owned by `audio_pipeline` |
 | `base_records_coverage_profiles` | Owned by `audio_pipeline` |
 | `base_asr_leases` | Owned by `audio_pipeline` |
-| `base_asr_push_workers` | Owned by `audio_pipeline` |
+| `base_asr_push_workers` | Owned by `audio_pipeline`; legacy — rows copied into core `base_edge_hosts` (same IDs), no longer read |
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
@@ -142,29 +142,30 @@ Two independent switches in `cfg/modules/audio.ini` `[audio]` (UI `/audio/settin
 |-----|---------|---------|
 | `asr_pull_enabled` | `1` | Workers poll `/audio/asr/claim` (returns `None` when off) |
 | `asr_push_enabled` | `0` | Cron `audio_pipeline.asr_push` hands records to inbound push workers |
+| `asr_source_base_url` | `` | Optional public base of the audio file host → push jobs carry `source_url` |
 | `asr_push_every_min` | `2` | Push sync interval (1–60 min); needs host `/cron/tick` at least that often (e.g. every minute) |
 | `asr_pull_lease_ttl_sec` | `1800` | Pull lease; released on result; record returns after TTL if the worker died |
 | `asr_push_lease_ttl_sec` | `21600` | Push lease; extended on every sync while the worker still holds the job |
 
 Both channels may run at once with any number of workers. **No double dispatch:** `base_asr_leases` keeps one live lease per `base_records.ID` (atomic `INSERT IGNORE` / conditional `UPDATE … WHERE LEASED_UNTIL < now`). **First result wins:** `saveResult` on an already transcribed record (`DT_TRANSCRIBED > 1`) returns `true` with `DUPLICATE_IGNORED=1` and does not overwrite, so a late worker drops its copy.
 
-Push sync per enabled worker (`AsrPushDispatcher::syncWorker`, per-worker `JobLock`):
+Push workers are edge hosts (`/edge-hosts`, `app/EdgeHosts.php`) with the `asr` service on; `AsrPushWorkers` is the ASR view of that registry (IDs = `base_edge_hosts.ID`). Push sync per host (`AsrPushDispatcher::syncWorker`, per-host `JobLock`); gateway API v2 paths `/v1/asr/*`, legacy whisper-only hosts `/v1/*`:
 
-1. Signed `GET /v1/status` → `held_job_ids`, `free_slots`, `whisper_ok`.
+1. Signed `GET /v1/status` → `services.asr.status` (`held_job_ids`, `free_slots`, `whisper_ok`); host API version stored in `API_VERSION`.
 2. Release leases the worker no longer holds (wiped store, cancelled); extend the rest.
-3. `GET /v1/results` → `AsrService::saveResult` → `POST /v1/results/ack` only for stored rows (and `not_found`). Worker-side `failed` (e.g. download failed N times) → lease cooldown 1 h, then any channel may retry.
-4. If push is on and the worker accepts: lease `min(free_slots, MAX_INFLIGHT − inflight)` records → `POST /v1/jobs` (`job_id`, `file_name`; the worker downloads `{ftp_server}{file_name}` itself).
+3. `GET /v1/asr/results` → `AsrService::saveResult` → `POST /v1/asr/results/ack` only for stored rows (and `not_found`). Worker-side `failed` (e.g. download failed N times) → lease cooldown 1 h, then any channel may retry.
+4. If push is on and the worker accepts: lease `min(free_slots, MAX_INFLIGHT − inflight)` records → `POST /v1/asr/jobs` (`job_id`, `file_name`, optional `source_url`; otherwise the host downloads `{ftp_server}{file_name}`).
 5. Results saved, nothing sent, worker queue empty → enqueue stem for today (replaces the pull worker's idle ping; ≥5 min apart).
 
-Errors put the worker into backoff 5m → 10m → 30m → 1h; its leases simply expire and other channels take the records. Results are collected even with push switched off. Health: `audio_pipeline.asr_push`.
+Errors put the host into backoff 5m → 10m → 30m → 1h (shared with the video service); its leases simply expire and other channels take the records. Results are collected even with push switched off. Health: `audio_pipeline.asr_push`.
 
-Security: HTTPS only, worker cert is self-signed and trusted via SPKI pin (`CURLOPT_PINNEDPUBLICKEY`), every request HMAC-SHA256-signed with a per-worker secret (`X-FS-Ts`, `X-FS-Nonce`, `X-FS-Sig` over method, path+query, ts, nonce, sha256(body); ±300 s, nonce replay cache). Secret rotation: «New secret» → put into worker `push.secret_next` → «Apply new secret». Worker setup: [workers.md](workers.md) § whisper push mode.
+Security: HTTPS only, worker cert is self-signed and trusted via SPKI pin (`CURLOPT_PINNEDPUBLICKEY`), every request HMAC-SHA256-signed with a per-worker secret (`X-FS-Ts`, `X-FS-Nonce`, `X-FS-Sig` over method, path+query, ts, nonce, sha256(body); ±300 s, nonce replay cache). Secret rotation: «New secret» → put into host `gateway.clients[].secret_next` → «Apply new secret». Host setup: [workers.md](workers.md) § 14 Push gateway.
 
 ```bash
 H=(-H "X-FreeSaaS-Agent-Token: $TOKEN" -H "Accept: application/json")
 curl -sS "${H[@]}" "$HOST/agent/audio_pipeline/asr-push/status"
 curl -sS "${H[@]}" -X POST -d 'confirm=1&worker=1&test=1' "$HOST/agent/audio_pipeline/asr-push/sync"
-# Register a worker (secret in the response — put it into worker push.secret, never into chat/logs)
+# Register a host (secret in the response — put it into host gateway.clients[].secret, never into chat/logs)
 curl -sS "${H[@]}" -X POST --data-urlencode 'pin=<SPKI>' \
   -d 'confirm=1&action=create&name=macstudio&base_url=https://203.0.113.10:18443' "$HOST/agent/audio_pipeline/asr-push/worker"
 curl -sS "${H[@]}" -X POST -d 'confirm=1&action=update&id=1&enabled=1' "$HOST/agent/audio_pipeline/asr-push/worker"

@@ -63,7 +63,7 @@ $fmtTime = static function (int $ts): string {
 <?php if ($tablesReady): ?>
 <fieldset class="form-fieldset">
   <legend><?= te('audio_pipeline.asr.workers') ?></legend>
-  <p class="muted"><?= te('audio_pipeline.asr.workers_hint') ?></p>
+  <p class="muted"><?= te('audio_pipeline.asr.workers_hint') ?> <a href="/edge-hosts"><?= te('audio_pipeline.asr.edge_hosts_link') ?></a></p>
   <?php if ($workers !== []): ?>
   <div class="table-wrap">
     <table class="data-table">

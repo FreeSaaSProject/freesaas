@@ -18,10 +18,11 @@ final class VideoAgentOps
             'description' => 'Video settings (worker_token masked) + retention',
         ]);
         AgentOps::registerModuleOp('POST', '/agent/video/settings', 'video.settings.save', [self::class, 'settingsSave'], [
-            'description' => 'Save video.ini. Body: regenerate_token=1 | worker_token=… | retention_days, max_storage_mb, purge_mode',
+            'description' => 'Save video.ini (omitted keys keep current values). Body: regenerate_token=1 | worker_token=… | retention_days, max_storage_mb, purge_mode | dispatch_pull_enabled=0|1, dispatch_push_enabled=0|1',
             'body' => [
                 'regenerate_token', 'worker_token', 'retention_days', 'max_storage_mb',
                 'keep_alert_media', 'latest_frame_ring', 'purge_mode',
+                'dispatch_pull_enabled', 'dispatch_push_enabled',
             ],
         ]);
         AgentOps::registerModuleOp('POST', '/agent/video/setup', 'video.setup', [self::class, 'setup'], [
@@ -86,6 +87,23 @@ final class VideoAgentOps
     {
         $body = AgentOps::requestInput();
         $had = VideoWorkerAuth::configuredToken();
+        $cur = VideoConfig::formValues();
+        foreach (['retention_days', 'max_storage_mb', 'latest_frame_ring', 'purge_mode'] as $k) {
+            if (!array_key_exists($k, $body)) {
+                $body[$k] = $cur[$k];
+            }
+        }
+        if (!array_key_exists('keep_alert_media', $body) && !empty($cur['keep_alert_media'])) {
+            $body['keep_alert_media'] = '1';
+        }
+        foreach (['dispatch_pull_enabled', 'dispatch_push_enabled'] as $k) {
+            if (array_key_exists($k, $body)) {
+                $body['dispatch_save'] = '1';
+                $body[$k] = in_array(strtolower(trim((string)$body[$k])), ['1', 'true', 'yes', 'on'], true) ? '1' : '';
+            } elseif (!empty($cur[$k])) {
+                $body[$k] = '1';
+            }
+        }
         VideoConfig::saveFromPost($body);
         $token = VideoWorkerAuth::configuredToken();
         $out = [

@@ -1398,13 +1398,14 @@ def process_push_job(job: Dict[str, Any]) -> bool:
 	"""One push job end-to-end. True = delivered into the local store."""
 	job_id = str(job["job_id"])
 	filename = str(job["file_name"])
+	source_url = str(job.get("source_url") or "") or f"{FTPSERVER}{filename}"
 	base_name = Path(filename).name
 	log(f"📦 push: задание {job_id[:8]} {base_name} (попытка {job.get('attempts')})")
 	with tempfile.TemporaryDirectory() as tmpdir:
 		tmp_path = Path(tmpdir) / base_name
 		set_activity("download", tl("activity.download", name=base_name))
 		try:
-			download_file(f"{FTPSERVER}{filename}", tmp_path)
+			download_file(source_url, tmp_path)
 		except Exception as e:
 			requeued = PUSH_STORE.retry_later(
 				job_id, f"download: {e}", PUSH_RETRY_DELAY_SEC, PUSH_MAX_ATTEMPTS
@@ -1463,9 +1464,11 @@ def start_push_mode() -> None:
 	global PUSH_STORE, PUSH_API, PUSH_WAKE
 	from push_store import PushStore
 	import push_server
+	from workers.core.gateway import local_api
 
 	PUSH_WAKE = threading.Event()
-	db_path = push_server.resolve_path(str(PUSH_CFG.get("db") or "var/push/queue.db"), CLIENT_ROOT)
+	db_raw = Path(str(PUSH_CFG.get("db") or "var/push/queue.db")).expanduser()
+	db_path = db_raw if db_raw.is_absolute() else (CLIENT_ROOT / db_raw).resolve()
 	PUSH_STORE = PushStore(
 		db_path,
 		capacity=int(PUSH_CFG.get("capacity", 50)),
@@ -1474,21 +1477,22 @@ def start_push_mode() -> None:
 	n = PUSH_STORE.reset_processing()
 	if n:
 		log(f"♻️  push: {n} незавершённых заданий возвращено в очередь после рестарта")
-	version = ""
+	manifest: Dict[str, Any] = {}
 	try:
-		version = str(json.loads((CLIENT_ROOT / "plugin.json").read_text(encoding="utf-8")).get("version") or "")
+		manifest = json.loads((CLIENT_ROOT / "plugin.json").read_text(encoding="utf-8"))
 	except Exception:
 		pass
 	PUSH_API = push_server.PushApi(
-		PUSH_CFG,
 		PUSH_STORE,
 		worker_name=str(PUSH_CFG.get("worker_name") or "whisper"),
-		version=version,
+		version=str(manifest.get("version") or ""),
 		whisper_ok=lambda: not WHISPER_DOWN,
 		wake=PUSH_WAKE,
 		log=log,
 	)
-	push_server.start(PUSH_CFG, PUSH_API, CLIENT_ROOT)
+	port = int(manifest.get("local_api_port") or 18471)
+	local_api.serve(port, PUSH_API.handle, log=log)
+	log(f"⚙️  push API 127.0.0.1:{port} (behind host gateway /v1/asr/*)")
 
 # ---------- Аналитика ----------
 

@@ -20,6 +20,32 @@
       <p class="field-help"><?= te('video.settings.regenerate.help') ?></p>
     </fieldset>
     <fieldset>
+      <legend><?= te('video.settings.dispatch') ?></legend>
+      <p class="muted"><?= te('video.settings.dispatch.help') ?></p>
+      <input type="hidden" name="dispatch_save" value="1">
+      <label><input type="checkbox" name="dispatch_pull_enabled" value="1" <?= !empty($cfg['dispatch_pull_enabled']) ? 'checked' : '' ?>> <?= te('video.settings.dispatch_pull') ?></label>
+      <p class="field-help"><?= te('video.settings.dispatch_pull.help') ?></p>
+      <label><input type="checkbox" name="dispatch_push_enabled" value="1" <?= !empty($cfg['dispatch_push_enabled']) ? 'checked' : '' ?>> <?= te('video.settings.dispatch_push') ?></label>
+      <p class="field-help"><?= te('video.settings.dispatch_push.help') ?></p>
+      <?php $edgeHosts = is_array($cfg['edge_hosts'] ?? null) ? $cfg['edge_hosts'] : []; ?>
+      <?php if ($edgeHosts === []): ?>
+        <p class="muted"><?= te('video.settings.edge_none') ?></p>
+      <?php else: ?>
+        <ul class="muted">
+          <?php foreach ($edgeHosts as $eh): ?>
+            <li><?= e((string)$eh['name']) ?>:
+              <?= te('video.settings.edge_state', [
+                  'at' => VideoTime::stamp((int)($eh['last']['at'] ?? 0)),
+                  'held' => (int)($eh['last']['held'] ?? 0),
+              ]) ?>
+              <?php if ($eh['error'] !== ''): ?> — <strong><?= e($eh['error']) ?></strong><?php endif; ?>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      <?php endif; ?>
+      <p class="field-help"><a href="/edge-hosts"><?= te('video.settings.edge_link') ?></a></p>
+    </fieldset>
+    <fieldset>
       <legend><?= te('video.settings.retention') ?></legend>
       <p class="muted"><?= te('video.settings.retention.help') ?></p>
       <label><?= te('video.settings.retention_days') ?>

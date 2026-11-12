@@ -153,29 +153,39 @@ def _default_route_iface() -> str:
     return ""
 
 
-def _doctor_whisper_push(root: Path, local: Dict[str, Any], add: Any) -> None:
-    push = local.get("push") if isinstance(local.get("push"), dict) else {}
-    secret = str(push.get("secret") or "").strip()
+def _doctor_gateway(host: Dict[str, Any], add: Any) -> None:
+    from . import autostart as autostart_mod
+    from .gateway.config import load_gateway_config, services
+
+    cfg = load_gateway_config(host)
+    add("gateway.enabled", cfg.enabled, "on" if cfg.enabled else "off — set host.local.json gateway.enabled (freesaas-workers gateway migrate)")
+    if not cfg.enabled:
+        return
     add(
-        "whisper.push.secret",
-        len(secret) >= 32 and secret != "CHANGE_ME",
-        "set" if len(secret) >= 32 else "paste secret from FreeSaaS /audio/settings → push workers",
+        "gateway.clients",
+        bool(cfg.clients),
+        ", ".join(f"{c.key_id}[{'+'.join(c.scopes)}]" for c in cfg.clients) or "no key with a secret ≥32 chars — paste from FreeSaaS /edge-hosts",
     )
-    for key, default in (("tls_cert", "var/push/tls/cert.pem"), ("tls_key", "var/push/tls/key.pem")):
-        p = Path(str(push.get(key) or default)).expanduser()
-        if not p.is_absolute():
-            p = (root / p).resolve()
-        add(f"whisper.push.{key}", p.is_file(), str(p) if p.is_file() else f"missing {p} — run push_cli.py init")
-    allowed = push.get("allowed_ips") or []
+    for name, p in (("tls_cert", cfg.tls_cert), ("tls_key", cfg.tls_key)):
+        add(f"gateway.{name}", p.is_file(), str(p) if p.is_file() else f"missing {p} — run: freesaas-workers gateway init")
     add(
-        "whisper.push.allowed_ips",
+        "gateway.allowed_ips",
         True,
-        ", ".join(str(x) for x in allowed) if allowed else "WARN: empty — any IP may try (signature still required)",
+        ", ".join(str(n) for n in cfg.allowed) if cfg.allowed else "WARN: empty — any IP may try (signature still required)",
+    )
+    svcs = services(host)
+    add("gateway.services", bool(svcs), ", ".join(f"{k}→{v.plugin_id}:{v.port}" for k, v in svcs.items()) or "no enabled plugin exposes a service")
+    auto = autostart_mod.status()
+    auto_on = bool(auto.get("plist_installed") or auto.get("task_installed"))
+    add(
+        "gateway.autostart",
+        auto_on,
+        "on" if auto_on else "off — gateway lives in the dashboard process: freesaas-workers autostart on",
     )
     iface = _default_route_iface()
     tunnel = iface.startswith(("ppp", "utun", "tun", "wg"))
     add(
-        "whisper.push.default_route",
+        "gateway.default_route",
         bool(iface) and not tunnel,
         (f"{iface} — VPN holds default route; inbound replies will not reach FreeSaaS" if tunnel else (iface or "unknown")),
     )
@@ -252,9 +262,6 @@ def doctor() -> Dict[str, Any]:
         if s.id == "whisper":
             script = s.root / "start_whisper_server.sh"
             add("whisper.start_script", script.is_file(), str(script) if script.is_file() else "copy start_whisper_server.example.sh")
-            modes = local.get("modes") if isinstance(local.get("modes"), dict) else {}
-            if modes.get("push"):
-                _doctor_whisper_push(s.root, local, add)
         if s.id == "audioloader":
             ftp = local.get("ftp") if isinstance(local.get("ftp"), dict) else {}
             ftp_host = str(ftp.get("host") or "").strip()
@@ -298,6 +305,14 @@ def doctor() -> Dict[str, Any]:
             if checks and checks[-1]["name"] == "audioloader.lame" and not checks[-1]["ok"]:
                 checks[-1]["ok"] = True
                 checks[-1]["detail"] = "WARN: " + str(checks[-1]["detail"])
+
+    push_plugins = [
+        s.id for s in specs
+        if isinstance(load_json(s.config_local).get("modes"), dict) and load_json(s.config_local)["modes"].get("push")
+    ]
+    gw = host.get("gateway") if isinstance(host.get("gateway"), dict) else {}
+    if push_plugins or gw.get("enabled"):
+        _doctor_gateway(host, add)
 
     return {
         "ok": all(c["ok"] for c in checks),

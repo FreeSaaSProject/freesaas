@@ -783,6 +783,9 @@ def run_dashboard(*, host: str = "127.0.0.1", port: int = 8766, open_browser: bo
     server = ThreadingHTTPServer((host, port), Handler)
     url = f"http://{host}:{port}/"
     print(f"FreeSaaS workers dashboard: {url} (localhost only, CSRF on)", flush=True)
+    from ..gateway.server import start_if_enabled
+
+    start_if_enabled(log=lambda *a: print(*a, flush=True))
     if open_browser:
         threading.Timer(0.4, lambda: webbrowser.open(url)).start()
     try:

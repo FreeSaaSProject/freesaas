@@ -27,9 +27,17 @@ require_once __DIR__ . '/lib/VideoColors.php';
 require_once __DIR__ . '/lib/VideoSchedule.php';
 require_once __DIR__ . '/lib/VideoPostsRepository.php';
 require_once __DIR__ . '/lib/VideoTrainSessionsRepository.php';
+require_once __DIR__ . '/lib/VideoResultIngest.php';
+require_once __DIR__ . '/lib/VideoPushDispatcher.php';
 require_once __DIR__ . '/lib/VideoAgentOps.php';
 
 VideoAgentOps::register();
+
+EdgeHosts::registerService(VideoPushDispatcher::SERVICE, [
+    'module' => 'video',
+    'label' => 'video.edge.service',
+    'max_inflight' => 10,
+]);
 
 Assets::register('video', [
     'css' => ['assets/css/video.css'],
@@ -49,6 +57,7 @@ $staffPages = [
     '/video/cameras/new' => ['permission' => 'video.edit', 'methods' => ['GET', 'POST'], 'file' => 'camera_edit.php'],
     '/video/cameras/{id}/edit' => ['permission' => 'video.edit', 'methods' => ['GET', 'POST'], 'file' => 'camera_edit.php'],
     '/video/cameras/{id}/live' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'camera_live.php'],
+    '/video/cameras/{id}/live-frame' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'camera_live_frame.php'],
     '/video/models' => ['permission' => 'video.edit', 'methods' => ['GET', 'POST'], 'file' => 'models.php'],
     '/video/alerts' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'alerts.php'],
     '/video/media' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'media.php'],
@@ -115,7 +124,7 @@ Cron::register('video.monitor_enqueue', [
     'label' => 'video.cron.monitor_enqueue',
     'every' => 5,
     'handler' => static function (): array {
-        if (VideoWorkersRepository::onlineCount(180) < 1) {
+        if (VideoWorkersRepository::onlineCount(180) < 1 && VideoPushDispatcher::onlineHosts() < 1) {
             return ['ok' => true, 'enqueued' => 0, 'message' => 'no online worker'];
         }
         $n = 0;
@@ -190,6 +199,25 @@ Cron::register('video.train_session_enqueue', [
         }
 
         return ['ok' => true, 'enqueued' => $n];
+    },
+]);
+
+// Push channel: FreeSaaS calls edge hosts with the video service (status → results+ack → dispatch).
+// Runs with push off too, so results already finished on a host still get collected.
+Cron::register('video.push_dispatch', [
+    'module' => 'video',
+    'label' => 'video.cron.push_dispatch',
+    'every' => 1,
+    'handler' => static function (): array {
+        if (VideoPushDispatcher::hosts() === []) {
+            return ['ok' => true, 'processed' => 0, 'message' => 'no edge hosts with video'];
+        }
+        $out = VideoPushDispatcher::syncAll();
+        return [
+            'ok' => $out['ok'],
+            'processed' => $out['saved'] + $out['sent'],
+            'message' => $out['message'],
+        ];
     },
 ]);
 

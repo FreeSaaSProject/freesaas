@@ -1,4 +1,4 @@
-"""CLI: install | doctor | download-models | start | stop | status | logs | dashboard."""
+"""CLI: install | doctor | download-models | start | stop | status | logs | dashboard | autostart | gateway."""
 from __future__ import annotations
 
 import argparse
@@ -194,6 +194,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="status | on | off",
     )
     s.set_defaults(func=cmd_autostart)
+
+    from .gateway.cli import add_parser as add_gateway_parser
+
+    add_gateway_parser(sub)
 
     return p
 

@@ -2,11 +2,12 @@
 declare(strict_types=1);
 
 /**
- * Push channel: FreeSaaS drives inbound workers (status → results+ack → dispatch).
- * Leases in base_asr_leases keep push and pull from taking the same record.
+ * Push channel: FreeSaaS drives edge hosts (status → results+ack → dispatch) on /v1/asr/*
+ * (legacy whisper-only hosts: /v1/*). Leases in base_asr_leases keep push and pull apart.
  */
 final class AsrPushDispatcher
 {
+    private const SERVICE = 'asr';
     private const RESULT_PAGES = 4;
     private const RESULT_PAGE_SIZE = 50;
     private const FAILED_COOLDOWN_SEC = 3600;
@@ -20,12 +21,14 @@ final class AsrPushDispatcher
      */
     public static function probe(array $w): array
     {
-        $r = AsrPushClient::call($w, 'GET', '/v1/status', null, 15);
+        $r = EdgeHosts::probe($w);
         if (!$r['ok']) {
-            AsrPushWorkers::noteProbeError((int)$w['ID'], 'test: ' . $r['error']);
-            return ['ok' => false, 'detail' => $r['error'], 'status' => []];
+            return $r;
         }
-        $s = $r['data'];
+        $s = EdgeHosts::serviceStatus($r['status'], self::SERVICE);
+        if ($s === null) {
+            return ['ok' => false, 'detail' => $r['detail'] . ' — asr service not running', 'status' => $r['status']];
+        }
         $detail = sprintf(
             '%s v%s, whisper=%s, free=%d',
             (string)($s['worker'] ?? '?'),
@@ -106,7 +109,16 @@ final class AsrPushDispatcher
             $res['error'] = $st['error'] . ' (backoff ' . $delay . 's)';
             return $res;
         }
-        $status = $st['data'];
+        EdgeHosts::noteApi($id, $st['data']);
+        $w = (array)AsrPushWorkers::find($id) + $w;
+        $status = EdgeHosts::serviceStatus($st['data'], self::SERVICE);
+        if ($status === null) {
+            // Host reachable but whisper plugin down: keep leases until they expire, no backoff for other services.
+            AsrPushWorkers::noteProbeError($id, 'asr service not running');
+            $res['ok'] = false;
+            $res['error'] = 'asr_service_down';
+            return $res;
+        }
         $held = AsrLease::cleanJobIds(is_array($status['held_job_ids'] ?? null) ? $status['held_job_ids'] : []);
         $heldSet = array_flip($held);
 
@@ -159,7 +171,7 @@ final class AsrPushDispatcher
         $id = (int)$w['ID'];
         $saved = 0;
         for ($page = 0; $page < self::RESULT_PAGES; $page++) {
-            $r = AsrPushClient::call($w, 'GET', '/v1/results?limit=' . self::RESULT_PAGE_SIZE);
+            $r = AsrPushClient::call($w, 'GET', self::path($w, '/results?limit=' . self::RESULT_PAGE_SIZE));
             if (!$r['ok']) {
                 break;
             }
@@ -204,7 +216,7 @@ final class AsrPushDispatcher
             if ($ack === []) {
                 break;
             }
-            $a = AsrPushClient::call($w, 'POST', '/v1/results/ack', ['job_ids' => $ack]);
+            $a = AsrPushClient::call($w, 'POST', self::path($w, '/results/ack'), ['job_ids' => $ack]);
             if (!$a['ok'] || count($rows) < self::RESULT_PAGE_SIZE) {
                 break;
             }
@@ -231,11 +243,15 @@ final class AsrPushDispatcher
         if ($leases === []) {
             return 0;
         }
-        $jobs = array_map(static fn (array $l): array => [
-            'job_id' => $l['job_id'],
-            'file_name' => $l['file_name'],
-        ], $leases);
-        $r = AsrPushClient::call($w, 'POST', '/v1/jobs', ['jobs' => $jobs]);
+        $sourceBase = rtrim(trim((string)Config::get('audio', 'asr_source_base_url', '')), '/');
+        $jobs = array_map(static function (array $l) use ($sourceBase): array {
+            $job = ['job_id' => $l['job_id'], 'file_name' => $l['file_name']];
+            if ($sourceBase !== '') {
+                $job['source_url'] = $sourceBase . $l['file_name'];
+            }
+            return $job;
+        }, $leases);
+        $r = AsrPushClient::call($w, 'POST', self::path($w, '/jobs'), ['jobs' => $jobs]);
         if (!$r['ok']) {
             // Request may have landed: keep leases; next status sync releases what the worker lacks.
             error_log('[asr_push] dispatch to worker ' . $id . ': ' . $r['error']);
@@ -250,6 +266,11 @@ final class AsrPushDispatcher
         }
         $accepted = is_array($r['data']['accepted'] ?? null) ? $r['data']['accepted'] : [];
         return count($accepted);
+    }
+
+    private static function path(array $w, string $rest): string
+    {
+        return EdgeHosts::path($w, self::SERVICE, $rest) ?? ('/v1' . $rest);
     }
 
     /** Push replacement for the pull worker's idle /audio/jobs/stem ping. */

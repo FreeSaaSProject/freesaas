@@ -24,6 +24,8 @@ Or platform HTTP: `POST /agent/modules/video/enable` with `accept_risk=1`.
 | `keep_alert_media` | `1` | Keep frames attached to alerts when purging. |
 | `latest_frame_ring` | `3` | How many recent live/raw JPEGs to keep per camera. |
 | `purge_mode` | `default` | `default` = age + size; `alerts_only` = aggressive (keep alert media only). |
+| `dispatch_pull_enabled` | `1` | Mac polls `/video/worker/claim` (returns no job when off). |
+| `dispatch_push_enabled` | `0` | FreeSaaS sends jobs to edge hosts with the `video` service (`/edge-hosts`) and collects results. |
 
 UI: `/video/settings` (superadmin). Cron: `video.purge`.
 
@@ -62,6 +64,12 @@ Sessions in `base_video_train_sessions` still exist for UI bookkeeping. Enabling
 Phases: `solo_class` → `other_class` → `done`. UI `/video/train` points staff to Mac collect + labeling.
 
 **Coverage** during local collect is on the Mac panel (`coverage.json`), not the web heatmap, unless remote frames are re-enabled.
+
+## Dispatch: pull and push
+
+Pull (default): the Mac polls `claim` and posts `result`. Push (Mac with a public IP, [workers.md](workers.md) § 14): `VideoPushDispatcher` leases jobs (`base_video_jobs.CHANNEL='push'`, `EDGE_HOST_ID`, `CLAIMED_UNTIL`) and sends them to `/v1/video/jobs`; results come back via `/v1/video/results` and go through the same `VideoResultIngest` as the pull endpoint. Jobs the host no longer holds return to the queue on the next sync. Both channels may be on.
+
+Live view: when a host is online, `/video/cameras/{id}/live` polls `/video/cameras/{id}/live-frame` every ~1.5 s while the tab is visible → `POST /v1/video/frame` on the host (fresh RTSP grab + YOLO, not stored). Falls back to the last stored frame after 3 failures.
 
 ## Agent ↔ user (playbook)
 
@@ -125,6 +133,7 @@ Also: `GET|POST /agent/video/settings`, session `action=pause|resume|status|fini
 ## Cron
 
 - `video.purge` — retention / size cap.
+- `video.push_dispatch` — every tick: per edge host status → results + ack → dispatch (also right after interactive enqueues).
 - `video.monitor_enqueue` — `monitor_tick` when worker online + schedule active.
 - `video.train_session_enqueue` — `train_session_tick` every minute while sessions `running`.
 

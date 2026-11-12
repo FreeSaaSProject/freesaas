@@ -35,8 +35,10 @@ final class VideoJobsRepository
             $now,
             $now,
         ]);
+        $id = (int)Database::pdo()->lastInsertId();
+        VideoPushDispatcher::afterEnqueue($type);
 
-        return (int)Database::pdo()->lastInsertId();
+        return $id;
     }
 
     /**
@@ -77,6 +79,9 @@ final class VideoJobsRepository
                 'UPDATE base_video_jobs SET STATUS = ?, CLAIMED_BY = ?, CLAIMED_UNTIL = ?, UPDATED_AT = ? WHERE ID = ?'
             );
             $upd->execute([self::STATUS_CLAIMED, $workerKey, $until, $now, $id]);
+            if (self::hasChannel()) {
+                $pdo->prepare("UPDATE base_video_jobs SET CHANNEL = 'pull', EDGE_HOST_ID = 0 WHERE ID = ?")->execute([$id]);
+            }
             $pdo->commit();
             $row['STATUS'] = self::STATUS_CLAIMED;
             $row['CLAIMED_BY'] = $workerKey;
@@ -132,6 +137,98 @@ final class VideoJobsRepository
         $st->execute();
 
         return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public static function hasChannel(): bool
+    {
+        return Database::columnExists('base_video_jobs', 'CHANNEL');
+    }
+
+    public static function leaseTtl(string $type, int $base = 900): int
+    {
+        if ($type === self::TYPE_TRAIN) {
+            return max($base, 7200);
+        }
+        if ($type === self::TYPE_INFER_BATCH) {
+            return max($base, 1800);
+        }
+        return $base;
+    }
+
+    /**
+     * Claim up to $limit pending (or expired) jobs for an edge host.
+     *
+     * @return list<array{id:int,type:string,payload:array<string,mixed>}>
+     */
+    public static function leaseForPush(int $hostId, int $limit): array
+    {
+        if ($limit < 1 || !self::hasChannel()) {
+            return [];
+        }
+        $pdo = Database::pdo();
+        $now = time();
+        $out = [];
+        $pdo->beginTransaction();
+        try {
+            $st = $pdo->prepare(
+                'SELECT ID, TYPE, PAYLOAD_JSON FROM base_video_jobs
+                 WHERE STATUS = ? OR (STATUS = ? AND CLAIMED_UNTIL > 0 AND CLAIMED_UNTIL < ?)
+                 ORDER BY ID ASC
+                 LIMIT ' . max(1, min(100, $limit)) . '
+                 FOR UPDATE'
+            );
+            $st->execute([self::STATUS_PENDING, self::STATUS_CLAIMED, $now]);
+            $upd = $pdo->prepare(
+                "UPDATE base_video_jobs
+                    SET STATUS = ?, CLAIMED_BY = ?, CLAIMED_UNTIL = ?, CHANNEL = 'push', EDGE_HOST_ID = ?, UPDATED_AT = ?
+                  WHERE ID = ?"
+            );
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+                $type = (string)$row['TYPE'];
+                $upd->execute([self::STATUS_CLAIMED, 'edge:' . $hostId, $now + self::leaseTtl($type), $hostId, $now, (int)$row['ID']]);
+                $out[] = ['id' => (int)$row['ID'], 'type' => $type, 'payload' => self::decodeJson($row['PAYLOAD_JSON'] ?? null)];
+            }
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+        return $out;
+    }
+
+    /** @return list<array{ID:int,TYPE:string}> jobs this host is holding by our records */
+    public static function pushClaimed(int $hostId): array
+    {
+        if (!self::hasChannel()) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            "SELECT ID, TYPE FROM base_video_jobs WHERE CHANNEL = 'push' AND EDGE_HOST_ID = ? AND STATUS = ?"
+        );
+        $st->execute([$hostId, self::STATUS_CLAIMED]);
+        return array_map(
+            static fn (array $r): array => ['ID' => (int)$r['ID'], 'TYPE' => (string)$r['TYPE']],
+            $st->fetchAll(PDO::FETCH_ASSOC) ?: []
+        );
+    }
+
+    public static function extendPush(int $hostId, int $id, string $type): void
+    {
+        Database::pdo()->prepare(
+            "UPDATE base_video_jobs SET CLAIMED_UNTIL = ?, UPDATED_AT = ?
+              WHERE ID = ? AND CHANNEL = 'push' AND EDGE_HOST_ID = ? AND STATUS = ?"
+        )->execute([time() + self::leaseTtl($type), time(), $id, $hostId, self::STATUS_CLAIMED]);
+    }
+
+    /** Host does not hold the job (rejected / lost on restart): back to the shared queue. */
+    public static function releasePush(int $hostId, int $id): void
+    {
+        Database::pdo()->prepare(
+            "UPDATE base_video_jobs SET STATUS = ?, CLAIMED_BY = '', CLAIMED_UNTIL = 0, EDGE_HOST_ID = 0, UPDATED_AT = ?
+              WHERE ID = ? AND CHANNEL = 'push' AND EDGE_HOST_ID = ? AND STATUS = ?"
+        )->execute([self::STATUS_PENDING, time(), $id, $hostId, self::STATUS_CLAIMED]);
     }
 
     /** @return array<string, mixed> */

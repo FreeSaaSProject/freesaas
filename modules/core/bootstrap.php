@@ -6,6 +6,7 @@ require_once __DIR__ . '/lib/NewsStatusesRepository.php';
 require_once __DIR__ . '/lib/NewsChecklistRepository.php';
 require_once __DIR__ . '/lib/NewsLogsRepository.php';
 require_once __DIR__ . '/lib/UsersRepository.php';
+require_once __DIR__ . '/lib/EdgeHostsAgentOps.php';
 require_once __DIR__ . '/lib/StatusesRepository.php';
 require_once __DIR__ . '/lib/SystemRepository.php';
 require_once __DIR__ . '/lib/SystemLogo.php';
@@ -201,6 +202,11 @@ $pages = [
         'capability' => 'SUPERADMIN_ACCESS',
         'methods' => ['GET', 'POST'],
         'file' => 'access_extend.php',
+    ],
+    '/edge-hosts' => [
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'edge_hosts.php',
     ],
 ];
 
@@ -721,3 +727,4 @@ EventBus::on('comments.prepare_add', static function ($payload) {
 
 NewsBotPlugin::register();
 PasswordRestoreBotPlugin::register();
+EdgeHostsAgentOps::register();

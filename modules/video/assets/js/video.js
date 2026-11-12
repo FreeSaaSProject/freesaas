@@ -137,7 +137,7 @@
 
     function applyPayload(data) {
       if (!data || !data.ok) return;
-      var url = data.annotated_url || data.frame_url;
+      var url = data.image || data.annotated_url || data.frame_url;
       if (url) {
         if (img) {
           img.src = url;
@@ -159,8 +159,16 @@
       updateSeen(el.getAttribute('data-last-seen'));
     }, 5000);
 
+    // Edge host online: fresh frames straight from the Mac while the tab is visible.
+    var edgeUrl = live.getAttribute('data-edge-url');
+    var edgeFails = 0;
+
+    function edgeActive() {
+      return !!edgeUrl && edgeFails < 3;
+    }
+
     function softRefresh() {
-      if (!pollUrl || document.hidden) return;
+      if (!pollUrl || document.hidden || edgeActive()) return;
       fetch(pollUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
         .then(function (r) {
           return r.json();
@@ -169,10 +177,48 @@
         .catch(function () {});
     }
 
+    function edgeTick() {
+      if (!edgeActive()) return;
+      if (document.hidden) {
+        setTimeout(edgeTick, 1500);
+        return;
+      }
+      fetch(edgeUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (data) {
+          if (data && data.ok) {
+            edgeFails = 0;
+            applyPayload(data);
+          } else {
+            edgeFails++;
+          }
+        })
+        .catch(function () {
+          edgeFails++;
+        })
+        .then(function () {
+          if (edgeActive()) {
+            setTimeout(edgeTick, 1500);
+          } else {
+            softRefresh();
+          }
+        });
+    }
+
     if (refreshBtn) {
-      refreshBtn.addEventListener('click', softRefresh);
+      refreshBtn.addEventListener('click', function () {
+        if (edgeUrl && !edgeActive()) {
+          edgeFails = 0;
+          edgeTick();
+          return;
+        }
+        softRefresh();
+      });
     }
     setInterval(softRefresh, 5000);
+    edgeTick();
   }
 
   /* —— Train session coverage poll —— */

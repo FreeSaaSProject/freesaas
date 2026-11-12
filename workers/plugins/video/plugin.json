@@ -1,7 +1,7 @@
 {
   "id": "video",
   "title": "Video (YOLO)",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "entrypoint": "worker.py",
   "requirements": "requirements.txt",
   "status_file": "logs/status.json",
@@ -24,5 +24,10 @@
     "dataset_upload",
     "save_loop"
   ],
+  "service": "video",
+  "local_api_port": 18472,
+  "capabilities": ["jobs", "results", "results_file", "frame"],
+  "billing_units": ["frame", "train_sec"],
+  "remote_actions": ["vpn_up", "vpn_down"],
   "log_sources": {}
 }

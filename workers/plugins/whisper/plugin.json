@@ -1,7 +1,7 @@
 {
   "id": "whisper",
   "title": "Whisper (cabin ASR)",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "entrypoint": "worker.py",
   "requirements": "requirements.txt",
   "status_file": "logs/status.json",
@@ -16,5 +16,10 @@
   ],
   "widgets": ["health", "pending", "loop"],
   "actions": ["restart_whisper_server"],
+  "service": "asr",
+  "local_api_port": 18471,
+  "capabilities": ["jobs", "results", "source_url"],
+  "billing_units": ["audio_sec"],
+  "remote_actions": [],
   "log_sources": {}
 }

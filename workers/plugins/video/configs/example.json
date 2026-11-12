@@ -16,6 +16,16 @@
     "stock_weights": "yolo11n.pt",
     "by_id": {}
   },
+  "modes": {
+    "pull": true,
+    "push": false
+  },
+  "push": {
+    "db": "var/push/queue.db",
+    "capacity": 20,
+    "max_unacked": 500,
+    "comment": "push = FreeSaaS sends jobs + pulls results via host gateway (workers/host.local.json → gateway{}); needs a public/static IP. With pull off the worker makes no outbound calls except media/model downloads."
+  },
   "loop": {
     "sleep_seconds_idle": 60,
     "sleep_seconds_run": 5,

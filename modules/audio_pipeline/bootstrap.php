@@ -132,7 +132,21 @@ Cron::register('audio_pipeline.stem_nightly', [
     },
 ]);
 
-// Push ASR channel: FreeSaaS calls inbound workers (status → results+ack → dispatch).
+EdgeHosts::registerService('asr', [
+    'module' => 'audio_pipeline',
+    'label' => 'audio_pipeline.edge.service',
+    'max_inflight' => 20,
+]);
+
+EventBus::on('core.edge_host.deleted', static function ($payload) {
+    $id = is_array($payload) ? (int)($payload['id'] ?? 0) : 0;
+    if ($id > 0 && AsrLease::available()) {
+        AsrLease::releaseWorker($id);
+    }
+    return $payload;
+});
+
+// Push ASR channel: FreeSaaS calls edge hosts (status → results+ack → dispatch).
 // Runs even with push off so already finished results still get collected and acked.
 Cron::register('audio_pipeline.asr_push', [
     'module' => 'audio_pipeline',
@@ -311,7 +325,7 @@ Health::register('audio_pipeline.asr_push', 'audio_pipeline', static function ()
         return ['status' => 'fail', 'message' => 'asr_pull_enabled=0 and asr_push_enabled=0 — nothing transcribes'];
     }
     if (!AsrLease::available() || !AsrPushWorkers::available()) {
-        return ['status' => 'degraded', 'message' => 'base_asr_leases / base_asr_push_workers missing — run migrate'];
+        return ['status' => 'degraded', 'message' => 'base_asr_leases / base_edge_hosts missing — run migrate'];
     }
     if (!AsrLease::pushEnabled()) {
         return ['status' => 'ok', 'message' => 'push off (pull only)'];

@@ -1,7 +1,7 @@
 """Durable push-mode queue for the whisper worker (SQLite).
 
-Jobs arrive from FreeSaaS (POST /v1/jobs), are transcribed locally and the
-result stays here until FreeSaaS acks it (POST /v1/results/ack).
+Jobs arrive from FreeSaaS (POST /v1/asr/jobs), are transcribed locally and the
+result stays here until FreeSaaS acks it (POST /v1/asr/results/ack).
 """
 from __future__ import annotations
 
@@ -11,9 +11,11 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlsplit
 
 JOB_ID_RE = re.compile(r"^[a-f0-9]{32}$")
 MAX_FILE_NAME = 500
+MAX_SOURCE_URL = 2000
 
 STATE_QUEUED = "queued"
 STATE_PROCESSING = "processing"
@@ -36,10 +38,6 @@ CREATE TABLE IF NOT EXISTS jobs (
   done_at REAL
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state, not_before, created_at);
-CREATE TABLE IF NOT EXISTS nonces (
-  nonce TEXT PRIMARY KEY,
-  ts REAL NOT NULL
-);
 """
 
 
@@ -58,6 +56,19 @@ def valid_file_name(name: Any) -> bool:
 	return name.startswith("/")
 
 
+def valid_source_url(url: Any) -> bool:
+	"""Absolute http(s) URL of the audio file on the client's file host; no credentials."""
+	if not isinstance(url, str) or not url or len(url) > MAX_SOURCE_URL:
+		return False
+	if any(ord(ch) < 33 or ord(ch) == 127 for ch in url):
+		return False
+	try:
+		p = urlsplit(url)
+	except ValueError:
+		return False
+	return p.scheme in ("http", "https") and bool(p.hostname) and p.username is None and p.password is None
+
+
 class PushStore:
 	def __init__(self, path: Path, capacity: int = 50, max_unacked: int = 2000):
 		self.path = Path(path)
@@ -70,6 +81,10 @@ class PushStore:
 		with self._lock:
 			self._conn.execute("PRAGMA journal_mode=WAL")
 			self._conn.executescript(_SCHEMA)
+			cols = {str(r["name"]) for r in self._conn.execute("PRAGMA table_info(jobs)").fetchall()}
+			if "source_url" not in cols:
+				self._conn.execute("ALTER TABLE jobs ADD COLUMN source_url TEXT NOT NULL DEFAULT ''")
+			self._conn.execute("DROP TABLE IF EXISTS nonces")
 			self._conn.commit()
 		try:
 			self.path.chmod(0o600)
@@ -126,9 +141,15 @@ class PushStore:
 					continue
 				job_id = job.get("job_id")
 				file_name = job.get("file_name")
+				source_url = job.get("source_url") or ""
 				if not valid_job_id(job_id):
 					rejected.append({"job_id": str(job_id or "")[:40], "reason": "bad_job_id"})
 					continue
+				if source_url and not valid_source_url(source_url):
+					rejected.append({"job_id": str(job_id), "reason": "bad_source_url"})
+					continue
+				if not file_name and source_url:
+					file_name = urlsplit(source_url).path
 				if not valid_file_name(file_name):
 					rejected.append({"job_id": str(job_id), "reason": "bad_file_name"})
 					continue
@@ -140,9 +161,9 @@ class PushStore:
 					rejected.append({"job_id": str(job_id), "reason": "queue_full"})
 					continue
 				self._conn.execute(
-					"INSERT INTO jobs (job_id, file_name, state, attempts, not_before, created_at, updated_at)"
-					" VALUES (?, ?, ?, 0, 0, ?, ?)",
-					(job_id, file_name, STATE_QUEUED, now, now),
+					"INSERT INTO jobs (job_id, file_name, source_url, state, attempts, not_before, created_at, updated_at)"
+					" VALUES (?, ?, ?, ?, 0, 0, ?, ?)",
+					(job_id, file_name, source_url, STATE_QUEUED, now, now),
 				)
 				slots -= 1
 				accepted.append(str(job_id))
@@ -251,18 +272,3 @@ class PushStore:
 			).fetchone()
 		t = row["t"] if row is not None else None
 		return 0.0 if t is None else max(0.0, time.time() - float(t))
-
-	# ---------- replay protection ----------
-
-	def nonce_seen(self, nonce: str, ttl_sec: float) -> bool:
-		"""Record nonce; True if it was already used within ttl (replay)."""
-		now = time.time()
-		with self._lock:
-			self._conn.execute("DELETE FROM nonces WHERE ts < ?", (now - ttl_sec,))
-			try:
-				self._conn.execute("INSERT INTO nonces (nonce, ts) VALUES (?, ?)", (nonce, now))
-				self._conn.commit()
-				return False
-			except sqlite3.IntegrityError:
-				self._conn.commit()
-				return True

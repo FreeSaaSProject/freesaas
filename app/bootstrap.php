@@ -35,6 +35,8 @@ require_once __DIR__ . '/AgentOps.php';
 require_once __DIR__ . '/SetupKey.php';
 require_once __DIR__ . '/Csrf.php';
 require_once __DIR__ . '/SafeHttp.php';
+require_once __DIR__ . '/EdgeHostClient.php';
+require_once __DIR__ . '/EdgeHosts.php';
 require_once __DIR__ . '/AgentAuth.php';
 // Thin demo guards only (readonly / auto-login / fail-closed modules). Fat seed lives in modules/demo.
 require_once __DIR__ . '/DemoMode.php';

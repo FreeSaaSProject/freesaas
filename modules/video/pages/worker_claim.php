@@ -6,7 +6,7 @@ VideoWorkerAuth::assertToken();
 $workerKey = trim((string)($_GET['worker_key'] ?? $_POST['worker_key'] ?? 'default'));
 $ttl = max(60, (int)($_GET['ttl'] ?? $_POST['ttl'] ?? 300));
 
-$job = VideoJobsRepository::claim($workerKey, $ttl);
+$job = VideoConfig::pullEnabled() ? VideoJobsRepository::claim($workerKey, $ttl) : null;
 
 header('Content-Type: application/json; charset=utf-8');
 if ($job === null) {

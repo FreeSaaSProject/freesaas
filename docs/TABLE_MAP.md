@@ -5,6 +5,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | Table(s) | Owner module | Notes |
 |---|---|---|
 | `base_users`, `base_admin_statuses`, `base_modules`, `base_schema_migrations`, `base_news*`, `base_views`, `base_user_prefs` | core | Auth, registry, news/tickets, prefs; staff `bday` (unix) + `show_bday_in_cal` (calendar markers) |
+| `base_edge_hosts` | core | Edge workers hosts (gateway URL, key, secret, SPKI pin, services asr/video, per-service last status); `app/EdgeHosts.php` |
 | `base_comments` | comments | Comment threads on news items |
 | `base_comments` / `base_users` / `base_news` (usage) | contracts (indexes/columns + UI) | No owned tables; offer workflow over comments/news; `IS_ACCEPTOR` on users; indexes on comments. Uninstall must not DROP news/comments |
 | `base_users` site/tips (`photo`, `site_descr`, `link_ok`) | likespa (columns + UI) | Added by likespa migration; staff edit via `core.user_edit.*` |
@@ -41,7 +42,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_records_badges`, `base_badge_assignments`, `base_records_reviews`, `base_records_balances` | audio | Badges, assignments; storage settings in `cfg/modules/audio.ini` |
 | `base_records_coverage_profiles` | audio_pipeline | Per-status / per-staff coverage overrides |
 | `base_asr_leases` | audio_pipeline | One active ASR lease per record across pull + push channels |
-| `base_asr_push_workers` | audio_pipeline | Push (inbound HTTPS) ASR workers: URL, secret, SPKI pin, state |
+| `base_asr_push_workers` | audio_pipeline | Legacy push ASR workers; copied into `base_edge_hosts` (not read anymore) |
 | `base_records_llm_studies`, `base_records_llm_study_results` | audio_llm | LLM studies over transcripts + cyclic templates |
 | `base_script_coach_runs`, `base_script_coach_artifacts`, `base_script_coach_proposals` | audio_script_coach | Day investigation jobs + LLM dict enrichment proposals |
 | `base_records_phrases`, `base_records_phrase_days` | audio_phrases | Top N-gram harvest (coach is soft successor for script enrichment) |

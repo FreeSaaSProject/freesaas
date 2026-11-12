@@ -1,6 +1,8 @@
 .venv/
 host.local.json
 var/run/*.pid
+var/run/gateway.local_token
+var/gateway/
 var/log/*.log
 var/log/*.log.1
 **/__pycache__/
