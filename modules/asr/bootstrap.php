@@ -4,6 +4,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/AsrWorkerAuth.php';
 require_once __DIR__ . '/lib/VoiceTranscribeQueue.php';
 require_once __DIR__ . '/lib/VoiceTranscribeBotPlugin.php';
+require_once __DIR__ . '/lib/AsrAgentOps.php';
+
+AsrAgentOps::register();
 
 /**
  * Standalone speech recognition: voice queue + shared worker token.

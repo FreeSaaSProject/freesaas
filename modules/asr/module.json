@@ -2,7 +2,7 @@
     "id": "asr",
     "name": "asr.module.name",
     "description": "asr.module.description",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -22,7 +22,9 @@
             "/asr/voice-transcribe/worker",
             "/asr/voice-transcribe/file",
             "/audio/voice-transcribe/worker",
-            "/audio/voice-transcribe/file"
+            "/audio/voice-transcribe/file",
+            "/agent/asr/voice-queue",
+            "/agent/asr/voice-queue/requeue"
         ]
     },
     "agent": {
@@ -35,6 +37,23 @@
                 "permission": "asr.view",
                 "assistant": false,
                 "description": "Whisper voice-queue worker next/submit (X-Audio-Token)"
+            },
+            {
+                "id": "asr.voice_queue",
+                "method": "GET",
+                "path": "/agent/asr/voice-queue",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token: voice queue counts, newest jobs (no text/tokens), last push dispatch; ?job=<id>"
+            },
+            {
+                "id": "asr.voice_queue_requeue",
+                "method": "POST",
+                "path": "/agent/asr/voice-queue/requeue",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: return processing voice jobs to pending; body confirm=1, job=<id> or all=1"
             }
         ]
     },

@@ -361,6 +361,102 @@ final class VoiceTranscribeQueue
         return ['done' => $done, 'audio' => $audio];
     }
 
+    /** Seconds a bot-triggered dispatch keeps polling the worker for the result after the webhook reply. */
+    public static function followSec(): int
+    {
+        $n = (int)Config::get('asr', 'voice_follow_sec', 150);
+        return max(0, min(600, $n));
+    }
+
+    /** @return array<string,mixed>|null job (no token / text) + state */
+    public static function find(string $jobId): ?array
+    {
+        foreach (['pending', 'processing', 'done'] as $state) {
+            $job = self::load($state, $jobId);
+            if ($job !== null) {
+                return self::publicView($job, $state);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Ops view for agents: counts per state, newest jobs, last dispatch attempt.
+     *
+     * @return array<string,mixed>
+     */
+    public static function stats(int $limit = 20): array
+    {
+        $counts = [];
+        $rows = [];
+        foreach (['pending', 'processing', 'done'] as $state) {
+            $files = glob(self::baseDir() . '/' . $state . '/*.json') ?: [];
+            $counts[$state] = count($files);
+            foreach ($files as $file) {
+                $rows[] = ['state' => $state, 'file' => $file, 'mtime' => (int)@filemtime($file)];
+            }
+        }
+        usort($rows, static fn (array $a, array $b): int => $b['mtime'] <=> $a['mtime']);
+        $recent = [];
+        foreach (array_slice($rows, 0, max(1, $limit)) as $r) {
+            $job = self::load($r['state'], basename($r['file'], '.json'));
+            if ($job !== null) {
+                $recent[] = self::publicView($job, $r['state']);
+            }
+        }
+        return [
+            'counts' => $counts,
+            'audio_files' => count(glob(self::baseDir() . '/audio/*') ?: []),
+            'recent' => $recent,
+            'last_dispatch' => self::lastDispatch(),
+            'base_url_set' => trim((string)Config::get('app', 'base_url', '')) !== '',
+            'retention_days' => self::retentionDays(),
+            'processing_ttl_sec' => self::staleTtl(),
+            'follow_sec' => self::followSec(),
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $job
+     * @return array<string,mixed>
+     */
+    private static function publicView(array $job, string $state): array
+    {
+        return [
+            'job_id' => (string)($job['job_id'] ?? ''),
+            'state' => $state,
+            'status' => (string)($job['status'] ?? ''),
+            'platform' => (string)($job['platform'] ?? ''),
+            'user_id' => (int)($job['user_id'] ?? 0),
+            'consumer_module' => (string)($job['consumer_module'] ?? ''),
+            'created_at' => (int)($job['created_at'] ?? 0),
+            'claimed_at' => (int)($job['claimed_at'] ?? 0),
+            'done_at' => (int)($job['done_at'] ?? 0),
+            'attempts' => (int)($job['attempts'] ?? 0),
+            'push_worker_id' => (int)($job['push_worker_id'] ?? 0),
+            'duration' => (int)($job['duration'] ?? 0),
+            'playtime' => (int)($job['playtime'] ?? 0),
+            'text_len' => mb_strlen((string)($job['text'] ?? '')),
+            'error' => mb_substr((string)($job['error'] ?? ''), 0, 200),
+            'has_audio' => is_file(self::audioPath($job)),
+        ];
+    }
+
+    /** @param array<string,mixed> $info */
+    public static function noteDispatch(array $info): void
+    {
+        $info['at'] = time();
+        @file_put_contents(self::baseDir() . '/last_dispatch.json', json_encode($info, JSON_UNESCAPED_UNICODE), LOCK_EX);
+    }
+
+    /** @return array<string,mixed> */
+    public static function lastDispatch(): array
+    {
+        $raw = @file_get_contents(self::baseDir() . '/last_dispatch.json');
+        $d = is_string($raw) ? json_decode($raw, true) : null;
+        return is_array($d) ? $d : [];
+    }
+
     public static function publicFileUrl(string $jobId, string $jobToken): string
     {
         $base = rtrim((string)Config::get('app', 'base_url', ''), '/');

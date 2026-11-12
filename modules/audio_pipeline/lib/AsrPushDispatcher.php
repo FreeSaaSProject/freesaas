@@ -373,10 +373,16 @@ final class AsrPushDispatcher
 
     private static function dispatchVoice(array $w, int $n): int
     {
-        if ($n < 1 || !self::voiceSourceReady()) {
+        if ($n < 1) {
             return 0;
         }
         $id = (int)$w['ID'];
+        if (!self::voiceSourceReady()) {
+            if ((VoiceTranscribeQueue::stats(1)['counts']['pending'] ?? 0) > 0) {
+                VoiceTranscribeQueue::noteDispatch(['worker' => $id, 'skipped' => 'no_base_url', 'sapi' => PHP_SAPI]);
+            }
+            return 0;
+        }
         $claimed = VoiceTranscribeQueue::claimBatch($n, $id);
         if ($claimed === []) {
             return 0;
@@ -392,9 +398,16 @@ final class AsrPushDispatcher
             ];
         }
         $r = AsrPushClient::call($w, 'POST', self::path($w, '/jobs'), ['jobs' => $jobs]);
+        $note = [
+            'worker' => $id,
+            'sapi' => PHP_SAPI,
+            'claimed' => array_column($jobs, 'job_id'),
+            'source_host' => (string)parse_url($jobs[0]['source_url'], PHP_URL_HOST),
+        ];
         if (!$r['ok']) {
             // Request may have landed: keep in processing; next status sync releases what the worker lacks.
             error_log('[asr_push] voice dispatch to worker ' . $id . ': ' . $r['error']);
+            VoiceTranscribeQueue::noteDispatch($note + ['error' => $r['error']]);
             return 0;
         }
         $rejected = is_array($r['data']['rejected'] ?? null) ? $r['data']['rejected'] : [];
@@ -405,7 +418,47 @@ final class AsrPushDispatcher
             }
         }
         $accepted = is_array($r['data']['accepted'] ?? null) ? $r['data']['accepted'] : [];
+        VoiceTranscribeQueue::noteDispatch($note + ['accepted' => $accepted, 'rejected' => $rejected]);
         return count($accepted);
+    }
+
+    /**
+     * After a bot-triggered dispatch: poll the worker for voice results so the reply lands in seconds.
+     * Runs after the webhook response is flushed; cron remains the fallback when hosting kills the request.
+     */
+    private static function followVoice(int $maxSec): void
+    {
+        if ($maxSec < 1) {
+            return;
+        }
+        @set_time_limit($maxSec + 60);
+        $deadline = time() + $maxSec;
+        while (time() < $deadline) {
+            sleep(3);
+            $waiting = false;
+            foreach (AsrPushWorkers::enabled() as $w) {
+                $id = (int)$w['ID'];
+                if (VoiceTranscribeQueue::processingForWorker($id) === []) {
+                    continue;
+                }
+                $waiting = true;
+                $lock = JobLock::tryAcquire('asr_push_' . $id);
+                if ($lock === null) {
+                    continue;
+                }
+                try {
+                    $done = 0;
+                    self::collectResults($w, true, $done);
+                } catch (Throwable $e) {
+                    error_log('[asr_push] voice follow: ' . $e->getMessage());
+                } finally {
+                    $lock->release();
+                }
+            }
+            if (!$waiting) {
+                return;
+            }
+        }
     }
 
     /** Right after a bot enqueues voice: sync once after the webhook response is flushed (no 2-min cron wait). */
@@ -420,9 +473,32 @@ final class AsrPushDispatcher
                 fastcgi_finish_request();
             }
             try {
-                self::syncAll();
+                $out = self::syncAll();
+                $voiceSent = array_sum(array_map(
+                    static fn (array $d): int => (int)($d['voice_sent'] ?? 0),
+                    $out['details']
+                ));
+                if ($voiceSent > 0) {
+                    self::followVoice(VoiceTranscribeQueue::followSec());
+                } elseif (($out['workers'] ?? 0) > 0) {
+                    $last = VoiceTranscribeQueue::lastDispatch();
+                    if ((int)($last['at'] ?? 0) < time() - 5) {
+                        VoiceTranscribeQueue::noteDispatch([
+                            'ctx' => 'kick',
+                            'sapi' => PHP_SAPI,
+                            'voice_sent' => 0,
+                            'details' => array_map(static fn (array $d): array => [
+                                'id' => $d['id'] ?? 0,
+                                'ok' => $d['ok'] ?? null,
+                                'skipped' => $d['skipped'] ?? '',
+                                'error' => $d['error'] ?? '',
+                            ], $out['details']),
+                        ]);
+                    }
+                }
             } catch (Throwable $e) {
                 error_log('[asr_push] voice kick: ' . $e->getMessage());
+                VoiceTranscribeQueue::noteDispatch(['ctx' => 'kick', 'exception' => $e->getMessage()]);
             }
         });
     }
