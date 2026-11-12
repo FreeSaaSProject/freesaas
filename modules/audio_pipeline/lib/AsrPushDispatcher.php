@@ -393,7 +393,7 @@ final class AsrPushDispatcher
             $ext = preg_replace('/[^a-z0-9]/', '', strtolower((string)($job['ext'] ?? 'ogg'))) ?: 'ogg';
             $jobs[] = [
                 'job_id' => $jobId,
-                'file_name' => 'voice/' . $jobId . '.' . $ext,
+                'file_name' => '/voice/' . $jobId . '.' . $ext,
                 'source_url' => VoiceTranscribeQueue::publicFileUrl($jobId, (string)$job['job_token']),
             ];
         }

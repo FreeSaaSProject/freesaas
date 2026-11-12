@@ -263,9 +263,9 @@ Not part of `/cron/tick`. In pull mode the messenger voice queue (`/asr/voice-tr
 
 With `modes.push` the whisper plugin takes jobs from the host gateway (§ 14) on `/v1/asr/*` instead of polling. FreeSaaS Cron `audio_pipeline.asr_push` (every `asr_push_every_min`, default 2 min) sends jobs, collects results and acks them; results stay in `plugins/whisper/var/push/queue.db` until acked; audio is deleted right after recognition. Pull and push may run together — server-side leases prevent double dispatch ([audio_pipeline.md](audio_pipeline.md) § Dispatch channels).
 
-Jobs carry `job_id` + `file_name` and optionally `source_url` (FreeSaaS `audio.asr_source_base_url`); without it the plugin downloads `{ftp_server}{file_name}`.
+Jobs carry `job_id` + `file_name` and optionally `source_url` (FreeSaaS `audio.asr_source_base_url`); without it the plugin downloads `{ftp_server}{file_name}` (`file_name` must start with `/`). If whisper-server dies the plugin stops accepting (`free_slots=0`), keeps serving results/acks and retries the server every 2 min.
 
-Messenger voice (bot → `asr` voice queue) uses the same push channel: FreeSaaS sends those jobs first, as `file_name = voice/<job_id>.<ext>` with `source_url` pointing to `/asr/voice-transcribe/file?job_id&job_token`, and kicks a sync right after the bot enqueues (no cron wait). No plugin change or extra config — only `app.base_url` on FreeSaaS ([asr.md](asr.md)). If whisper-server dies the plugin stops accepting (`free_slots=0`), keeps serving results/acks and retries the server every 2 min.
+Messenger voice (bot → `asr` voice queue) uses the same push channel: FreeSaaS sends those jobs first, as `file_name = /voice/<job_id>.<ext>` with `source_url` pointing to `/asr/voice-transcribe/file?job_id&job_token`, and kicks a sync right after the bot enqueues (no cron wait). No plugin change or extra config — only `app.base_url` on FreeSaaS ([asr.md](asr.md)).
 
 | `push.*` key (plugin) | Default | Notes |
 |--------------|---------|-------|
