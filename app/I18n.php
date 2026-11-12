@@ -326,7 +326,22 @@ final class I18n
         if ($root === false) {
             return $used;
         }
-        $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root));
+        // Runtime data (update stages, backups, uploads) holds stale code copies — never scan it.
+        $skipTop = ['var', 'cfg'];
+        $dirs = new RecursiveCallbackFilterIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            static function (SplFileInfo $f) use ($root, $skipTop): bool {
+                if (!$f->isDir()) {
+                    return true;
+                }
+                $name = $f->getFilename();
+                if ($name[0] === '.' || $name === 'vendor' || $name === 'node_modules') {
+                    return false;
+                }
+                return !($f->getPath() === $root && in_array($name, $skipTop, true));
+            }
+        );
+        $it = new RecursiveIteratorIterator($dirs);
         foreach ($it as $f) {
             if (!$f->isFile()) {
                 continue;
