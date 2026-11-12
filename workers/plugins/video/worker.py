@@ -116,6 +116,19 @@ def rtsp_host(rtsp_url: str) -> str:
         return ""
 
 
+def rtsp_safe(rtsp_url: str) -> str:
+    """RTSP URL without user:password — job errors end up in FreeSaaS and agent output."""
+    raw = (rtsp_url or "").strip()
+    try:
+        u = urlparse(raw if "://" in raw else "rtsp://" + raw)
+        host = u.hostname or ""
+        if u.port:
+            host += f":{u.port}"
+        return f"{u.scheme}://{host}{u.path}"
+    except Exception:  # noqa: BLE001
+        return "rtsp://?"
+
+
 def cameras_for_status(cams: List[dict]) -> List[dict]:
     out: List[dict] = []
     for cam in cams:
@@ -556,7 +569,12 @@ def grab_rtsp_jpeg(rtsp: str) -> bytes:
         out,
     ]
     try:
-        subprocess.run(cmd, check=True, timeout=timeout)
+        try:
+            subprocess.run(cmd, check=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"ffmpeg: no frame from {rtsp_safe(rtsp)} within {timeout}s") from None
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"ffmpeg exit {e.returncode} for {rtsp_safe(rtsp)}") from None
         data = Path(out).read_bytes()
         if not data:
             raise RuntimeError("empty frame")
