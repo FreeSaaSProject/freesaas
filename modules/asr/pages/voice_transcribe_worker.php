@@ -48,14 +48,12 @@ if ($action === 'submit') {
         echo json_encode(['ok' => false, 'error' => 'job_id and job_token required'], JSON_UNESCAPED_UNICODE);
         return;
     }
-    $res = VoiceTranscribeQueue::submit($jobId, $jobToken, $text, $error);
+    $res = VoiceTranscribeQueue::complete($jobId, $jobToken, $text, $error);
     if (!$res['ok']) {
         http_response_code(400);
         echo json_encode(['ok' => false, 'error' => $res['error']], JSON_UNESCAPED_UNICODE);
         return;
     }
-    $job = is_array($res['job'] ?? null) ? $res['job'] : [];
-    VoiceTranscribeBotPlugin::deliverResult($job, $text, $error);
     echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
     return;
 }

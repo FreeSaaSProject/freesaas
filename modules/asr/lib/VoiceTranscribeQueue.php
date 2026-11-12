@@ -4,9 +4,13 @@ declare(strict_types=1);
 /**
  * Filesystem queue for messenger voice ASR (oper voice_transcribe_queue shape).
  * Jobs live under var/voice_transcribe/{pending,processing,done}/ + audio/.
+ * Consumers: pull worker (/asr/voice-transcribe/worker) and audio_pipeline push channel.
  */
 final class VoiceTranscribeQueue
 {
+    private const DEFAULT_STALE_TTL_SEC = 10800;
+    private const DEFAULT_RETENTION_DAYS = 7;
+
     public static function baseDir(): string
     {
         $dir = base_path('var/voice_transcribe');
@@ -115,36 +119,149 @@ final class VoiceTranscribeQueue
             @unlink($dest);
             return ['ok' => false, 'job_id' => '', 'error' => 'queue write failed'];
         }
+        EventBus::emit('asr.voice.enqueued', ['job_id' => $jobId, 'platform' => $platform]);
         return ['ok' => true, 'job_id' => $jobId, 'error' => ''];
     }
 
     /** @return array<string,mixed>|null */
     public static function claimNext(): ?array
     {
-        $dir = self::baseDir() . '/pending';
-        $files = glob($dir . '/*.json') ?: [];
-        sort($files);
+        $jobs = self::claimBatch(1);
+        return $jobs[0] ?? null;
+    }
+
+    /**
+     * Move up to $limit oldest pending jobs to processing (rename = atomic claim).
+     * $workerId > 0 tags the job for push reconciliation (audio_pipeline edge host id).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function claimBatch(int $limit, int $workerId = 0): array
+    {
+        if ($limit < 1) {
+            return [];
+        }
+        $files = glob(self::baseDir() . '/pending/*.json') ?: [];
+        usort($files, static fn (string $a, string $b): int => (int)@filemtime($a) <=> (int)@filemtime($b));
+        $out = [];
         foreach ($files as $file) {
+            if (count($out) >= $limit) {
+                break;
+            }
             $jobId = basename($file, '.json');
-            $job = self::load('pending', $jobId);
+            $dest = self::jobPath('processing', $jobId);
+            if (!@rename($file, $dest)) {
+                continue;
+            }
+            $job = self::load('processing', $jobId);
             if ($job === null) {
                 continue;
             }
             $job['status'] = 'processing';
             $job['claimed_at'] = time();
-            if (!self::save('processing', $jobId, $job)) {
+            $job['attempts'] = (int)($job['attempts'] ?? 0) + 1;
+            if ($workerId > 0) {
+                $job['push_worker_id'] = $workerId;
+            } else {
+                unset($job['push_worker_id']);
+            }
+            self::save('processing', $jobId, $job);
+            $out[] = $job;
+        }
+        return $out;
+    }
+
+    /** Return a processing job to pending (rejected by worker, lost after restart, stale). */
+    public static function release(string $jobId): bool
+    {
+        $job = self::load('processing', $jobId);
+        if ($job === null) {
+            return false;
+        }
+        $job['status'] = 'pending';
+        unset($job['claimed_at'], $job['push_worker_id']);
+        if (!self::save('pending', $jobId, $job)) {
+            return false;
+        }
+        self::delete('processing', $jobId);
+        return true;
+    }
+
+    /** @return list<array<string,mixed>> */
+    public static function processingForWorker(int $workerId): array
+    {
+        $out = [];
+        foreach (glob(self::baseDir() . '/processing/*.json') ?: [] as $file) {
+            $job = self::load('processing', basename($file, '.json'));
+            if ($job !== null && (int)($job['push_worker_id'] ?? 0) === $workerId) {
+                $out[] = $job;
+            }
+        }
+        return $out;
+    }
+
+    public static function staleTtl(): int
+    {
+        $n = (int)Config::get('asr', 'voice_processing_ttl_sec', self::DEFAULT_STALE_TTL_SEC);
+        return max(600, $n > 0 ? $n : self::DEFAULT_STALE_TTL_SEC);
+    }
+
+    /** Safety net only: long recordings may legitimately sit in processing for an hour. */
+    public static function requeueStale(?int $ttlSec = null): int
+    {
+        $ttl = $ttlSec ?? self::staleTtl();
+        $cut = time() - $ttl;
+        $n = 0;
+        foreach (glob(self::baseDir() . '/processing/*.json') ?: [] as $file) {
+            $jobId = basename($file, '.json');
+            $job = self::load('processing', $jobId);
+            if ($job === null) {
                 continue;
             }
-            self::delete('pending', $jobId);
-            return $job;
+            if ((int)($job['claimed_at'] ?? 0) < $cut && self::release($jobId)) {
+                $n++;
+            }
         }
-        return null;
+        return $n;
+    }
+
+    /** Whisper custom format "[mm:ss->mm:ss] text" per line → plain text. */
+    public static function plainText(string $raw): string
+    {
+        $lines = [];
+        foreach (preg_split('/\R/u', $raw) ?: [] as $line) {
+            $line = trim((string)preg_replace('/^\s*\[\d+:\d{2}->\d+:\d{2}\]\s*/u', '', $line));
+            if ($line !== '') {
+                $lines[] = $line;
+            }
+        }
+        return implode("\n", $lines);
     }
 
     /**
+     * Interpret a whisper worker result: cue lines = transcript; text without cues = worker error marker.
+     *
+     * @return array{text:string,error:string}
+     */
+    public static function splitWorkerResult(string $raw): array
+    {
+        $trim = trim($raw);
+        if ($trim === '') {
+            return ['text' => '', 'error' => ''];
+        }
+        if (preg_match('/\[\d+:\d{2}->\d+:\d{2}\]/u', $trim) === 1) {
+            return ['text' => self::plainText($trim), 'error' => ''];
+        }
+        return ['text' => '', 'error' => mb_substr($trim, 0, 300)];
+    }
+
+    /**
+     * Mark job done (text + raw kept in done/ until retention). Audio stays until cleanupAudio().
+     *
+     * @param array{text_raw?:string,playtime?:?int} $meta
      * @return array{ok:bool,error:string,job:?array<string,mixed>}
      */
-    public static function submit(string $jobId, string $jobToken, string $text, string $error): array
+    public static function submit(string $jobId, string $jobToken, string $text, string $error, array $meta = []): array
     {
         $job = self::load('processing', $jobId);
         if ($job === null) {
@@ -158,19 +275,90 @@ final class VoiceTranscribeQueue
         }
         $job['status'] = $error !== '' ? 'error' : 'done';
         $job['text'] = $text;
+        $job['text_raw'] = (string)($meta['text_raw'] ?? $text);
         $job['error'] = $error;
+        if (isset($meta['playtime']) && $meta['playtime'] !== null && (int)$meta['playtime'] > 0) {
+            $job['playtime'] = (int)$meta['playtime'];
+        }
         $job['done_at'] = time();
         self::save('done', $jobId, $job);
         self::delete('processing', $jobId);
         self::delete('pending', $jobId);
+        return ['ok' => true, 'error' => '', 'job' => $job];
+    }
+
+    /**
+     * submit → bots.voice.transcription_result (consumers / default chat reply) → drop audio
+     * unless a consumer set audio_taken (moved the file elsewhere, e.g. audio analytics).
+     *
+     * @return array{ok:bool,error:string,job:?array<string,mixed>}
+     */
+    public static function complete(string $jobId, string $jobToken, string $textRaw, string $error, ?int $playtime = null): array
+    {
+        $text = $error !== '' ? '' : self::plainText($textRaw);
+        $res = self::submit($jobId, $jobToken, $text, $error, ['text_raw' => $textRaw, 'playtime' => $playtime]);
+        if (!$res['ok']) {
+            return $res;
+        }
+        $job = is_array($res['job']) ? $res['job'] : [];
+        $payload = VoiceTranscribeBotPlugin::deliverResult($job, $text, $error, $textRaw, $playtime);
+        if (empty($payload['audio_taken'])) {
+            self::cleanupAudio($job);
+        }
+        return $res;
+    }
+
+    /** @param array<string,mixed> $job */
+    public static function cleanupAudio(array $job): void
+    {
+        $abs = self::audioPath($job);
+        if ($abs !== '' && is_file($abs)) {
+            @unlink($abs);
+        }
+    }
+
+    /** @param array<string,mixed> $job */
+    public static function audioPath(array $job): string
+    {
         $rel = (string)($job['audio_rel_path'] ?? '');
-        if ($rel !== '') {
-            $abs = self::baseDir() . '/' . $rel;
-            if (is_file($abs)) {
-                @unlink($abs);
+        return $rel !== '' ? self::baseDir() . '/' . $rel : '';
+    }
+
+    public static function retentionDays(): int
+    {
+        $n = (int)Config::get('asr', 'voice_retention_days', self::DEFAULT_RETENTION_DAYS);
+        return max(1, $n > 0 ? $n : self::DEFAULT_RETENTION_DAYS);
+    }
+
+    /**
+     * Delete done/*.json and orphan audio older than retention (voice may hold medical data).
+     *
+     * @return array{done:int,audio:int}
+     */
+    public static function purgeOld(?int $days = null): array
+    {
+        $cut = time() - 86400 * ($days ?? self::retentionDays());
+        $base = self::baseDir();
+        $done = 0;
+        foreach (glob($base . '/done/*.json') ?: [] as $file) {
+            if ((int)@filemtime($file) < $cut && @unlink($file)) {
+                $done++;
             }
         }
-        return ['ok' => true, 'error' => '', 'job' => $job];
+        $live = [];
+        foreach (['pending', 'processing'] as $state) {
+            foreach (glob($base . '/' . $state . '/*.json') ?: [] as $file) {
+                $live[basename($file, '.json')] = true;
+            }
+        }
+        $audio = 0;
+        foreach (glob($base . '/audio/*') ?: [] as $file) {
+            $id = (string)pathinfo($file, PATHINFO_FILENAME);
+            if (!isset($live[$id]) && (int)@filemtime($file) < $cut && @unlink($file)) {
+                $audio++;
+            }
+        }
+        return ['done' => $done, 'audio' => $audio];
     }
 
     public static function publicFileUrl(string $jobId, string $jobToken): string

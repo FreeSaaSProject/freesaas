@@ -2,7 +2,7 @@
     "id": "asr",
     "name": "asr.module.name",
     "description": "asr.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -48,8 +48,13 @@
             "bots.ready"
         ],
         "publish": [
+            "asr.voice.enqueued",
             "bots.voice.transcription_result"
-        ]
+        ],
+        "contracts": {
+            "asr.voice.enqueued": "{job_id, platform} after a voice job lands in pending (push channels kick dispatch)",
+            "bots.voice.transcription_result": "{job, text (plain), text_raw (whisper [mm:ss->mm:ss] lines), playtime, audio_path, error, handled, audio_taken}; set handled to skip the default chat reply, audio_taken when you moved audio_path away"
+        }
     },
     "catalog": {
         "categories": [

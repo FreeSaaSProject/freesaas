@@ -52,6 +52,21 @@ Health::register('asr.voice_queue', 'asr', static function (): array {
     return ['status' => 'ok', 'message' => 'voice queue dir writable'];
 }, 'Voice transcribe queue');
 
+Cron::register('asr.voice_retention', [
+    'module' => 'asr',
+    'label' => 'asr.cron.voice_retention',
+    'daily_at' => '04:20',
+    'handler' => static function (): array {
+        $requeued = VoiceTranscribeQueue::requeueStale();
+        $purged = VoiceTranscribeQueue::purgeOld();
+        return [
+            'ok' => true,
+            'processed' => $purged['done'] + $purged['audio'] + $requeued,
+            'message' => sprintf('done=%d audio=%d requeued=%d', $purged['done'], $purged['audio'], $requeued),
+        ];
+    },
+]);
+
 $registerVoiceBot = static function (): void {
     VoiceTranscribeBotPlugin::register();
 };

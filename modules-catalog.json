@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-12T08:16:50+00:00",
+    "generated_at": "2026-11-12T09:10:31+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -43,7 +43,7 @@
         },
         {
             "id": "asr",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "ASR / speech recognition",
@@ -312,7 +312,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",

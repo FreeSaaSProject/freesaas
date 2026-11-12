@@ -4,6 +4,7 @@ declare(strict_types=1);
 /**
  * Push channel: FreeSaaS drives edge hosts (status → results+ack → dispatch) on /v1/asr/*
  * (legacy whisper-only hosts: /v1/*). Leases in base_asr_leases keep push and pull apart.
+ * Messenger voice jobs (asr VoiceTranscribeQueue) ride the same channel and go first.
  */
 final class AsrPushDispatcher
 {
@@ -12,6 +13,9 @@ final class AsrPushDispatcher
     private const RESULT_PAGE_SIZE = 50;
     private const FAILED_COOLDOWN_SEC = 3600;
     private const STEM_PING_MIN_INTERVAL = 300;
+    private const VOICE_MAX_PER_SYNC = 20;
+
+    private static bool $voiceKickScheduled = false;
 
     /**
      * Connectivity check only (signed GET /v1/status), no dispatch; does not touch backoff.
@@ -39,19 +43,23 @@ final class AsrPushDispatcher
         return ['ok' => true, 'detail' => $detail, 'status' => $s];
     }
 
-    /** @return array{ok:bool,workers:int,saved:int,sent:int,message:string,details:list<array<string,mixed>>} */
+    /** @return array{ok:bool,workers:int,saved:int,sent:int,voice:int,message:string,details:list<array<string,mixed>>} */
     public static function syncAll(): array
     {
-        $out = ['ok' => true, 'workers' => 0, 'saved' => 0, 'sent' => 0, 'message' => '', 'details' => []];
+        $out = ['ok' => true, 'workers' => 0, 'saved' => 0, 'sent' => 0, 'voice' => 0, 'message' => '', 'details' => []];
         if (!AsrLease::available() || !AsrPushWorkers::available()) {
             $out['message'] = 'tables_missing';
             return $out;
+        }
+        if (self::voiceAvailable()) {
+            VoiceTranscribeQueue::requeueStale();
         }
         foreach (AsrPushWorkers::enabled() as $w) {
             $res = self::syncWorker($w);
             $out['workers']++;
             $out['saved'] += (int)$res['saved'];
             $out['sent'] += (int)$res['sent'];
+            $out['voice'] += (int)($res['voice_sent'] ?? 0) + (int)($res['voice_done'] ?? 0);
             if (!$res['ok']) {
                 $out['ok'] = false;
             }
@@ -60,7 +68,13 @@ final class AsrPushDispatcher
         if ($out['workers'] === 0) {
             $out['message'] = 'no_workers';
         } else {
-            $out['message'] = sprintf('workers=%d saved=%d sent=%d', $out['workers'], $out['saved'], $out['sent']);
+            $out['message'] = sprintf(
+                'workers=%d saved=%d sent=%d voice=%d',
+                $out['workers'],
+                $out['saved'],
+                $out['sent'],
+                $out['voice']
+            );
         }
         return $out;
     }
@@ -131,18 +145,39 @@ final class AsrPushDispatcher
         }
         AsrLease::extend($id, $held, AsrLease::pushTtl());
 
-        $res['saved'] = self::collectResults($w);
+        $voiceOn = self::voiceAvailable();
+        if ($voiceOn) {
+            foreach (VoiceTranscribeQueue::processingForWorker($id) as $vj) {
+                $vid = (string)($vj['job_id'] ?? '');
+                if ($vid !== '' && !isset($heldSet[$vid])) {
+                    VoiceTranscribeQueue::release($vid);
+                }
+            }
+        }
+
+        $voiceDone = 0;
+        $res['saved'] = self::collectResults($w, $voiceOn, $voiceDone);
+        $res['voice_done'] = $voiceDone;
 
         $sent = 0;
+        $voiceSent = 0;
         $queueEmpty = ((int)($status['counts']['queued'] ?? 0) + (int)($status['counts']['processing'] ?? 0)) === 0;
-        if (AsrLease::pushEnabled() && !empty($status['accepting'])) {
-            $inflight = count(AsrLease::activeForWorker($id));
-            $n = min((int)($status['free_slots'] ?? 0), (int)$w['MAX_INFLIGHT'] - $inflight);
-            if ($n > 0) {
-                $sent = self::dispatch($w, $n);
+        if (!empty($status['accepting'])) {
+            $free = (int)($status['free_slots'] ?? 0);
+            if ($voiceOn && $free > 0) {
+                $voiceSent = self::dispatchVoice($w, min($free, self::VOICE_MAX_PER_SYNC));
+                $free -= $voiceSent;
+            }
+            if (AsrLease::pushEnabled() && $free > 0) {
+                $inflight = count(AsrLease::activeForWorker($id));
+                $n = min($free, (int)$w['MAX_INFLIGHT'] - $inflight);
+                if ($n > 0) {
+                    $sent = self::dispatch($w, $n);
+                }
             }
         }
         $res['sent'] = $sent;
+        $res['voice_sent'] = $voiceSent;
 
         if ($res['saved'] > 0 && $sent === 0 && $queueEmpty) {
             self::pingStemToday();
@@ -158,6 +193,8 @@ final class AsrPushDispatcher
             'oldest_unacked_sec' => (int)($status['oldest_unacked_sec'] ?? 0),
             'saved' => $res['saved'],
             'sent' => $sent,
+            'voice_sent' => $voiceSent,
+            'voice_done' => $voiceDone,
             'at' => time(),
         ]);
         $res['status'] = $status;
@@ -165,8 +202,11 @@ final class AsrPushDispatcher
         return $res;
     }
 
-    /** Pull finished results, persist via AsrService::saveResult, ack only what was stored. */
-    private static function collectResults(array $w): int
+    /**
+     * Pull finished results, persist via AsrService::saveResult (or the voice queue), ack only what was stored.
+     * Voice results do not count as $saved (no stem ping for messenger voice).
+     */
+    private static function collectResults(array $w, bool $voiceOn = false, int &$voiceDone = 0): int
     {
         $id = (int)$w['ID'];
         $saved = 0;
@@ -184,6 +224,16 @@ final class AsrPushDispatcher
                 $jobId = (string)($row['job_id'] ?? '');
                 if (AsrLease::cleanJobIds([$jobId]) === []) {
                     continue;
+                }
+                if ($voiceOn) {
+                    $voice = self::collectVoiceResult($jobId, $row);
+                    if ($voice !== null) {
+                        if ($voice) {
+                            $ack[] = $jobId;
+                            $voiceDone++;
+                        }
+                        continue;
+                    }
                 }
                 $fileName = self::fileNameForJob($id, $jobId, (string)($row['file_name'] ?? ''));
                 if ((string)($row['status'] ?? '') === 'failed') {
@@ -266,6 +316,115 @@ final class AsrPushDispatcher
         }
         $accepted = is_array($r['data']['accepted'] ?? null) ? $r['data']['accepted'] : [];
         return count($accepted);
+    }
+
+    private static function voiceAvailable(): bool
+    {
+        return class_exists('VoiceTranscribeQueue') && ModuleManager::isEnabled('asr');
+    }
+
+    /**
+     * null = not a voice job; true = stored (ack it); false = keep on the worker for the next sync.
+     *
+     * @param array<string,mixed> $row
+     */
+    private static function collectVoiceResult(string $jobId, array $row): ?bool
+    {
+        if (VoiceTranscribeQueue::load('done', $jobId) !== null) {
+            return true;
+        }
+        $job = VoiceTranscribeQueue::load('processing', $jobId) ?? VoiceTranscribeQueue::load('pending', $jobId);
+        if ($job === null) {
+            return null;
+        }
+        $token = (string)($job['job_token'] ?? '');
+        $pt = $row['playtime'] ?? null;
+        $playtime = is_numeric($pt) && (float)$pt >= 1 ? (int)round((float)$pt) : null;
+        if ((string)($row['status'] ?? '') === 'failed') {
+            $err = trim((string)($row['error'] ?? '')) ?: 'failed';
+            $out = VoiceTranscribeQueue::complete($jobId, $token, '', mb_substr($err, 0, 300), $playtime);
+        } else {
+            $raw = (string)($row['result'] ?? '');
+            $split = VoiceTranscribeQueue::splitWorkerResult($raw);
+            $out = VoiceTranscribeQueue::complete(
+                $jobId,
+                $token,
+                $split['error'] !== '' ? '' : trim($raw),
+                $split['error'],
+                $playtime
+            );
+        }
+        if (!$out['ok']) {
+            error_log('[asr_push] voice ' . $jobId . ': ' . $out['error']);
+            return false;
+        }
+        return true;
+    }
+
+    /** Base URL the worker downloads voice audio from (cron has no Host header → needs app.base_url). */
+    private static function voiceSourceReady(): bool
+    {
+        if (trim((string)Config::get('app', 'base_url', '')) !== '') {
+            return true;
+        }
+        $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+        return $host !== '' && $host !== 'localhost';
+    }
+
+    private static function dispatchVoice(array $w, int $n): int
+    {
+        if ($n < 1 || !self::voiceSourceReady()) {
+            return 0;
+        }
+        $id = (int)$w['ID'];
+        $claimed = VoiceTranscribeQueue::claimBatch($n, $id);
+        if ($claimed === []) {
+            return 0;
+        }
+        $jobs = [];
+        foreach ($claimed as $job) {
+            $jobId = (string)$job['job_id'];
+            $ext = preg_replace('/[^a-z0-9]/', '', strtolower((string)($job['ext'] ?? 'ogg'))) ?: 'ogg';
+            $jobs[] = [
+                'job_id' => $jobId,
+                'file_name' => 'voice/' . $jobId . '.' . $ext,
+                'source_url' => VoiceTranscribeQueue::publicFileUrl($jobId, (string)$job['job_token']),
+            ];
+        }
+        $r = AsrPushClient::call($w, 'POST', self::path($w, '/jobs'), ['jobs' => $jobs]);
+        if (!$r['ok']) {
+            // Request may have landed: keep in processing; next status sync releases what the worker lacks.
+            error_log('[asr_push] voice dispatch to worker ' . $id . ': ' . $r['error']);
+            return 0;
+        }
+        $rejected = is_array($r['data']['rejected'] ?? null) ? $r['data']['rejected'] : [];
+        foreach ($rejected as $rej) {
+            $jobId = (string)($rej['job_id'] ?? '');
+            if ($jobId !== '') {
+                VoiceTranscribeQueue::release($jobId);
+            }
+        }
+        $accepted = is_array($r['data']['accepted'] ?? null) ? $r['data']['accepted'] : [];
+        return count($accepted);
+    }
+
+    /** Right after a bot enqueues voice: sync once after the webhook response is flushed (no 2-min cron wait). */
+    public static function afterVoiceEnqueue(): void
+    {
+        if (self::$voiceKickScheduled || !AsrPushWorkers::available() || AsrPushWorkers::enabled() === []) {
+            return;
+        }
+        self::$voiceKickScheduled = true;
+        register_shutdown_function(static function (): void {
+            if (function_exists('fastcgi_finish_request')) {
+                fastcgi_finish_request();
+            }
+            try {
+                self::syncAll();
+            } catch (Throwable $e) {
+                error_log('[asr_push] voice kick: ' . $e->getMessage());
+            }
+        });
     }
 
     private static function path(array $w, string $rest): string

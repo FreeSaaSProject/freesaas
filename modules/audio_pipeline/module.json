@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "type": "product",
     "requires": {
         "core": ">=1.1.0",
@@ -246,6 +246,7 @@
     "hooks": {
         "subscribe": [
             "core.edge_host.deleted",
+            "asr.voice.enqueued",
             "audio_dicts.changed",
             "audio.settings.sections",
             "audio.settings.save"

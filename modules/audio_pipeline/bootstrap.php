@@ -146,6 +146,11 @@ EventBus::on('core.edge_host.deleted', static function ($payload) {
     return $payload;
 });
 
+EventBus::on('asr.voice.enqueued', static function ($payload) {
+    AsrPushDispatcher::afterVoiceEnqueue();
+    return $payload;
+});
+
 // Push ASR channel: FreeSaaS calls edge hosts (status → results+ack → dispatch).
 // Runs even with push off so already finished results still get collected and acked.
 Cron::register('audio_pipeline.asr_push', [
@@ -156,7 +161,7 @@ Cron::register('audio_pipeline.asr_push', [
         $out = AsrPushDispatcher::syncAll();
         return [
             'ok' => $out['ok'],
-            'processed' => $out['saved'] + $out['sent'],
+            'processed' => $out['saved'] + $out['sent'] + $out['voice'],
             'skipped' => 0,
             'message' => $out['message'],
         ];

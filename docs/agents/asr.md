@@ -37,6 +37,36 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 curl -sS -b jar.txt 'https://example/asr/voice-transcribe/worker?format=json'
 ```
 
+## Voice queue delivery
+
+Queue: `var/voice_transcribe/{pending,processing,done,audio}` (`VoiceTranscribeQueue`). Two consumers, atomic claim (rename) keeps them apart:
+
+- **Push** (preferred, edge host behind gateway): `audio_pipeline` `AsrPushDispatcher` sends voice jobs **before** cabin records on `/v1/asr/jobs` (`file_name = voice/<job_id>.<ext>`, `source_url = /asr/voice-transcribe/file?job_id&job_token`). EventBus `asr.voice.enqueued` kicks one sync right after the webhook response (no wait for the 2-min cron). Needs `app.base_url` (cron has no Host header). Results are pulled with the cabin results, stored, then acked.
+- **Pull** (external clients): `GET /asr/voice-transcribe/worker?action=next`, `POST …?action=submit {job_id, job_token, text, error}`.
+
+Processing jobs the edge host no longer holds go back to pending on the next sync; `voice_processing_ttl_sec` (default 3 h) is only a safety net so long visit recordings are not restarted.
+
+### Result contract (`bots.voice.transcription_result`)
+
+| Key | Value |
+|-----|-------|
+| `job` | Queue job incl. extra from `enqueueFromPath` (`consumer_module`, `event_id`, …) and `message_date` / `duration` from the messenger |
+| `text` | Plain transcript (cue prefixes stripped) |
+| `text_raw` | Whisper lines `[mm:ss->mm:ss] …` — same format as `base_records.TRANSCRIPTION` |
+| `playtime` | Seconds (from worker) or null |
+| `audio_path` | Absolute path while the file still exists |
+| `error` | Worker error / failed job |
+| `handled` | Set `true` to skip the default chat reply |
+| `audio_taken` | Set `true` when the consumer moved `audio_path` away (e.g. import into audio analytics); otherwise the file is deleted after the event |
+
+Consumer pattern: bot plugin with `BotChatState` → `VoiceTranscribeBotPlugin::enqueueFromPath(..., ['consumer_module' => '<id>', …])` → listener checks `job.consumer_module` (see wellness `FitFoodBotPlugin`). Medical use (visit recording → medcard): propose fields via `docs.instance.propose`, never reply clinical text into the chat.
+
+Download failures are answered in the chat (`too_large` — messenger bot file limit ~20 MB, `download_failed`).
+
+### Retention
+
+Cron `asr.voice_retention` (daily 04:20): drops `done/*.json` and orphan `audio/*` older than `[asr] voice_retention_days` (default 7) and requeues stale processing jobs. Voice may contain medical data — keep the window short.
+
 ## Notes
 
 - Paths `/audio/voice-transcribe/*` are aliases of `/asr/voice-transcribe/*`.

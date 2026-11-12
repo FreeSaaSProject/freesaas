@@ -49,9 +49,15 @@ final class VoiceTranscribeBotPlugin
                     return null;
                 }
                 $raw = is_array($ctx['raw'] ?? null) ? $ctx['raw'] : [];
-                $extracted = self::extractAudio($ctx, $raw);
+                $extracted = self::extractAudioResult($ctx, $raw);
                 if ($extracted === null) {
                     return null;
+                }
+                if (!$extracted['ok']) {
+                    self::reply($ctx, $extracted['error'] === 'too_large'
+                        ? t('asr.bot.voice.too_large')
+                        : t('asr.bot.voice.download_fail'));
+                    return true;
                 }
                 $res = VoiceTranscribeQueue::enqueue(
                     (string)($ctx['platform'] ?? 'telegram'),
@@ -59,7 +65,7 @@ final class VoiceTranscribeBotPlugin
                     $uid,
                     $extracted['path'],
                     $extracted['ext'],
-                    []
+                    self::metaExtra($extracted)
                 );
                 if (!$res['ok']) {
                     self::reply($ctx, t('asr.bot.voice.enqueue_fail'));
@@ -89,11 +95,35 @@ final class VoiceTranscribeBotPlugin
     }
 
     /**
+     * BC wrapper for consumer plugins: null when no audio or download failed.
+     *
      * @param array<string,mixed> $ctx
      * @param array<string,mixed> $raw
-     * @return array{path:string,ext:string}|null
+     * @return array{path:string,ext:string,message_date:int,duration:int}|null
      */
     public static function extractAudio(array $ctx, array $raw): ?array
+    {
+        $res = self::extractAudioResult($ctx, $raw);
+        if ($res === null || !$res['ok']) {
+            return null;
+        }
+        return [
+            'path' => $res['path'],
+            'ext' => $res['ext'],
+            'message_date' => $res['message_date'],
+            'duration' => $res['duration'],
+        ];
+    }
+
+    /**
+     * null = message has no audio attachment; ok=false = audio present but not downloadable
+     * (error: too_large | download_failed).
+     *
+     * @param array<string,mixed> $ctx
+     * @param array<string,mixed> $raw
+     * @return array{ok:bool,path:string,ext:string,error:string,message_date:int,duration:int}|null
+     */
+    public static function extractAudioResult(array $ctx, array $raw): ?array
     {
         $platform = (string)($ctx['platform'] ?? 'telegram');
         $token = (string)($ctx['token'] ?? '');
@@ -101,29 +131,31 @@ final class VoiceTranscribeBotPlugin
             $voice = is_array($raw['voice'] ?? null) ? $raw['voice'] : null;
             $audio = is_array($raw['audio'] ?? null) ? $raw['audio'] : null;
             $document = is_array($raw['document'] ?? null) ? $raw['document'] : null;
-            $fileId = '';
-            $mime = '';
-            if ($voice) {
-                $fileId = (string)($voice['file_id'] ?? '');
-                $mime = (string)($voice['mime_type'] ?? '');
-            } elseif ($audio) {
-                $fileId = (string)($audio['file_id'] ?? '');
-                $mime = (string)($audio['mime_type'] ?? '');
-            } elseif ($document) {
-                $fileId = (string)($document['file_id'] ?? '');
-                $mime = (string)($document['mime_type'] ?? '');
+            $att = $voice ?? $audio ?? $document;
+            if ($att === null) {
+                return null;
+            }
+            $fileId = (string)($att['file_id'] ?? '');
+            $mime = (string)($att['mime_type'] ?? '');
+            if ($document !== null && $voice === null && $audio === null
+                && preg_match('#^(image/|text/|application/pdf)#', $mime) === 1) {
+                return null;
             }
             if ($fileId === '' || $token === '') {
                 return null;
             }
+            $meta = [
+                'message_date' => (int)($raw['date'] ?? 0),
+                'duration' => (int)($att['duration'] ?? 0),
+            ];
             $prefer = $mime !== '' && strpos($mime, '/') !== false
                 ? substr($mime, strpos($mime, '/') + 1)
                 : 'ogg';
             $dl = BotClient::downloadTelegramFile($token, $fileId, $prefer);
             if (!$dl['ok']) {
-                return null;
+                return self::failed(self::failReason((string)($dl['error'] ?? '')), $meta);
             }
-            return ['path' => $dl['path'], 'ext' => $dl['ext']];
+            return ['ok' => true, 'path' => $dl['path'], 'ext' => $dl['ext'], 'error' => ''] + $meta;
         }
 
         // Max
@@ -131,6 +163,10 @@ final class VoiceTranscribeBotPlugin
         $attachments = is_array($body['attachments'] ?? null) ? $body['attachments'] : [];
         if ($attachments === [] && isset($raw['link']['message']['attachments']) && is_array($raw['link']['message']['attachments'])) {
             $attachments = $raw['link']['message']['attachments'];
+        }
+        $ts = (int)($raw['timestamp'] ?? $body['timestamp'] ?? 0);
+        if ($ts > 100000000000) {
+            $ts = intdiv($ts, 1000);
         }
         foreach ($attachments as $att) {
             if (!is_array($att)) {
@@ -152,6 +188,10 @@ final class VoiceTranscribeBotPlugin
             if ($url === '') {
                 continue;
             }
+            $meta = [
+                'message_date' => $ts,
+                'duration' => (int)($payload['duration'] ?? $att['duration'] ?? 0),
+            ];
             $ext = 'ogg';
             $mime = (string)($payload['mime_type'] ?? $payload['content_type'] ?? '');
             if ($mime !== '' && strpos($mime, '/') !== false) {
@@ -159,28 +199,80 @@ final class VoiceTranscribeBotPlugin
             }
             $dl = BotClient::downloadUrlToTemp($url, $ext);
             if (!$dl['ok']) {
-                return null;
+                return self::failed(self::failReason((string)($dl['error'] ?? '')), $meta);
             }
-            return ['path' => $dl['path'], 'ext' => $dl['ext']];
+            return ['ok' => true, 'path' => $dl['path'], 'ext' => $dl['ext'], 'error' => ''] + $meta;
         }
         return null;
     }
 
     /**
-     * Called after worker submit — notify consumer or send transcript to chat.
+     * Job extra from extractAudioResult (message time + duration for later import into base_records).
+     *
+     * @param array<string,mixed> $extracted
+     * @return array<string,int>
+     */
+    public static function metaExtra(array $extracted): array
+    {
+        $out = [];
+        foreach (['message_date', 'duration'] as $k) {
+            if ((int)($extracted[$k] ?? 0) > 0) {
+                $out[$k] = (int)$extracted[$k];
+            }
+        }
+        return $out;
+    }
+
+    private static function failReason(string $error): string
+    {
+        $e = strtolower($error);
+        foreach (['too big', 'too large', 'size', 'exceed', 'limit'] as $needle) {
+            if (strpos($e, $needle) !== false) {
+                return 'too_large';
+            }
+        }
+        return 'download_failed';
+    }
+
+    /**
+     * @param array{message_date:int,duration:int} $meta
+     * @return array{ok:bool,path:string,ext:string,error:string,message_date:int,duration:int}
+     */
+    private static function failed(string $reason, array $meta): array
+    {
+        return ['ok' => false, 'path' => '', 'ext' => '', 'error' => $reason] + $meta;
+    }
+
+    /**
+     * Called after the job is done — consumers via EventBus, else transcript reply in the chat.
+     * Consumers may set handled (no default reply) and audio_taken (they moved audio_path away).
      *
      * @param array<string,mixed> $job
+     * @return array<string,mixed> final event payload
      */
-    public static function deliverResult(array $job, string $text, string $error): void
-    {
+    public static function deliverResult(
+        array $job,
+        string $text,
+        string $error,
+        string $textRaw = '',
+        ?int $playtime = null
+    ): array {
+        $audioPath = VoiceTranscribeQueue::audioPath($job);
         $payload = EventBus::emit('bots.voice.transcription_result', [
             'job' => $job,
             'text' => $text,
+            'text_raw' => $textRaw !== '' ? $textRaw : $text,
+            'playtime' => $playtime,
+            'audio_path' => ($audioPath !== '' && is_file($audioPath)) ? $audioPath : '',
             'error' => $error,
             'handled' => false,
+            'audio_taken' => false,
         ]);
-        if (is_array($payload) && !empty($payload['handled'])) {
-            return;
+        if (!is_array($payload)) {
+            $payload = [];
+        }
+        if (!empty($payload['handled']) || !class_exists('BotsConfig', false) || !class_exists('BotClient', false)) {
+            return $payload;
         }
 
         $platform = (string)($job['platform'] ?? 'telegram');
@@ -189,17 +281,22 @@ final class VoiceTranscribeBotPlugin
         $cfg = BotsConfig::channel('staff', $platform === 'max' ? 'max' : 'telegram');
         $token = is_array($cfg) ? (string)($cfg['token'] ?? '') : '';
         if ($token === '' || $chatId === '') {
-            return;
+            return $payload;
         }
         if ($error !== '') {
             BotClient::sendMessage($platform, $token, $chatId, t('asr.bot.voice.err', [
                 'id' => $jobId,
                 'error' => $error,
             ]));
-            return;
+            return $payload;
+        }
+        if ($text === '') {
+            BotClient::sendMessage($platform, $token, $chatId, t('asr.bot.voice.empty', ['id' => $jobId]));
+            return $payload;
         }
         $body = t('asr.bot.voice.result', ['id' => $jobId]) . "\n\n" . $text;
         BotClient::sendMessage($platform, $token, $chatId, $body);
+        return $payload;
     }
 
     /**
