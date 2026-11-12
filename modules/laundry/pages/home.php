@@ -2,20 +2,37 @@
 declare(strict_types=1);
 
 $wantsJson = AgentHttp::wantsJson();
-$accounts = LaundryAccountsRepository::names(true);
-$types = LaundryItemTypesRepository::listEnabled();
-$matrix = LaundryMovesRepository::balanceMatrix();
-$started = LaundryMovesRepository::hasAnyMoves();
-$open = LaundryShipmentsRepository::listOpenWithLines();
+$panelError = '';
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    $action = (string)($_POST['action'] ?? '');
+    if (LaundryPanel::isPanelAction($action)) {
+        try {
+            LaundryPanel::handlePost($action, $_POST, Auth::userId(), LaundryConfig::ticketNewsId());
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'action' => $action]);
+                return;
+            }
+            redirect('/laundry?saved=1#laundry');
+            return;
+        } catch (Throwable $e) {
+            if ($wantsJson) {
+                AgentHttp::error($e->getMessage(), 400);
+                return;
+            }
+            $panelError = $e->getMessage();
+        }
+    }
+}
 
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
-        'started' => $started,
-        'balances' => $matrix,
-        'accounts' => $accounts,
-        'types' => $types,
-        'open_shipments' => $open,
+        'started' => LaundryMovesRepository::hasAnyMoves(),
+        'balances' => LaundryMovesRepository::balanceMatrix(),
+        'accounts' => LaundryAccountsRepository::names(true),
+        'types' => LaundryItemTypesRepository::listEnabled(),
+        'open_shipments' => LaundryShipmentsRepository::listOpenWithLines(),
     ]);
     return;
 }
@@ -25,11 +42,7 @@ View::render('home', [
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('laundry.menu.home'), 'current' => true],
     ]),
-    'accounts' => $accounts,
-    'types' => $types,
-    'matrix' => $matrix,
-    'started' => $started,
-    'open' => $open,
-    'canShip' => Auth::can('laundry.ship'),
+    'panelHtml' => LaundryPanel::render(['post_url' => '/laundry', 'error' => $panelError]),
+    'message' => isset($_GET['saved']) ? t('core.common.saved') : '',
     'canEdit' => Auth::can('laundry.edit'),
 ], 'layout', 'laundry');

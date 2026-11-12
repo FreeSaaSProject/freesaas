@@ -36,6 +36,13 @@ Permissions: `laundry.view`, `laundry.ship`, `laundry.accounts`, `laundry.edit`,
 | `base_laundry_shipments` / `_lines` | Outbound lots with open qty |
 | `base_laundry_returns` / `_lines` | Accept against shipment lines |
 
+## Daily workflow
+
+`/laundry` (and the ticket card) show one panel: balances, **Ship**, **Accept**. Everything else is reference, linked at the bottom of `/laundry`.
+
+- **Accept** closes open shipment lines (`ret[line_id]`). Surplus beyond any open line — e.g. late arrivals of items earlier written off by inventory — goes in **Beyond shipments** (`extra[type_id]`): credited to the terms account, tagged with the return id.
+- **Destroyed / lost** items: `/laundry/inventory`, set the fact on the account where they were held.
+
 ## Day zero
 
 1. Enable module (migrations seed accounts + types).

@@ -7,9 +7,10 @@ require_once __DIR__ . '/lib/LaundryItemTypesRepository.php';
 require_once __DIR__ . '/lib/LaundryMovesRepository.php';
 require_once __DIR__ . '/lib/LaundryShipmentsRepository.php';
 require_once __DIR__ . '/lib/LaundryInventory.php';
+require_once __DIR__ . '/lib/LaundryPanel.php';
 
 $pages = [
-    '/laundry' => ['permission' => 'laundry.view', 'methods' => ['GET'], 'file' => 'home.php'],
+    '/laundry' => ['permission' => 'laundry.view', 'methods' => ['GET', 'POST'], 'file' => 'home.php'],
     '/laundry/moves' => ['permission' => 'laundry.view', 'methods' => ['GET'], 'file' => 'moves_list.php'],
     '/laundry/shipments' => ['permission' => 'laundry.view', 'methods' => ['GET'], 'file' => 'shipments_list.php'],
     '/laundry/ship' => ['permission' => 'laundry.ship', 'methods' => ['GET', 'POST'], 'file' => 'ship.php'],
@@ -75,16 +76,7 @@ EventBus::on('core.news_item.section', static function ($payload) {
     if (!Auth::can('laundry.view')) {
         return $payload;
     }
-    $accounts = LaundryAccountsRepository::names(true);
-    $types = LaundryItemTypesRepository::listEnabled();
-    $matrix = LaundryMovesRepository::balanceMatrix();
-    $started = LaundryMovesRepository::hasAnyMoves();
-    $open = Auth::can('laundry.ship') ? LaundryShipmentsRepository::listOpenWithLines() : [];
-    $canShip = Auth::can('laundry.ship');
-    $canEdit = Auth::can('laundry.edit');
-    ob_start();
-    require __DIR__ . '/views/_ticket_panel.php';
-    $payload['html'] = ($payload['html'] ?? '') . (string)ob_get_clean();
+    $payload['html'] = ($payload['html'] ?? '') . LaundryPanel::render(['show_module_link' => true]);
     return $payload;
 });
 
@@ -93,7 +85,7 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
         return $payload;
     }
     $action = (string)($payload['action'] ?? '');
-    if ($action !== 'laundry_ship' && $action !== 'laundry_accept') {
+    if (!LaundryPanel::isPanelAction($action)) {
         return $payload;
     }
     $id = (int)($payload['id'] ?? 0);
@@ -106,37 +98,7 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
     $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
     $uid = (int)($payload['uid'] ?? Auth::userId());
     try {
-        if ($action === 'laundry_ship') {
-            $lines = [];
-            $qtys = is_array($post['qty'] ?? null) ? $post['qty'] : [];
-            foreach ($qtys as $typeId => $qty) {
-                $lines[] = ['id_item_type' => (int)$typeId, 'qty' => (int)$qty];
-            }
-            LaundryShipmentsRepository::createShipment(
-                LaundryConfig::termsAccountId(),
-                LaundryConfig::laundryAccountId(),
-                $lines,
-                trim((string)($post['descr'] ?? '')),
-                (float)str_replace(',', '.', (string)($post['weight'] ?? '0')),
-                time(),
-                $uid,
-                $id
-            );
-        } else {
-            $lines = [];
-            $ret = is_array($post['ret'] ?? null) ? $post['ret'] : [];
-            foreach ($ret as $lineId => $qty) {
-                $lines[] = ['id_shipment_line' => (int)$lineId, 'qty' => (int)$qty];
-            }
-            LaundryShipmentsRepository::acceptReturn(
-                $lines,
-                trim((string)($post['descr'] ?? '')),
-                (float)str_replace(',', '.', (string)($post['weight'] ?? '0')),
-                time(),
-                $uid,
-                $id
-            );
-        }
+        LaundryPanel::handlePost($action, $post, $uid, $id);
         $payload['handled'] = true;
         $payload['redirect'] = '/news/' . $id . '#laundry';
     } catch (Throwable $e) {

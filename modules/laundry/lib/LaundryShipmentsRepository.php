@@ -87,13 +87,18 @@ final class LaundryShipmentsRepository
     /**
      * @param list<array{id_shipment_line:int,qty:int}> $lines
      */
+    /**
+     * @param list<array{id_shipment_line:int,qty:int}> $lines
+     * @param list<array{id_item_type:int,qty:int}> $extras Items beyond any open shipment (late arrivals) — credited to terms.
+     */
     public static function acceptReturn(
         array $lines,
         string $descr,
         float $weight,
         int $dt,
         int $userId,
-        int $newsId = 0
+        int $newsId = 0,
+        array $extras = []
     ): int {
         $clean = [];
         foreach ($lines as $line) {
@@ -104,7 +109,19 @@ final class LaundryShipmentsRepository
             }
             $clean[] = ['id_shipment_line' => $lineId, 'qty' => $qty];
         }
-        if ($clean === []) {
+        $cleanExtras = [];
+        foreach ($extras as $x) {
+            $typeId = (int)($x['id_item_type'] ?? 0);
+            $qty = (int)($x['qty'] ?? 0);
+            if ($typeId < 1 || $qty < 1) {
+                continue;
+            }
+            if (!LaundryItemTypesRepository::find($typeId)) {
+                throw new InvalidArgumentException(t('laundry.err.type_required'));
+            }
+            $cleanExtras[] = ['id_item_type' => $typeId, 'qty' => $qty];
+        }
+        if ($clean === [] && $cleanExtras === []) {
             throw new InvalidArgumentException(t('laundry.err.accept_empty'));
         }
         $dt = $dt > 0 ? $dt : time();
@@ -114,6 +131,7 @@ final class LaundryShipmentsRepository
             $now = time();
             // Lock lines and validate
             $byShip = [];
+            $needByAccType = [];
             $stLine = $pdo->prepare(
                 'SELECT l.ID AS id, l.ID_SHIPMENT AS id_shipment, l.ID_ITEM_TYPE AS id_item_type,
                         l.QTY_SENT AS qty_sent, l.QTY_RETURNED AS qty_returned,
@@ -140,8 +158,10 @@ final class LaundryShipmentsRepository
                 // Return: laundry account → terms (shipment was terms→laundry)
                 $fromAcc = (int)$row['id_account_to'];
                 $toAcc = (int)$row['id_account_from'];
+                $typeKey = $fromAcc . ':' . (int)$row['id_item_type'];
+                $needByAccType[$typeKey] = ($needByAccType[$typeKey] ?? 0) + $c['qty'];
                 $left = LaundryMovesRepository::balance($fromAcc, (int)$row['id_item_type']);
-                if ($c['qty'] > $left) {
+                if ($needByAccType[$typeKey] > $left) {
                     throw new InvalidArgumentException(t('laundry.err.insufficient', ['left' => $left]));
                 }
                 $resolved[] = [
@@ -153,13 +173,14 @@ final class LaundryShipmentsRepository
                 $byShip[(int)$row['id_shipment']] = true;
             }
 
-            $first = $resolved[0];
+            $headFrom = $resolved !== [] ? (int)$resolved[0]['from'] : LaundryConfig::laundryAccountId();
+            $headTo = $resolved !== [] ? (int)$resolved[0]['to'] : LaundryConfig::termsAccountId();
             $pdo->prepare(
                 'INSERT INTO base_laundry_returns
                  (ID_ACCOUNT_FROM, ID_ACCOUNT_TO, ID_NEWS, ID_USER_CREATE, DESCR, WEIGHT, DT, DT_CREATE)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
             )->execute([
-                $first['from'], $first['to'], $newsId, $userId,
+                $headFrom, $headTo, $newsId, $userId,
                 mb_substr($descr, 0, 255), $weight, $dt, $now,
             ]);
             $retId = (int)$pdo->lastInsertId();
@@ -191,6 +212,24 @@ final class LaundryShipmentsRepository
             }
             foreach (array_keys($byShip) as $shipId) {
                 self::refreshStatus($pdo, (int)$shipId);
+            }
+            if ($cleanExtras !== []) {
+                $extraDescr = t('laundry.move.extra_descr', ['id' => $retId]);
+                if ($descr !== '') {
+                    $extraDescr .= ': ' . $descr;
+                }
+                foreach ($cleanExtras as $x) {
+                    LaundryMovesRepository::insertAdjust(
+                        $pdo,
+                        $headTo,
+                        $x['id_item_type'],
+                        $x['qty'],
+                        $extraDescr,
+                        $dt,
+                        $userId,
+                        $retId
+                    );
+                }
             }
             $pdo->commit();
             return $retId;

@@ -2,7 +2,7 @@
     "id": "laundry",
     "name": "laundry.module.name",
     "description": "laundry.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -82,7 +82,7 @@
                 "method": "POST",
                 "path": "/laundry/accept",
                 "permission": "laundry.ship",
-                "description": "Accept return against open shipment lines"
+                "description": "Accept return: ret[shipment_line_id]=qty against open lines; extra[item_type_id]=qty for late arrivals beyond any open shipment (credited to terms)"
             },
             {
                 "id": "laundry.inventory.apply",
@@ -104,33 +104,6 @@
         {
             "group": "core.menu.group.warehouse",
             "num": 9,
-            "path": "/laundry/shipments",
-            "title": "laundry.menu.shipments"
-        },
-        {
-            "group": "core.menu.group.warehouse",
-            "num": 10,
-            "path": "/laundry/inventory",
-            "title": "laundry.menu.inventory",
-            "kind": "settings"
-        },
-        {
-            "group": "core.menu.group.warehouse",
-            "num": 11,
-            "path": "/laundry/accounts",
-            "title": "laundry.menu.accounts",
-            "kind": "settings"
-        },
-        {
-            "group": "core.menu.group.warehouse",
-            "num": 12,
-            "path": "/laundry/types",
-            "title": "laundry.menu.types",
-            "kind": "settings"
-        },
-        {
-            "group": "core.menu.group.warehouse",
-            "num": 13,
             "path": "/laundry/settings",
             "title": "laundry.menu.settings",
             "kind": "settings"

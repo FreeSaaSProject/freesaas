@@ -24,8 +24,8 @@ $dirLabel = static function (int $d): string {
 ?>
 <section class="page-head">
   <div class="page-head-row">
-    <h1><?= te('laundry.menu.home') ?></h1>
-    <div class="page-actions"><a class="btn-secondary" href="/laundry"><?= te('laundry.menu.home') ?></a></div>
+    <h1><?= te('laundry.menu.moves') ?></h1>
+    <div class="page-actions"><a class="btn-secondary" href="/laundry"><?= te('laundry.home.back') ?></a></div>
   </div>
 </section>
 <form class="filters" method="get" action="<?= e($path) ?>" data-auto-filter>

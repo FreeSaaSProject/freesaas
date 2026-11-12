@@ -139,7 +139,8 @@ final class LaundryMovesRepository
         int $signedQty,
         string $descr,
         int $dt,
-        int $userId
+        int $userId,
+        int $returnId = 0
     ): int {
         if ($signedQty === 0) {
             return 0;
@@ -151,9 +152,9 @@ final class LaundryMovesRepository
             'INSERT INTO base_laundry_moves
              (ID_ACCOUNT, ID_ACCOUNT_TO, ID_ITEM_TYPE, ID_USER_CREATE, ID_USER_UPDATE, ID_MOVEMENT_LINKED,
               ID_SHIPMENT, ID_RETURN, DIRECTION, SUMM, DESCR, WEIGHT, DT, DT_CREATE, DT_UPDATE, DELETED)
-             VALUES (?, 0, ?, ?, ?, 0, 0, 0, ?, ?, ?, 0, ?, ?, ?, 0)'
+             VALUES (?, 0, ?, ?, ?, 0, 0, ?, ?, ?, ?, 0, ?, ?, ?, 0)'
         )->execute([
-            $accountId, $typeId, $userId, $userId, $dir, $summ,
+            $accountId, $typeId, $userId, $userId, $returnId, $dir, $summ,
             mb_substr($descr, 0, 255), $dt, $now, $now,
         ]);
         return (int)$pdo->lastInsertId();

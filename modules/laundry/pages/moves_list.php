@@ -35,7 +35,7 @@ if ($wantsJson) {
 }
 
 View::render('moves_list', [
-    'title' => t('laundry.menu.home'),
+    'title' => t('laundry.menu.moves'),
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('laundry.menu.home'), 'href' => '/laundry'],
         ['label' => t('laundry.menu.moves'), 'current' => true],

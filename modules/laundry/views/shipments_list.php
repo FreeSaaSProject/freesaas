@@ -20,10 +20,7 @@ $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filter
   <div class="page-head-row">
     <h1><?= te('laundry.menu.shipments') ?></h1>
     <div class="page-actions">
-      <?php if ($canShip): ?>
-        <a class="btn-primary" href="/laundry/ship"><?= te('laundry.home.ship') ?></a>
-        <a class="btn-secondary" href="/laundry/accept"><?= te('laundry.home.accept') ?></a>
-      <?php endif; ?>
+      <a class="btn-secondary" href="/laundry"><?= te('laundry.home.back') ?></a>
     </div>
   </div>
 </section>
