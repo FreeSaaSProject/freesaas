@@ -29,7 +29,7 @@ $extraHtml = (string)($extraHtml ?? '');
     <input name="name" value="<?= e((string)($client['name'] ?? '')) ?>" required>
   </label>
   <label><?= te('clients.edit.phone') ?>
-    <input name="tel" value="<?= e((string)($client['tel'] ?? '')) ?>" required placeholder="9XXXXXXXXX">
+    <input name="tel" value="<?= e((string)($client['tel'] ?? '')) ?>" placeholder="9XXXXXXXXX">
   </label>
   <label><?= te('clients.edit.email') ?>
     <input name="mail" type="email" value="<?= e((string)($client['mail'] ?? '')) ?>">
@@ -73,6 +73,29 @@ $extraHtml = (string)($extraHtml ?? '');
   <label><?= te('clients.edit.site_password') ?>
     <input type="password" name="password" autocomplete="new-password">
   </label>
+
+  <h2 class="form-section-title"><?= te('clients.edit.sec_channels') ?></h2>
+  <p class="muted form-hint"><?= te('clients.edit.channels_hint') ?></p>
+  <input type="hidden" name="channels_present" value="1">
+  <?php
+    $channelRows = $channelRows ?? [];
+    $channelTypes = $channelTypes ?? [];
+    $rows = array_merge(array_values($channelRows), [[], []]);
+    foreach ($rows as $i => $ch):
+        $ctype = (string)($ch['type'] ?? '');
+  ?>
+  <div class="client-channel-row" style="display:flex;gap:0.5rem;flex-wrap:wrap;grid-column:1/-1">
+    <select name="channels[<?= (int)$i ?>][type]" aria-label="<?= te('clients.edit.channel_type') ?>">
+      <?php foreach ($channelTypes as $tk => $tl): ?>
+        <option value="<?= e($tk) ?>"<?= $ctype === $tk || ($ctype === '' && $tk === 'telegram') ? ' selected' : '' ?>><?= e($tl) ?></option>
+      <?php endforeach; ?>
+    </select>
+    <input name="channels[<?= (int)$i ?>][value]" value="<?= e((string)($ch['value'] ?? '')) ?>"
+           placeholder="<?= te('clients.edit.channel_value') ?>" aria-label="<?= te('clients.edit.channel_value') ?>">
+    <input name="channels[<?= (int)$i ?>][label]" value="<?= e((string)($ch['label'] ?? '')) ?>" maxlength="64"
+           placeholder="<?= te('clients.edit.channel_label') ?>" aria-label="<?= te('clients.edit.channel_label') ?>">
+  </div>
+  <?php endforeach; ?>
 
   <?php if ($tagOptions): ?>
   <h2 class="form-section-title"><?= te('clients.edit.tags') ?></h2>

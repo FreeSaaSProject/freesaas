@@ -57,7 +57,7 @@ $dash = '<span class="muted">—</span>';
             <a href="/clients/<?= $cid ?>"><?= e((string)($c['name'] ?? ('#' . $cid))) ?></a>
             <?php if (!empty($c['is_primary'])): ?><span class="pill" title="<?= te('crm.contact.primary') ?>">★</span><?php endif; ?>
           </div>
-          <div class="muted crm-contact-meta"><?= e((string)($c['tel'] ?? '')) ?> <?= e((string)($c['mail'] ?? '')) ?></div>
+          <?php require __DIR__ . '/_contact_meta.php'; ?>
           <?php if ($canEdit): ?>
           <form method="post" class="crm-inline-form">
             <input type="hidden" name="action" value="set_contact_role">
@@ -88,11 +88,7 @@ $dash = '<span class="muted">—</span>';
         <summary><?= te('crm.contact.add_by_phone') ?></summary>
         <form method="post" class="form-grid">
           <input type="hidden" name="action" value="add_contact">
-          <label><?= te('crm.contact.tel') ?><input name="tel" type="tel" required></label>
-          <?php if ($canCreateClient): ?>
-          <label><?= te('crm.contact.name') ?><input name="name"></label>
-          <label><?= te('crm.contact.mail') ?><input name="mail" type="email"></label>
-          <?php endif; ?>
+          <?php require __DIR__ . '/_contact_fields.php'; ?>
           <label><?= te('crm.contact.role') ?><input name="role" maxlength="64" placeholder="<?= te('crm.contact.role_hint') ?>"></label>
           <button class="btn-primary" type="submit"><?= te('crm.contact.add') ?></button>
         </form>

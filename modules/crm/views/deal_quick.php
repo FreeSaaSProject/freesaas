@@ -43,8 +43,12 @@ $pipeId = (int)$form['pipeline_id'];
       <label><?= te('crm.contact.name') ?><input name="contact_name" value="<?= e($form['contact_name']) ?>"></label>
       <label><?= te('crm.contact.tel') ?><input name="contact_tel" type="tel" value="<?= e($form['contact_tel']) ?>"></label>
       <label><?= te('crm.contact.mail') ?><input name="contact_mail" type="email" value="<?= e($form['contact_mail']) ?>"></label>
+      <label><?= te('crm.contact.telegram') ?><input name="contact_telegram" value="<?= e($form['contact_telegram']) ?>" placeholder="@username"></label>
+      <label><?= te('crm.contact.max') ?><input name="contact_max" value="<?= e($form['contact_max']) ?>"></label>
+      <label><?= te('crm.contact.whatsapp') ?><input name="contact_whatsapp" type="tel" value="<?= e($form['contact_whatsapp']) ?>"></label>
       <label><?= te('crm.contact.role') ?><input name="contact_role" maxlength="64" value="<?= e($form['contact_role']) ?>" placeholder="<?= te('crm.contact.role_hint') ?>"></label>
     </div>
+    <p class="muted"><?= te('crm.quick.contact_any_channel') ?></p>
     <?php if (!$canCreateClient): ?><p class="muted"><?= te('crm.quick.contact_existing_only') ?></p><?php endif; ?>
   </fieldset>
 

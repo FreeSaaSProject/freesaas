@@ -35,6 +35,10 @@ $genderLabel = $gender === null || $gender === ''
       <dt>ID</dt><dd><?= $cid ?></dd>
       <dt><?= te('clients.view.phone') ?></dt><dd><?= e((string)($client['tel'] ?: '—')) ?></dd>
       <dt><?= te('clients.view.email') ?></dt><dd><?= e((string)($client['mail'] ?: '—')) ?></dd>
+      <?php $chTypes = ClientChannelsRepository::typeLabels(); foreach (ClientChannelsRepository::listFor($cid) as $ch): ?>
+        <dt><?= e($chTypes[(string)$ch['type']] ?? (string)$ch['type']) ?><?= (string)$ch['label'] !== '' ? ' · ' . e((string)$ch['label']) : '' ?></dt>
+        <dd><?php if ((string)$ch['href'] !== ''): ?><a href="<?= e((string)$ch['href']) ?>" rel="noopener" target="_blank"><?= e((string)$ch['value']) ?></a><?php else: ?><?= e((string)$ch['value']) ?><?php endif; ?></dd>
+      <?php endforeach; ?>
       <dt><?= te('clients.view.gender') ?></dt><dd><?= e($genderLabel) ?></dd>
       <dt><?= te('clients.view.birthday') ?></dt><dd><?php
         $bd = (string)($client['birthday'] ?? '');

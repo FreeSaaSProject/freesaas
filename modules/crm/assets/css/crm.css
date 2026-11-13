@@ -68,7 +68,8 @@ fieldset.crm-panel legend { font-weight: 600; padding: 0 0.35rem; }
 .crm-contacts, .crm-deal-list { list-style: none; margin: 0; padding: 0; }
 .crm-contacts > li, .crm-deal-list > li { padding: 0.5rem 0; border-bottom: 1px solid var(--line); }
 .crm-contacts > li:last-child, .crm-deal-list > li:last-child { border-bottom: 0; }
-.crm-contact-meta { font-size: 0.88em; }
+.crm-contact-meta { font-size: 0.88em; display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; }
+.crm-channel-type { color: var(--muted); }
 .crm-inline-form { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.35rem; flex-wrap: wrap; }
 .crm-inline-form input, .crm-inline-form select { flex: 1 1 8rem; min-width: 0; }
 .crm-inline-actions { display: flex; gap: 0.35rem; margin-top: 0.35rem; }

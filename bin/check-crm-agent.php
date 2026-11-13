@@ -228,6 +228,51 @@ try {
         $links = CrmDealsRepository::contactLinks($dealId);
         $assert($rm['ok'] && count($links) === 1 && !empty($links[0]['is_primary']), 'crm.deals.remove_contact keeps a primary');
 
+        // Contacts without a phone: Telegram / Max only, matched again by normalized channel.
+        $tg = 'crmcheck_' . $suffix;
+        $qt = $call('POST', '/crm/deals/quick', [], [
+            'company_id' => $companyId, 'contact_name' => 'Tg only ' . $suffix, 'contact_telegram' => '@' . $tg,
+            'contact_role' => 'assistant', 'pipeline_id' => $pipeId,
+        ]);
+        $tgClient = (int)($qt['payload']['client_id'] ?? 0);
+        $created['deals'][] = (int)($qt['payload']['deal_id'] ?? 0);
+        $created['clients'][] = $tgClient;
+        $tgRow = $tgClient > 0 ? ClientsRepository::find($tgClient) : null;
+        $tgCh = ClientChannelsRepository::listFor($tgClient);
+        $assert($qt['ok'] && !empty($qt['payload']['created']['client']) && $tgRow !== null && (string)$tgRow['tel'] === ''
+            && count($tgCh) === 1 && (string)$tgCh[0]['type'] === 'telegram' && (string)$tgCh[0]['href'] === 'https://t.me/' . $tg,
+            'quick_create: contact with Telegram only (no phone) ' . $qt['error']);
+        $qt2 = $call('POST', '/crm/deals/quick', [], [
+            'company_id' => $companyId, 'contact_telegram' => 'https://t.me/' . strtoupper($tg), 'pipeline_id' => $pipeId,
+        ]);
+        $created['deals'][] = (int)($qt2['payload']['deal_id'] ?? 0);
+        $assert($qt2['ok'] && (int)$qt2['payload']['client_id'] === $tgClient && (string)$qt2['payload']['matched']['client'] === 'channel',
+            'quick_create matches contact by normalized Telegram link');
+        $mx = $call('POST', '/crm/deals/{id}', ['id' => $dealId], [
+            'action' => 'add_contact', 'name' => 'Max only ' . $suffix, 'max' => 'max-' . $suffix,
+        ]);
+        $created['clients'][] = (int)($mx['payload']['client_id'] ?? 0);
+        $assert($mx['ok'] && !empty($mx['payload']['client_created']), 'crm.deals.add_contact with Max only');
+        $nochan = $call('POST', '/crm/deals/{id}', ['id' => $dealId], ['action' => 'add_contact', 'name' => 'Nobody']);
+        $assert(!$nochan['ok'] && $nochan['http'] === 400, 'add_contact without any channel → 400');
+        $dgc = (array)($call('GET', '/crm/deals/{id}', ['id' => $dealId])['payload']['contacts'] ?? []);
+        $hasMax = false;
+        foreach ($dgc as $c) {
+            foreach ((array)($c['channels'] ?? []) as $ch) {
+                $hasMax = $hasMax || (string)$ch['type'] === 'max';
+            }
+        }
+        $assert($hasMax, 'crm.deals.get contacts[] carry channels');
+        $cc = $call('POST', '/clients/new', [], [
+            'name' => 'Channels only ' . $suffix, 'enabled' => '1',
+            'channels' => [['type' => 'whatsapp', 'value' => '+7 900 ' . substr($suffix, 0, 3) . ' ' . substr($suffix, 3)], ['type' => 'email', 'value' => 'X' . $suffix . '@Example.test']],
+        ]);
+        $ccId = (int)($cc['payload']['id'] ?? 0);
+        $created['clients'][] = $ccId;
+        $assert($cc['ok'] && count((array)($cc['payload']['item']['channels'] ?? [])) === 2, 'clients.create with channels only ' . $cc['error']);
+        $cu2 = $call('POST', '/clients/{id}/edit', ['id' => $ccId], ['name' => 'Renamed ' . $suffix, 'enabled' => '1', 'mail' => '']);
+        $assert($cu2['ok'] && count(ClientChannelsRepository::listFor($ccId)) === 2, 'clients.update without channels keeps them');
+
         if (CrmTickets::available()) {
             $tk = $call('POST', '/crm/deals/{id}', ['id' => $dealId], [
                 'action' => 'add_ticket', 'name' => 'Meeting ' . $suffix, 'deadline' => date('Y-m-d', time() + 86400),

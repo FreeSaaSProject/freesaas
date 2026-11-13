@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/ClientsRepository.php';
+require_once __DIR__ . '/lib/ClientChannelsRepository.php';
 require_once __DIR__ . '/lib/ClientStatusesRepository.php';
 require_once __DIR__ . '/lib/ClientTagsRepository.php';
 require_once __DIR__ . '/lib/ClientBotPlugin.php';

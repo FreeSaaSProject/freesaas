@@ -44,7 +44,8 @@ Contact add/remove/role/primary on a company or deal also emit `crm.company.upda
 ## Human UI
 
 - `/crm/deals` — list (company, stage pill, amount, responsible) or **kanban** `?view=kanban&pipeline_id=` (columns = enabled stages, count + sum per currency, drag-and-drop → same `move_stage` POST). Filters: search, pipeline, responsible (`responsible=me` = «Мои»).
-- `/crm/deals/quick` — **new lead** in one form: company (existing / matched by INN → exact name / created) + contact person (matched by phone / created with `clients.edit`, linked to the company with a role) + deal. One DB transaction.
+- `/crm/deals/quick` — **new lead** in one form: company (existing / matched by INN → exact name / created) + contact person (phone **optional**: any of phone, email, Telegram, Max, WhatsApp; matched by phone → channel → email, else created with `clients.edit`; linked to the company with a role) + deal. One DB transaction.
+- Contacts on deal/company cards show all channels from `clients` (`base_client_channels`) as links; «Новый контакт» accepts the same channels.
 - `/crm/deals/{id}` — card: stage bar on top (click = move stage), left column details (amount, pipeline, responsible, source, typed custom fields, description) + contacts (role from company, primary, add from company / by phone, unlink), right column note form + timeline (notes + stage changes with author, newest first; other modules extend via `crm.deal.timeline`).
 - `/crm/deals/{id}/edit`, `/crm/companies/{id}/edit` — responsible is a staff picker (`UsersRepository::staffNamesIncluding`), custom fields render by type (`bool` checkbox, `enum` select from `enums_json`, `text` textarea, `number`). Contacts are managed on the card, not in the form.
 - `/crm/companies/{id}` — card with contacts + role (`base_crm_company_contacts.role`, e.g. «ЛПР», «контактное лицо»), deals of the company, notes.

@@ -92,7 +92,7 @@ $passed = true;
             <?php if (!empty($c['is_primary'])): ?><span class="pill" title="<?= te('crm.contact.primary') ?>">★</span><?php endif; ?>
             <?php if ((string)($c['role'] ?? '') !== ''): ?><span class="muted"><?= e((string)$c['role']) ?></span><?php endif; ?>
           </div>
-          <div class="muted crm-contact-meta"><?= e((string)($c['tel'] ?? '')) ?> <?= e((string)($c['mail'] ?? '')) ?></div>
+          <?php require __DIR__ . '/_contact_meta.php'; ?>
           <?php if ($canEdit): ?>
           <div class="crm-inline-actions">
             <?php if (empty($c['is_primary'])): ?>
@@ -125,11 +125,7 @@ $passed = true;
           <summary><?= te('crm.contact.add_by_phone') ?></summary>
           <form method="post" class="form-grid">
             <input type="hidden" name="action" value="add_contact">
-            <label><?= te('crm.contact.tel') ?><input name="tel" type="tel" required></label>
-            <?php if ($canCreateClient): ?>
-            <label><?= te('crm.contact.name') ?><input name="name"></label>
-            <label><?= te('crm.contact.mail') ?><input name="mail" type="email"></label>
-            <?php endif; ?>
+            <?php require __DIR__ . '/_contact_fields.php'; ?>
             <?php if ((int)$row['company_id'] > 0): ?>
             <label><?= te('crm.contact.role') ?><input name="role" maxlength="64" placeholder="<?= te('crm.contact.role_hint') ?>"></label>
             <label class="check"><input type="checkbox" name="link_company" value="1" checked> <?= te('crm.contact.link_company') ?></label>

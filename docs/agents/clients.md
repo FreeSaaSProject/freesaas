@@ -1,6 +1,10 @@
 # Clients CRM
 
-Product module `clients`: slim CRM (`base_clients`), statuses (`base_client_statuses`), tags (`base_shopusers_tags` + `base_client_tag_links`). Login identity = phone (`tel`).
+Product module `clients`: slim CRM (`base_clients`), statuses (`base_client_statuses`), tags (`base_shopusers_tags` + `base_client_tag_links`), contact channels (`base_client_channels`). Online login identity = phone (`tel`) — but a client may exist **without a phone**: create/update require at least one of `tel`, `mail` or a channel.
+
+## Contact channels
+
+`base_client_channels` (`ClientChannelsRepository`): `type` = `phone` | `telegram` | `max` | `whatsapp` | `email` | `vk` | `instagram` | `other`, `value`, `label` (work / personal …), `is_primary`; `value_norm` for matching (phones → `7XXXXXXXXXX`, Telegram → lowercase username without `@` / `t.me/`, email lowercase). UI: section «Способы связи» on the client form; card shows clickable links (`tel:`, `t.me`, `wa.me`, `mailto:`). JSON: `channels[]` on `clients.create` / `clients.update` (replaces the list only when sent), returned on `clients.get`. Messenger chat ids used by bots for delivery stay in `bots` `base_bot_links` — channels are contact info, not delivery bindings. CRM matches existing contacts by phone → channel → email (`CrmContactResolver`).
 
 ## Enable
 
@@ -33,6 +37,10 @@ curl -sS -b jar.txt 'https://example/clients?format=json'
 curl -sS -b jar.txt 'https://example/clients?q=7900&enabled=1&status_id=2&format=json'
 curl -sS -b jar.txt 'https://example/clients/123?format=json'
 curl -sS -b jar.txt -X POST -d 'tel=79001234567&name=Test&enabled=1' \
+  'https://example/clients/new?format=json'
+# without a phone — Telegram only
+curl -sS -b jar.txt -X POST -H 'Content-Type: application/json' \
+  -d '{"name":"Anna","enabled":"1","channels":[{"type":"telegram","value":"@anna"}]}' \
   'https://example/clients/new?format=json'
 curl -sS -b jar.txt 'https://example/client-statuses?format=json'
 curl -sS -b jar.txt 'https://example/client-tags?format=json'

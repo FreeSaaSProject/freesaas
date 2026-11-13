@@ -13,6 +13,9 @@ $form = [
     'contact_name' => '',
     'contact_tel' => '',
     'contact_mail' => '',
+    'contact_telegram' => '',
+    'contact_max' => '',
+    'contact_whatsapp' => '',
     'contact_role' => '',
     'title' => '',
     'pipeline_id' => (string)$defaultPipe,
@@ -57,16 +60,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $clientId = 0;
-        if ((int)$form['client_id'] > 0 || $form['contact_tel'] !== '') {
-            $res = CrmContactResolver::resolve([
-                'client_id' => (int)$form['client_id'],
-                'tel' => $form['contact_tel'],
-                'name' => $form['contact_name'],
-                'mail' => $form['contact_mail'],
-            ]);
+        $contactIn = [
+            'client_id' => (int)$form['client_id'],
+            'tel' => $form['contact_tel'],
+            'name' => $form['contact_name'],
+            'mail' => $form['contact_mail'],
+            'telegram' => $form['contact_telegram'],
+            'max' => $form['contact_max'],
+            'whatsapp' => $form['contact_whatsapp'],
+            'channels' => $_POST['contact_channels'] ?? [],
+        ];
+        if (CrmContactResolver::hasAnyChannel($contactIn)) {
+            $res = CrmContactResolver::resolve($contactIn);
             $clientId = $res['client_id'];
             $created['client'] = $res['created'];
-            $matched['client'] = $res['created'] ? '' : ((int)$form['client_id'] > 0 ? 'id' : 'tel');
+            $matched['client'] = $res['matched'];
             if ($companyId > 0) {
                 CrmCompaniesRepository::addContact($companyId, $clientId, $form['contact_role']);
             }
@@ -81,7 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 : ($companyId > 0 ? (string)(CrmCompaniesRepository::find($companyId)['name'] ?? '') : $form['contact_name']);
         }
         if ($title === '') {
-            $title = $form['contact_tel'];
+            $title = $form['contact_tel'] !== '' ? $form['contact_tel']
+                : ($form['contact_telegram'] !== '' ? $form['contact_telegram'] : $form['contact_mail']);
         }
         $dealId = CrmDealsRepository::create([
             'title' => $title,

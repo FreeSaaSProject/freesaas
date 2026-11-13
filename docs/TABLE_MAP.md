@@ -11,7 +11,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_users` site/tips (`photo`, `site_descr`, `link_ok`) | likespa (columns + UI) | Added by likespa migration; staff edit via `core.user_edit.*` |
 | `base_users` procedure restricts (`RESTRICT_TYPES*`, `RESTRICT_PROCS`) | procedures (columns + UI) | Added by procedures migration; only when procedures enabled |
 | `base_staff_bracelets` | terminals | Staff NFC UID ↔ user (no column on `base_users`) |
-| `base_clients`, `base_client_statuses`, `base_shopusers_tags`, `base_client_tag_links` | clients | CRM clients; login = phone; `base_client_statuses.block_online` gates storefront booking |
+| `base_clients`, `base_client_statuses`, `base_shopusers_tags`, `base_client_tag_links`, `base_client_channels` | clients | CRM clients; login = phone (optional — any channel is enough); `base_client_channels` = Telegram/Max/WhatsApp/email/extra phones; `base_client_statuses.block_online` gates storefront booking |
 | `base_crm_companies`, `base_crm_company_contacts`, `base_crm_pipelines`, `base_crm_stages`, `base_crm_deals`, `base_crm_deal_contacts`, `base_crm_custom_fields`, `base_crm_custom_values`, `base_crm_notes`, `base_crm_stage_history`, `base_crm_links` | crm | Sales CRM (companies/deals/leads via pipeline kind); contacts stay in `base_clients`; `base_crm_links` = deal/company → foreign records (tickets in `base_news`). Not `base_suppliers` / `base_orders`. |
 | `base_bitrix_id_map`, `base_bitrix_sync_state`, `base_bitrix_outbox`, `base_bitrix_webhook_events` | bitrix | Bitrix24 dual-run bridge maps |
 | `base_amocrm_id_map`, `base_amocrm_sync_state`, `base_amocrm_outbox`, `base_amocrm_webhook_events` | amocrm | AmoCRM/Kommo dual-run bridge maps |

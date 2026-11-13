@@ -69,7 +69,7 @@ if ($flash !== null && $message === '' && $error === '') {
     $message = (string)$flash['message'];
 }
 $row = CrmUi::withResponsibleNames([$row])[0];
-$contacts = CrmCompaniesRepository::contactLinks($id);
+$contacts = CrmContactResolver::withChannels(CrmCompaniesRepository::contactLinks($id));
 $notes = CrmNotesRepository::listFor('company', $id);
 $noteAuthors = CrmUi::userNames(array_column($notes, 'author_user_id'));
 $cfDefs = CrmCustomFieldsRepository::listFields('company', true);

@@ -46,7 +46,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (!$isNew && !ClientsRepository::canAccessClient($id)) {
             throw new RuntimeException(t('clients.err.forbidden_day'));
         }
-        $data = ClientsRepository::dataFromPost($_POST);
+        $channelsSent = array_key_exists('channels', $_POST) || !empty($_POST['channels_present']);
+        $validate = $_POST;
+        if (!$channelsSent && !$isNew) {
+            $validate['channels'] = ClientChannelsRepository::listFor($id);
+        }
+        $data = ClientsRepository::dataFromPost($validate);
         $tagIdsRaw = $_POST['tag_ids'] ?? [];
         if (!is_array($tagIdsRaw)) {
             $tagIdsRaw = [];
@@ -56,9 +61,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         })));
         $selectedTagIds = $tagIds;
 
+        $channels = ClientChannelsRepository::parse($_POST['channels'] ?? []);
         if ($isNew) {
             $newId = ClientsRepository::create($data);
             ClientsRepository::setTagIds($newId, $tagIds);
+            if ($channelsSent) {
+                ClientChannelsRepository::replaceAll($newId, $channels);
+            }
             EventBus::emit('clients.edit.save', [
                 'id' => $newId,
                 'post' => $_POST,
@@ -78,6 +87,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         ClientsRepository::update($id, $data);
         ClientsRepository::setTagIds($id, $tagIds);
+        if ($channelsSent) {
+            ClientChannelsRepository::replaceAll($id, $channels);
+        }
         EventBus::emit('clients.edit.save', [
             'id' => $id,
             'post' => $_POST,
@@ -150,7 +162,13 @@ if (is_array($sections) && isset($sections['client']) && is_array($sections['cli
     $client = $sections['client'];
 }
 
+$channelRows = $error !== '' && isset($_POST['channels']) && is_array($_POST['channels'])
+    ? array_values(array_filter($_POST['channels'], 'is_array'))
+    : (!$isNew ? ClientChannelsRepository::listFor($id) : []);
+
 View::render('edit', [
+    'channelRows' => $channelRows,
+    'channelTypes' => ClientChannelsRepository::typeLabels(),
     'title' => $isNew
         ? t('clients.edit.title_new')
         : t('clients.edit.title', ['name' => (string)($client['name'] ?? ('#' . $id))]),

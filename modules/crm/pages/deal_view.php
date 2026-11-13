@@ -95,7 +95,7 @@ if ($flash !== null && $message === '' && $error === '') {
     $message = (string)$flash['message'];
 }
 $row = CrmUi::withResponsibleNames([$row])[0];
-$contacts = CrmDealsRepository::contactLinks($id);
+$contacts = CrmContactResolver::withChannels(CrmDealsRepository::contactLinks($id));
 $companyContacts = (int)$row['company_id'] > 0 ? CrmCompaniesRepository::contactLinks((int)$row['company_id']) : [];
 $roles = [];
 foreach ($companyContacts as $cc) {

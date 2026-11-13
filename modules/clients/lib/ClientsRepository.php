@@ -340,6 +340,12 @@ final class ClientsRepository
         if ($withTags) {
             $id = (int)($row['id'] ?? 0);
             $row['tag_ids'] = $id > 0 ? self::tagIdsForClient($id) : [];
+            $row['channels'] = $id > 0 && class_exists('ClientChannelsRepository')
+                ? array_map(static fn(array $c): array => [
+                    'type' => (string)$c['type'], 'value' => (string)$c['value'],
+                    'label' => (string)$c['label'], 'is_primary' => (int)$c['is_primary'],
+                ], ClientChannelsRepository::listFor($id))
+                : [];
         }
         return $row;
     }
@@ -369,11 +375,14 @@ final class ClientsRepository
     {
         $name = trim((string)($post['name'] ?? ''));
         $tel = trim((string)($post['tel'] ?? ''));
-        if ($tel === '') {
-            throw new InvalidArgumentException(t('clients.err.phone_required'));
+        $mail = trim((string)($post['mail'] ?? ''));
+        // Phone is the online login, but a contact may be reachable only via Telegram/Max/email: require any channel.
+        $channels = class_exists('ClientChannelsRepository') ? ClientChannelsRepository::parse($post['channels'] ?? null) : [];
+        if ($tel === '' && $mail === '' && $channels === []) {
+            throw new InvalidArgumentException(t('clients.err.contact_required'));
         }
         if ($name === '') {
-            $name = $tel;
+            $name = $tel !== '' ? $tel : ($mail !== '' ? $mail : (string)$channels[0]['value']);
         }
 
         $genderRaw = (string)($post['gender'] ?? '');
@@ -404,7 +413,7 @@ final class ClientsRepository
         $data = [
             'name' => $name,
             'tel' => $tel,
-            'mail' => trim((string)($post['mail'] ?? '')),
+            'mail' => $mail,
             'birthday' => $birthdayDate,
             'gender' => $gender,
             'enabled' => !empty($post['enabled']) ? 1 : 0,
@@ -573,6 +582,9 @@ final class ClientsRepository
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         if (Database::tableExists('base_client_tag_links')) {
             $pdo->prepare("DELETE FROM base_client_tag_links WHERE client_id IN ($placeholders)")->execute($ids);
+        }
+        if (class_exists('ClientChannelsRepository')) {
+            ClientChannelsRepository::deleteForClients($ids);
         }
         $st = $pdo->prepare("DELETE FROM base_clients WHERE id IN ($placeholders)");
         $st->execute($ids);
