@@ -2,7 +2,7 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -178,7 +178,7 @@
                 "method": "GET",
                 "path": "/sites/pages/{id}/edit",
                 "permission": "sites.pages",
-                "description": "Get one article (name, link, link_rw, parent_to, site_host_id, content HTML, meta_title, meta_descr, enabled) + public href; new at /sites/pages/new"
+                "description": "Get one article (name, link, link_rw, parent_to, site_host_id, content HTML, meta_title, meta_descr, enabled) + public href + translations[] (other-locale hosts: peer article with the same link_rw, or create_url). New at /sites/pages/new; translation draft at /sites/pages/new?from=<id>&site_host_id=<host>"
             },
             {
                 "id": "sites.pages.create",

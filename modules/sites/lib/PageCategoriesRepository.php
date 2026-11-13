@@ -463,6 +463,103 @@ final class PageCategoriesRepository
         return array_merge($row, self::meta($id));
     }
 
+    /**
+     * Article bound to exactly this host (shared site_host_id=0 rows excluded) with the given linkRW.
+     * Used to pair language versions: same link_rw on hosts with different locales.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function findByLinkRwOnHost(string $linkRw, int $siteHostId): ?array
+    {
+        $linkRw = trim($linkRw);
+        if ($linkRw === '' || $siteHostId < 1 || !Database::columnExists('base_page_categories', 'site_host_id')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT id FROM base_page_categories WHERE site_host_id = ? AND linkRW = ? ORDER BY enabled DESC, id ASC LIMIT 1'
+        );
+        $st->execute([$siteHostId, $linkRw]);
+        $id = (int)($st->fetchColumn() ?: 0);
+        return $id > 0 ? self::find($id) : null;
+    }
+
+    /**
+     * Language versions of an article: one row per other enabled host that has a locale.
+     * peer = article with the same link_rw on that host (or null → «create translation»).
+     *
+     * @param array<string,mixed> $page
+     * @return list<array{host_id:int,host:string,locale:string,peer:?array{id:int,name:string,enabled:int},create_url:string}>
+     */
+    public static function translations(array $page): array
+    {
+        $hostId = (int)($page['site_host_id'] ?? 0);
+        $linkRw = trim((string)($page['link_rw'] ?? ''));
+        if ($hostId < 1 || $linkRw === '' || !SiteHostsRepository::tableReady()) {
+            return [];
+        }
+        $own = SiteHostsRepository::find($hostId);
+        if ($own === null || trim((string)($own['locale'] ?? '')) === '') {
+            return [];
+        }
+        $out = [];
+        foreach (SiteHostsRepository::list(['enabled' => '1', 'limit' => 50])['items'] as $h) {
+            $loc = trim((string)($h['locale'] ?? ''));
+            if ((int)$h['id'] === $hostId || $loc === '' || $loc === (string)$own['locale']) {
+                continue;
+            }
+            $peer = self::findByLinkRwOnHost($linkRw, (int)$h['id']);
+            $out[] = [
+                'host_id' => (int)$h['id'],
+                'host' => (string)$h['host'],
+                'locale' => $loc,
+                'peer' => $peer === null ? null : [
+                    'id' => (int)$peer['id'],
+                    'name' => (string)$peer['name'],
+                    'enabled' => (int)$peer['enabled'],
+                ],
+                'create_url' => $peer === null
+                    ? '/sites/pages/new?' . http_build_query(['from' => (int)$page['id'], 'site_host_id' => (int)$h['id']])
+                    : '',
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Prefill a new article on $targetHostId as a translation of $sourceId: same link/link_rw,
+     * parent mapped to the parent's own translation on that host (else root), content copied as a draft.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function translationDraft(int $sourceId, int $targetHostId): ?array
+    {
+        $src = self::find($sourceId);
+        if ($src === null || $targetHostId < 1 || SiteHostsRepository::find($targetHostId) === null) {
+            return null;
+        }
+        $parent = (int)$src['parent_to'];
+        if ($parent !== self::PARENT_ROOT && $parent !== self::PARENT_HOME) {
+            $srcParent = self::find($parent);
+            $peerParent = $srcParent !== null
+                ? self::findByLinkRwOnHost((string)$srcParent['link_rw'], $targetHostId)
+                : null;
+            $parent = $peerParent !== null ? (int)$peerParent['id'] : self::PARENT_ROOT;
+        }
+        return [
+            'enabled' => 0,
+            'num' => (int)$src['num'],
+            'parent_to' => $parent,
+            'site_host_id' => $targetHostId,
+            'name' => (string)$src['name'],
+            'link' => (string)$src['link'],
+            'link_rw' => (string)$src['link_rw'],
+            'bg_url' => (string)$src['bg_url'],
+            'content' => (string)$src['content'],
+            'meta_title' => (string)($src['meta_title'] ?? ''),
+            'meta_descr' => (string)($src['meta_descr'] ?? ''),
+        ];
+    }
+
     public static function metaReady(): bool
     {
         return Database::columnExists('base_page_categories', 'META_TITLE')

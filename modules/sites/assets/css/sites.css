@@ -42,3 +42,10 @@
 .sites-lp-mod-body {
   margin-top: 0.5rem;
 }
+
+/* Article editor: language versions (same link_rw on other-locale hosts) */
+.sites-translations { margin: 0 0 1.25rem; max-width: 48rem; }
+.sites-translations h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
+.sites-translations ul { margin: 0; padding-left: 1.1rem; }
+.sites-translations li { margin: 0.3rem 0; }
+.sites-translations .btn-secondary { margin-left: 0.4rem; }

@@ -29,6 +29,8 @@ Articles (`base_page_categories.site_host_id`) and redirects (`base_redirects.si
 
 **Language branches (RU / EN):** one host per language (`example.com` locale `ru`, `en.example.com` locale `en`), articles bound to their host. Give translated articles the **same `link_rw`** (e.g. `/solutions/clinics/` on both) — the storefront then emits `<link rel="alternate" hreflang>` for each locale host plus `x-default` (default host). Hosts without `locale` never get alternates. Articles also carry `META_TITLE` / `META_DESCR` (empty = name / site meta).
 
+The article editor shows **Language versions**: for each other-locale host, the paired article (same `link_rw`, strictly that host) or **Create translation** → `/sites/pages/new?from=<id>&site_host_id=<host>` — a disabled draft with the same `link` / `link_rw`, parent mapped to the parent's own translation (else root) and the source text copied for translating. Agents: `sites.pages.get` returns `translations[]` (`host_id`, `locale`, `peer` or `create_url`); create the translation with `sites.pages.create` using the same `link_rw` and the other `site_host_id`.
+
 Terminals keep product allowlists via `base_terminals.GOODS` — not tied to hosts.
 
 ## Enable

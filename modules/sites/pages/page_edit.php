@@ -38,6 +38,15 @@ if (!$isNew) {
 
 $message = '';
 $error = '';
+$translationOf = null;
+if ($isNew && isset($_GET['from'], $_GET['site_host_id'])) {
+    // «Create translation»: same link/link_rw on the other-language host, text copied as a draft.
+    $draft = PageCategoriesRepository::translationDraft((int)$_GET['from'], (int)$_GET['site_host_id']);
+    if ($draft !== null) {
+        $row = array_merge($row, $draft);
+        $translationOf = PageCategoriesRepository::find((int)$_GET['from']);
+    }
+}
 $hasChildren = !$isNew && PageCategoriesRepository::childCount($id) > 0;
 
 
@@ -98,11 +107,15 @@ if (isset($_GET['saved']) && $message === '') {
     $message = t('core.common.saved');
 }
 
+$translations = $isNew ? [] : PageCategoriesRepository::translations($row);
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'is_new' => $isNew,
         'page' => $row,
+        'translations' => $translations,
+        'translation_of' => $translationOf !== null ? (int)$translationOf['id'] : null,
         'href' => $isNew ? '' : SitesFront::pageHref($row),
         'parent_options' => PageCategoriesRepository::parentOptions($isNew ? null : $id),
         'host_options' => SiteHostsRepository::options(true),
@@ -119,6 +132,8 @@ View::render('page_edit', [
     'message' => $message,
     'error' => $error,
     'hasChildren' => $hasChildren,
+    'translations' => $translations,
+    'translationOf' => $translationOf,
     'parentOptions' => PageCategoriesRepository::parentOptions($isNew ? null : $id),
     'hostOptions' => SiteHostsRepository::options(true),
     'breadcrumbs' => Breadcrumbs::withHome([

@@ -19,6 +19,39 @@ $hostOptions = $hostOptions ?? [];
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
+<?php
+/** @var list<array{host_id:int,host:string,locale:string,peer:?array,create_url:string}> $translations */
+/** @var array<string,mixed>|null $translationOf */
+$translations = is_array($translations ?? null) ? $translations : [];
+$translationOf = is_array($translationOf ?? null) ? $translationOf : null;
+?>
+<?php if ($translationOf !== null): ?>
+  <div class="flash flash-warn">
+    <?= te('sites.pages.translation.draft_hint', ['name' => (string)$translationOf['name']]) ?>
+    <a href="/sites/pages/<?= (int)$translationOf['id'] ?>/edit"><?= te('sites.pages.translation.open_source') ?></a>
+  </div>
+<?php endif; ?>
+<?php if ($translations !== []): ?>
+  <section class="sites-translations">
+    <h2><?= te('sites.pages.translation.title') ?></h2>
+    <p class="muted form-hint"><?= te('sites.pages.translation.help', ['link_rw' => (string)($row['link_rw'] ?? '')]) ?></p>
+    <ul>
+      <?php foreach ($translations as $tr): ?>
+        <li>
+          <strong><?= e(I18n::localeLabel((string)$tr['locale'])) ?></strong> · <?= e((string)$tr['host']) ?> —
+          <?php if (is_array($tr['peer'])): ?>
+            <a href="/sites/pages/<?= (int)$tr['peer']['id'] ?>/edit">#<?= (int)$tr['peer']['id'] ?> <?= e((string)$tr['peer']['name']) ?></a>
+            <?php if (empty($tr['peer']['enabled'])): ?><span class="pill"><?= te('sites.pages.translation.disabled') ?></span><?php endif; ?>
+          <?php else: ?>
+            <span class="muted"><?= te('sites.pages.translation.missing') ?></span>
+            <a class="btn-secondary" href="<?= e((string)$tr['create_url']) ?>"><?= te('sites.pages.translation.create') ?></a>
+          <?php endif; ?>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  </section>
+<?php endif; ?>
+
 <form method="post" class="form-grid form-wide">
   <fieldset>
     <legend><?= te('sites.pages.sec.main') ?></legend>
