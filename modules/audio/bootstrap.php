@@ -59,6 +59,7 @@ $pages = [
     '/audio/api/dict' => ['permission' => 'audio.edit', 'methods' => ['POST'], 'file' => 'api_dict.php'],
     '/audio/api/blocks' => ['permission' => 'audio.view', 'methods' => ['GET'], 'file' => 'api_blocks.php'],
     '/audio/api/badge' => ['permission' => '', 'methods' => ['POST'], 'file' => 'api_badge.php'],
+    '/audio/reviews/mark' => ['permission' => 'audio.edit', 'methods' => ['POST'], 'file' => 'reviews_mark.php'],
     '/audio/{id}' => ['permission' => 'audio.view', 'methods' => ['GET', 'POST'], 'file' => 'view.php'],
 ];
 

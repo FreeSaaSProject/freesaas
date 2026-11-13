@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "1.0.11",
+    "version": "1.0.12",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -49,7 +49,8 @@
             "/audio/play",
             "/audio/api/dict",
             "/audio/api/blocks",
-            "/audio/api/badge"
+            "/audio/api/badge",
+            "/audio/reviews/mark"
         ]
     },
     "agent": {
@@ -154,6 +155,33 @@
                 "path": "/audio/api/badge",
                 "assistant": false,
                 "description": "Save current user badge selection (badge_id); session auth"
+            },
+            {
+                "id": "audio.reviews.mark",
+                "method": "POST",
+                "path": "/audio/reviews/mark",
+                "permission": "audio.edit",
+                "side_effect": "write",
+                "description": "Mark pending review-queue (moderation) records as reviewed. Pass ids, or date (Y-m-d) with optional admin to mark every pending record of that day; ids+date marks only those ids from that day. Find pending records via audio.list review=pending.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ids": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "Record ids to mark reviewed (only still-pending ones are touched)"
+                        },
+                        "date": {
+                            "type": "string",
+                            "description": "Calendar day Y-m-d of DT_RECORDED"
+                        },
+                        "admin": {
+                            "type": "integer",
+                            "description": "Employee user id (ID_ADMIN); omit for all employees that day"
+                        }
+                    },
+                    "additionalProperties": false
+                }
             }
         ]
     },

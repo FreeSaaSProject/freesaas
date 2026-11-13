@@ -229,21 +229,39 @@ final class RecordsReviewsRepository
      */
     public static function pendingIdsForAdminDay(int $adminId, int $year, int $month, int $day): array
     {
-        if ($adminId < 1 || $year < 1970 || $month < 1 || $month > 12 || $day < 1
+        if ($adminId < 1) {
+            return [];
+        }
+
+        return self::pendingIdsForDay($year, $month, $day, $adminId);
+    }
+
+    /**
+     * Pending review record IDs on one calendar day (all employees when $adminId is 0).
+     *
+     * @return list<int>
+     */
+    public static function pendingIdsForDay(int $year, int $month, int $day, int $adminId = 0): array
+    {
+        if ($year < 1970 || $month < 1 || $month > 12 || $day < 1 || $day > 31
             || !self::tableExists() || !Database::tableExists('base_records')
         ) {
             return [];
         }
         $from = (int)mktime(0, 0, 0, $month, $day, $year);
         $to = (int)mktime(23, 59, 59, $month, $day, $year);
-        $st = Database::pdo()->prepare(
-            'SELECT r.ID AS id
-             FROM base_records r
-             INNER JOIN base_records_reviews rv ON rv.ID_RECORD = r.ID AND rv.DT_REVIEW < 1
-             WHERE r.ID_ADMIN = ? AND r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
-             ORDER BY r.DT_RECORDED ASC, r.ID ASC'
-        );
-        $st->execute([$adminId, $from, $to]);
+        $sql = 'SELECT r.ID AS id
+                FROM base_records r
+                INNER JOIN base_records_reviews rv ON rv.ID_RECORD = r.ID AND rv.DT_REVIEW < 1
+                WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?';
+        $params = [$from, $to];
+        if ($adminId > 0) {
+            $sql .= ' AND r.ID_ADMIN = ?';
+            $params[] = $adminId;
+        }
+        $sql .= ' ORDER BY r.DT_RECORDED ASC, r.ID ASC';
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
         $out = [];
         while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
             $id = (int)($row['id'] ?? 0);
@@ -253,6 +271,26 @@ final class RecordsReviewsRepository
         }
 
         return $out;
+    }
+
+    /**
+     * Keep only ids that are still in the pending review queue.
+     *
+     * @param list<int> $recordIds
+     * @return list<int>
+     */
+    public static function filterPending(array $recordIds): array
+    {
+        $recordIds = array_values(array_unique(array_filter(array_map('intval', $recordIds), static fn (int $v): bool => $v > 0)));
+        if ($recordIds === [] || !self::tableExists()) {
+            return [];
+        }
+        $in = implode(',', $recordIds);
+        $st = Database::pdo()->query(
+            "SELECT ID_RECORD FROM base_records_reviews WHERE DT_REVIEW < 1 AND ID_RECORD IN ($in)"
+        );
+
+        return array_values(array_map('intval', $st ? ($st->fetchAll(PDO::FETCH_COLUMN) ?: []) : []));
     }
 
     /**

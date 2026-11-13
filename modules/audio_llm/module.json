@@ -2,7 +2,7 @@
     "id": "audio_llm",
     "name": "audio_llm.module.name",
     "description": "audio_llm.module.description",
-    "version": "0.1.13",
+    "version": "0.1.14",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -90,7 +90,7 @@
                 "path": "/audio/review-moderate",
                 "permission": "audio.view",
                 "assistant": false,
-                "description": "LLM moderation: legacy one-shot OR LongJob (action=job_start|job_tick|job_cancel; admin+year+month+day). Prefer tick pump."
+                "description": "LLM moderation analysis (read-only text; does NOT change review status — use audio.reviews.mark): legacy one-shot OR LongJob (action=job_start|job_tick|job_cancel; admin+year+month+day). Prefer tick pump."
             }
         ]
     },

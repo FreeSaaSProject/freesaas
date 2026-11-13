@@ -286,7 +286,7 @@ final class McpServer
 
         if ($op === null) {
             self::jsonRpcResult($id, [
-                'content' => [['type' => 'text', 'text' => 'Unknown or forbidden tool: ' . $name]],
+                'content' => [['type' => 'text', 'text' => self::unavailableToolReason($name)]],
                 'isError' => true,
             ]);
         }
@@ -323,6 +323,32 @@ final class McpServer
             'content' => [['type' => 'text', 'text' => $text]],
             'isError' => !$inv['ok'],
         ]);
+    }
+
+    /** Explain why a tools/call name is not callable (helps the client pick another tool). */
+    private static function unavailableToolReason(string $name): string
+    {
+        $opId = strpos($name, '.') !== false ? $name : AssistantTools::functionNameToOpId($name);
+        $meta = null;
+        foreach (AgentHttp::allOps() as $row) {
+            if ((string)($row['id'] ?? '') === $opId) {
+                $meta = $row;
+                break;
+            }
+        }
+        if ($meta === null) {
+            return 'Unknown tool: ' . $name . ' (no such agent op; call tools/list for the current catalog)';
+        }
+        if (empty($meta['assistant'])) {
+            return 'Tool not exposed over MCP: ' . $name . ' (agent op ' . $opId . ' is assistant:false)';
+        }
+        if (!isset(ModuleManager::routes()[(string)($meta['path'] ?? '')])) {
+            return 'Tool unavailable: ' . $name . ' (route not registered; module disabled?)';
+        }
+        $perm = trim((string)($meta['permission'] ?? ''));
+        $cap = trim((string)($meta['capability'] ?? ''));
+        $need = $cap !== '' ? 'capability ' . $cap : ($perm !== '' ? 'permission ' . $perm : 'access');
+        return 'Forbidden tool: ' . $name . ' (current user lacks ' . $need . ')';
     }
 
     private static function instructions(): string

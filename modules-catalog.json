@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-12T09:46:08+00:00",
+    "generated_at": "2026-11-13T07:24:10+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -159,7 +159,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.11",
+            "version": "1.0.12",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -235,7 +235,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.13",
+            "version": "0.1.14",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -1417,7 +1417,7 @@
         },
         {
             "id": "llm",
-            "version": "1.0.4",
+            "version": "1.0.5",
             "type": "product",
             "name": {
                 "en": "LLM",

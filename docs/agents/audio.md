@@ -52,7 +52,7 @@ Denormalized chip cache written once by stem (`StemRunner`): `##dictId-diversity
 
 ## Agent JSON
 
-Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (14 ops).
+Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (15 ops).
 
 | Op | Method | Path |
 |----|--------|------|
@@ -70,6 +70,9 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `audio.api.blocks` | GET | `/audio/api/blocks` |
 | `audio.api.dict` | POST | `/audio/api/dict` |
 | `audio.api.badge` | POST | `/audio/api/badge` |
+| `audio.reviews.mark` | POST | `/audio/reviews/mark` |
+
+Review queue («moderation»): pending = `base_records_reviews.DT_REVIEW < 1` (list via `audio.list` `review=pending`). Mark reviewed with `audio.reviews.mark` (`ids`, or `date` + optional `admin`). `audio_llm.review_moderate` only produces LLM analysis text and never changes status.
 
 ```bash
 curl -sS -b jar.txt 'https://example/audio?format=json'
