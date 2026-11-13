@@ -99,6 +99,11 @@ fieldset.crm-panel legend { font-weight: 600; padding: 0 0.35rem; }
 .crm-ticket-meta { font-size: 0.88em; display: flex; gap: 0.35rem; flex-wrap: wrap; }
 .crm-overdue { color: var(--danger); }
 .crm-tl-ticket::before { background: var(--ok); }
+.crm-tl-poll::before { background: var(--accent); }
+.crm-copy-url { width: 100%; margin: 0.35rem 0; font-size: 0.85em; }
+.crm-poll-completed { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.crm-poll-expired { color: var(--muted); }
+.crm-answers { margin-top: 0.4rem; font-size: 0.92em; }
 .crm-news-deals { margin: 1rem 0; }
 .crm-news-deals ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
 

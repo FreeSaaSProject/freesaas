@@ -56,6 +56,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !Auth::can('crm.edit')) {
             CrmTickets::link($id, $tid);
             $out['ticket_id'] = $tid;
             $message = t('crm.flash.ticket_linked');
+        } elseif ($action === 'send_poll') {
+            $res = CrmPolls::send($row, $_POST);
+            $out += $res;
+            $message = t('crm.flash.poll_sent', ['url' => $res['url']]);
+        } elseif ($action === 'refill_poll') {
+            $res = CrmPolls::refill($id, (int)($_POST['invite_id'] ?? 0), (int)($_POST['expire_days'] ?? 14));
+            $out += $res;
+            $message = t('crm.flash.poll_refill', ['url' => $res['url']]);
+        } elseif ($action === 'unlink_poll') {
+            CrmLinksRepository::remove('deal', $id, CrmPolls::TARGET, (int)($_POST['invite_id'] ?? 0));
+            $message = t('crm.flash.poll_unlinked');
         } elseif ($action === 'unlink_ticket') {
             CrmLinksRepository::remove('deal', $id, CrmTickets::TARGET, (int)($_POST['ticket_id'] ?? 0));
             $message = t('crm.flash.ticket_unlinked');
@@ -106,12 +117,17 @@ $tickets = array_values(array_map(static fn(array $it): array => $it['ticket'], 
     $timeline,
     static fn(array $it): bool => ($it['type'] ?? '') === 'ticket' && isset($it['ticket'])
 )));
+$polls = array_values(array_map(static fn(array $it): array => $it['poll'], array_filter(
+    $timeline,
+    static fn(array $it): bool => ($it['type'] ?? '') === 'poll' && isset($it['poll'])
+)));
 
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'item' => $row,
         'tickets' => $tickets,
+        'polls' => $polls,
         'contacts' => $contacts,
         'company_contacts' => $companyContacts,
         'stages' => $stages,
@@ -138,6 +154,9 @@ View::render('deal_view', [
     'cfValues' => $cfValues,
     'timeline' => $timeline,
     'tickets' => $tickets,
+    'polls' => $polls,
+    'pollsAvailable' => CrmPolls::available() && Auth::can('poll_invites.edit'),
+    'pollOptions' => CrmPolls::pollOptions(),
     'ticketsAvailable' => CrmTickets::available() && Auth::can('core.news'),
     'staff' => CrmUi::staffOptions([(int)$row['responsible_user_id']]),
     'canEdit' => Auth::can('crm.edit'),

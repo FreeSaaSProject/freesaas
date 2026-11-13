@@ -48,6 +48,15 @@ final class CrmTimeline
                 'ticket' => $tk,
             ];
         }
+        foreach (CrmPolls::forDeal($dealId) as $pl) {
+            $items[] = [
+                'type' => 'poll',
+                'id' => (int)$pl['id'],
+                'at' => max((int)$pl['created_at'], (int)$pl['completed_at'], (int)$pl['recompleted_at']),
+                'author_id' => (int)$pl['linked_by'],
+                'poll' => $pl,
+            ];
+        }
         $payload = EventBus::emit('crm.deal.timeline', ['deal_id' => $dealId, 'deal' => $deal, 'items' => $items]);
         if (is_array($payload) && is_array($payload['items'] ?? null)) {
             $items = $payload['items'];

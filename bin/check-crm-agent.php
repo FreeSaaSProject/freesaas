@@ -5,7 +5,8 @@ declare(strict_types=1);
 /**
  * CRM agent layer: JSON ops invoked in-process like the assistant (route handler + AgentHttp::capture)
  * as a superadmin via Auth::runAs. Quick lead dedupe, PATCH semantics, contacts with roles, kanban,
- * timeline, deal ↔ ticket links. Throwaway fixtures are deleted at the end.
+ * timeline, deal ↔ ticket links, questionnaires (polls JSON, public /q/{code}, stage auto-advance, refill).
+ * Throwaway fixtures are deleted at the end.
  * Exit: 0 ok, 1 fail; SKIP if crm/clients are off or no superadmin exists.
  */
 require_once dirname(__DIR__) . '/app/bootstrap.php';
@@ -37,7 +38,7 @@ if ($uid < 1) {
 
 /**
  * @param array<string,scalar> $pathArgs
- * @param array<string,scalar> $args
+ * @param array<string,scalar|array<int|string,string>> $args
  * @return array{ok:bool,http:int,payload:?array,error:string}
  */
 $call = static function (string $method, string $pattern, array $pathArgs = [], array $args = []): array {
@@ -52,7 +53,7 @@ $call = static function (string $method, string $pattern, array $pathArgs = [], 
     }
     $bag = [];
     foreach ($args as $k => $v) {
-        $bag[(string)$k] = (string)$v;
+        $bag[(string)$k] = is_array($v) ? $v : (string)$v;
     }
     $prev = [$_GET, $_POST, $_REQUEST, $_SERVER];
     $_GET = $method === 'GET' ? $bag + ['format' => 'json'] : ['format' => 'json'];
@@ -72,8 +73,20 @@ $call = static function (string $method, string $pattern, array $pathArgs = [], 
     ];
 };
 
-$created = ['deals' => [], 'companies' => [], 'clients' => [], 'tickets' => []];
+$created = ['deals' => [], 'companies' => [], 'clients' => [], 'tickets' => [], 'invites' => [], 'polls' => []];
 $cleanup = static function () use (&$created, $pdo): void {
+    foreach (array_unique(array_filter($created['invites'])) as $iid) {
+        $pdo->prepare('DELETE FROM base_poll_invites WHERE ID = ?')->execute([(int)$iid]);
+        $pdo->prepare("DELETE FROM base_crm_links WHERE target = 'poll_invite' AND target_id = ?")->execute([(int)$iid]);
+    }
+    foreach (array_unique(array_filter($created['polls'])) as $rootId) {
+        $qs = $pdo->prepare('SELECT ID FROM base_polls WHERE PID = ?');
+        $qs->execute([(int)$rootId]);
+        foreach ($qs->fetchAll(PDO::FETCH_COLUMN) ?: [] as $qid) {
+            $pdo->prepare('DELETE FROM base_polls WHERE PID = ?')->execute([(int)$qid]);
+        }
+        $pdo->prepare('DELETE FROM base_polls WHERE PID = ? OR ID = ?')->execute([(int)$rootId, (int)$rootId]);
+    }
     foreach (array_unique(array_filter($created['tickets'])) as $tid) {
         $pdo->prepare('DELETE FROM base_news WHERE ID = ? AND TYPE = 2')->execute([(int)$tid]);
         $pdo->prepare("DELETE FROM base_crm_links WHERE target = 'ticket' AND target_id = ?")->execute([(int)$tid]);
@@ -245,6 +258,62 @@ try {
             $assert(!$lb['ok'] && $lb['http'] === 400, 'link_ticket rejects unknown ticket');
         } else {
             echo "SKIP tickets (core news unavailable)\n";
+        }
+
+        if (CrmPolls::available()) {
+            $root = $call('POST', '/polls/new', [], ['el_type' => 0, 'name' => 'B2B check ' . $suffix, 'descr_site' => 'Hello {client.name}']);
+            $rootId = (int)($root['payload']['id'] ?? 0);
+            $created['polls'][] = $rootId;
+            $assert($root['ok'] && $rootId > 0, 'polls.create root over JSON ' . $root['error']);
+            $q1 = (int)($call('POST', '/polls/new', [], ['el_type' => 1, 'pid' => $rootId, 'name' => 'Cabinets?', 'num' => 1])['payload']['id'] ?? 0);
+            $o1 = (int)($call('POST', '/polls/new', [], ['el_type' => 2, 'pid' => $q1, 'name' => '1-3', 'num' => 1])['payload']['id'] ?? 0);
+            $call('POST', '/polls/new', [], ['el_type' => 2, 'pid' => $q1, 'name' => '4+', 'num' => 2]);
+            $q2 = (int)($call('POST', '/polls/new', [], ['el_type' => 1, 'pid' => $rootId, 'name' => 'Pains at {company.name}?', 'num' => 2])['payload']['id'] ?? 0);
+            $q3 = (int)($call('POST', '/polls/new', [], ['el_type' => 1, 'pid' => $rootId, 'name' => 'Skipped', 'num' => 3])['payload']['id'] ?? 0);
+            $assert($q1 > 0 && $o1 > 0 && $q2 > 0 && $q3 > 0, 'polls.create questions + options');
+            $up = $call('POST', '/polls/{id}/edit', ['id' => $q1], ['descr_site' => 'rooms']);
+            $q1row = PollsRepository::find($q1);
+            $assert($up['ok'] && (string)$q1row['name'] === 'Cabinets?' && (int)$q1row['enabled'] === 1, 'polls.update PATCH keeps name/enabled');
+
+            $sp = $call('POST', '/crm/deals/{id}', ['id' => $dealId], [
+                'action' => 'send_poll', 'poll_id' => $rootId, 'text' => '{client.name}, about {company.name}',
+                'skip_qids' => (string)$q3,
+            ]);
+            $inviteId = (int)($sp['payload']['invite_id'] ?? 0);
+            $created['invites'][] = $inviteId;
+            $url = (string)($sp['payload']['url'] ?? '');
+            $code = (string)substr($url, strrpos($url, '/') + 1);
+            $assert($sp['ok'] && strlen($code) === PollPublic::CODE_LEN, 'crm.deals.send_poll returns public link ' . $sp['error']);
+            $assert((string)CrmDealsRepository::find($dealId)['stage_code'] === 'QUESTIONNAIRE_SENT', 'send_poll moves deal to QUESTIONNAIRE_SENT');
+
+            $pub = $call('GET', '/q/{code}', ['code' => $code]);
+            $qids = array_column((array)($pub['payload']['questions'] ?? []), 'qid');
+            $assert($pub['ok'] && $qids === [$q1, $q2], 'public GET: personal skip_qids applied');
+            $assert(strpos((string)($pub['payload']['intro'] ?? ''), 'CRM check clinic ' . $suffix) !== false
+                && strpos((string)($pub['payload']['questions'][1]['name'] ?? ''), 'CRM check clinic') !== false,
+                'public GET: {company.name} placeholder from CRM');
+            $short = $call('GET', '/q/{code}', ['code' => substr($code, 0, 8)]);
+            $assert(!$short['ok'] && $short['http'] === 404, 'public GET: short code → 404');
+
+            $draft = $call('POST', '/q/{code}', ['code' => $code], ['answers' => [$q1 => (string)$o1]]);
+            $assert($draft['ok'] && empty($draft['payload']['completed']) && (int)$draft['payload']['missing_qid'] === $q2,
+                'public POST partial → draft, missing = free-text question');
+            $done = $call('POST', '/q/{code}', ['code' => $code], ['answers' => [$q1 => (string)$o1], 'texts' => [$q2 => 'no CRM']]);
+            $assert($done['ok'] && !empty($done['payload']['completed']), 'public POST complete (text-only question advances walk)');
+            $assert((string)CrmDealsRepository::find($dealId)['stage_code'] === 'QUESTIONNAIRE_DONE', 'completion moves deal to QUESTIONNAIRE_DONE');
+            $dp = (array)($call('GET', '/crm/deals/{id}', ['id' => $dealId])['payload']['polls'] ?? []);
+            $assert(count($dp) === 1 && (string)$dp[0]['state'] === 'completed' && count($dp[0]['answers']) === 2,
+                'crm.deals.get polls[] completed with answers');
+
+            $rf = $call('POST', '/crm/deals/{id}', ['id' => $dealId], ['action' => 'refill_poll', 'invite_id' => $inviteId]);
+            $newInvite = (int)($rf['payload']['invite_id'] ?? 0);
+            $created['invites'][] = $newInvite;
+            $ni = $newInvite > 0 ? PollInvitesRepository::find($newInvite) : null;
+            $assert($rf['ok'] && $ni !== null && (string)$ni['data_text'] !== '{}' && (int)$ni['dt_completed'] === 0
+                && count(CrmPolls::forDeal($dealId)) === 2, 'crm.deals.refill_poll: new linked invite, answers prefilled');
+            $assert(PollPublic::personal($ni)['skip_qids'] === [$q3], 'refill keeps personal skip_qids');
+        } else {
+            echo "SKIP polls (poll_invites disabled)\n";
         }
 
         $bad = $call('POST', '/crm/deals/{id}', ['id' => $dealId], ['action' => 'nope']);

@@ -40,7 +40,12 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | Op | Method | Path |
 |----|--------|------|
 | `polls.list` | GET | `/polls` |
-| `polls.get` | GET | `/polls/{id}/edit` |
+| `polls.get` | GET | `/polls/{id}/edit` (node + children) |
+| `polls.create` | POST | `/polls/new` (`el_type` 0 root / 1 question / 2 option, `pid`, `name`, `descr_site`, `num`, `multy_opts`, `req_text_len`, `next_qid`, `ans_end_poll`) |
+| `polls.update` | POST | `/polls/{id}/edit` — JSON = PATCH (only changed keys) |
+| `polls.delete` | POST | `/polls/{id}/edit` `action=delete` |
+
+**Build a questionnaire as an agent:** create root (`el_type=0`, `descr_site` = intro for respondents) → questions (`el_type=1`, `pid=root`, `num` order; no options = free-text question; `req_text_len>0` adds a comment box) → options (`el_type=2`, `pid=question`). Send it to a CRM contact with `crm.deals.send_poll` (public link `/q/{code}`).
 
 ```bash
 curl -sS -b jar.txt 'https://example/polls?format=json'

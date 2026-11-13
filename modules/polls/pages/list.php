@@ -30,6 +30,16 @@ $result = PollsRepository::listRoots([
     'order' => $lq['order_sql'],
 ]);
 
+if (AgentHttp::wantsJson()) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => ['q' => $q, 'enabled' => $enabled],
+    ]);
+    return;
+}
+
 View::render('list', [
     'title' => t('polls.menu.list'),
     'items' => $result['items'],

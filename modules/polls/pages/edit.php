@@ -12,6 +12,10 @@ if (!$isNew) {
     $found = PollsRepository::find($id);
     if (!$found) {
         http_response_code(404);
+        if (AgentHttp::wantsJson()) {
+            AgentHttp::error(t('polls.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         View::render('error', [
             'title' => t('core.common.not_found'),
             'message' => t('polls.err.not_found', ['id' => $id]),
@@ -50,11 +54,22 @@ if (!$isNew && EntityDelete::tryHandle('polls', $id, '/polls', [
     return;
 }
 
+$wantsJson = AgentHttp::wantsJson();
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
-        $data = PollsRepository::dataFromPost($_POST, $isNew ? null : $row);
+        // JSON = PATCH (agents send only changed keys); HTML form posts every field (unchecked boxes absent).
+        $input = $_POST;
+        if ($wantsJson) {
+            $input = $isNew ? array_merge(['enabled' => 1], $_POST) : array_merge($row, $_POST);
+        }
+        $data = PollsRepository::dataFromPost($input, $isNew ? null : $row);
         if ($isNew) {
             $newId = PollsRepository::create($data);
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'id' => $newId, 'item' => PollsRepository::find($newId)]);
+                return;
+            }
             redirect('/polls/' . $newId . '/edit?saved=1');
             return;
         }
@@ -64,6 +79,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $children = PollsRepository::children($id);
     } catch (Throwable $e) {
         $error = $e->getMessage();
+        if ($wantsJson) {
+            AgentHttp::error($error, 400);
+            return;
+        }
         $row = array_merge($row, [
             'name' => (string)($_POST['name'] ?? $row['name'] ?? ''),
             'descr_admin' => (string)($_POST['descr_admin'] ?? ''),
@@ -101,7 +120,7 @@ $crumbs[] = [
 
 $canEdit = Auth::can('polls.edit');
 
-if (AgentHttp::wantsJson()) {
+if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'item' => $row,

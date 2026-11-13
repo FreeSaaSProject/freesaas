@@ -203,6 +203,91 @@ $passed = true;
       <?php endif; ?>
     </section>
     <?php endif; ?>
+    <?php if ($pollsAvailable): ?>
+    <section class="crm-panel">
+      <h2><?= te('crm.polls.title') ?></h2>
+      <ul class="crm-tickets">
+      <?php foreach ($polls as $pl): $st = (string)$pl['state']; ?>
+        <li class="<?= $st === 'completed' ? 'is-complete' : '' ?>">
+          <div class="crm-ticket-head">
+            <strong><?= e((string)$pl['poll_name']) ?></strong>
+            <span class="crm-stage-pill crm-poll-<?= e($st) ?>"><?= $st === 'completed' ? te('crm.polls.state_completed')
+                : ($st === 'started' ? te('crm.polls.state_started')
+                : ($st === 'expired' ? te('crm.polls.state_expired') : te('crm.polls.state_open'))) ?></span>
+          </div>
+          <div class="muted crm-ticket-meta">
+            <span><?= e((string)$pl['client_name']) ?></span>
+            <?php if ((int)$pl['completed_at'] > 0): ?>
+              <span>· <?= te('crm.polls.completed_at') ?> <?= e(I18n::formatDate(max((int)$pl['completed_at'], (int)$pl['recompleted_at']), 'datetime')) ?></span>
+            <?php elseif ((int)$pl['expire_at'] > 0): ?>
+              <span>· <?= te('crm.polls.until') ?> <?= e(I18n::formatDate((int)$pl['expire_at'])) ?></span>
+            <?php endif; ?>
+          </div>
+          <?php if ((string)$pl['url'] !== '' && $st !== 'expired'): ?>
+            <input class="crm-copy-url" readonly value="<?= e((string)$pl['url']) ?>" aria-label="<?= te('crm.polls.link') ?>" onclick="this.select()">
+          <?php endif; ?>
+          <?php if ($pl['answers']): ?>
+          <details>
+            <summary><?= te('crm.polls.answers', ['n' => (string)count($pl['answers'])]) ?></summary>
+            <dl class="crm-dl crm-answers">
+              <?php foreach ($pl['answers'] as $ans): ?>
+                <dt><?= e((string)$ans['question']) ?></dt>
+                <dd><?= e((string)$ans['answer']) ?><?php if ((string)$ans['text'] !== ''): ?><?= (string)$ans['answer'] !== '' ? '<br>' : '' ?><?= e_nl((string)$ans['text']) ?><?php endif; ?></dd>
+              <?php endforeach; ?>
+            </dl>
+          </details>
+          <?php endif; ?>
+          <?php if ($canEdit): ?>
+          <div class="crm-inline-actions">
+            <form method="post"><input type="hidden" name="action" value="refill_poll">
+              <input type="hidden" name="invite_id" value="<?= (int)$pl['id'] ?>">
+              <button class="btn-sm" type="submit"><?= te('crm.polls.refill') ?></button></form>
+            <form method="post"><input type="hidden" name="action" value="unlink_poll">
+              <input type="hidden" name="invite_id" value="<?= (int)$pl['id'] ?>">
+              <button class="btn-sm" type="submit"><?= te('crm.polls.unlink') ?></button></form>
+          </div>
+          <?php endif; ?>
+        </li>
+      <?php endforeach; ?>
+      <?php if (!$polls): ?><li class="muted"><?= te('crm.polls.empty') ?></li><?php endif; ?>
+      </ul>
+      <?php if ($canEdit): ?>
+        <?php if (!$pollOptions): ?>
+          <p class="muted"><?= te('crm.polls.no_polls') ?> <a href="/polls/new"><?= te('crm.polls.create_poll') ?></a></p>
+        <?php elseif (!$contacts): ?>
+          <p class="muted"><?= te('crm.polls.need_contact') ?></p>
+        <?php else: ?>
+        <details class="crm-add-contact"<?= $polls ? '' : ' open' ?>>
+          <summary><?= te('crm.polls.send') ?></summary>
+          <form method="post" class="form-grid">
+            <input type="hidden" name="action" value="send_poll">
+            <label><?= te('crm.polls.poll') ?>
+              <select name="poll_id" required>
+                <?php foreach ($pollOptions as $pid => $pname): ?>
+                  <option value="<?= (int)$pid ?>"><?= e((string)$pname) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </label>
+            <label><?= te('crm.polls.respondent') ?>
+              <select name="client_id">
+                <?php foreach ($contacts as $c): ?>
+                  <option value="<?= (int)$c['client_id'] ?>"<?= !empty($c['is_primary']) ? ' selected' : '' ?>><?= e((string)($c['name'] ?? ('#' . $c['client_id']))) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </label>
+            <label class="crm-span-2"><?= te('crm.polls.intro') ?>
+              <textarea name="text" rows="3" placeholder="<?= te('crm.polls.intro_hint') ?>"></textarea>
+            </label>
+            <label><?= te('crm.polls.expire_days') ?>
+              <input name="expire_days" type="number" min="1" max="365" value="14">
+            </label>
+            <button class="btn-primary" type="submit"><?= te('crm.polls.send_submit') ?></button>
+          </form>
+        </details>
+        <?php endif; ?>
+      <?php endif; ?>
+    </section>
+    <?php endif; ?>
     <?php if ($canEdit): ?>
     <section class="crm-panel">
       <form method="post" class="crm-note-form">
@@ -220,7 +305,8 @@ $passed = true;
           <div class="crm-tl-head">
             <span class="crm-tl-kind"><?= $type === 'note' ? te('crm.timeline.kind_note')
                 : ($type === 'stage' ? te('crm.timeline.kind_stage')
-                : ($type === 'ticket' ? te('crm.timeline.kind_ticket') : e((string)($it['kind_label'] ?? '')))) ?></span>
+                : ($type === 'ticket' ? te('crm.timeline.kind_ticket')
+                : ($type === 'poll' ? te('crm.timeline.kind_poll') : e((string)($it['kind_label'] ?? ''))))) ?></span>
             <span class="muted"><?= e(I18n::formatDate((int)($it['at'] ?? 0), 'datetime')) ?></span>
             <?php if ((string)($it['author_name'] ?? '') !== ''): ?><span class="muted">· <?= e((string)$it['author_name']) ?></span><?php endif; ?>
           </div>
@@ -232,6 +318,9 @@ $passed = true;
             <?php elseif ($type === 'ticket' && isset($it['ticket'])): $tk = $it['ticket']; ?>
               <a href="<?= e((string)$tk['url']) ?>"><?= e((string)$tk['name']) ?></a>
               <span class="muted">· <?= e((string)$tk['status_name']) ?><?php if ((int)$tk['deadline'] > 0): ?> · <?= e(I18n::formatDate((int)$tk['deadline'])) ?><?php endif; ?></span>
+            <?php elseif ($type === 'poll' && isset($it['poll'])): $pl = $it['poll']; ?>
+              <?= e((string)$pl['poll_name']) ?> — <?= e((string)$pl['client_name']) ?>
+              <span class="muted">· <?= (int)$pl['completed_at'] > 0 ? te('crm.polls.state_completed') : te('crm.polls.state_sent') ?></span>
             <?php elseif (isset($it['html'])): ?>
               <?= safe_html((string)$it['html']) ?>
             <?php else: ?>

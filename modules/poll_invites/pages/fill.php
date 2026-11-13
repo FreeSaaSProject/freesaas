@@ -41,7 +41,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $applied = PollWalkEngine::applyPost($tree['questions'], $dataOpts, $_POST, $dataText);
             $dataOpts = $applied['data_opts'];
             $dataText = $applied['data_text'];
-            $state = PollWalkEngine::walk($tree['questions'], $dataOpts, $tree['first_qid']);
+            $state = PollWalkEngine::walk($tree['questions'], $dataOpts, $tree['first_qid'], $dataText);
             $forceComplete = !empty($_POST['complete']);
             $complete = $forceComplete || $state['done'];
             PollInvitesRepository::saveAnswers(
@@ -72,7 +72,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-$state = PollWalkEngine::walk($tree['questions'], $dataOpts, $tree['first_qid']);
+$state = PollWalkEngine::walk($tree['questions'], $dataOpts, $tree['first_qid'], $dataText);
 $currentQ = null;
 if ($state['next_qid'] > 0 && isset($tree['questions'][$state['next_qid']])) {
     $currentQ = $tree['questions'][$state['next_qid']];

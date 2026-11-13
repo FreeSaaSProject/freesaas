@@ -8,6 +8,7 @@ require_once __DIR__ . '/lib/PollInvitesConfig.php';
 require_once __DIR__ . '/lib/PollInvitesRepository.php';
 require_once __DIR__ . '/lib/PollInvitesLongJob.php';
 require_once __DIR__ . '/lib/PollInvitesBiContrib.php';
+require_once __DIR__ . '/lib/PollPublic.php';
 
 Assets::register('poll_invites', [
     'css' => ['poll_invites.css'],
@@ -63,7 +64,22 @@ $pages = [
         'methods' => ['GET', 'POST'],
         'file' => 'fill.php',
     ],
+    '/poll-invites/{id}/refill' => [
+        'permission' => 'poll_invites.edit',
+        'methods' => ['POST'],
+        'file' => 'refill.php',
+    ],
 ];
+
+// Respondent fill by personal link (no login). Long random codes only — see PollPublic.
+ModuleManager::registerRoute('/q/{code}', [
+    'module' => 'poll_invites',
+    'methods' => ['GET', 'POST'],
+    'public' => true,
+    'handler' => static function (): void {
+        require base_path('modules/poll_invites/pages/public.php');
+    },
+]);
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];

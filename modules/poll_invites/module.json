@@ -2,7 +2,7 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.1.34",
+    "version": "0.2.0",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -44,7 +44,9 @@
             "/poll-invites/oral-asked",
             "/poll-invites/{id}",
             "/poll-invites/{id}/edit",
-            "/poll-invites/{id}/fill"
+            "/poll-invites/{id}/fill",
+            "/poll-invites/{id}/refill",
+            "/q/{code}"
         ]
     },
     "agent": {
@@ -136,6 +138,30 @@
                 }
             },
             {
+                "id": "poll_invites.refill",
+                "method": "POST",
+                "path": "/poll-invites/{id}/refill",
+                "permission": "poll_invites.edit",
+                "side_effect": "write",
+                "description": "Follow-up questionnaire: new invite for the same respondent with previous answers prefilled and a new public link (/q/{code}); the old invite stays as history. Emits poll_invites.refilled.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["id"],
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "expire_days": {"type": "integer", "description": "Default 14"}
+                    }
+                }
+            },
+            {
+                "id": "poll_invites.public",
+                "method": "GET",
+                "path": "/q/{code}",
+                "permission": "public",
+                "assistant": false,
+                "description": "Respondent channel (no login, long random code): GET → state, title, intro, questions[{qid,name,hint,multi,text,options[]}], answers; POST answers[qid]=option id (or [] for multi) + texts[qid] → {completed, missing_qid}. Personalised by PERSONAL_JSON (skip_qids, hints, vars) and {client.name}-style placeholders."
+            },
+            {
                 "id": "poll_invites.fill",
                 "method": "POST",
                 "path": "/poll-invites/{id}/fill",
@@ -177,8 +203,14 @@
         "publish": [
             "poll_invites.created",
             "poll_invites.answer.saved",
-            "poll_invites.completed"
-        ]
+            "poll_invites.completed",
+            "poll_invites.refilled",
+            "poll_invites.public.context"
+        ],
+        "contracts": {
+            "poll_invites.refilled": "{invite_id, from_invite_id} — follow-up invite created with prefilled answers",
+            "poll_invites.public.context": "{invite, vars} — add placeholder values (e.g. company.name) for /q/{code}; return payload"
+        }
     },
     "bulkActions": [
         {

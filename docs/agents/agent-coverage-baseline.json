@@ -745,8 +745,11 @@
                 "crm.deals.new_form",
                 "crm.deals.quick_create",
                 "crm.deals.quick_form",
+                "crm.deals.refill_poll",
                 "crm.deals.remove_contact",
+                "crm.deals.send_poll",
                 "crm.deals.set_primary_contact",
+                "crm.deals.unlink_poll",
                 "crm.deals.unlink_ticket",
                 "crm.deals.update",
                 "crm.fields.create",
@@ -1011,6 +1014,8 @@
                 "poll_invites.list",
                 "poll_invites.longjob",
                 "poll_invites.oral_asked",
+                "poll_invites.public",
+                "poll_invites.refill",
                 "poll_invites.unviewed.mark"
             ],
             "uncovered_routes": [
@@ -1036,14 +1041,15 @@
         },
         "polls": {
             "ops": [
+                "polls.create",
+                "polls.delete",
                 "polls.get",
                 "polls.list",
                 "polls.settings",
-                "polls.settings.save"
+                "polls.settings.save",
+                "polls.update"
             ],
-            "uncovered_routes": [
-                "/polls/new"
-            ],
+            "uncovered_routes": [],
             "uncovered_actions": []
         },
         "procedures": {

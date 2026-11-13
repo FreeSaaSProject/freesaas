@@ -2,7 +2,7 @@
     "id": "polls",
     "name": "polls.module.name",
     "description": "polls.module.description",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -45,14 +45,60 @@
                 "method": "GET",
                 "path": "/polls",
                 "permission": "polls.view",
-                "description": "List poll roots; filters: q, enabled"
+                "description": "List poll roots (questionnaires); filters: q, enabled"
             },
             {
                 "id": "polls.get",
                 "method": "GET",
                 "path": "/polls/{id}/edit",
                 "permission": "polls.view",
-                "description": "Get one poll tree node"
+                "description": "Get one poll tree node + children (root → questions, question → answer options). Walk: root children are questions in num order; question children are options."
+            },
+            {
+                "id": "polls.create",
+                "method": "POST",
+                "path": "/polls/new",
+                "permission": "polls.edit",
+                "side_effect": "write",
+                "description": "Create a poll tree node. Build a questionnaire: el_type=0 root (name = title, descr_site = intro for respondents) → el_type=1 question with pid=root (name = question text, descr_site = hint; req_text_len>0 = free-text box; multy_opts=1 = checkboxes; a question with no options is free-text only) → el_type=2 option with pid=question (next_qid = jump, ans_end_poll=1 = finish). num = order. Returns id.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["name", "el_type"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "el_type": {"type": "integer", "enum": [0, 1, 2]},
+                        "pid": {"type": "integer", "description": "Parent id (root for question, question for option)"},
+                        "num": {"type": "integer"},
+                        "descr_site": {"type": "string", "description": "Text shown to respondents"},
+                        "descr_admin": {"type": "string"},
+                        "multy_opts": {"type": "integer", "enum": [0, 1]},
+                        "req_text_len": {"type": "integer", "description": "0..255; >0 shows a text box"},
+                        "next_qid": {"type": "integer"},
+                        "ans_end_poll": {"type": "integer", "enum": [0, 1]},
+                        "enabled": {"type": "integer", "enum": [0, 1]}
+                    }
+                }
+            },
+            {
+                "id": "polls.update",
+                "method": "POST",
+                "path": "/polls/{id}/edit",
+                "permission": "polls.edit",
+                "side_effect": "write",
+                "description": "Update a poll node — PATCH over JSON: send only changed keys (same as polls.create); el_type/pid cannot change"
+            },
+            {
+                "id": "polls.delete",
+                "method": "POST",
+                "path": "/polls/{id}/edit",
+                "permission": "polls.delete",
+                "side_effect": "write",
+                "description": "Delete a poll node; action=delete",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {"action": {"type": "string", "enum": ["delete"]}}
+                }
             },
             {
                 "id": "polls.settings",

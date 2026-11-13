@@ -12,6 +12,7 @@ require_once __DIR__ . '/lib/CrmTimeline.php';
 require_once __DIR__ . '/lib/CrmContactResolver.php';
 require_once __DIR__ . '/lib/CrmLinksRepository.php';
 require_once __DIR__ . '/lib/CrmTickets.php';
+require_once __DIR__ . '/lib/CrmPolls.php';
 
 Assets::register('crm', [
     'css' => ['crm.css'],
@@ -104,6 +105,16 @@ EventBus::on('core.news_item.agent', static function ($payload) {
         $payload['extensions']['crm'] = ['deals' => $deals];
     }
     return $payload;
+});
+
+EventBus::on('poll_invites.completed', static function ($payload) {
+    return is_array($payload) ? CrmPolls::onCompleted($payload) : $payload;
+});
+EventBus::on('poll_invites.refilled', static function ($payload) {
+    return is_array($payload) ? CrmPolls::onRefilled($payload) : $payload;
+});
+EventBus::on('poll_invites.public.context', static function ($payload) {
+    return is_array($payload) ? CrmPolls::onPublicContext($payload) : $payload;
 });
 
 EventBus::on('clients.view.profile', static function ($payload) {

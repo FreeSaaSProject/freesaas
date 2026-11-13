@@ -2,14 +2,17 @@
     "id": "crm",
     "name": "crm.module.name",
     "description": "crm.module.description",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "type": "product",
     "runtime": "both",
     "requires": {
         "core": ">=1.0.0",
         "clients": ">=1.0.0"
     },
-    "optionalRequires": [],
+    "optionalRequires": {
+        "poll_invites": ">=0.1.0",
+        "comments": ">=1.0.0"
+    },
     "provides": [
         "crm.companies",
         "crm.deals",
@@ -249,7 +252,7 @@
                 "path": "/crm/deals/{id}",
                 "permission": "crm.view",
                 "side_effect": "read",
-                "description": "Deal card: item (company_name, responsible_name), contacts (with company role), company_contacts, tickets[] (linked core tickets: status, deadline, overdue, users_resp_names, comment_count, url), stages, custom fields, timeline[] (notes + stage changes + tickets + module entries, newest first), notes, stage_history"
+                "description": "Deal card: item (company_name, responsible_name), contacts (with company role), company_contacts, polls[] (questionnaires: state open|started|completed|expired, url, answers[{question, answer, text}]), tickets[] (linked core tickets: status, deadline, overdue, users_resp_names, comment_count, url), stages, custom fields, timeline[] (notes + stage changes + tickets + module entries, newest first), notes, stage_history"
             },
             {
                 "id": "crm.deals.add_ticket",
@@ -284,6 +287,59 @@
                     "properties": {
                         "action": {"type": "string", "enum": ["link_ticket"]},
                         "ticket_id": {"type": "integer"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.send_poll",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Send a questionnaire to a deal contact: creates a personal poll invite with a public link /q/{code} (no login; returns url to send to the respondent); action=send_poll. client_id defaults to the primary contact (must be on the deal). text = personal intro ({client.name}, {company.name}, {deal.title}, {manager.name} placeholders). skip_qids hides questions for this respondent. Moves B2B deals to QUESTIONNAIRE_SENT; completion moves to QUESTIONNAIRE_DONE. Needs poll_invites.edit.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "poll_id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["send_poll"]},
+                        "poll_id": {"type": "integer", "description": "Root poll id (polls.list)"},
+                        "client_id": {"type": "integer"},
+                        "text": {"type": "string"},
+                        "expire_days": {"type": "integer", "description": "Default 14"},
+                        "skip_qids": {"type": "string", "description": "Comma-separated question ids to hide"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.refill_poll",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Follow-up questionnaire for a linked invite: new invite + new link with previous answers prefilled (history kept); action=refill_poll&invite_id=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "invite_id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["refill_poll"]},
+                        "invite_id": {"type": "integer"},
+                        "expire_days": {"type": "integer"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.unlink_poll",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Unlink a poll invite from the deal (invite stays); action=unlink_poll&invite_id=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "invite_id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["unlink_poll"]},
+                        "invite_id": {"type": "integer"}
                     }
                 }
             },
@@ -678,7 +734,10 @@
         "subscribe": [
             "clients.view.profile",
             "core.news_item.section",
-            "core.news_item.agent"
+            "core.news_item.agent",
+            "poll_invites.completed",
+            "poll_invites.refilled",
+            "poll_invites.public.context"
         ],
         "publish": [
             "crm.company.created",

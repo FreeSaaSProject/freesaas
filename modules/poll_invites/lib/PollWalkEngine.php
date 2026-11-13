@@ -8,8 +8,11 @@ declare(strict_types=1);
 final class PollWalkEngine
 {
     /**
+     * Question without answer options = free text: answered when $dataText has text for it.
+     *
      * @param array<int,array<string,mixed>> $questions from PollsRepository::buildWalkTree
      * @param array<int|string,mixed> $dataOpts
+     * @param array<int|string,string> $dataText
      * @return array{
      *   path:list<array{qid:int,question:array<string,mixed>,answer:mixed}>,
      *   next_qid:int,
@@ -17,7 +20,7 @@ final class PollWalkEngine
      *   needs_sign:bool
      * }
      */
-    public static function walk(array $questions, array $dataOpts, int $firstQid): array
+    public static function walk(array $questions, array $dataOpts, int $firstQid, array $dataText = []): array
     {
         $path = [];
         $needsSign = false;
@@ -29,6 +32,12 @@ final class PollWalkEngine
                 break;
             }
             $q = $questions[$nextQid];
+            $textOnly = ($q['_ANSWERS_'] ?? []) === [];
+            if ($textOnly && trim((string)($dataText[$nextQid] ?? $dataText[(string)$nextQid] ?? '')) !== '') {
+                $path[] = ['qid' => $nextQid, 'question' => $q, 'answer' => null];
+                $nextQid = (int)($q['NEXT_QID_DEFAULT'] ?? 0);
+                continue;
+            }
             if (!array_key_exists($nextQid, $dataOpts) && !array_key_exists((string)$nextQid, $dataOpts)) {
                 return [
                     'path' => $path,

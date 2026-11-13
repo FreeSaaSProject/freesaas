@@ -35,6 +35,15 @@ Permissions: `poll_invites.view`, `poll_invites.edit`, `poll_invites.delete`.
 - Oral mark API: `POST /poll-invites/oral-asked` (body: `id_proc`, optional `id_poll`).
 - Speech **settings** stay at `/poll-speech/settings` (no separate speech list route).
 
+## Public respondent link (`/q/{code}`)
+
+- Personal invite with a 24-char random `CODE` (`PollPublic::create`); codes shorter than 16 chars are never served publicly. No login; CSRF on POST; `noindex` layout (`layout_auth`).
+- One page with every question: options (radio / checkboxes), free text when `req_text_len > 0` or the question has **no options** (text-only questions now advance the walk when text is present). Saved via `saveAnswersFromChannel(..., 'public')`; incomplete submit = draft + highlighted missing question. After completion the respondent may edit answers via the same link until `DT_EXPIRE`.
+- Personalisation: `TEXT_ADMIN_TO_USER` (intro), poll `descr_site`, per-question `descr_site` as hint; `PERSONAL_JSON` (`skip_qids`, `hints{qid}`, `vars`); placeholders `{client.name}` / `{client.first_name}` + module values via EventBus `poll_invites.public.context` (CRM adds `{company.name}`, `{deal.title}`, `{manager.name}`).
+- Follow-up: `POST /poll-invites/{id}/refill` → new invite, new link, previous answers prefilled, personalisation copied; old invite stays as history; emits `poll_invites.refilled`.
+- JSON twin (bots / external agents): `GET /q/{code}?format=json` → `state`, `questions[]`, `answers`; `POST` `answers[qid]` / `texts[qid]` → `{completed, missing_qid}`.
+- CRM sends these from the deal card (see [`crm.md`](crm.md)).
+
 ## Agent JSON
 
 | Op | Method | Path |
@@ -44,6 +53,8 @@ Permissions: `poll_invites.view`, `poll_invites.edit`, `poll_invites.delete`.
 | `poll_invites.create` | POST | `/poll-invites/new` |
 | `poll_invites.oral_asked` | POST | `/poll-invites/oral-asked` |
 | `poll_invites.fill` | POST | `/poll-invites/{id}/fill` |
+| `poll_invites.refill` | POST | `/poll-invites/{id}/refill` (`expire_days`) |
+| `poll_invites.public` | GET/POST | `/q/{code}` (public, `assistant: false`) |
 
 ## Notes
 

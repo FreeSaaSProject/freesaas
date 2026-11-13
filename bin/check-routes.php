@@ -258,6 +258,9 @@ $allowed = [
     '/yclients/jobs/import-clients' => ['methods' => ['POST', 'GET'], 'why' => 'yclients import'],
     '/yclients/jobs/ping' => ['methods' => ['POST', 'GET'], 'why' => 'yclients ping'],
     '/gcal/oauth' => ['methods' => ['GET'], 'why' => 'Google Calendar OAuth callback'],
+
+    // Respondent questionnaire by personal link (24-char random code; CSRF on POST)
+    '/q/{code}' => ['methods' => ['GET', 'POST'], 'why' => 'poll invite public fill'],
 ];
 
 $failed = 0;

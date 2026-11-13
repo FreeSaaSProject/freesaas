@@ -139,3 +139,13 @@
 .poll-invites-mark-all {
   margin: 0 0 0.75rem;
 }
+
+/* Public respondent page /q/{code} (layout_auth). */
+.auth-stage.poll-public { width: min(720px, 100%); }
+.poll-public-intro { margin: 0.6rem 0 0.9rem; }
+.poll-public-form { display: grid; gap: 0.9rem; margin-top: 0.8rem; }
+.poll-public-q { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.75rem 0.9rem; margin: 0; display: grid; gap: 0.4rem; }
+.poll-public-q legend { font-weight: 600; padding: 0 0.3rem; }
+.poll-public-q.is-missing { border-color: var(--warn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 25%, transparent); }
+.poll-public-q textarea { width: 100%; font: inherit; }
+.poll-public-hint { margin: 0; font-size: 0.9em; }
