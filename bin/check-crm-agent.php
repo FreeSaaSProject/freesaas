@@ -323,7 +323,8 @@ try {
             $ft = PollsRepository::find($q1);
             $assert((int)$ft['req_text_len'] === 1 && (string)$ft['descr_site'] === 'rooms', 'polls.update free_text=1 → text box, other fields kept');
             $assert(PollsRepository::isOtherOption('Другое (напишите)') && PollsRepository::isOtherOption('Свой вариант')
-                && PollsRepository::isOtherOption('Other') && !PollsRepository::isOtherOption('Дружба')
+                && PollsRepository::isOtherOption('Other') && PollsRepository::isOtherOption('Другие данные')
+                && !PollsRepository::isOtherOption('Дружба')
                 && !PollsRepository::isOtherOption('Другим отделом'), 'isOtherOption detects «Другое» / «Свой вариант» / Other');
 
             $sp = $call('POST', '/crm/deals/{id}', ['id' => $dealId], [

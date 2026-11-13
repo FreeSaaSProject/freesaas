@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-13T17:42:34+00:00",
+    "generated_at": "2026-11-13T17:43:11+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -1643,7 +1643,7 @@
         },
         {
             "id": "polls",
-            "version": "0.1.8",
+            "version": "0.1.9",
             "type": "product",
             "name": {
                 "en": "Polls",

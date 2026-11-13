@@ -319,7 +319,7 @@ final class PollsRepository
      */
     public static function isOtherOption(string $name): bool
     {
-        return (bool)preg_match('/^\s*(друг(ое|ой|ая)|ино[ей]|свой\s+вариант|сво[её]\s+(мнение|ответ)|other|something\s+else)(?!\p{L})/iu', $name);
+        return (bool)preg_match('/^\s*(друг(ое|ой|ая|ие|ого)|ино[ейя]|свой\s+вариант|сво[её]\s+(мнение|ответ)|other|something\s+else)(?!\p{L})/iu', $name);
     }
 
     /** @param array<string,mixed> $data */
