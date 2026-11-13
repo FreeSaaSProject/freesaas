@@ -22,7 +22,7 @@ final class CrmDealsRepository
     }
 
     /**
-     * @param array{q?:string,pipeline_id?:int,stage_id?:int,company_id?:int,client_id?:int,order?:string,limit?:int,offset?:int} $opts
+     * @param array{q?:string,pipeline_id?:int,stage_id?:int,company_id?:int,client_id?:int,responsible_user_id?:int,order?:string,limit?:int,offset?:int} $opts
      * @return array{items:list<array<string,mixed>>,total:int}
      */
     public static function list(array $opts = []): array
@@ -54,6 +54,11 @@ final class CrmDealsRepository
         if ($companyId > 0) {
             $where[] = 'd.company_id = ?';
             $params[] = $companyId;
+        }
+        $respId = (int)($opts['responsible_user_id'] ?? 0);
+        if ($respId > 0) {
+            $where[] = 'd.responsible_user_id = ?';
+            $params[] = $respId;
         }
         $clientId = (int)($opts['client_id'] ?? 0);
         if ($clientId > 0 && Database::tableExists('base_crm_deal_contacts')) {
@@ -99,10 +104,12 @@ final class CrmDealsRepository
             'SELECT d.id, d.title, d.pipeline_id, d.stage_id, d.company_id, d.amount, d.currency,
                     d.responsible_user_id, d.source, d.notes, d.closed_at, d.created_at, d.updated_at,
                     p.name AS pipeline_name, p.kind AS pipeline_kind,
-                    s.name AS stage_name, s.code AS stage_code, s.semantic AS stage_semantic
+                    s.name AS stage_name, s.code AS stage_code, s.semantic AS stage_semantic,
+                    co.name AS company_name
              FROM base_crm_deals d
              LEFT JOIN base_crm_pipelines p ON p.id = d.pipeline_id
              LEFT JOIN base_crm_stages s ON s.id = d.stage_id
+             LEFT JOIN base_crm_companies co ON co.id = d.company_id
              WHERE d.id = ? LIMIT 1'
         );
         $st->execute([$id]);
@@ -118,7 +125,7 @@ final class CrmDealsRepository
         }
         if (Database::tableExists('base_clients')) {
             $st = Database::pdo()->prepare(
-                'SELECT dc.client_id, dc.is_primary, cl.name, cl.tel
+                'SELECT dc.client_id, dc.is_primary, cl.name, cl.tel, cl.mail
                  FROM base_crm_deal_contacts dc
                  LEFT JOIN base_clients cl ON cl.id = dc.client_id
                  WHERE dc.deal_id = ?
@@ -257,6 +264,95 @@ final class CrmDealsRepository
             throw new InvalidArgumentException('Invalid deal id');
         }
         self::update($id, array_merge($row, ['stage_id' => $stageId]));
+    }
+
+    /**
+     * Deals of one pipeline grouped by enabled stage, with count and amount per currency.
+     *
+     * @param array{q?:string,company_id?:int,responsible_user_id?:int,limit?:int} $opts
+     * @return list<array{stage:array<string,mixed>,count:int,sums:array<string,float>,items:list<array<string,mixed>>}>
+     */
+    public static function kanban(int $pipelineId, array $opts = []): array
+    {
+        $stages = CrmPipelinesRepository::listStages($pipelineId, true);
+        if ($stages === []) {
+            return [];
+        }
+        $res = self::list([
+            'q' => (string)($opts['q'] ?? ''),
+            'pipeline_id' => $pipelineId,
+            'company_id' => (int)($opts['company_id'] ?? 0),
+            'responsible_user_id' => (int)($opts['responsible_user_id'] ?? 0),
+            'limit' => max(1, min(2000, (int)($opts['limit'] ?? 500))),
+            'offset' => 0,
+            'order' => 'd.updated_at DESC',
+        ]);
+        $cols = [];
+        foreach ($stages as $s) {
+            $cols[(int)$s['id']] = ['stage' => $s, 'count' => 0, 'sums' => [], 'items' => []];
+        }
+        foreach ($res['items'] as $d) {
+            $sid = (int)$d['stage_id'];
+            if (!isset($cols[$sid])) {
+                continue;
+            }
+            $cur = (string)($d['currency'] ?: 'RUB');
+            $cols[$sid]['count']++;
+            $cols[$sid]['sums'][$cur] = ($cols[$sid]['sums'][$cur] ?? 0.0) + (float)$d['amount'];
+            $cols[$sid]['items'][] = $d;
+        }
+        return array_values($cols);
+    }
+
+    /** Link one contact to a deal (keeps others); first contact becomes primary. */
+    public static function addContact(int $dealId, int $clientId, bool $makePrimary = false): void
+    {
+        if ($dealId < 1 || $clientId < 1 || !Database::tableExists('base_crm_deal_contacts')) {
+            throw new InvalidArgumentException(t('crm.err.contact_required'));
+        }
+        if (self::find($dealId) === null) {
+            throw new InvalidArgumentException('Invalid deal id');
+        }
+        $pdo = Database::pdo();
+        $hasPrimary = (int)$pdo->query(
+            'SELECT COUNT(*) FROM base_crm_deal_contacts WHERE deal_id = ' . $dealId . ' AND is_primary = 1'
+        )->fetchColumn() > 0;
+        $pdo->prepare(
+            'INSERT INTO base_crm_deal_contacts (deal_id, client_id, is_primary) VALUES (?,?,?)
+             ON DUPLICATE KEY UPDATE is_primary = IF(VALUES(is_primary) = 1, 1, is_primary)'
+        )->execute([$dealId, $clientId, ($makePrimary || !$hasPrimary) ? 1 : 0]);
+        if ($makePrimary) {
+            $pdo->prepare('UPDATE base_crm_deal_contacts SET is_primary = IF(client_id = ?, 1, 0) WHERE deal_id = ?')
+                ->execute([$clientId, $dealId]);
+        }
+        self::touch($dealId);
+    }
+
+    public static function removeContact(int $dealId, int $clientId): void
+    {
+        if ($dealId < 1 || $clientId < 1 || !Database::tableExists('base_crm_deal_contacts')) {
+            return;
+        }
+        $pdo = Database::pdo();
+        $pdo->prepare('DELETE FROM base_crm_deal_contacts WHERE deal_id = ? AND client_id = ?')
+            ->execute([$dealId, $clientId]);
+        $left = (int)$pdo->query(
+            'SELECT COUNT(*) FROM base_crm_deal_contacts WHERE deal_id = ' . $dealId . ' AND is_primary = 1'
+        )->fetchColumn();
+        if ($left === 0) {
+            $pdo->prepare('UPDATE base_crm_deal_contacts SET is_primary = 1 WHERE deal_id = ? ORDER BY client_id ASC LIMIT 1')
+                ->execute([$dealId]);
+        }
+        self::touch($dealId);
+    }
+
+    private static function touch(int $dealId): void
+    {
+        Database::pdo()->prepare('UPDATE base_crm_deals SET updated_at = ? WHERE id = ?')->execute([time(), $dealId]);
+        EventBus::emit('crm.deal.updated', CrmSyncContext::withOrigin([
+            'id' => $dealId,
+            'row' => self::find($dealId),
+        ]));
     }
 
     /** @param list<int> $clientIds */

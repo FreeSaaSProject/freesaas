@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-13T10:25:23+00:00",
+    "generated_at": "2026-11-13T15:10:45+00:00",
     "modules": [
         {
             "id": "amocrm",
@@ -1027,7 +1027,7 @@
         },
         {
             "id": "crm",
-            "version": "0.1.2",
+            "version": "0.2.0",
             "type": "product",
             "name": {
                 "en": "Sales CRM",

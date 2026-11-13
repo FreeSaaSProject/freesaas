@@ -1,0 +1,1491 @@
+{
+    "modules": {
+        "amocrm": {
+            "ops": [
+                "amocrm.import",
+                "amocrm.import.status",
+                "amocrm.ping",
+                "amocrm.settings.get",
+                "amocrm.settings.save",
+                "amocrm.status"
+            ],
+            "uncovered_routes": [
+                "/amocrm/import/longjob",
+                "/amocrm/jobs/import",
+                "/amocrm/jobs/outbox",
+                "/amocrm/jobs/ping",
+                "/amocrm/webhook"
+            ],
+            "uncovered_actions": [
+                "job_cancel",
+                "job_start",
+                "job_tick"
+            ]
+        },
+        "asr": {
+            "ops": [
+                "asr.voice.worker",
+                "asr.voice_queue",
+                "asr.voice_queue_requeue"
+            ],
+            "uncovered_routes": [
+                "/asr/voice-transcribe/file",
+                "/audio/voice-transcribe/file",
+                "/audio/voice-transcribe/worker"
+            ],
+            "uncovered_actions": [
+                "next",
+                "submit"
+            ]
+        },
+        "assistant": {
+            "ops": [
+                "assistant.chat",
+                "assistant.clear",
+                "assistant.confirm",
+                "assistant.feedback"
+            ],
+            "uncovered_routes": [
+                "/assistant",
+                "/assistant/eval",
+                "/assistant/fab/hide",
+                "/assistant/prefs"
+            ],
+            "uncovered_actions": [
+                "catalog",
+                "run_all",
+                "run_one",
+                "save"
+            ]
+        },
+        "assistant_groups": {
+            "ops": [
+                "assistant_groups.settings.get",
+                "assistant_groups.settings.update",
+                "assistant_groups.status"
+            ],
+            "uncovered_routes": [
+                "/assistant-groups/webhook/max"
+            ],
+            "uncovered_actions": [
+                "discover_add",
+                "discover_dismiss",
+                "fetch_titles",
+                "lookup_chat",
+                "subscribe",
+                "unsubscribe"
+            ]
+        },
+        "audio": {
+            "ops": [
+                "audio.api.badge",
+                "audio.api.blocks",
+                "audio.api.dict",
+                "audio.assignments.create",
+                "audio.assignments.get",
+                "audio.assignments.get_new",
+                "audio.assignments.list",
+                "audio.assignments.update",
+                "audio.badges.list",
+                "audio.badges.write",
+                "audio.get",
+                "audio.list",
+                "audio.reviews.mark",
+                "audio.settings.get",
+                "audio.settings.save"
+            ],
+            "uncovered_routes": [
+                "/audio/ingest",
+                "/audio/play"
+            ],
+            "uncovered_actions": [
+                "claim_badge_orphans",
+                "job_cancel",
+                "job_start",
+                "job_tick",
+                "worker_token_generate"
+            ]
+        },
+        "audio_dicts": {
+            "ops": [
+                "audio_dicts.agent.dict_get",
+                "audio_dicts.agent.dicts_list",
+                "audio_dicts.agent.key_delete",
+                "audio_dicts.agent.key_get",
+                "audio_dicts.agent.key_save",
+                "audio_dicts.agent.keys_check_overlap",
+                "audio_dicts.agent.keys_list",
+                "audio_dicts.agent.script_get",
+                "audio_dicts.agent.script_open",
+                "audio_dicts.agent.script_part_delete",
+                "audio_dicts.agent.script_part_save",
+                "audio_dicts.agent.script_publish",
+                "audio_dicts.agent.script_restore",
+                "audio_dicts.agent.script_save",
+                "audio_dicts.agent.script_valid_from",
+                "audio_dicts.agent.script_versions",
+                "audio_dicts.agent.scripts_list",
+                "audio_dicts.dicts.create",
+                "audio_dicts.dicts.get",
+                "audio_dicts.dicts.list",
+                "audio_dicts.dicts.suggest_descr",
+                "audio_dicts.dicts.update",
+                "audio_dicts.keys.create",
+                "audio_dicts.keys.get",
+                "audio_dicts.keys.list",
+                "audio_dicts.keys.update",
+                "audio_dicts.scripts.copy",
+                "audio_dicts.scripts.create",
+                "audio_dicts.scripts.delete",
+                "audio_dicts.scripts.download",
+                "audio_dicts.scripts.get",
+                "audio_dicts.scripts.import",
+                "audio_dicts.scripts.list",
+                "audio_dicts.scripts.part_save",
+                "audio_dicts.scripts.parts",
+                "audio_dicts.scripts.publish",
+                "audio_dicts.tags.create",
+                "audio_dicts.tags.get",
+                "audio_dicts.tags.list",
+                "audio_dicts.tags.update",
+                "audio_dicts.trashes.create",
+                "audio_dicts.trashes.get",
+                "audio_dicts.trashes.list",
+                "audio_dicts.trashes.update"
+            ],
+            "uncovered_routes": [
+                "/audio/dicts/longjob",
+                "/audio/keys/check-overlap"
+            ],
+            "uncovered_actions": [
+                "job_cancel",
+                "job_start",
+                "job_tick",
+                "publish",
+                "reorder",
+                "restore",
+                "set_valid_from",
+                "toggle_disabled"
+            ]
+        },
+        "audio_llm": {
+            "ops": [
+                "audio_llm.review_moderate",
+                "audio_llm.studies.create",
+                "audio_llm.studies.get",
+                "audio_llm.studies.list",
+                "audio_llm.studies.longjob",
+                "audio_llm.studies.work"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": [
+                "delete",
+                "process_all",
+                "save_cyclic"
+            ]
+        },
+        "audio_phrases": {
+            "ops": [
+                "audio_phrases.day",
+                "audio_phrases.list",
+                "audio_phrases.status"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "audio_pipeline": {
+            "ops": [
+                "audio_pipeline.asr.chunk_claim",
+                "audio_pipeline.asr.chunk_result",
+                "audio_pipeline.asr.claim",
+                "audio_pipeline.asr.result",
+                "audio_pipeline.asr_push_config",
+                "audio_pipeline.asr_push_status",
+                "audio_pipeline.asr_push_sync",
+                "audio_pipeline.asr_push_worker",
+                "audio_pipeline.backfill_playtime",
+                "audio_pipeline.collection_get",
+                "audio_pipeline.collections_list",
+                "audio_pipeline.day_diag",
+                "audio_pipeline.day_records",
+                "audio_pipeline.day_reparse",
+                "audio_pipeline.instances_list",
+                "audio_pipeline.jobs.collect",
+                "audio_pipeline.jobs.ingest",
+                "audio_pipeline.jobs.ingest_run",
+                "audio_pipeline.jobs.stem",
+                "audio_pipeline.jobs.stem_run",
+                "audio_pipeline.record_get"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "audio_reports": {
+            "ops": [
+                "audio_reports.agent.day_report",
+                "audio_reports.calendar.day",
+                "audio_reports.day_report",
+                "audio_reports.summaries.get",
+                "audio_reports.summaries.list",
+                "audio_reports.summaries.save",
+                "audio_reports.summaries.work"
+            ],
+            "uncovered_routes": [
+                "/audio/calendar/reparse",
+                "/audio/collections",
+                "/audio/collections/{id}"
+            ],
+            "uncovered_actions": [
+                "delete",
+                "month",
+                "preview",
+                "propose",
+                "save"
+            ]
+        },
+        "audio_script_coach": {
+            "ops": [
+                "audio_script_coach.day",
+                "audio_script_coach.list",
+                "audio_script_coach.proposal",
+                "audio_script_coach.run",
+                "audio_script_coach.work"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": [
+                "accept_all",
+                "advance"
+            ]
+        },
+        "backups": {
+            "ops": [
+                "backups.cancel",
+                "backups.cdc.status",
+                "backups.check",
+                "backups.list",
+                "backups.notify.test",
+                "backups.remote",
+                "backups.replica.check",
+                "backups.replica.pull",
+                "backups.replica.status",
+                "backups.replica.tick",
+                "backups.restore",
+                "backups.run",
+                "backups.settings.get",
+                "backups.settings.save",
+                "backups.standby.status"
+            ],
+            "uncovered_routes": [
+                "/agent/backups/cdc/install",
+                "/agent/backups/cdc/uninstall",
+                "/agent/backups/check",
+                "/agent/backups/standby/sync",
+                "/backups/cdc/longjob"
+            ],
+            "uncovered_actions": [
+                "cdc_install",
+                "cdc_uninstall",
+                "copy_ftp_audio",
+                "copy_ftp_replica",
+                "job_cancel",
+                "job_tick",
+                "passphrase_generate",
+                "pull",
+                "pull_start",
+                "pull_tick",
+                "test_ftp",
+                "test_notify"
+            ]
+        },
+        "banks": {
+            "ops": [
+                "banks.agent.setup.action",
+                "banks.agent.setup.get",
+                "banks.certs.upload",
+                "banks.connections.get",
+                "banks.connections.list",
+                "banks.csr.generate",
+                "banks.file_link",
+                "banks.import.file",
+                "banks.jobs.sync",
+                "banks.link.save",
+                "banks.oauth.start",
+                "banks.probe",
+                "banks.settings.get",
+                "banks.settings.save",
+                "banks.setup.action",
+                "banks.setup.get",
+                "banks.sync",
+                "banks.sync.account"
+            ],
+            "uncovered_routes": [
+                "/agent/banks/certs",
+                "/agent/banks/csr",
+                "/agent/banks/integrations",
+                "/agent/banks/integrations/connect",
+                "/agent/banks/integrations/probe-scopes",
+                "/agent/banks/probe",
+                "/agent/banks/settings",
+                "/agent/banks/status",
+                "/banks/integrations/{id}",
+                "/banks/longjob",
+                "/banks/oauth/{provider}/callback",
+                "/banks/relink-orphans"
+            ],
+            "uncovered_actions": [
+                "job_cancel",
+                "job_start",
+                "job_tick",
+                "probe_scopes",
+                "save_common"
+            ]
+        },
+        "bi": {
+            "ops": [
+                "bi.families.list",
+                "bi.family.delete",
+                "bi.family.get",
+                "bi.family.save",
+                "bi.family.validate",
+                "bi.legend",
+                "bi.report.run",
+                "bi.share.create",
+                "bi.share.list",
+                "bi.share.revoke"
+            ],
+            "uncovered_routes": [
+                "/agent/bi/families",
+                "/agent/bi/family",
+                "/agent/bi/family/delete",
+                "/agent/bi/family/save",
+                "/agent/bi/family/validate",
+                "/agent/bi/legend",
+                "/agent/bi/run",
+                "/bi/run",
+                "/bi/s/{token}"
+            ],
+            "uncovered_actions": []
+        },
+        "bitrix": {
+            "ops": [
+                "bitrix.import",
+                "bitrix.import.status",
+                "bitrix.ping",
+                "bitrix.settings.get",
+                "bitrix.settings.save",
+                "bitrix.status"
+            ],
+            "uncovered_routes": [
+                "/bitrix/import/longjob",
+                "/bitrix/jobs/import",
+                "/bitrix/jobs/outbox",
+                "/bitrix/jobs/ping",
+                "/bitrix/webhook"
+            ],
+            "uncovered_actions": [
+                "job_cancel",
+                "job_start",
+                "job_tick"
+            ]
+        },
+        "bonuses": {
+            "ops": [
+                "bonuses.apply",
+                "bonuses.client",
+                "bonuses.create",
+                "bonuses.list",
+                "bonuses.quote"
+            ],
+            "uncovered_routes": [
+                "/bonuses/{id}/edit"
+            ],
+            "uncovered_actions": []
+        },
+        "booking": {
+            "ops": [
+                "booking.availability",
+                "booking.book",
+                "booking.cancel",
+                "booking.clients",
+                "booking.new",
+                "booking.orders"
+            ],
+            "uncovered_routes": [
+                "/booking/settings"
+            ],
+            "uncovered_actions": [
+                "book"
+            ]
+        },
+        "bots": {
+            "ops": [
+                "bots.message.send",
+                "bots.plugins.list",
+                "bots.queue.drain",
+                "bots.queue.list",
+                "bots.recipients.list",
+                "bots.send.test",
+                "bots.settings.get",
+                "bots.settings.save",
+                "bots.type.get"
+            ],
+            "uncovered_routes": [
+                "/agent/bots/link-code",
+                "/agent/bots/settings",
+                "/agent/bots/unlink",
+                "/agent/bots/webhook/subscribe",
+                "/bots/webhook/max/{channel}",
+                "/bots/webhook/telegram/{channel}"
+            ],
+            "uncovered_actions": []
+        },
+        "cabinets": {
+            "ops": [
+                "cabinets.create",
+                "cabinets.get",
+                "cabinets.list",
+                "cabinets.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "calendar": {
+            "ops": [
+                "calendar.clients.search",
+                "calendar.day",
+                "calendar.events.create",
+                "calendar.events.delete",
+                "calendar.events.get",
+                "calendar.events.list",
+                "calendar.events.update",
+                "calendar.products.search",
+                "calendar.settings.get",
+                "calendar.settings.update",
+                "calendar.week",
+                "calendar.week.date"
+            ],
+            "uncovered_routes": [
+                "/calendar/nazop"
+            ],
+            "uncovered_actions": []
+        },
+        "catalog": {
+            "ops": [
+                "catalog.browse",
+                "catalog.browse.folder",
+                "catalog.browse.folder.write",
+                "catalog.browse.write",
+                "catalog.categories.create",
+                "catalog.categories.get_edit",
+                "catalog.categories.update",
+                "catalog.prices_print",
+                "catalog.products.create",
+                "catalog.products.delete",
+                "catalog.products.get_edit",
+                "catalog.products.update"
+            ],
+            "uncovered_routes": [
+                "/categories",
+                "/products"
+            ],
+            "uncovered_actions": [
+                "add_relation",
+                "delete_relation",
+                "recalc_components",
+                "toggle_relation"
+            ]
+        },
+        "certificates": {
+            "ops": [
+                "certificates.apply",
+                "certificates.create",
+                "certificates.get",
+                "certificates.ledger",
+                "certificates.list",
+                "certificates.quote",
+                "certificates.update"
+            ],
+            "uncovered_routes": [
+                "/certificates/cart/apply",
+                "/certificates/cart/reset"
+            ],
+            "uncovered_actions": []
+        },
+        "client_mcp": {
+            "ops": [
+                "client_mcp.settings.get",
+                "client_mcp.settings.save"
+            ],
+            "uncovered_routes": [
+                "/mcp",
+                "/mcp/server-card"
+            ],
+            "uncovered_actions": []
+        },
+        "clientics": {
+            "ops": [
+                "clientics.import.run",
+                "clientics.import.status",
+                "clientics.inventory",
+                "clientics.jobs.import_appointments",
+                "clientics.jobs.import_clients",
+                "clientics.jobs.import_refs",
+                "clientics.jobs.inventory",
+                "clientics.jobs.outbox",
+                "clientics.jobs.ping",
+                "clientics.ping",
+                "clientics.settings.get",
+                "clientics.settings.save",
+                "clientics.status"
+            ],
+            "uncovered_routes": [
+                "/clientics/import/longjob",
+                "/clientics/webhook"
+            ],
+            "uncovered_actions": [
+                "job_cancel",
+                "job_start",
+                "job_tick"
+            ]
+        },
+        "clients": {
+            "ops": [
+                "clients.create",
+                "clients.delete",
+                "clients.get",
+                "clients.get_edit",
+                "clients.list",
+                "clients.statuses.create",
+                "clients.statuses.get",
+                "clients.statuses.list",
+                "clients.statuses.update",
+                "clients.tags.create",
+                "clients.tags.get",
+                "clients.tags.list",
+                "clients.tags.update",
+                "clients.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "comments": {
+            "ops": [],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "contracts": {
+            "ops": [
+                "contracts.action",
+                "contracts.list"
+            ],
+            "uncovered_routes": [
+                "/contracts/settings"
+            ],
+            "uncovered_actions": []
+        },
+        "core": {
+            "ops": [
+                "core.cron.status",
+                "core.cron.tick",
+                "core.cron.ui",
+                "core.db.dump",
+                "core.db.restore",
+                "core.db.run_schema",
+                "core.db.status",
+                "core.db.upload",
+                "core.doctor",
+                "core.health.detail",
+                "core.help.get",
+                "core.help.search",
+                "core.jobs.habits_reminders",
+                "core.modules.activate",
+                "core.modules.get",
+                "core.modules.install",
+                "core.modules.list",
+                "core.modules.uninstall",
+                "core.news.act",
+                "core.news.create",
+                "core.news.get",
+                "core.news.get_edit",
+                "core.news.list",
+                "core.news.update",
+                "core.news_statuses.create",
+                "core.news_statuses.get",
+                "core.news_statuses.list",
+                "core.news_statuses.update",
+                "core.settings.get",
+                "core.settings.save",
+                "core.statuses.create",
+                "core.statuses.get",
+                "core.statuses.list",
+                "core.statuses.update",
+                "core.users.clone",
+                "core.users.copy_sources",
+                "core.users.create",
+                "core.users.get",
+                "core.users.get_edit",
+                "core.users.list",
+                "core.users.update"
+            ],
+            "uncovered_routes": [
+                "/",
+                "/agent",
+                "/agent/bootstrap",
+                "/agent/db",
+                "/agent/db/check",
+                "/agent/db/data-migrate",
+                "/agent/db/data-migrate/run",
+                "/agent/db/dump",
+                "/agent/db/dump/delete",
+                "/agent/db/dump/file",
+                "/agent/db/dumps",
+                "/agent/db/migrate",
+                "/agent/db/migrate/run",
+                "/agent/db/optimize",
+                "/agent/db/repair",
+                "/agent/db/restore",
+                "/agent/doctor",
+                "/agent/edge-hosts",
+                "/agent/health",
+                "/agent/i18n",
+                "/agent/locale",
+                "/agent/locale/validate",
+                "/agent/modules",
+                "/agent/modules/{id}",
+                "/agent/modules/{id}/activate",
+                "/agent/modules/{id}/disable",
+                "/agent/modules/{id}/enable",
+                "/agent/modules/{id}/install",
+                "/agent/modules/{id}/uninstall",
+                "/agent/modules/{id}/validate",
+                "/agent/rescue",
+                "/agent/system/status",
+                "/agent/update",
+                "/agent/update/apply",
+                "/agent/update/check",
+                "/agent/validate",
+                "/dashboard",
+                "/db/schema/longjob",
+                "/edge-hosts",
+                "/health",
+                "/likes/mark-viewed",
+                "/locale",
+                "/login",
+                "/login/t/{token}",
+                "/logout",
+                "/modules/uninstall/longjob",
+                "/ops/access-extend",
+                "/splash/ack"
+            ],
+            "uncovered_actions": [
+                "__forbidden__",
+                "agent_token_generate",
+                "apply",
+                "apply_role_pack",
+                "bot_link_code",
+                "checklist_add",
+                "checklist_delete",
+                "checklist_rename",
+                "checklist_sort_done",
+                "checklist_toggle",
+                "db_check",
+                "db_delete_dump",
+                "db_drop",
+                "db_job_cancel",
+                "db_job_start",
+                "db_optimize",
+                "db_repair",
+                "disable",
+                "enable",
+                "favorite",
+                "finish",
+                "grant",
+                "grant_skip",
+                "job_cancel",
+                "job_start",
+                "job_tick",
+                "leave_disabled",
+                "like",
+                "login_link",
+                "logout_all",
+                "mode",
+                "restore_version",
+                "run_all",
+                "run_one",
+                "setup_defer_all",
+                "setup_step",
+                "skip_enable",
+                "toggle_user",
+                "unlock"
+            ]
+        },
+        "crm": {
+            "ops": [
+                "crm.companies.add_contact",
+                "crm.companies.add_note",
+                "crm.companies.create",
+                "crm.companies.delete",
+                "crm.companies.get",
+                "crm.companies.get_edit",
+                "crm.companies.list",
+                "crm.companies.remove_contact",
+                "crm.companies.set_contact_role",
+                "crm.companies.set_primary_contact",
+                "crm.companies.update",
+                "crm.deals.add_contact",
+                "crm.deals.add_note",
+                "crm.deals.create",
+                "crm.deals.delete",
+                "crm.deals.get",
+                "crm.deals.get_edit",
+                "crm.deals.list",
+                "crm.deals.move_stage",
+                "crm.deals.new_form",
+                "crm.deals.quick_create",
+                "crm.deals.quick_form",
+                "crm.deals.remove_contact",
+                "crm.deals.set_primary_contact",
+                "crm.deals.update",
+                "crm.fields.create",
+                "crm.fields.delete",
+                "crm.fields.list",
+                "crm.fields.update",
+                "crm.pipelines.create",
+                "crm.pipelines.list",
+                "crm.pipelines.update",
+                "crm.stages.create",
+                "crm.stages.update"
+            ],
+            "uncovered_routes": [
+                "/crm"
+            ],
+            "uncovered_actions": []
+        },
+        "demo": {
+            "ops": [],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "docs": {
+            "ops": [
+                "docs.client.profile",
+                "docs.create",
+                "docs.defs.create",
+                "docs.defs.export",
+                "docs.defs.get",
+                "docs.defs.list",
+                "docs.defs.sample",
+                "docs.defs.update",
+                "docs.get",
+                "docs.library",
+                "docs.library.import",
+                "docs.list",
+                "docs.print",
+                "docs.print.freeze",
+                "docs.settings",
+                "docs.update"
+            ],
+            "uncovered_routes": [
+                "/documents/clients/{id}/medcard",
+                "/documents/defs/import/sample",
+                "/documents/qr/{hash}"
+            ],
+            "uncovered_actions": [
+                "accept",
+                "upload"
+            ]
+        },
+        "finance": {
+            "ops": [
+                "finance.balance"
+            ],
+            "uncovered_routes": [
+                "/finance"
+            ],
+            "uncovered_actions": []
+        },
+        "funds": {
+            "ops": [
+                "funds.accrual",
+                "funds.create",
+                "funds.get",
+                "funds.get_edit",
+                "funds.list",
+                "funds.movements.create",
+                "funds.movements.from_dps",
+                "funds.movements.get_edit",
+                "funds.movements.list",
+                "funds.movements.update",
+                "funds.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "gcal": {
+            "ops": [
+                "gcal.queue.drain",
+                "gcal.queue.status",
+                "gcal.settings.get",
+                "gcal.settings.save",
+                "gcal.sync.enqueue",
+                "gcal.user.connect_status"
+            ],
+            "uncovered_routes": [
+                "/agent/gcal/queue/drain",
+                "/agent/gcal/settings",
+                "/agent/gcal/status",
+                "/gcal/oauth"
+            ],
+            "uncovered_actions": []
+        },
+        "laundry": {
+            "ops": [
+                "laundry.accept.create",
+                "laundry.inventory.apply",
+                "laundry.moves.list",
+                "laundry.ship.create",
+                "laundry.shipments.list"
+            ],
+            "uncovered_routes": [
+                "/laundry",
+                "/laundry/accounts",
+                "/laundry/accounts/new",
+                "/laundry/accounts/{id}/edit",
+                "/laundry/settings",
+                "/laundry/types",
+                "/laundry/types/new",
+                "/laundry/types/{id}/edit"
+            ],
+            "uncovered_actions": []
+        },
+        "ledger": {
+            "ops": [
+                "ledger.accounts.get",
+                "ledger.accounts.list",
+                "ledger.accounts.save",
+                "ledger.moves.attach_act",
+                "ledger.moves.attach_act.options",
+                "ledger.moves.copy",
+                "ledger.moves.delete",
+                "ledger.moves.get",
+                "ledger.moves.list",
+                "ledger.moves.recon",
+                "ledger.moves.save",
+                "ledger.moves.transfer",
+                "ledger.moves.transfer.get",
+                "ledger.types.get",
+                "ledger.types.list",
+                "ledger.types.save"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": [
+                "convert_to_transfer"
+            ]
+        },
+        "likespa": {
+            "ops": [
+                "likespa.legacy_api.status",
+                "likespa.restores.candidates",
+                "likespa.restores.create",
+                "likespa.restores.get",
+                "likespa.restores.list",
+                "likespa.restores.update",
+                "likespa.settings.get",
+                "likespa.settings.save",
+                "likespa.staff_debts.run",
+                "likespa.staff_debts.status"
+            ],
+            "uncovered_routes": [
+                "/api.php",
+                "/api1c.php",
+                "/api1c.php/{*path}",
+                "/api_termy.php",
+                "/likespa/term-scans"
+            ],
+            "uncovered_actions": []
+        },
+        "liquid_assets": {
+            "ops": [
+                "liquid_assets.accounts.create",
+                "liquid_assets.accounts.get_edit",
+                "liquid_assets.accounts.list",
+                "liquid_assets.accounts.update",
+                "liquid_assets.report",
+                "liquid_assets.sync"
+            ],
+            "uncovered_routes": [
+                "/liquid-assets/longjob"
+            ],
+            "uncovered_actions": [
+                "job_cancel",
+                "job_start",
+                "job_tick"
+            ]
+        },
+        "llm": {
+            "ops": [
+                "llm.chat",
+                "llm.oauth.clients",
+                "llm.tokens.list",
+                "llm.tokens.save"
+            ],
+            "uncovered_routes": [
+                "/.well-known/oauth-authorization-server",
+                "/.well-known/oauth-protected-resource",
+                "/.well-known/oauth-protected-resource/llm/mcp",
+                "/.well-known/openid-configuration",
+                "/agent/llm/ping",
+                "/agent/llm/status",
+                "/agent/llm/tokens",
+                "/agent/llm/tokens/delete",
+                "/llm/api/tools",
+                "/llm/api/tools/call",
+                "/llm/mcp",
+                "/llm/oauth/new",
+                "/llm/oauth/{id}",
+                "/llm/openapi.json",
+                "/llm/tokens/{id}",
+                "/oauth/authorize",
+                "/oauth/register",
+                "/oauth/revoke",
+                "/oauth/token"
+            ],
+            "uncovered_actions": [
+                "delete",
+                "deny",
+                "rotate"
+            ]
+        },
+        "norms": {
+            "ops": [
+                "norms.create",
+                "norms.get",
+                "norms.list",
+                "norms.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "orders": {
+            "ops": [
+                "orders.delete",
+                "orders.get",
+                "orders.get_edit",
+                "orders.list",
+                "orders.update"
+            ],
+            "uncovered_routes": [
+                "/orders/settings"
+            ],
+            "uncovered_actions": [
+                "block_online",
+                "save",
+                "set_client_status"
+            ]
+        },
+        "payments": {
+            "ops": [
+                "payments.create",
+                "payments.get_edit",
+                "payments.list",
+                "payments.move_links",
+                "payments.settings.get",
+                "payments.settings.update",
+                "payments.transfer",
+                "payments.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": [
+                "cancel",
+                "request",
+                "verify_pin"
+            ]
+        },
+        "poll_invites": {
+            "ops": [
+                "poll_invites.create",
+                "poll_invites.fill",
+                "poll_invites.list",
+                "poll_invites.longjob",
+                "poll_invites.oral_asked",
+                "poll_invites.unviewed.mark"
+            ],
+            "uncovered_routes": [
+                "/poll-invites/unviewed",
+                "/poll-invites/{id}",
+                "/poll-invites/{id}/edit"
+            ],
+            "uncovered_actions": [
+                "poll_invites_job_cancel",
+                "poll_invites_job_start",
+                "poll_invites_job_tick",
+                "set_score"
+            ]
+        },
+        "poll_speech": {
+            "ops": [
+                "poll_speech.fill_day",
+                "poll_speech.settings",
+                "poll_speech.settings.save"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "polls": {
+            "ops": [
+                "polls.get",
+                "polls.list",
+                "polls.settings",
+                "polls.settings.save"
+            ],
+            "uncovered_routes": [
+                "/polls/new"
+            ],
+            "uncovered_actions": []
+        },
+        "procedures": {
+            "ops": [
+                "procedures.create",
+                "procedures.day_stats",
+                "procedures.delete",
+                "procedures.get_edit",
+                "procedures.list",
+                "procedures.set_admin",
+                "procedures.types.create",
+                "procedures.types.get_edit",
+                "procedures.types.list",
+                "procedures.types.update",
+                "procedures.update"
+            ],
+            "uncovered_routes": [
+                "/procedures/{id}"
+            ],
+            "uncovered_actions": []
+        },
+        "procents": {
+            "ops": [
+                "procents.day_audit",
+                "procents.days_audit",
+                "procents.report"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "rates": {
+            "ops": [
+                "rates.create",
+                "rates.get",
+                "rates.list",
+                "rates.skill.diagnose",
+                "rates.skill.grant",
+                "rates.skill.revoke",
+                "rates.skill.search",
+                "rates.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": [
+                "disable",
+                "enable",
+                "off",
+                "on",
+                "remove"
+            ]
+        },
+        "recons": {
+            "ops": [
+                "recons.day",
+                "recons.day.write"
+            ],
+            "uncovered_routes": [
+                "/recons"
+            ],
+            "uncovered_actions": []
+        },
+        "remittances": {
+            "ops": [
+                "remittances.get",
+                "remittances.list",
+                "remittances.move_action",
+                "remittances.save"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "sheets": {
+            "ops": [
+                "sheets.accounts.create",
+                "sheets.accounts.get_edit",
+                "sheets.accounts.list",
+                "sheets.accounts.update",
+                "sheets.moves.create",
+                "sheets.moves.get_edit",
+                "sheets.moves.list",
+                "sheets.moves.update",
+                "sheets.reconcile.apply",
+                "sheets.reconcile.get",
+                "sheets.transfers.create",
+                "sheets.transfers.get"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "sites": {
+            "ops": [
+                "sites.cart.availability",
+                "sites.hosts.create",
+                "sites.hosts.get",
+                "sites.hosts.list",
+                "sites.hosts.update",
+                "sites.pages.create",
+                "sites.pages.get",
+                "sites.pages.list",
+                "sites.pages.update",
+                "sites.promopages.list",
+                "sites.redirects.list",
+                "sites.seo.get",
+                "sites.seo.save",
+                "sites.settings.get",
+                "sites.settings.save",
+                "sites.status"
+            ],
+            "uncovered_routes": [
+                "/.well-known/ai-catalog.json",
+                "/cart",
+                "/cart/checkout",
+                "/llms.txt",
+                "/page/…",
+                "/promo/{code}",
+                "/robots.txt",
+                "/shop",
+                "/shop/c/{id}",
+                "/shop/{id}",
+                "/sitemap.xml",
+                "/sites/promopages/new",
+                "/sites/promopages/{id}/edit",
+                "/sites/redirects/new",
+                "/sites/redirects/{id}/edit"
+            ],
+            "uncovered_actions": []
+        },
+        "staff_reports": {
+            "ops": [
+                "staff_reports.day",
+                "staff_reports.generate",
+                "staff_reports.profiles.get",
+                "staff_reports.profiles.list",
+                "staff_reports.profiles.save",
+                "staff_reports.rewards"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "stickers": {
+            "ops": [
+                "stickers.ins.create",
+                "stickers.ins.get_edit",
+                "stickers.ins.list",
+                "stickers.ins.update",
+                "stickers.outs.cancel",
+                "stickers.outs.list",
+                "stickers.print.preview",
+                "stickers.print.public",
+                "stickers.print.run",
+                "stickers.qr.act",
+                "stickers.qr.diagnose",
+                "stickers.qr.scan",
+                "stickers.receipts.create",
+                "stickers.receipts.get_edit",
+                "stickers.receipts.list",
+                "stickers.receipts.update",
+                "stickers.settings.get",
+                "stickers.settings.update",
+                "stickers.writeoff.execute",
+                "stickers.writeoff.form",
+                "stickers.writeoffs.create",
+                "stickers.writeoffs.get_edit",
+                "stickers.writeoffs.list",
+                "stickers.writeoffs.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "stocks": {
+            "ops": [
+                "stocks.create",
+                "stocks.get_edit",
+                "stocks.leftovers",
+                "stocks.list",
+                "stocks.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "suppliers": {
+            "ops": [
+                "suppliers.create",
+                "suppliers.get",
+                "suppliers.list",
+                "suppliers.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "tables": {
+            "ops": [
+                "tables.create",
+                "tables.get",
+                "tables.list",
+                "tables.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "terminals": {
+            "ops": [
+                "terminals.bracelets.create",
+                "terminals.bracelets.get",
+                "terminals.bracelets.list",
+                "terminals.bracelets.update",
+                "terminals.create",
+                "terminals.floor.book",
+                "terminals.fullstats.classify.row",
+                "terminals.fullstats.classify.wizard",
+                "terminals.fullstats.list",
+                "terminals.fullstats.load",
+                "terminals.get",
+                "terminals.jobs.load",
+                "terminals.jobs.tickets",
+                "terminals.list",
+                "terminals.onec.diag",
+                "terminals.settings.get",
+                "terminals.settings.save",
+                "terminals.t.get",
+                "terminals.termloads.day",
+                "terminals.update"
+            ],
+            "uncovered_routes": [
+                "/t",
+                "/terminals/1c/{mode}",
+                "/terminals/fullstats/oasis-backfill"
+            ],
+            "uncovered_actions": [
+                "job_cancel",
+                "job_start",
+                "job_tick"
+            ]
+        },
+        "units": {
+            "ops": [
+                "units.create",
+                "units.delete",
+                "units.get",
+                "units.list",
+                "units.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "updates": {
+            "ops": [
+                "updates.apply",
+                "updates.check",
+                "updates.settings",
+                "updates.settings.save",
+                "updates.sources.delete",
+                "updates.sources.save",
+                "updates.status"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": [
+                "conflict_resolve",
+                "update_apply",
+                "update_check",
+                "update_check_job_start",
+                "update_check_job_tick",
+                "update_job_cancel",
+                "update_job_start",
+                "update_job_tick"
+            ]
+        },
+        "vacations": {
+            "ops": [
+                "vacations.create",
+                "vacations.get",
+                "vacations.list",
+                "vacations.settings.get",
+                "vacations.settings.save",
+                "vacations.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "video": {
+            "ops": [
+                "video.alerts.list",
+                "video.cameras.create",
+                "video.cameras.delete",
+                "video.cameras.enqueue_monitor",
+                "video.cameras.enqueue_ondemand",
+                "video.cameras.get",
+                "video.cameras.list",
+                "video.cameras.live",
+                "video.cameras.update",
+                "video.dashboard",
+                "video.models.delete",
+                "video.models.list",
+                "video.models.register",
+                "video.models.train",
+                "video.posts.get",
+                "video.posts.list",
+                "video.settings.get",
+                "video.settings.purge",
+                "video.settings.save",
+                "video.status",
+                "video.train.get",
+                "video.train.list",
+                "video.train.start"
+            ],
+            "uncovered_routes": [
+                "/agent/video/enqueue",
+                "/agent/video/session",
+                "/agent/video/settings",
+                "/agent/video/setup",
+                "/agent/video/status",
+                "/video/cameras/{id}/live-frame",
+                "/video/media",
+                "/video/posts/new",
+                "/video/posts/{id}/edit",
+                "/video/wizard/setup",
+                "/video/wizard/train",
+                "/video/worker/claim",
+                "/video/worker/dataset-ingest",
+                "/video/worker/file",
+                "/video/worker/frame",
+                "/video/worker/hello",
+                "/video/worker/result"
+            ],
+            "uncovered_actions": [
+                "finish",
+                "pause",
+                "phase_other",
+                "phase_solo",
+                "resume"
+            ]
+        },
+        "video_label": {
+            "ops": [
+                "video_label.agent.images.list",
+                "video_label.agent.ingest",
+                "video_label.agent.projects.create",
+                "video_label.agent.projects.get",
+                "video_label.agent.projects.list",
+                "video_label.agent.projects.update",
+                "video_label.projects.create",
+                "video_label.projects.delete",
+                "video_label.projects.get",
+                "video_label.projects.list",
+                "video_label.projects.update",
+                "video_label.workspace.export",
+                "video_label.workspace.get",
+                "video_label.workspace.infer",
+                "video_label.workspace.ingest_zip",
+                "video_label.workspace.save_labels"
+            ],
+            "uncovered_routes": [
+                "/video-label/media"
+            ],
+            "uncovered_actions": [
+                "bulk",
+                "clear_predictions",
+                "delete_image",
+                "promote_preds",
+                "set_split",
+                "upload"
+            ]
+        },
+        "wellness": {
+            "ops": [
+                "wellness.calendar.month",
+                "wellness.doctor_rx.create",
+                "wellness.doctor_rx.get",
+                "wellness.doctor_rx.list",
+                "wellness.doctor_rx.update",
+                "wellness.food_diary.create",
+                "wellness.food_diary.get",
+                "wellness.food_diary.list",
+                "wellness.food_diary.update",
+                "wellness.foods.create",
+                "wellness.foods.get",
+                "wellness.foods.list",
+                "wellness.foods.update",
+                "wellness.health_diary.create",
+                "wellness.health_diary.get",
+                "wellness.health_diary.list",
+                "wellness.health_diary.update",
+                "wellness.medicines.create",
+                "wellness.medicines.get",
+                "wellness.medicines.list",
+                "wellness.medicines.update",
+                "wellness.symptoms.create",
+                "wellness.symptoms.get",
+                "wellness.symptoms.list",
+                "wellness.symptoms.update",
+                "wellness.targets.create",
+                "wellness.targets.get",
+                "wellness.targets.list",
+                "wellness.targets.update",
+                "wellness.weight.create",
+                "wellness.weight.get",
+                "wellness.weight.list",
+                "wellness.weight.update",
+                "wellness.workouts.create",
+                "wellness.workouts.get",
+                "wellness.workouts.list",
+                "wellness.workouts.update"
+            ],
+            "uncovered_routes": [
+                "/wellness/food-diary"
+            ],
+            "uncovered_actions": []
+        },
+        "workweeks": {
+            "ops": [
+                "workweeks.create",
+                "workweeks.day",
+                "workweeks.delete",
+                "workweeks.get",
+                "workweeks.list",
+                "workweeks.nazcab",
+                "workweeks.nazop.get",
+                "workweeks.nazop.save",
+                "workweeks.settings.get",
+                "workweeks.settings.update",
+                "workweeks.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "yclients": {
+            "ops": [
+                "yclients.auth.login",
+                "yclients.import.clients",
+                "yclients.import.staff",
+                "yclients.import.status",
+                "yclients.jobs.import_clients",
+                "yclients.jobs.ping",
+                "yclients.ping",
+                "yclients.settings.get",
+                "yclients.settings.save",
+                "yclients.status"
+            ],
+            "uncovered_routes": [
+                "/yclients/import/longjob"
+            ],
+            "uncovered_actions": [
+                "job_cancel",
+                "job_start",
+                "job_tick"
+            ]
+        }
+    }
+}

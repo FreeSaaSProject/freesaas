@@ -16,25 +16,49 @@ if ($row === null) {
 
 $message = '';
 $error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && Auth::can('crm.edit')) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !Auth::can('crm.edit')) {
+    if ($wantsJson) {
+        AgentHttp::error(t('core.common.forbidden'), 403);
+        return;
+    }
+    $error = t('core.common.forbidden');
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $action = (string)($_POST['action'] ?? '');
+        $out = ['ok' => true, 'id' => $id, 'action' => $action];
         if ($action === 'add_note') {
-            $noteId = CrmNotesRepository::create('deal', $id, (string)($_POST['body'] ?? ''));
+            $out['note_id'] = CrmNotesRepository::create('deal', $id, (string)($_POST['body'] ?? ''));
             $message = t('crm.flash.note_added');
-            if ($wantsJson) {
-                AgentHttp::emit(['ok' => true, 'id' => $id, 'note_id' => $noteId, 'action' => 'add_note']);
-                return;
-            }
         } elseif ($action === 'move_stage') {
             CrmDealsRepository::moveStage($id, (int)($_POST['stage_id'] ?? 0));
-            $row = CrmDealsRepository::find($id);
             $message = t('crm.flash.saved');
-            if ($wantsJson) {
-                AgentHttp::emit(['ok' => true, 'id' => $id, 'item' => $row, 'action' => 'move_stage']);
-                return;
+        } elseif ($action === 'add_contact') {
+            $res = CrmContactResolver::resolve($_POST);
+            CrmDealsRepository::addContact($id, $res['client_id'], !empty($_POST['is_primary']));
+            $companyId = (int)$row['company_id'];
+            if ($companyId > 0 && !empty($_POST['link_company'])) {
+                CrmCompaniesRepository::addContact($companyId, $res['client_id'], (string)($_POST['role'] ?? ''));
             }
+            $out['client_id'] = $res['client_id'];
+            $out['client_created'] = $res['created'];
+            $message = t('crm.flash.contact_added');
+        } elseif ($action === 'remove_contact') {
+            CrmDealsRepository::removeContact($id, (int)($_POST['client_id'] ?? 0));
+            $message = t('crm.flash.contact_removed');
+        } elseif ($action === 'set_primary_contact') {
+            CrmDealsRepository::addContact($id, (int)($_POST['client_id'] ?? 0), true);
+            $message = t('crm.flash.saved');
+        } else {
+            throw new InvalidArgumentException(t('crm.err.unknown_action'));
         }
+        $row = CrmDealsRepository::find($id) ?? $row;
+        if ($wantsJson) {
+            $out['item'] = CrmUi::withResponsibleNames([$row])[0];
+            AgentHttp::emit($out);
+            return;
+        }
+        flash_set('ok', $message);
+        redirect('/crm/deals/' . $id);
     } catch (Throwable $e) {
         $error = $e->getMessage();
         if ($wantsJson) {
@@ -44,23 +68,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && Auth::can('crm.edit')) {
     }
 }
 
+$flash = flash_take();
+if ($flash !== null && $message === '' && $error === '') {
+    $message = (string)$flash['message'];
+}
+$row = CrmUi::withResponsibleNames([$row])[0];
 $contacts = CrmDealsRepository::contactLinks($id);
-$notes = CrmNotesRepository::listFor('deal', $id);
-$history = CrmDealsRepository::stageHistory($id);
+$companyContacts = (int)$row['company_id'] > 0 ? CrmCompaniesRepository::contactLinks((int)$row['company_id']) : [];
+$roles = [];
+foreach ($companyContacts as $cc) {
+    $roles[(int)$cc['client_id']] = (string)($cc['role'] ?? '');
+}
+foreach ($contacts as &$c) {
+    $c['role'] = $roles[(int)$c['client_id']] ?? '';
+}
+unset($c);
+$onDeal = array_flip(array_map('intval', array_column($contacts, 'client_id')));
+$companyCandidates = array_values(array_filter($companyContacts, static function (array $cc) use ($onDeal): bool {
+    return !isset($onDeal[(int)$cc['client_id']]);
+}));
 $stages = CrmPipelinesRepository::listStages((int)$row['pipeline_id'], true);
 $cfDefs = CrmCustomFieldsRepository::listFields('deal', true);
 $cfValues = CrmCustomFieldsRepository::valuesFor('deal', $id);
+$timeline = CrmTimeline::forDeal($row);
 
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'item' => $row,
         'contacts' => $contacts,
-        'notes' => $notes,
-        'stage_history' => $history,
+        'company_contacts' => $companyContacts,
         'stages' => $stages,
         'custom_fields' => $cfDefs,
         'custom_values' => $cfValues,
+        'timeline' => $timeline,
+        'notes' => CrmNotesRepository::listFor('deal', $id),
+        'stage_history' => CrmDealsRepository::stageHistory($id),
     ]);
     return;
 }
@@ -73,12 +116,13 @@ View::render('deal_view', [
     ]),
     'row' => $row,
     'contacts' => $contacts,
-    'notes' => $notes,
-    'history' => $history,
+    'companyCandidates' => $companyCandidates,
     'stages' => $stages,
     'cfDefs' => $cfDefs,
     'cfValues' => $cfValues,
+    'timeline' => $timeline,
     'canEdit' => Auth::can('crm.edit'),
+    'canCreateClient' => Auth::can('clients.edit'),
     'message' => $message,
     'error' => $error,
 ], 'layout', 'crm');

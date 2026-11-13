@@ -152,6 +152,9 @@ jobs:
       - name: Public route allow-list
         run: php bin/check-routes.php
 
+      - name: Agent coverage (routes/actions vs agent.ops baseline)
+        run: php bin/check-agent-coverage.php
+
       - name: Agent Skills (frontmatter + local refs)
         run: php bin/check-agent-skills.php
 

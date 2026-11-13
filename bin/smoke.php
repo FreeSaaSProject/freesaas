@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 /**
  * Minimal agent/CI smoke: system + module validate + locale validate + health
- * + check-safe-html / check-csrf / check-password / check-session / check-bots-webhook
+ * + check-safe-html / check-csrf / check-password / check-session / check-bots-webhook / check-agent-coverage
  * + check-terminals-floor / check-booking-procedures / check-certificates
  * + check-audio-queue / check-day-payroll / check-assistant-confirm / check-assistant-relations
- * + check-funds-agent.
+ * + check-funds-agent / check-crm-agent.
  * PHP lint (`php -l`) and public-route allow-list (`bin/check-routes.php`) run in
  * `.github/workflows/ci.yml` static job — not here (no need for a DB-less lint loop in smoke).
  *
@@ -166,6 +166,23 @@ if ($botsCode !== 0) {
     $sections['bots_webhook']['output'] = implode("\n", $botsLines);
 }
 
+// Agent coverage lock (bin/check-agent-coverage.php): routes/POST actions vs agent.ops baseline
+$covLines = [];
+$covCode = 0;
+exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/check-agent-coverage.php') . ' 2>&1',
+    $covLines,
+    $covCode
+);
+$sections['agent_coverage'] = [
+    'ok' => $covCode === 0,
+    'exit' => $covCode,
+];
+if ($covCode !== 0) {
+    $failed = true;
+    $sections['agent_coverage']['output'] = implode("\n", $covLines);
+}
+
 // Terminals floor domain smoke (stub book/cancel/claim; skips if no fixtures)
 $floorLines = [];
 $floorCode = 0;
@@ -223,6 +240,7 @@ $extraChecks = [
     'assistant_confirm' => 'check-assistant-confirm.php',
     'assistant_relations' => 'check-assistant-relations.php',
     'funds_agent' => 'check-funds-agent.php',
+    'crm_agent' => 'check-crm-agent.php',
 ];
 foreach ($extraChecks as $sec => $script) {
     $lines = [];

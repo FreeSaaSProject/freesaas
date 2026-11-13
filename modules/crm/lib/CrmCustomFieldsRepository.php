@@ -115,6 +115,47 @@ final class CrmCustomFieldsRepository
         $pdo->prepare('DELETE FROM base_crm_custom_fields WHERE id = ?')->execute([$id]);
     }
 
+    /**
+     * enum options from enums_json: ["a","b"] or [{"value":"a","label":"A"}] / [{"id":..,"name":..}].
+     *
+     * @param array<string,mixed> $field
+     * @return array<string,string> value => label
+     */
+    public static function enumOptions(array $field): array
+    {
+        $raw = json_decode((string)($field['enums_json'] ?? ''), true);
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $k => $item) {
+            if (is_array($item)) {
+                $value = (string)($item['value'] ?? $item['id'] ?? $k);
+                $label = (string)($item['label'] ?? $item['name'] ?? $value);
+            } else {
+                $value = (string)$item;
+                $label = (string)$item;
+            }
+            if ($value !== '') {
+                $out[$value] = $label;
+            }
+        }
+        return $out;
+    }
+
+    /** @param array<string,mixed> $field */
+    public static function displayValue(array $field, string $value): string
+    {
+        $type = (string)($field['field_type'] ?? 'string');
+        if ($type === 'bool') {
+            return $value === '1' ? t('core.common.yes') : ($value === '0' ? t('core.common.no') : '');
+        }
+        if ($type === 'enum') {
+            return self::enumOptions($field)[$value] ?? $value;
+        }
+        return $value;
+    }
+
     /** @return array<int,string> field_id => value */
     public static function valuesFor(string $entity, int $entityId): array
     {

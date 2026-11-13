@@ -37,6 +37,18 @@ Bridges: [`bitrix`](bitrix.md), [`amocrm`](amocrm.md). Dual-run (bidirectional s
 | `crm.company.created` / `.updated` / `.deleted` | company CRUD | `id`, `row`, `sync_origin` |
 | `crm.deal.created` / `.updated` / `.deleted` / `.stage_changed` | deal CRUD / stage move | `id`, `row`, `from_stage_id`, `to_stage_id`, `sync_origin` |
 | `crm.note.created` | note add | `id`, `entity`, `entity_id`, `sync_origin` |
+| `crm.deal.timeline` | deal card / `crm.deals.get` build the feed | `deal_id`, `deal`, `items[]` — append `{type, id, at, author_id, text \| html, kind_label}` (html via `safe_html`) |
+
+Contact add/remove/role/primary on a company or deal also emit `crm.company.updated` / `crm.deal.updated`.
+
+## Human UI
+
+- `/crm/deals` — list (company, stage pill, amount, responsible) or **kanban** `?view=kanban&pipeline_id=` (columns = enabled stages, count + sum per currency, drag-and-drop → same `move_stage` POST). Filters: search, pipeline, responsible (`responsible=me` = «Мои»).
+- `/crm/deals/quick` — **new lead** in one form: company (existing / matched by INN → exact name / created) + contact person (matched by phone / created with `clients.edit`, linked to the company with a role) + deal. One DB transaction.
+- `/crm/deals/{id}` — card: stage bar on top (click = move stage), left column details (amount, pipeline, responsible, source, typed custom fields, description) + contacts (role from company, primary, add from company / by phone, unlink), right column note form + timeline (notes + stage changes with author, newest first; other modules extend via `crm.deal.timeline`).
+- `/crm/deals/{id}/edit`, `/crm/companies/{id}/edit` — responsible is a staff picker (`UsersRepository::staffNamesIncluding`), custom fields render by type (`bool` checkbox, `enum` select from `enums_json`, `text` textarea, `number`). Contacts are managed on the card, not in the form.
+- `/crm/companies/{id}` — card with contacts + role (`base_crm_company_contacts.role`, e.g. «ЛПР», «контактное лицо»), deals of the company, notes.
+- Seeded pipelines: `Leads` (lead), `Sales` (sale), `B2B` (sale: new lead → meeting → questionnaire sent → questionnaire received → proposal → pilot/contract → won/lost). Stage names are data, not i18n.
 
 Bridges set `CrmSyncContext` / `sync_origin` (`bitrix` \| `amocrm`) while applying inbound so outbox listeners **skip echo**.
 
@@ -78,11 +90,16 @@ Same routes as UI; `?format=json` or `Accept: application/json`. Catalog: `modul
 
 | Area | Typical sequence |
 |------|------------------|
-| CRM day-to-day | `crm.deals.new_form` → `crm.deals.create` → `crm.deals.move_stage` / `crm.deals.add_note`; companies + `crm.pipelines.list` |
+| New B2B lead | `crm.deals.quick_form` → `crm.deals.quick_create` (company + contact with role + deal; dedupe by INN/name and phone) |
+| CRM day-to-day | `crm.deals.list` (`view=kanban`, `responsible=me`) → `crm.deals.get` (timeline) → `crm.deals.move_stage` / `crm.deals.add_note` / `crm.deals.update` (PATCH) |
+| Contacts | `crm.companies.add_contact` / `set_contact_role` / `set_primary_contact` / `remove_contact`; `crm.deals.add_contact` (`link_company=1`) / `remove_contact` / `set_primary_contact` |
+| Classic forms | `crm.deals.new_form` → `crm.deals.create`; companies + `crm.pipelines.list` |
 | Dictionaries | `crm.pipelines.*`, `crm.stages.*`, `crm.fields.*` |
 | Bitrix dual-run | `bitrix.settings.save` (rest_url + tokens) → `bitrix.ping` → `bitrix.import` with `dry_run=1` then `0` |
 | Amo dual-run | `amocrm.settings.save` → `amocrm.ping` → `amocrm.import` dry_run then write |
 
 **Agent cannot invent** Bitrix/Amo secrets — ask the user, then `*.settings.save`. Worker/cron job URLs stay out of the assistant catalog (`jobs` + token header); use after settings are saved.
 
-Contacts stay on [`clients`](clients.md) ops (`clients.create` / `clients.update`); CRM links them via `client_ids` on company/deal writes.
+Contacts stay on [`clients`](clients.md) ops (`clients.create` / `clients.update`); CRM links them via the contact ops above (or `client_ids` on company/deal writes, which replaces the whole list).
+
+**PATCH rule:** `crm.deals.update` / `crm.companies.update` keep every field the request did not send (incl. contacts when `client_ids` is absent, custom fields not in `cf[]`). Send only what changed.

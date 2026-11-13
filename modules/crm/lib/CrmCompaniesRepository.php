@@ -78,25 +78,162 @@ final class CrmCompaniesRepository
         return $row ?: null;
     }
 
-    /** @return list<array{client_id:int,is_primary:int,name?:string,tel?:string}> */
+    public static function findByInn(string $inn): ?array
+    {
+        $inn = trim($inn);
+        if ($inn === '' || !self::tableReady()) {
+            return null;
+        }
+        $st = Database::pdo()->prepare('SELECT id FROM base_crm_companies WHERE inn = ? ORDER BY id ASC LIMIT 1');
+        $st->execute([$inn]);
+        $id = (int)($st->fetchColumn() ?: 0);
+        return $id > 0 ? self::find($id) : null;
+    }
+
+    public static function findByName(string $name): ?array
+    {
+        $name = trim($name);
+        if ($name === '' || !self::tableReady()) {
+            return null;
+        }
+        $st = Database::pdo()->prepare('SELECT id FROM base_crm_companies WHERE name = ? ORDER BY id ASC LIMIT 1');
+        $st->execute([$name]);
+        $id = (int)($st->fetchColumn() ?: 0);
+        return $id > 0 ? self::find($id) : null;
+    }
+
+    private static function hasRoleColumn(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            $has = Database::tableExists('base_crm_company_contacts')
+                && Database::columnExists('base_crm_company_contacts', 'role');
+        }
+        return $has;
+    }
+
+    /** @return list<array{client_id:int,is_primary:int,role:string,name?:string,tel?:string}> */
     public static function contactLinks(int $companyId): array
     {
         if ($companyId < 1 || !Database::tableExists('base_crm_company_contacts')) {
             return [];
         }
-        $sql = 'SELECT cc.client_id, cc.is_primary';
+        $role = self::hasRoleColumn() ? 'cc.role' : "'' AS role";
         if (Database::tableExists('base_clients')) {
-            $sql = 'SELECT cc.client_id, cc.is_primary, cl.name, cl.tel
+            $sql = "SELECT cc.client_id, cc.is_primary, $role, cl.name, cl.tel, cl.mail
                     FROM base_crm_company_contacts cc
                     LEFT JOIN base_clients cl ON cl.id = cc.client_id
                     WHERE cc.company_id = ?
-                    ORDER BY cc.is_primary DESC, cc.client_id ASC';
+                    ORDER BY cc.is_primary DESC, cc.client_id ASC";
         } else {
-            $sql .= ' FROM base_crm_company_contacts cc WHERE cc.company_id = ? ORDER BY cc.is_primary DESC';
+            $sql = "SELECT cc.client_id, cc.is_primary, $role
+                    FROM base_crm_company_contacts cc WHERE cc.company_id = ? ORDER BY cc.is_primary DESC";
         }
         $st = Database::pdo()->prepare($sql);
         $st->execute([$companyId]);
         return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /** Link (or update role of) one contact; first contact becomes primary. Keeps other links. */
+    public static function addContact(int $companyId, int $clientId, string $role = '', bool $makePrimary = false): void
+    {
+        if ($companyId < 1 || $clientId < 1 || !Database::tableExists('base_crm_company_contacts')) {
+            throw new InvalidArgumentException(t('crm.err.contact_required'));
+        }
+        if (self::find($companyId) === null) {
+            throw new InvalidArgumentException('Invalid company id');
+        }
+        $role = mb_substr(trim($role), 0, 64);
+        $pdo = Database::pdo();
+        $hasPrimary = (int)$pdo->query(
+            'SELECT COUNT(*) FROM base_crm_company_contacts WHERE company_id = ' . $companyId . ' AND is_primary = 1'
+        )->fetchColumn() > 0;
+        $primary = $makePrimary || !$hasPrimary ? 1 : 0;
+        if (self::hasRoleColumn()) {
+            $pdo->prepare(
+                "INSERT INTO base_crm_company_contacts (company_id, client_id, is_primary, role) VALUES (?,?,?,?)
+                 ON DUPLICATE KEY UPDATE role = IF(VALUES(role) <> '', VALUES(role), role),
+                    is_primary = IF(VALUES(is_primary) = 1, 1, is_primary)"
+            )->execute([$companyId, $clientId, $primary, $role]);
+        } else {
+            $pdo->prepare(
+                'INSERT INTO base_crm_company_contacts (company_id, client_id, is_primary) VALUES (?,?,?)
+                 ON DUPLICATE KEY UPDATE is_primary = IF(VALUES(is_primary) = 1, 1, is_primary)'
+            )->execute([$companyId, $clientId, $primary]);
+        }
+        if ($makePrimary) {
+            self::setPrimaryContact($companyId, $clientId, false);
+        }
+        self::emitUpdated($companyId);
+    }
+
+    public static function removeContact(int $companyId, int $clientId): void
+    {
+        if ($companyId < 1 || $clientId < 1 || !Database::tableExists('base_crm_company_contacts')) {
+            return;
+        }
+        $pdo = Database::pdo();
+        $pdo->prepare('DELETE FROM base_crm_company_contacts WHERE company_id = ? AND client_id = ?')
+            ->execute([$companyId, $clientId]);
+        $left = (int)$pdo->query(
+            'SELECT COUNT(*) FROM base_crm_company_contacts WHERE company_id = ' . $companyId . ' AND is_primary = 1'
+        )->fetchColumn();
+        if ($left === 0) {
+            $pdo->prepare(
+                'UPDATE base_crm_company_contacts SET is_primary = 1 WHERE company_id = ? ORDER BY client_id ASC LIMIT 1'
+            )->execute([$companyId]);
+        }
+        self::emitUpdated($companyId);
+    }
+
+    public static function setContactRole(int $companyId, int $clientId, string $role): void
+    {
+        if (!self::hasRoleColumn()) {
+            return;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_crm_company_contacts SET role = ? WHERE company_id = ? AND client_id = ?'
+        );
+        $st->execute([mb_substr(trim($role), 0, 64), $companyId, $clientId]);
+        if ($st->rowCount() < 1 && !self::isContact($companyId, $clientId)) {
+            throw new InvalidArgumentException(t('crm.err.contact_not_linked'));
+        }
+        self::emitUpdated($companyId);
+    }
+
+    public static function setPrimaryContact(int $companyId, int $clientId, bool $emit = true): void
+    {
+        if (!self::isContact($companyId, $clientId)) {
+            throw new InvalidArgumentException(t('crm.err.contact_not_linked'));
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_crm_company_contacts SET is_primary = IF(client_id = ?, 1, 0) WHERE company_id = ?'
+        )->execute([$clientId, $companyId]);
+        if ($emit) {
+            self::emitUpdated($companyId);
+        }
+    }
+
+    public static function isContact(int $companyId, int $clientId): bool
+    {
+        if ($companyId < 1 || $clientId < 1 || !Database::tableExists('base_crm_company_contacts')) {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT 1 FROM base_crm_company_contacts WHERE company_id = ? AND client_id = ? LIMIT 1'
+        );
+        $st->execute([$companyId, $clientId]);
+        return (bool)$st->fetchColumn();
+    }
+
+    private static function emitUpdated(int $companyId): void
+    {
+        Database::pdo()->prepare('UPDATE base_crm_companies SET updated_at = ? WHERE id = ?')
+            ->execute([time(), $companyId]);
+        EventBus::emit('crm.company.updated', CrmSyncContext::withOrigin([
+            'id' => $companyId,
+            'row' => self::find($companyId),
+        ]));
     }
 
     /**
@@ -189,6 +326,10 @@ final class CrmCompaniesRepository
             return;
         }
         $pdo = Database::pdo();
+        $roles = [];
+        foreach (self::contactLinks($companyId) as $link) {
+            $roles[(int)$link['client_id']] = (string)($link['role'] ?? '');
+        }
         $pdo->prepare('DELETE FROM base_crm_company_contacts WHERE company_id = ?')->execute([$companyId]);
         $seen = [];
         foreach ($clientIds as $cid) {
@@ -197,9 +338,16 @@ final class CrmCompaniesRepository
                 continue;
             }
             $seen[$cid] = true;
-            $pdo->prepare(
-                'INSERT INTO base_crm_company_contacts (company_id, client_id, is_primary) VALUES (?,?,?)'
-            )->execute([$companyId, $cid, ($primaryClientId === $cid || ($primaryClientId < 1 && count($seen) === 1)) ? 1 : 0]);
+            $primary = ($primaryClientId === $cid || ($primaryClientId < 1 && count($seen) === 1)) ? 1 : 0;
+            if (self::hasRoleColumn()) {
+                $pdo->prepare(
+                    'INSERT INTO base_crm_company_contacts (company_id, client_id, is_primary, role) VALUES (?,?,?,?)'
+                )->execute([$companyId, $cid, $primary, $roles[$cid] ?? '']);
+            } else {
+                $pdo->prepare(
+                    'INSERT INTO base_crm_company_contacts (company_id, client_id, is_primary) VALUES (?,?,?)'
+                )->execute([$companyId, $cid, $primary]);
+            }
         }
     }
 
@@ -259,12 +407,13 @@ final class CrmCompaniesRepository
         if ($clientId < 1 || !Database::tableExists('base_crm_company_contacts')) {
             return [];
         }
+        $role = self::hasRoleColumn() ? 'cc.role' : "'' AS role";
         $st = Database::pdo()->prepare(
-            'SELECT c.id, c.name, c.inn, c.phone, cc.is_primary
+            "SELECT c.id, c.name, c.inn, c.phone, cc.is_primary, $role
              FROM base_crm_company_contacts cc
              INNER JOIN base_crm_companies c ON c.id = cc.company_id
              WHERE cc.client_id = ?
-             ORDER BY cc.is_primary DESC, c.name ASC'
+             ORDER BY cc.is_primary DESC, c.name ASC"
         );
         $st->execute([$clientId]);
         return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];

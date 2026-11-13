@@ -7,7 +7,7 @@ $isNew = $id < 1;
 $row = $isNew ? [
     'name' => '', 'inn' => '', 'kpp' => '', 'phone' => '', 'email' => '',
     'website' => '', 'address' => '', 'notes' => '', 'enabled' => 1,
-    'responsible_user_id' => 0,
+    'responsible_user_id' => (int)Auth::userId(),
 ] : CrmCompaniesRepository::find($id);
 
 if (!$isNew && $row === null) {
@@ -22,14 +22,16 @@ if (!$isNew && $row === null) {
 
 $message = '';
 $error = '';
-$clientIds = $isNew ? [] : array_column(CrmCompaniesRepository::contactLinks($id), 'client_id');
+$links = $isNew ? [] : CrmCompaniesRepository::contactLinks($id);
+$clientIds = array_map('intval', array_column($links, 'client_id'));
 $primaryClientId = 0;
-foreach ($isNew ? [] : CrmCompaniesRepository::contactLinks($id) as $link) {
+foreach ($links as $link) {
     if (!empty($link['is_primary'])) {
         $primaryClientId = (int)$link['client_id'];
         break;
     }
 }
+$fields = ['name', 'inn', 'kpp', 'phone', 'email', 'website', 'address', 'notes', 'enabled', 'responsible_user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -44,57 +46,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             redirect('/crm/companies');
         }
-        $data = [
-            'name' => $_POST['name'] ?? '',
-            'inn' => $_POST['inn'] ?? '',
-            'kpp' => $_POST['kpp'] ?? '',
-            'phone' => $_POST['phone'] ?? '',
-            'email' => $_POST['email'] ?? '',
-            'website' => $_POST['website'] ?? '',
-            'address' => $_POST['address'] ?? '',
-            'notes' => $_POST['notes'] ?? '',
-            'enabled' => !empty($_POST['enabled']) ? 1 : 0,
-            'responsible_user_id' => (int)($_POST['responsible_user_id'] ?? 0),
-        ];
-        $rawIds = (string)($_POST['client_ids'] ?? '');
-        $clientIds = [];
-        foreach (preg_split('/[\s,;]+/', $rawIds) ?: [] as $part) {
-            $cid = (int)$part;
-            if ($cid > 0) {
-                $clientIds[] = $cid;
+        $data = CrmUi::patch($row, $_POST, $fields);
+        $data['enabled'] = !empty($data['enabled']) ? 1 : 0;
+        $data['responsible_user_id'] = (int)$data['responsible_user_id'];
+        $postedIds = CrmUi::postedClientIds($_POST);
+        if (array_key_exists('primary_client_id', $_POST)) {
+            $primaryClientId = (int)$_POST['primary_client_id'];
+            if ($postedIds === null) {
+                $postedIds = $clientIds;
             }
         }
-        $primaryClientId = (int)($_POST['primary_client_id'] ?? 0);
         if ($isNew) {
-            $id = CrmCompaniesRepository::create($data, $clientIds, $primaryClientId);
+            $id = CrmCompaniesRepository::create($data, $postedIds ?? [], $primaryClientId);
             $isNew = false;
         } else {
-            CrmCompaniesRepository::update($id, $data, $clientIds, $primaryClientId);
+            CrmCompaniesRepository::update($id, $data, $postedIds, $primaryClientId);
         }
         $cf = $_POST['cf'] ?? [];
         if (is_array($cf)) {
             CrmCustomFieldsRepository::saveValues('company', $id, $cf);
         }
         $row = CrmCompaniesRepository::find($id);
-        $message = t('crm.flash.saved');
         if ($wantsJson) {
             AgentHttp::emit(['ok' => true, 'id' => $id, 'item' => $row]);
             return;
         }
-        if ((string)($_POST['action'] ?? '') !== 'stay') {
-            redirect('/crm/companies/' . $id);
-        }
+        flash_set('ok', t('crm.flash.saved'));
+        redirect('/crm/companies/' . $id);
     } catch (Throwable $e) {
         $error = $e->getMessage();
         if ($wantsJson) {
             AgentHttp::error($error, 400);
             return;
         }
+        $row = array_merge((array)$row, array_intersect_key($_POST, array_flip($fields)));
     }
 }
 
 $cfDefs = CrmCustomFieldsRepository::listFields('company', true);
 $cfValues = $isNew ? [] : CrmCustomFieldsRepository::valuesFor('company', $id);
+$staff = CrmUi::staffOptions([(int)($row['responsible_user_id'] ?? 0)]);
 
 if ($wantsJson && $_SERVER['REQUEST_METHOD'] === 'GET') {
     AgentHttp::emit([
@@ -102,6 +93,7 @@ if ($wantsJson && $_SERVER['REQUEST_METHOD'] === 'GET') {
         'item' => $row,
         'client_ids' => $clientIds,
         'primary_client_id' => $primaryClientId,
+        'staff' => $staff,
         'custom_fields' => $cfDefs,
         'custom_values' => $cfValues,
     ]);
@@ -110,14 +102,17 @@ if ($wantsJson && $_SERVER['REQUEST_METHOD'] === 'GET') {
 
 View::render('company_edit', [
     'title' => $isNew ? t('crm.companies.heading_new') : (string)($row['name'] ?? ''),
-    'breadcrumbs' => Breadcrumbs::withHome([
+    'breadcrumbs' => Breadcrumbs::withHome($isNew ? [
         ['label' => t('crm.companies.title'), 'href' => '/crm/companies'],
-        ['label' => $isNew ? t('crm.companies.heading_new') : (string)($row['name'] ?? ''), 'current' => true],
+        ['label' => t('crm.companies.heading_new'), 'current' => true],
+    ] : [
+        ['label' => t('crm.companies.title'), 'href' => '/crm/companies'],
+        ['label' => (string)($row['name'] ?? ''), 'href' => '/crm/companies/' . $id],
+        ['label' => t('core.common.edit'), 'current' => true],
     ]),
     'isNew' => $isNew,
     'row' => $row,
-    'clientIds' => $clientIds,
-    'primaryClientId' => $primaryClientId,
+    'staff' => $staff,
     'cfDefs' => $cfDefs,
     'cfValues' => $cfValues,
     'message' => $message,

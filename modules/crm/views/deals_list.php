@@ -4,30 +4,12 @@ $path = '/crm/deals';
 $listId = 'crm_deals';
 $showAll = !empty($showAll);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
-$colSpan = 6 + BulkActions::colSpanExtra($listId);
+$colSpan = 7 + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
+$view = 'list';
+require __DIR__ . '/_deals_toolbar.php';
 ?>
-<section class="page-head">
-  <?php if ($canEdit): ?>
-  <div class="page-head-row">
-    <div></div>
-    <div class="page-actions">
-      <a class="btn-primary" href="/crm/deals/new"><?= te('crm.deals.new') ?></a>
-    </div>
-  </div>
-  <?php endif; ?>
-</section>
 <?php if (!empty($bulkFlash)): ?><?= BulkActions::flashHtml($bulkFlash) ?><?php endif; ?>
-<form class="filters" method="get" action="<?= e($path) ?>" data-auto-filter>
-  <?= ListQuery::sortHiddenInputs($sort, $dir, (int)$perPage) ?>
-  <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= te('crm.deals.search') ?>" data-filter-debounce>
-  <select name="pipeline_id">
-    <option value=""><?= te('crm.filter.pipeline') ?></option>
-    <?php foreach ($pipelines as $pid => $pname): ?>
-      <option value="<?= (int)$pid ?>"<?= (int)$pipelineId === (int)$pid ? ' selected' : '' ?>><?= e((string)$pname) ?></option>
-    <?php endforeach; ?>
-  </select>
-</form>
 <?= $pager ?>
 <?= BulkActions::beginForm($listId, $actionUrl) ?>
 <?= BulkActions::bar($listId) ?>
@@ -38,9 +20,10 @@ $actionUrl = ListQuery::url($path, $filters, []);
         <?= BulkActions::th($listId) ?>
         <?= ListQuery::sortTh('ID', 'id', $sort, $dir, $path, $filters) ?>
         <?= ListQuery::sortTh(t('crm.col.title'), 'title', $sort, $dir, $path, $filters) ?>
-        <th><?= te('crm.col.pipeline') ?></th>
+        <th><?= te('crm.col.company') ?></th>
         <th><?= te('crm.col.stage') ?></th>
         <?= ListQuery::sortTh(t('crm.col.amount'), 'amount', $sort, $dir, $path, $filters) ?>
+        <th><?= te('crm.col.responsible') ?></th>
       </tr>
     </thead>
     <tbody>
@@ -49,10 +32,13 @@ $actionUrl = ListQuery::url($path, $filters, []);
         <?= BulkActions::td($listId, (int)$d['id']) ?>
         <td class="muted"><a href="/crm/deals/<?= (int)$d['id'] ?>"><?= (int)$d['id'] ?></a></td>
         <td><a href="/crm/deals/<?= (int)$d['id'] ?>"><?= e((string)$d['title']) ?></a></td>
-        <td><?= e((string)($d['pipeline_name'] ?? '')) ?>
-          <span class="muted">(<?= e((string)($d['pipeline_kind'] ?? '')) ?>)</span></td>
-        <td><?= e((string)($d['stage_name'] ?? '')) ?></td>
-        <td><?= e((string)$d['amount']) ?> <?= e((string)$d['currency']) ?></td>
+        <td><?php if ((int)$d['company_id'] > 0): ?>
+          <a href="/crm/companies/<?= (int)$d['company_id'] ?>"><?= e((string)($d['company_name'] ?? '')) ?></a>
+        <?php endif; ?></td>
+        <td><span class="crm-stage-pill crm-sem-<?= e(strtolower((string)($d['stage_semantic'] ?? 'p'))) ?>"><?= e((string)($d['stage_name'] ?? '')) ?></span>
+          <span class="muted"><?= e((string)($d['pipeline_name'] ?? '')) ?></span></td>
+        <td class="crm-num"><?= e(CrmUi::money((float)$d['amount'], (string)$d['currency'])) ?></td>
+        <td><?= e((string)($d['responsible_name'] ?? '')) ?></td>
       </tr>
     <?php endforeach; ?>
     <?php if (!$items): ?>

@@ -2,7 +2,7 @@
     "id": "crm",
     "name": "crm.module.name",
     "description": "crm.module.description",
-    "version": "0.1.2",
+    "version": "0.2.0",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -50,6 +50,7 @@
             "/crm/companies/{id}/edit",
             "/crm/deals",
             "/crm/deals/new",
+            "/crm/deals/quick",
             "/crm/deals/{id}",
             "/crm/deals/{id}/edit",
             "/crm/pipelines",
@@ -121,7 +122,77 @@
                 "path": "/crm/companies/{id}/edit",
                 "permission": "crm.edit",
                 "side_effect": "write",
-                "description": "Update company (same fields as create)"
+                "description": "Update company — PATCH: send only changed fields (same as create); absent keys keep stored values; client_ids only replaces contacts when sent"
+            },
+            {
+                "id": "crm.companies.add_contact",
+                "method": "POST",
+                "path": "/crm/companies/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Link a contact to the company with a role; action=add_contact. Pass client_id, or tel (+name, mail) — existing client is matched by phone, otherwise created (needs clients.edit). First contact becomes primary.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["add_contact"]},
+                        "client_id": {"type": "integer"},
+                        "tel": {"type": "string"},
+                        "name": {"type": "string"},
+                        "mail": {"type": "string"},
+                        "role": {"type": "string", "description": "Free text, e.g. decision maker / contact person"},
+                        "is_primary": {"type": "string", "enum": ["0", "1"]}
+                    }
+                }
+            },
+            {
+                "id": "crm.companies.remove_contact",
+                "method": "POST",
+                "path": "/crm/companies/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Unlink contact from company; action=remove_contact&client_id=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "client_id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["remove_contact"]},
+                        "client_id": {"type": "integer"}
+                    }
+                }
+            },
+            {
+                "id": "crm.companies.set_contact_role",
+                "method": "POST",
+                "path": "/crm/companies/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Set role of a linked contact; action=set_contact_role&client_id=&role=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "client_id", "role"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["set_contact_role"]},
+                        "client_id": {"type": "integer"},
+                        "role": {"type": "string"}
+                    }
+                }
+            },
+            {
+                "id": "crm.companies.set_primary_contact",
+                "method": "POST",
+                "path": "/crm/companies/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Make a linked contact primary; action=set_primary_contact&client_id=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "client_id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["set_primary_contact"]},
+                        "client_id": {"type": "integer"}
+                    }
+                }
             },
             {
                 "id": "crm.companies.delete",
@@ -158,7 +229,19 @@
                 "path": "/crm/deals",
                 "permission": "crm.view",
                 "side_effect": "read",
-                "description": "List deals; filters: q, pipeline_id, stage_id, company_id, client_id"
+                "description": "List deals (items carry company_name, responsible_name); filters: q, pipeline_id, stage_id, company_id, client_id, responsible (me | user id). view=kanban → columns[] per stage of pipeline_id (default first pipeline) with count, sums{currency:amount}, items",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "view": {"type": "string", "enum": ["list", "kanban"]},
+                        "q": {"type": "string"},
+                        "pipeline_id": {"type": "integer"},
+                        "stage_id": {"type": "integer"},
+                        "company_id": {"type": "integer"},
+                        "client_id": {"type": "integer"},
+                        "responsible": {"type": "string", "description": "me or staff user id"}
+                    }
+                }
             },
             {
                 "id": "crm.deals.get",
@@ -166,7 +249,98 @@
                 "path": "/crm/deals/{id}",
                 "permission": "crm.view",
                 "side_effect": "read",
-                "description": "Deal card + contacts + notes + stage history + stages"
+                "description": "Deal card: item (company_name, responsible_name), contacts (with company role), company_contacts, stages, custom fields, timeline[] (notes + stage changes + module entries, newest first), notes, stage_history"
+            },
+            {
+                "id": "crm.deals.add_contact",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Link a contact to the deal; action=add_contact. client_id, or tel (+name, mail) matched by phone / created (needs clients.edit). link_company=1 also links to the deal company with role.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["add_contact"]},
+                        "client_id": {"type": "integer"},
+                        "tel": {"type": "string"},
+                        "name": {"type": "string"},
+                        "mail": {"type": "string"},
+                        "role": {"type": "string"},
+                        "link_company": {"type": "string", "enum": ["0", "1"]},
+                        "is_primary": {"type": "string", "enum": ["0", "1"]}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.remove_contact",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Unlink contact from deal; action=remove_contact&client_id=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "client_id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["remove_contact"]},
+                        "client_id": {"type": "integer"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.set_primary_contact",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Make a contact primary on the deal (links it if missing); action=set_primary_contact&client_id=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "client_id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["set_primary_contact"]},
+                        "client_id": {"type": "integer"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.quick_form",
+                "method": "GET",
+                "path": "/crm/deals/quick",
+                "permission": "crm.edit",
+                "side_effect": "read",
+                "description": "Quick lead form payload: defaults, pipelines, stages_by_pipeline, staff, can_create_client"
+            },
+            {
+                "id": "crm.deals.quick_create",
+                "method": "POST",
+                "path": "/crm/deals/quick",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Create company + contact + deal in one transaction. Company: company_id, or matched by company_inn, then exact company_name, else created. Contact: client_id, or matched by contact_tel, else created (needs clients.edit); linked to company with contact_role. Returns deal_id, company_id, client_id, created{}, matched{}.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "company_id": {"type": "integer"},
+                        "company_name": {"type": "string"},
+                        "company_inn": {"type": "string"},
+                        "company_phone": {"type": "string"},
+                        "client_id": {"type": "integer"},
+                        "contact_name": {"type": "string"},
+                        "contact_tel": {"type": "string"},
+                        "contact_mail": {"type": "string"},
+                        "contact_role": {"type": "string"},
+                        "title": {"type": "string", "description": "Defaults to company name"},
+                        "pipeline_id": {"type": "integer"},
+                        "stage_id": {"type": "integer"},
+                        "amount": {"type": "number"},
+                        "source": {"type": "string"},
+                        "responsible_user_id": {"type": "integer"},
+                        "notes": {"type": "string"}
+                    }
+                }
             },
             {
                 "id": "crm.deals.get_edit",
@@ -215,7 +389,7 @@
                 "path": "/crm/deals/{id}/edit",
                 "permission": "crm.edit",
                 "side_effect": "write",
-                "description": "Update deal fields / pipeline / stage"
+                "description": "Update deal — PATCH: send only changed fields (title, pipeline_id, stage_id, company_id, amount, currency, responsible_user_id, source, notes, cf[field_id]); absent keys keep stored values. pipeline_id change without stage_id → first stage. client_ids replaces contacts only when sent."
             },
             {
                 "id": "crm.deals.move_stage",
@@ -459,8 +633,12 @@
             "crm.deal.updated",
             "crm.deal.deleted",
             "crm.deal.stage_changed",
+            "crm.deal.timeline",
             "crm.note.created"
-        ]
+        ],
+        "contracts": {
+            "crm.deal.timeline": "{deal_id, deal, items[]} — append {type, id, at, author_id, text | html, kind_label}; listeners return payload"
+        }
     },
     "bulkActions": [
         {

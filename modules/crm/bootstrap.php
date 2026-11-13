@@ -7,6 +7,14 @@ require_once __DIR__ . '/lib/CrmCompaniesRepository.php';
 require_once __DIR__ . '/lib/CrmDealsRepository.php';
 require_once __DIR__ . '/lib/CrmCustomFieldsRepository.php';
 require_once __DIR__ . '/lib/CrmNotesRepository.php';
+require_once __DIR__ . '/lib/CrmUi.php';
+require_once __DIR__ . '/lib/CrmTimeline.php';
+require_once __DIR__ . '/lib/CrmContactResolver.php';
+
+Assets::register('crm', [
+    'css' => ['crm.css'],
+    'js' => ['crm.js'],
+]);
 
 ModuleManager::registerMenuGroup('crm.menu.group', 410, '/crm/deals');
 
@@ -18,6 +26,7 @@ $pages = [
     '/crm/companies/{id}/edit' => ['permission' => 'crm.edit', 'methods' => ['GET', 'POST'], 'file' => 'company_edit.php'],
     '/crm/deals' => ['permission' => 'crm.view', 'methods' => ['GET', 'POST'], 'file' => 'deals_list.php'],
     '/crm/deals/new' => ['permission' => 'crm.edit', 'methods' => ['GET', 'POST'], 'file' => 'deal_edit.php'],
+    '/crm/deals/quick' => ['permission' => 'crm.edit', 'methods' => ['GET', 'POST'], 'file' => 'deal_quick.php'],
     '/crm/deals/{id}' => ['permission' => 'crm.view', 'methods' => ['GET', 'POST'], 'file' => 'deal_view.php'],
     '/crm/deals/{id}/edit' => ['permission' => 'crm.edit', 'methods' => ['GET', 'POST'], 'file' => 'deal_edit.php'],
     '/crm/pipelines' => ['permission' => 'crm.pipelines', 'methods' => ['GET'], 'file' => 'pipelines_list.php'],
