@@ -319,6 +319,12 @@ try {
             $up = $call('POST', '/polls/{id}/edit', ['id' => $q1], ['descr_site' => 'rooms']);
             $q1row = PollsRepository::find($q1);
             $assert($up['ok'] && (string)$q1row['name'] === 'Cabinets?' && (int)$q1row['enabled'] === 1, 'polls.update PATCH keeps name/enabled');
+            $call('POST', '/polls/{id}/edit', ['id' => $q1], ['free_text' => '1']);
+            $ft = PollsRepository::find($q1);
+            $assert((int)$ft['req_text_len'] === 1 && (string)$ft['descr_site'] === 'rooms', 'polls.update free_text=1 → text box, other fields kept');
+            $assert(PollsRepository::isOtherOption('Другое (напишите)') && PollsRepository::isOtherOption('Свой вариант')
+                && PollsRepository::isOtherOption('Other') && !PollsRepository::isOtherOption('Дружба')
+                && !PollsRepository::isOtherOption('Другим отделом'), 'isOtherOption detects «Другое» / «Свой вариант» / Other');
 
             $sp = $call('POST', '/crm/deals/{id}', ['id' => $dealId], [
                 'action' => 'send_poll', 'poll_id' => $rootId, 'text' => '{client.name}, about {company.name}',
@@ -334,6 +340,8 @@ try {
             $pub = $call('GET', '/q/{code}', ['code' => $code]);
             $qids = array_column((array)($pub['payload']['questions'] ?? []), 'qid');
             $assert($pub['ok'] && $qids === [$q1, $q2], 'public GET: personal skip_qids applied');
+            $assert(!empty($pub['payload']['questions'][0]['text']) && !empty($pub['payload']['questions'][1]['text']),
+                'public GET: choice+free_text and open question both get a text box');
             $assert(strpos((string)($pub['payload']['intro'] ?? ''), 'CRM check clinic ' . $suffix) !== false
                 && strpos((string)($pub['payload']['questions'][1]['name'] ?? ''), 'CRM check clinic') !== false,
                 'public GET: {company.name} placeholder from CRM');

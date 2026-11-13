@@ -14,7 +14,7 @@ return [
     'poll_invites.public.incomplete' => 'Ответы сохранены, но анкета заполнена не до конца — ответьте на отмеченный вопрос.',
     'poll_invites.public.can_edit_until' => 'Ответы получены. Их можно изменить по этой же ссылке до {date}.',
     'poll_invites.public.can_edit' => 'Ответы получены. Их можно изменить по этой же ссылке.',
-    'poll_invites.public.comment' => 'Комментарий (необязательно)',
+    'poll_invites.public.comment' => 'Свой вариант или комментарий',
     'poll_invites.public.submit' => 'Отправить ответы',
     'poll_invites.public.update' => 'Сохранить изменения',
     'poll_invites.refill.done' => 'Создана повторная анкета: {url}',

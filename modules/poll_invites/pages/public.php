@@ -67,9 +67,11 @@ if ($wantsJson) {
     $qs = [];
     foreach ($tree['questions'] as $qid => $q) {
         $opts = [];
+        $visible = [];
         foreach ($q['_ANSWERS_'] ?? [] as $aid => $a) {
             if (!isset($a['enabled']) || (int)$a['enabled'] === 1) {
                 $opts[] = ['id' => (int)$aid, 'name' => PollPublic::render((string)$a['name'], $vars)];
+                $visible[(int)$aid] = $a;
             }
         }
         $qs[] = [
@@ -77,7 +79,7 @@ if ($wantsJson) {
             'name' => PollPublic::render((string)$q['name'], $vars),
             'hint' => PollPublic::render((string)($personal['hints'][(int)$qid] ?? $q['descr_site'] ?? ''), $vars),
             'multi' => !empty($q['multy_opts']),
-            'text' => $opts === [] || (int)($q['req_text_len'] ?? 0) > 0,
+            'text' => PollPublic::wantsText($q, $visible),
             'options' => $opts,
         ];
     }

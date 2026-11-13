@@ -45,7 +45,7 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `polls.update` | POST | `/polls/{id}/edit` — JSON = PATCH (only changed keys) |
 | `polls.delete` | POST | `/polls/{id}/edit` `action=delete` |
 
-**Build a questionnaire as an agent:** create root (`el_type=0`, `descr_site` = intro for respondents) → questions (`el_type=1`, `pid=root`, `num` order; no options = free-text question; `req_text_len>0` adds a comment box) → options (`el_type=2`, `pid=question`). Send it to a CRM contact with `crm.deals.send_poll` (public link `/q/{code}`).
+**Build a questionnaire as an agent:** create root (`el_type=0`, `descr_site` = intro for respondents) → questions (`el_type=1`, `pid=root`, `num` order) → options (`el_type=2`, `pid=question`). Question types: **open text** = question with no options; **single** / **multiple** choice (`multy_opts`); **choice + comment** = `free_text=1` (stored as `req_text_len ≥ 1`; UI checkbox «Поле для своего ответа»). Options named «Другое» / «Свой вариант» / «Other» get a text box automatically (`PollsRepository::isOtherOption`). Mix open questions in — choice-only questionnaires lose the respondent's own words. Send it to a CRM contact with `crm.deals.send_poll` (public link `/q/{code}`).
 
 ```bash
 curl -sS -b jar.txt 'https://example/polls?format=json'

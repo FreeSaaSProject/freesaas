@@ -13,7 +13,7 @@ return [
     'poll_invites.public.incomplete' => 'Answers saved, but the questionnaire is not complete — please answer the highlighted question.',
     'poll_invites.public.can_edit_until' => 'Answers received. You can change them via this link until {date}.',
     'poll_invites.public.can_edit' => 'Answers received. You can change them via this link.',
-    'poll_invites.public.comment' => 'Comment (optional)',
+    'poll_invites.public.comment' => 'Your own answer or a comment',
     'poll_invites.public.submit' => 'Submit answers',
     'poll_invites.public.update' => 'Save changes',
     'poll_invites.refill.done' => 'Follow-up questionnaire created: {url}',

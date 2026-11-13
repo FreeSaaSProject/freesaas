@@ -121,6 +121,9 @@ $crumbs[] = [
 $canEdit = Auth::can('polls.edit');
 
 if ($wantsJson) {
+    if ((int)($row['el_type'] ?? 0) === PollsRepository::EL_QUESTION) {
+        $row['free_text'] = (int)($row['req_text_len'] ?? 0) > 0 ? 1 : 0;
+    }
     AgentHttp::emit([
         'ok' => true,
         'item' => $row,

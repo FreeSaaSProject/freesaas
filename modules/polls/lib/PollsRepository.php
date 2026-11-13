@@ -264,7 +264,7 @@ final class PollsRepository
             'bonus_default' => max(0, (int)($post['bonus_default'] ?? 0)),
             'bonus_auto' => $flag('bonus_auto'),
             'enabled' => $flag('enabled'),
-            'req_text_len' => max(0, min(255, (int)($post['req_text_len'] ?? 0))),
+            'req_text_len' => self::reqTextLenFromPost($post),
             'num' => (int)($post['num'] ?? 0),
             'qty' => max(0, min(255, (int)($post['qty'] ?? 0))),
             'store_to_user' => $flag('store_to_user'),
@@ -296,6 +296,30 @@ final class PollsRepository
             'notice_sms_tpl_id' => max(0, (int)($post['notice_sms_tpl_id'] ?? 0)),
             'notice_email_tpl_id' => max(0, (int)($post['notice_email_tpl_id'] ?? 0)),
         ];
+    }
+
+    /**
+     * REQ_TEXT_LEN doubles as "show a free-text box" (> 0) and its min length.
+     * free_text=1 turns the box on (at least 1), free_text=0 turns it off; absent → raw req_text_len.
+     *
+     * @param array<string,mixed> $post
+     */
+    private static function reqTextLenFromPost(array $post): int
+    {
+        $len = max(0, min(255, (int)($post['req_text_len'] ?? 0)));
+        if (!array_key_exists('free_text', $post)) {
+            return $len;
+        }
+        $on = !in_array(strtolower(trim((string)$post['free_text'])), ['', '0', 'false', 'no'], true);
+        return $on ? max(1, $len) : 0;
+    }
+
+    /**
+     * Option labels that mean "other / my own answer" get a text box on respondent pages.
+     */
+    public static function isOtherOption(string $name): bool
+    {
+        return (bool)preg_match('/^\s*(друг(ое|ой|ая)|ино[ей]|свой\s+вариант|сво[её]\s+(мнение|ответ)|other|something\s+else)(?!\p{L})/iu', $name);
     }
 
     /** @param array<string,mixed> $data */

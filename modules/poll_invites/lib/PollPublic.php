@@ -154,6 +154,25 @@ final class PollPublic
         }, $text);
     }
 
+    /**
+     * Text box for a question: no options (text-only), free_text flag (req_text_len > 0), or an "Other" option.
+     *
+     * @param array<string,mixed> $question
+     * @param array<int,array<string,mixed>> $visibleAnswers
+     */
+    public static function wantsText(array $question, array $visibleAnswers): bool
+    {
+        if ($visibleAnswers === [] || (int)($question['req_text_len'] ?? 0) > 0) {
+            return true;
+        }
+        foreach ($visibleAnswers as $a) {
+            if (PollsRepository::isOtherOption((string)($a['name'] ?? ''))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** @return 'not_yet'|'open'|'started'|'completed'|'expired' */
     public static function state(array $invite): string
     {

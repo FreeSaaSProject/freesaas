@@ -74,8 +74,14 @@ $chk = static function (string $key) use ($row): string {
       <input type="checkbox" name="multy_opts" value="1"<?= $chk('multy_opts') ?>>
       <?= te('polls.field.multy_opts') ?>
     </label>
+    <label class="check">
+      <input type="hidden" name="free_text" value="0">
+      <input type="checkbox" name="free_text" value="1"<?= (int)($row['req_text_len'] ?? 0) > 0 ? ' checked' : '' ?>>
+      <?= te('polls.field.free_text') ?>
+    </label>
+    <p class="muted form-hint"><?= te('polls.field.free_text_hint') ?></p>
     <label><?= te('polls.field.req_text_len') ?>
-      <input type="number" name="req_text_len" min="0" value="<?= e((string)($row['req_text_len'] ?? 0)) ?>">
+      <input type="number" name="req_text_len" min="0" max="255" value="<?= e((string)($row['req_text_len'] ?? 0)) ?>">
     </label>
   </fieldset>
   <?php endif; ?>

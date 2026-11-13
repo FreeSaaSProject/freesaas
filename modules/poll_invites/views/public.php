@@ -38,7 +38,7 @@ declare(strict_types=1);
         $chosen = $dataOpts[$qid] ?? $dataOpts[(string)$qid] ?? null;
         $text = (string)($dataText[$qid] ?? $dataText[(string)$qid] ?? '');
         $hint = trim(PollPublic::render((string)($personal['hints'][$qid] ?? $q['descr_site'] ?? ''), $vars));
-        $withText = $answers === [] || (int)($q['req_text_len'] ?? 0) > 0;
+        $withText = PollPublic::wantsText($q, $answers);
     ?>
     <fieldset class="poll-public-q<?= $missingQid === $qid ? ' is-missing' : '' ?>" id="q<?= $qid ?>">
       <legend><span class="muted"><?= $n ?>.</span> <?= e(PollPublic::render((string)$q['name'], $vars)) ?></legend>
