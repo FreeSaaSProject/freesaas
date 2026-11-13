@@ -292,6 +292,7 @@ final class UpdateCheck
                 'asset' => (string)($coreSrc['asset'] ?? ''),
             ] : null,
             'settings' => UpdateConfig::coreSettings(),
+            'external_sources' => UpdateConfig::externalSources(),
             'frozen_modules' => UpdateConfig::frozenModules(),
             'conflicts' => UpdateConflicts::listAll(),
             'conflicts_count' => UpdateConflicts::count(),

@@ -64,6 +64,7 @@ $allowed = [
     '/agent/update' => ['methods' => ['GET'], 'why' => 'agent update status'],
     '/agent/update/check' => ['methods' => ['GET'], 'why' => 'agent update check'],
     '/agent/update/apply' => ['methods' => ['POST'], 'why' => 'agent update apply'],
+    '/agent/update/sources' => ['methods' => ['GET', 'POST'], 'why' => 'agent private update sources (module/theme repos)'],
     '/agent/update/conflicts' => ['methods' => ['GET'], 'why' => 'agent update local-edit conflicts'],
     '/agent/update/resolve' => ['methods' => ['POST'], 'why' => 'agent update resolve conflict'],
 

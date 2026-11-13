@@ -139,6 +139,22 @@ final class UpdateEngine
         UpdateConfig::saveCoreSettings($in);
     }
 
+    /** Private [module.<id>] / [theme.<id>] sources, tokens masked. */
+    public static function externalSources(): array
+    {
+        return UpdateConfig::externalSources();
+    }
+
+    public static function saveExternalSource(array $in): array
+    {
+        return UpdateConfig::saveExternalSource($in);
+    }
+
+    public static function deleteExternalSource(string $kind, string $id): bool
+    {
+        return UpdateConfig::deleteExternalSource($kind, $id);
+    }
+
     public static function check(?string $target = null): array
     {
         return UpdateCheck::check($target);

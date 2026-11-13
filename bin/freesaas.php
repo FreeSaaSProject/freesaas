@@ -132,6 +132,9 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   i18n check [--locale=xx] [--format=json]
   update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--db-backup] [--format=json]
   update conflicts [--format=json]
+  update sources [--format=json]   private [module.<id>] / [theme.<id>] sources (tokens masked)
+  update source-save --kind=module|theme --id=… --repo=owner/name [--path-prefix=…] [--channel=main] [--token=…] [--clear-token]
+  update source-delete --kind=module|theme --id=…
   update resolve --take=ours|mine (--path=rel/path | --all) [--format=json]
   core habits-reminders [--simulate] [--format=json]
   cron tick [--job=id] [--force] [--format=json]
@@ -646,7 +649,25 @@ function freesaas_cmd_update(string $sub, array $opts): void
         freesaas_emit_ops(AgentOps::updateResolve($path, $take, $all));
         return;
     }
-    Cli::usage('Usage: update status|check|apply|conflicts|resolve [--target=core|moduleId|all] [--no-migrate] [--db-backup] [--take=ours|mine --path=…|--all] [--format=json]');
+    if ($sub === 'sources') {
+        freesaas_emit_ops(AgentOps::updateSources());
+        return;
+    }
+    if ($sub === 'source-save' || $sub === 'source-delete') {
+        $in = ['action' => $sub === 'source-save' ? 'save' : 'delete'];
+        foreach (['kind', 'id', 'provider', 'repo', 'channel', 'ref', 'path_prefix', 'manifest_url', 'token', 'clear_token'] as $k) {
+            $opt = str_replace('_', '-', $k);
+            if (isset($opts[$opt])) {
+                $in[$k] = is_bool($opts[$opt]) ? ($opts[$opt] ? '1' : '') : (string)$opts[$opt];
+            }
+        }
+        if (empty($in['kind']) || empty($in['id'])) {
+            Cli::usage('Usage: update source-save --kind=module|theme --id=… --repo=owner/name [--path-prefix=…] [--channel=main] [--token=…] | update source-delete --kind=… --id=…');
+        }
+        freesaas_emit_ops(AgentOps::updateSourceWrite($in));
+        return;
+    }
+    Cli::usage('Usage: update status|check|apply|conflicts|resolve|sources|source-save|source-delete [--target=core|moduleId|theme:<id>|all] [--no-migrate] [--db-backup] [--take=ours|mine --path=…|--all] [--format=json]');
 }
 
 /** @param array<string,mixed> $r */

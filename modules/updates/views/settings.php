@@ -82,3 +82,97 @@ $channel = (string)($cfg['channel'] ?? 'main');
     <a class="btn-secondary" href="/updates"><?= te('updates.settings.back') ?></a>
   </div>
 </form>
+
+<?php
+/** @var list<array<string,mixed>> $sources */
+/** @var list<string> $themeIds */
+$sources = is_array($sources ?? null) ? $sources : [];
+$themeIds = is_array($themeIds ?? null) ? $themeIds : [];
+$sourceForm = static function (array $s, bool $isNew) use ($canSave): string {
+    $ro = $canSave ? '' : ' readonly';
+    ob_start(); ?>
+  <form method="post" class="form-grid upd-source-form">
+    <input type="hidden" name="action" value="source_save">
+    <?php if ($isNew): ?>
+      <label><?= te('updates.sources.kind') ?>
+        <select name="kind" <?= $canSave ? '' : 'disabled' ?>>
+          <option value="module"><?= te('updates.sources.kind_module') ?></option>
+          <option value="theme"><?= te('updates.sources.kind_theme') ?></option>
+        </select>
+      </label>
+      <label><?= te('updates.sources.id') ?>
+        <input type="text" name="id" list="upd-source-ids" required pattern="[a-z0-9][a-z0-9_-]*" placeholder="freesaas_site"<?= $ro ?>>
+      </label>
+    <?php else: ?>
+      <input type="hidden" name="kind" value="<?= e((string)$s['kind']) ?>">
+      <input type="hidden" name="id" value="<?= e((string)$s['id']) ?>">
+    <?php endif; ?>
+    <input type="hidden" name="provider" value="<?= e((string)($s['provider'] ?? 'github')) ?>">
+    <label><?= te('updates.settings.repo') ?>
+      <input type="text" name="repo" value="<?= e((string)($s['repo'] ?? '')) ?>" placeholder="owner/repo" required<?= $ro ?>>
+    </label>
+    <label><?= te('updates.settings.channel') ?>
+      <input type="text" name="channel" value="<?= e((string)($s['channel'] ?? 'main')) ?>" list="upd-source-channels"<?= $ro ?>>
+    </label>
+    <label><?= te('updates.sources.path_prefix') ?>
+      <input type="text" name="path_prefix" value="<?= e((string)($s['path_prefix'] ?? '')) ?>" placeholder="modules/my_module"<?= $ro ?>>
+      <span class="field-hint muted"><?= te('updates.sources.path_prefix_help') ?></span>
+    </label>
+    <label><?= te('updates.settings.ref') ?>
+      <input type="text" name="ref" value="<?= e((string)($s['ref'] ?? '')) ?>" placeholder="<?= te('updates.settings.ref_ph') ?>"<?= $ro ?>>
+    </label>
+    <label><?= te('updates.settings.token') ?>
+      <input type="password" name="token" value="" autocomplete="new-password"
+             placeholder="<?= !empty($s['token_set']) ? te('updates.settings.token_kept') : te('updates.sources.token_ph') ?>"<?= $ro ?>>
+    </label>
+    <?php if ($canSave && !empty($s['token_set'])): ?>
+      <label class="check"><input type="checkbox" name="clear_token" value="1"> <?= te('updates.settings.clear_token') ?></label>
+    <?php endif; ?>
+    <?php if ($canSave): ?>
+      <div class="page-actions">
+        <button type="submit" class="btn-primary"><?= te($isNew ? 'updates.sources.add' : 'updates.sources.save') ?></button>
+      </div>
+    <?php endif; ?>
+  </form>
+    <?php
+    return (string)ob_get_clean();
+};
+?>
+<section class="upd-sources" id="sources">
+  <h2><?= te('updates.sources.title') ?></h2>
+  <p class="muted form-hint"><?= te('updates.sources.help') ?></p>
+  <datalist id="upd-source-channels"><option value="main"><option value="stable"><option value="latest"></datalist>
+  <datalist id="upd-source-ids">
+    <?php foreach ($freezeOptions as $opt): ?><option value="<?= e($opt['id']) ?>"><?php endforeach; ?>
+    <?php foreach ($themeIds as $tid): ?><option value="<?= e((string)$tid) ?>"><?php endforeach; ?>
+  </datalist>
+
+  <?php if ($sources === []): ?>
+    <p class="muted"><?= te('updates.sources.empty') ?></p>
+  <?php endif; ?>
+  <?php foreach ($sources as $s): ?>
+    <fieldset class="form-fieldset upd-source">
+      <legend>
+        <?= e(UpdateEngine::packageLabel((string)$s['package'])) ?>
+        <code class="muted"><?= e((string)$s['package']) ?></code>
+        <span class="pill"><?= (string)$s['kind'] === 'theme' ? te('updates.sources.kind_theme') : te('updates.sources.kind_module') ?></span>
+      </legend>
+      <?= $sourceForm($s, false) ?>
+      <?php if ($canSave): ?>
+        <form method="post" class="upd-source-delete" onsubmit="return confirm(<?= tj('updates.sources.delete_confirm') ?>);">
+          <input type="hidden" name="action" value="source_delete">
+          <input type="hidden" name="kind" value="<?= e((string)$s['kind']) ?>">
+          <input type="hidden" name="id" value="<?= e((string)$s['id']) ?>">
+          <button type="submit" class="btn-secondary"><?= te('updates.sources.delete') ?></button>
+        </form>
+      <?php endif; ?>
+    </fieldset>
+  <?php endforeach; ?>
+
+  <?php if ($canSave): ?>
+    <details class="upd-source-new"<?= $sources === [] ? ' open' : '' ?>>
+      <summary><?= te('updates.sources.add_title') ?></summary>
+      <?= $sourceForm(['provider' => 'github', 'channel' => 'main'], true) ?>
+    </details>
+  <?php endif; ?>
+</section>

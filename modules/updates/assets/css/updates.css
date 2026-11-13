@@ -146,3 +146,11 @@ body.upd-job-busy { overflow: hidden; }
   line-height: 1;
   font-weight: 700;
 }
+
+/* Private sources ([module.*] / [theme.*]) on /updates/settings */
+.upd-sources { margin-top: 2rem; max-width: 36rem; }
+.upd-source { margin-bottom: 1rem; }
+.upd-source legend code { margin-left: 0.35rem; }
+.upd-source legend .pill { margin-left: 0.35rem; }
+.upd-source-delete { margin-top: 0.5rem; }
+.upd-source-new summary { cursor: pointer; font-weight: 600; margin: 0.5rem 0; }

@@ -86,12 +86,26 @@ CLI / agent: `php bin/freesaas.php module install|dismiss|undismiss <id>` · `PO
 
 Product modules are **not** shipped as separate zips from this monorepo. If a module later lives in another repo, add `[module.id]` and build with `bin/build-release-artifacts.sh --module=id`.
 
+### Private sources (modules and themes from own repos)
+
+All sources live in one place: **`/updates/settings`** → «Private sources» lists every `[module.<id>]` / `[theme.<id>]` with repo, channel, path, and token state (masked). Add / edit / delete there; each save runs a check of that package and shows the remote version or the error.
+
+Agents (never invent tokens — ask the user for a GitHub PAT with Contents: read-only on that repo):
+
+| Surface | Read | Write |
+|---------|------|-------|
+| Session / assistant / MCP | `updates.settings` (`sources[]`) | `updates.sources.save` (`action=source_save`, `kind`, `id`, `repo`, `path_prefix`, `channel`, `token?`), `updates.sources.delete` |
+| Platform (`agent_token`) | `GET /agent/update/sources` | `POST /agent/update/sources` JSON `{action: save\|delete, kind, id, repo, path_prefix, channel, token?, clear_token?}` |
+| CLI | `update sources` | `update source-save --kind=… --id=… --repo=… [--path-prefix=…] [--token=…]`, `update source-delete --kind=… --id=…` |
+
+Empty `token` keeps the saved one; `clear_token=1` removes it. Responses carry `token_set` only, never the token. Then `updates.check` / `update.check` with `target=<module_id>` or `target=theme:<id>`, and apply the same way.
+
 ## Setup
 
 1. Enable `updates` (`[modules] updates=1`).
 2. Configure source in UI **Updates → Update settings** (`/updates/settings`) or copy [`cfg/updates.example.ini`](../../cfg/updates.example.ini) → `cfg/updates.ini`.
 3. Point `[core]` at the FreeSaaS repo (`repo`, `channel`, optional `token` / `asset`).
-4. Optional: `[module.x]` for a module in another repo.
+4. Optional: private `[module.x]` / `[theme.x]` sources — on `/updates/settings` or via the agent ops above.
 5. Writable `var/updates/`; PHP needs `curl` + `ZipArchive`.
 
 Disabled modules are omitted from check/UI (they still receive files when a full core zip is applied, unless frozen). Modules not present on disk receive nothing — install them from `/modules`.

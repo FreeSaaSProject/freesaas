@@ -1279,7 +1279,7 @@ final class AgentOps
                     'path' => '/agent/update/check',
                     'op' => 'update.check',
                     'query' => ['target'],
-                    'description' => 'Contents API: modules/<id>/module.json → version per package. Optional target=core|moduleId',
+                    'description' => 'Contents API: modules/<id>/module.json (themes: theme.json) → version per package. Optional target=core|moduleId|theme:<id>',
                 ],
                 [
                     'method' => 'POST',
@@ -1288,6 +1288,19 @@ final class AgentOps
                     'query' => ['target', 'migrate', 'db_backup'],
                     'body' => ['target', 'migrate', 'db_backup'],
                     'description' => 'Snapshot files → overlay → migrate → health (ok). Locally edited files are kept (conflicts[]); frozen and not-installed modules are skipped. Optional db_backup. target=core|moduleId|all.',
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/agent/update/sources',
+                    'op' => 'update.sources',
+                    'description' => 'Private update sources [module.<id>] / [theme.<id>] from cfg/updates.ini (tokens masked: token_set only)',
+                ],
+                [
+                    'method' => 'POST',
+                    'path' => '/agent/update/sources',
+                    'op' => 'update.sources.write',
+                    'body' => ['action', 'kind', 'id', 'repo', 'channel', 'path_prefix', 'ref', 'token', 'clear_token'],
+                    'description' => 'action=save: add/edit a private module or theme source (kind=module|theme, id, repo=owner/name, path_prefix, channel, token = GitHub PAT Contents:read; empty token keeps the saved one) and check it at once. action=delete: remove the source (files stay). Ask the user for tokens — never invent them.',
                 ],
                 [
                     'method' => 'GET',
@@ -1330,6 +1343,50 @@ final class AgentOps
     public static function updateApply(?string $target = null, bool $migrate = true, bool $dbBackup = false): array
     {
         return UpdateEngine::apply($target, $migrate, $dbBackup);
+    }
+
+    /** Private [module.<id>] / [theme.<id>] update sources, tokens masked. */
+    public static function updateSources(): array
+    {
+        return ['ok' => true, 'sources' => UpdateEngine::externalSources(), 'http' => 200];
+    }
+
+    /**
+     * Save (action=save) or delete (action=delete) one private source. Save runs a check of
+     * that package so the caller sees the remote version or the error right away.
+     *
+     * @param array<string,string> $in
+     */
+    public static function updateSourceWrite(array $in): array
+    {
+        $action = strtolower(trim((string)($in['action'] ?? 'save')));
+        try {
+            if ($action === 'delete') {
+                $deleted = UpdateEngine::deleteExternalSource((string)($in['kind'] ?? ''), (string)($in['id'] ?? ''));
+                return ['ok' => true, 'deleted' => $deleted, 'sources' => UpdateEngine::externalSources(), 'http' => 200];
+            }
+            if ($action !== 'save') {
+                return ['ok' => false, 'error' => 'action must be save or delete', 'http' => 400];
+            }
+            $in['clear_token'] = in_array(strtolower((string)($in['clear_token'] ?? '')), ['1', 'true', 'yes'], true);
+            $saved = UpdateEngine::saveExternalSource($in);
+            $res = UpdateEngine::check((string)$saved['package']);
+            $row = is_array($res['targets'][0] ?? null) ? $res['targets'][0] : [];
+            return [
+                'ok' => true,
+                'source' => $saved,
+                'check' => [
+                    'ok' => !empty($res['ok']) && empty($row['check_error']),
+                    'local_version' => (string)($row['local_version'] ?? ''),
+                    'remote_version' => (string)($row['remote_version'] ?? ''),
+                    'update_available' => !empty($row['update_available']),
+                    'error' => (string)($row['check_error'] ?? ($res['error'] ?? '')),
+                ],
+                'http' => 200,
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
+        }
     }
 
     /** Files the instance edited that an update also changed (local kept, upstream parked). */

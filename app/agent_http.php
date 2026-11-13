@@ -257,6 +257,21 @@ function agent_api_dispatch(string $path, string $method, string $id): array
         $dbBackup = !empty($body['db_backup']) || !empty($_GET['db_backup']) || !empty($_POST['db_backup']);
         return AgentOps::updateApply($target, $migrate, $dbBackup);
     }
+    if ($path === '/agent/update/sources' && $method === 'GET') {
+        return AgentOps::updateSources();
+    }
+    if ($path === '/agent/update/sources' && $method === 'POST') {
+        $body = agent_api_json_body();
+        $in = [];
+        foreach (['action', 'kind', 'id', 'provider', 'repo', 'channel', 'ref', 'path_prefix', 'manifest_url', 'token', 'clear_token'] as $k) {
+            if (array_key_exists($k, $body)) {
+                $in[$k] = is_bool($body[$k]) ? ($body[$k] ? '1' : '') : (string)$body[$k];
+            } elseif (isset($_POST[$k])) {
+                $in[$k] = (string)$_POST[$k];
+            }
+        }
+        return AgentOps::updateSourceWrite($in);
+    }
     if ($path === '/agent/update/conflicts' && $method === 'GET') {
         return AgentOps::updateConflicts();
     }

@@ -169,6 +169,7 @@ $pages = [
     '/agent/update' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/update/check' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/update/apply' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/update/sources' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 'agent_api.php'],
     '/agent/update/conflicts' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/update/resolve' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/news' => ['permission' => 'core.news', 'methods' => ['GET'], 'file' => 'news.php'],

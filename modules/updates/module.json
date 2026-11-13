@@ -2,7 +2,7 @@
     "id": "updates",
     "name": "updates.module.name",
     "description": "updates.module.description",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "type": "product",
     "catalog": {
         "categories": [
@@ -64,7 +64,7 @@
                 "path": "/updates/settings",
                 "permission": "updates.view",
                 "side_effect": "read",
-                "description": "Read update source settings (repo/channel/ref/asset, token_set flag — never the raw token). Needs updates.view.",
+                "description": "Read update settings: core source (repo/channel/ref/asset) and private sources[] ([module.<id>] / [theme.<id>]: kind, id, package, repo, channel, ref, path_prefix, token_set — never raw tokens). Needs updates.view.",
                 "parameters": {
                     "type": "object",
                     "properties": []
@@ -111,18 +111,58 @@
                 }
             },
             {
+                "id": "updates.sources.save",
+                "method": "POST",
+                "path": "/updates/settings",
+                "permission": "updates.apply",
+                "side_effect": "write",
+                "description": "Add or edit a private update source (module or storefront theme from its own repo) and check it right away. SUPERADMIN + updates.apply. Body: action=source_save, kind=module|theme, id, repo=owner/name, channel (main|stable|<branch>|vX.Y.Z), path_prefix (folder in repo, e.g. modules/my_mod or themes/my_theme; empty = module.json/theme.json at root), ref?, token? (GitHub PAT with Contents:read; empty keeps the saved one), clear_token?. Response: source (masked) + check {ok, remote_version, error}. Ask the user for the token — never invent it.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "kind", "id", "repo"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["source_save"]},
+                        "kind": {"type": "string", "enum": ["module", "theme"]},
+                        "id": {"type": "string", "description": "Module id (modules/<id>) or theme id (themes/<id>)"},
+                        "repo": {"type": "string", "description": "GitHub owner/name"},
+                        "channel": {"type": "string", "description": "main (default), stable, branch or tag"},
+                        "path_prefix": {"type": "string", "description": "Folder of the module/theme inside the repo"},
+                        "ref": {"type": "string"},
+                        "token": {"type": "string", "description": "GitHub PAT, Contents: read-only on that repo"},
+                        "clear_token": {"type": "string", "description": "1 to remove the saved token"}
+                    }
+                }
+            },
+            {
+                "id": "updates.sources.delete",
+                "method": "POST",
+                "path": "/updates/settings",
+                "permission": "updates.apply",
+                "side_effect": "write",
+                "description": "Remove a private update source ([module.<id>] / [theme.<id>]); files stay on disk. SUPERADMIN + updates.apply. Body: action=source_delete, kind=module|theme, id.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "kind", "id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["source_delete"]},
+                        "kind": {"type": "string", "enum": ["module", "theme"]},
+                        "id": {"type": "string"}
+                    }
+                }
+            },
+            {
                 "id": "updates.check",
                 "method": "GET",
                 "path": "/updates/check",
                 "permission": "updates.view",
                 "side_effect": "read",
-                "description": "Fresh remote check (Contents API). Use when user asks if updates exist / what is new. Optional target=core|module_id; omit for all. Needs updates.view. Summarize available packages briefly.",
+                "description": "Fresh remote check (Contents API). Use when user asks if updates exist / what is new. Optional target=core|module_id|theme:<theme_id>; omit for all. Needs updates.view. Summarize available packages briefly.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "target": {
                             "type": "string",
-                            "description": "core, module id, or omit for all"
+                            "description": "core, module id, theme:<id>, or omit for all"
                         }
                     }
                 }
@@ -133,13 +173,13 @@
                 "path": "/updates/apply",
                 "permission": "updates.apply",
                 "side_effect": "write",
-                "description": "Apply update overlay + migrate. SUPERADMIN + updates.apply only. Prefer updates.check first. Body: target=core|module_id|all, migrate=1|0. Queues Confirm/Cancel — never claim success until confirm.",
+                "description": "Apply update overlay + migrate. SUPERADMIN + updates.apply only. Prefer updates.check first. Body: target=core|module_id|theme:<id>|all, migrate=1|0. Queues Confirm/Cancel — never claim success until confirm.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "target": {
                             "type": "string",
-                            "description": "core, module id, or all"
+                            "description": "core, module id, theme:<id>, or all"
                         },
                         "migrate": {
                             "type": "string",
