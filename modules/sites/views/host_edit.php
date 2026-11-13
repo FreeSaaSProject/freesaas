@@ -55,6 +55,15 @@ $extraHtml = (string)($extraHtml ?? '');
         <?php endforeach; ?>
       </select>
     </label>
+    <label><?= te('sites.hosts.field.locale') ?>
+      <select name="locale" <?= $canEdit ? '' : 'disabled' ?>>
+        <option value=""><?= te('sites.hosts.field.locale_auto') ?></option>
+        <?php foreach (I18n::supported() as $loc): ?>
+          <option value="<?= e($loc) ?>"<?= ((string)($row['locale'] ?? '') === $loc) ? ' selected' : '' ?>><?= e(I18n::localeLabel($loc)) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <span class="field-hint muted"><?= te('sites.hosts.field.locale_hint') ?></span>
+    </label>
     <label><?= te('sites.hosts.field.promo_id') ?>
       <select name="promo_id" <?= $canEdit ? '' : 'disabled' ?>>
         <?php foreach ($promoOptions as $pid => $label): ?>

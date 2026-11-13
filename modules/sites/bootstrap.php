@@ -185,11 +185,14 @@ BulkActions::register('sites_redirects', 'delete', [
     },
 ]);
 
-// Point LLM readers of every storefront page to /llms.txt.
+// Point LLM readers of every storefront page to /llms.txt; hreflang between locale hosts.
 EventBus::on('sites.page.inject', static function ($payload) {
     if (is_array($payload)) {
-        $payload['head'] = (string)($payload['head'] ?? '')
-            . '<link rel="alternate" type="text/markdown" href="/llms.txt" title="llms.txt">' . "\n";
+        $head = '<link rel="alternate" type="text/markdown" href="/llms.txt" title="llms.txt">' . "\n";
+        foreach (SitesFront::alternates((string)($payload['view'] ?? '')) as $alt) {
+            $head .= '<link rel="alternate" hreflang="' . e($alt['hreflang']) . '" href="' . e($alt['href']) . '">' . "\n";
+        }
+        $payload['head'] = (string)($payload['head'] ?? '') . $head;
     }
     return $payload;
 });

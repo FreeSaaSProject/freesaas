@@ -38,6 +38,7 @@ final class UpdateConfig
             }
             $kind = 'core';
             $module = null;
+            $theme = null;
             $id = $sec;
             if ($sec === 'core') {
                 $kind = 'core';
@@ -49,6 +50,14 @@ final class UpdateConfig
                     continue;
                 }
                 $id = $module;
+            } elseif (strpos($sec, 'theme.') === 0) {
+                // Storefront theme from its own (usually private) repo → package id theme:<id>.
+                $kind = 'theme';
+                $theme = substr($sec, strlen('theme.'));
+                if ($theme === '' || !preg_match(UpdateVersions::THEME_ID_RE, $theme)) {
+                    continue;
+                }
+                $id = 'theme:' . $theme;
             } else {
                 continue;
             }
@@ -65,6 +74,7 @@ final class UpdateConfig
                 'id' => $id,
                 'kind' => $kind,
                 'module' => $module,
+                'theme' => $theme,
                 'provider' => $provider,
                 'repo' => trim((string)($rows['repo'] ?? '')),
                 'url' => trim((string)($rows['url'] ?? '')),
@@ -87,6 +97,18 @@ final class UpdateConfig
         foreach (UpdateConfig::sources() as $s) {
             if ($s['kind'] === 'module') {
                 $ids[(string)$s['id']] = true;
+            }
+        }
+        return array_keys($ids);
+    }
+
+    /** Theme ids with their own [theme.<id>] source (full-tree overlays skip themes/<id>/). @return list<string> */
+    public static function privateThemeIds(): array
+    {
+        $ids = [];
+        foreach (UpdateConfig::sources() as $s) {
+            if ($s['kind'] === 'theme' && is_string($s['theme'] ?? null)) {
+                $ids[(string)$s['theme']] = true;
             }
         }
         return array_keys($ids);

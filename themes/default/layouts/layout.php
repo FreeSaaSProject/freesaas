@@ -6,18 +6,25 @@ declare(strict_types=1);
 /** @var list<array{label:string,href:string,current?:bool}>|null $nav */
 $site = $site ?? ['name' => 'FreeSaaS', 'title' => '', 'keywords' => '', 'tel' => ''];
 $nav = $nav ?? [];
-$pageTitle = trim((string)($title ?? ''));
+$pageTitle = trim((string)($meta_title ?? ''));
 if ($pageTitle === '') {
-    $pageTitle = (string)($site['title'] !== '' ? $site['title'] : $site['name']);
-} else {
-    $pageTitle = $pageTitle . ' — ' . (string)($site['name'] ?? '');
+    $pageTitle = trim((string)($title ?? ''));
+    if ($pageTitle === '') {
+        $pageTitle = (string)($site['title'] !== '' ? $site['title'] : $site['name']);
+    } else {
+        $pageTitle = $pageTitle . ' — ' . (string)($site['name'] ?? '');
+    }
 }
+$metaDescription = trim((string)($meta_description ?? ($site['meta_descr'] ?? '')));
 ?><!DOCTYPE html>
 <html lang="<?= e(I18n::locale()) ?>">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?= e($pageTitle) ?></title>
+  <?php if ($metaDescription !== ''): ?>
+    <meta name="description" content="<?= e($metaDescription) ?>">
+  <?php endif; ?>
   <?php if (!empty($site['keywords'])): ?>
     <meta name="keywords" content="<?= e((string)$site['keywords']) ?>">
   <?php endif; ?>

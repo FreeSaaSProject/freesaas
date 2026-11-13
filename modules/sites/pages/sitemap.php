@@ -11,6 +11,15 @@ $urls = [$base . '/'];
 if (ModuleManager::isEnabled('catalog')) {
     $urls[] = $base . '/shop';
 }
+$urls = array_merge($urls, SitesFront::sitemapPageUrls($base));
+// Product modules add their public routes (e.g. a landing /modules/).
+$extra = EventBus::emit('sites.sitemap', ['base' => $base, 'urls' => []]);
+foreach ((is_array($extra) ? ($extra['urls'] ?? []) : []) as $u) {
+    if (is_string($u) && $u !== '') {
+        $urls[] = $u[0] === '/' ? $base . $u : $u;
+    }
+}
+$urls = array_values(array_unique($urls));
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 foreach ($urls as $u) {

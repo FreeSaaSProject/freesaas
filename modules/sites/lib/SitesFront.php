@@ -14,6 +14,7 @@ final class SitesFront
         }
         if (class_exists(SitesHostContext::class)) {
             SitesHostContext::boot();
+            SitesHostContext::applyLocale();
         }
         $path = request_path();
         $target = self::matchRedirect($path);
@@ -341,6 +342,7 @@ final class SitesFront
 
     public static function renderPage(array $page): void
     {
+        self::$currentPage = $page;
         $payload = EventBus::emit('sites.page.render', [
             'page' => $page,
             'html' => (string)($page['content'] ?? ''),
@@ -350,6 +352,10 @@ final class SitesFront
         $path = self::pageHref($page);
         $hostId = class_exists(SitesHostContext::class) ? SitesHostContext::id() : 0;
         $children = PageCategoriesRepository::listChildrenForStorefront((int)($page['id'] ?? 0), $hostId);
+        $seo = PageCategoriesRepository::meta((int)($page['id'] ?? 0));
+        if (trim($seo['meta_descr']) !== '') {
+            $meta['meta_descr'] = $seo['meta_descr'];
+        }
         SiteTheme::render('page', [
             'site' => $meta,
             'nav' => self::nav('page', $path),
@@ -357,8 +363,101 @@ final class SitesFront
             'html' => $html,
             'children' => $children,
             'title' => (string)($page['name'] ?? $meta['title']),
+            'meta_title' => $seo['meta_title'],
+            'meta_description' => $seo['meta_descr'] !== '' ? $seo['meta_descr'] : (string)$meta['meta_descr'],
             'breadcrumbs' => self::pageBreadcrumbs($page),
         ]);
+    }
+
+    /** @var array<string,mixed>|null CMS page being rendered (for alternates). */
+    private static $currentPage = null;
+
+    /**
+     * hreflang alternates for the current storefront request. Only when the current
+     * host has a locale; peers = enabled hosts with another non-empty locale. CMS pages
+     * need the same link_rw (or hierarchical path) on the peer host; other views assume
+     * the same path exists (home, module routes).
+     *
+     * @return list<array{hreflang:string,href:string}>
+     */
+    public static function alternates(string $view = ''): array
+    {
+        if (!AppRuntime::isStorefront() || !class_exists(SitesHostContext::class)
+            || !SiteHostsRepository::tableReady() || $view === 'error') {
+            return [];
+        }
+        $curLocale = SitesHostContext::locale();
+        if ($curLocale === '') {
+            return [];
+        }
+        // Path as requested (keeps a trailing slash); CMS pages use their canonical href.
+        $uriPath = parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
+        $path = is_string($uriPath) && $uriPath !== '' ? $uriPath : '/';
+        $page = $view === 'page' ? self::$currentPage : null;
+        $out = [];
+        $default = '';
+        foreach (SiteHostsRepository::list(['enabled' => '1', 'limit' => 50])['items'] as $h) {
+            $loc = trim((string)($h['locale'] ?? ''));
+            if ($loc === '') {
+                continue;
+            }
+            $hostId = (int)$h['id'];
+            $peerPath = $path;
+            if ($page !== null) {
+                $peer = $hostId === SitesHostContext::id() ? $page : self::findPeerPage($page, $hostId);
+                if ($peer === null) {
+                    continue;
+                }
+                $peerPath = self::pageHref($peer);
+            }
+            $href = 'https://' . (string)$h['host'] . $peerPath;
+            $out[] = ['hreflang' => $loc, 'href' => $href];
+            if (!empty($h['is_default'])) {
+                $default = $href;
+            }
+        }
+        if (count($out) < 2) {
+            return [];
+        }
+        if ($default !== '') {
+            $out[] = ['hreflang' => 'x-default', 'href' => $default];
+        }
+        return $out;
+    }
+
+    /** @param array<string,mixed> $page */
+    private static function findPeerPage(array $page, int $hostId): ?array
+    {
+        $rw = trim((string)($page['link_rw'] ?? ''));
+        if ($rw !== '' && $rw[0] === '/' && strpos($rw, '/page/') !== 0) {
+            return PageCategoriesRepository::findByLink($rw, $hostId);
+        }
+        $hier = self::pageHierarchicalPath($page);
+        if ($hier === '#') {
+            return null;
+        }
+        $segments = array_values(array_filter(
+            explode('/', rawurldecode(trim(substr($hier, strlen('/page/')), '/'))),
+            static function ($s) {
+                return $s !== '';
+            }
+        ));
+        return $segments !== [] ? PageCategoriesRepository::findByLinkPath($segments, $hostId) : null;
+    }
+
+    /** Absolute storefront URLs of enabled articles for the current host (sitemap). */
+    public static function sitemapPageUrls(string $base): array
+    {
+        $hostId = class_exists(SitesHostContext::class) ? SitesHostContext::id() : 0;
+        $out = [];
+        foreach (PageCategoriesRepository::listEnabledForHost($hostId) as $row) {
+            $href = self::pageHref($row);
+            if ($href === '' || $href[0] !== '/' || strpos($href, '/#') !== false) {
+                continue;
+            }
+            $out[$base . $href] = true;
+        }
+        return array_keys($out);
     }
 
     public static function renderNotFound(string $path = ''): void

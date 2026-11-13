@@ -249,9 +249,38 @@ function html_safe_url(string $url, bool $allowMailtoTel = false, bool $allowDat
 }
 
 /**
- * DOM-based HTML sanitizer (no Composer). On parse failure → escaped plain text.
+ * Staff-authored storefront articles in themes that opt in (theme.json "rich_html": true):
+ * semantic/table tags plus class/id. Scripts, style, handlers and unsafe URLs are still stripped.
+ *
+ * @return array<string, list<string>>
  */
-function html_sanitize(string $html): string
+function html_sanitize_rich_allowlist(): array
+{
+    $block = ['class', 'id', 'role', 'aria-label', 'aria-hidden', 'aria-live'];
+    $out = [];
+    foreach ([
+        'p', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code',
+        'b', 'strong', 'i', 'em', 'small', 'mark', 'sup', 'sub', 'hr', 'br', 'u', 's', 'del',
+        'section', 'article', 'header', 'footer', 'aside', 'nav', 'figure', 'figcaption',
+        'table', 'thead', 'tbody', 'tfoot', 'tr', 'caption', 'dl', 'dt', 'dd',
+    ] as $tag) {
+        $out[$tag] = $block;
+    }
+    $out['th'] = array_merge($block, ['colspan', 'rowspan', 'scope']);
+    $out['td'] = array_merge($block, ['colspan', 'rowspan']);
+    $out['ol'] = array_merge($block, ['start']);
+    $out['a'] = array_merge($block, ['href', 'title', 'target', 'rel']);
+    $out['img'] = array_merge($block, ['src', 'alt', 'width', 'height', 'loading', 'decoding']);
+    // Plain buttons for theme JS hooks by class (no form submit, no data-* / handlers).
+    $out['button'] = array_merge($block, ['type']);
+    return $out;
+}
+
+/**
+ * DOM-based HTML sanitizer (no Composer). On parse failure → escaped plain text.
+ * $rich: wider allowlist for opted-in storefront themes (see html_sanitize_rich_allowlist).
+ */
+function html_sanitize(string $html, bool $rich = false): string
 {
     $html = (string)$html;
     if (trim($html) === '') {
@@ -289,6 +318,9 @@ function html_sanitize(string $html): string
         'hr' => [],
         'img' => ['src', 'alt', 'width', 'height'],
     ];
+    if ($rich) {
+        $allowed = array_merge($allowed, html_sanitize_rich_allowlist());
+    }
 
     $doc = new DOMDocument();
     $prev = libxml_use_internal_errors(true);
@@ -331,7 +363,7 @@ function html_sanitize(string $html): string
             $parent->removeChild($el);
             continue;
         }
-        html_sanitize_attrs($el, $allowed[$tag]);
+        html_sanitize_attrs($el, $allowed[$tag], $rich);
     }
 
     // Drop HTML comments under root
@@ -362,8 +394,9 @@ function html_sanitize(string $html): string
 
 /**
  * @param list<string> $allowedAttrs
+ * @param bool $rich staff CMS mode: internal links keep normal rel (no nofollow/ugc)
  */
-function html_sanitize_attrs(DOMElement $el, array $allowedAttrs): void
+function html_sanitize_attrs(DOMElement $el, array $allowedAttrs, bool $rich = false): void
 {
     if (!$el->hasAttributes()) {
         return;
@@ -405,6 +438,24 @@ function html_sanitize_attrs(DOMElement $el, array $allowedAttrs): void
                 $toRemove[] = $attr->name;
             }
         }
+        if ($name === 'class' && !preg_match('/^[A-Za-z0-9 _-]{0,200}$/', $val)) {
+            $toRemove[] = $attr->name;
+        }
+        if ($name === 'id' && !preg_match('/^[A-Za-z][A-Za-z0-9_-]{0,63}$/', $val)) {
+            $toRemove[] = $attr->name;
+        }
+        if (($name === 'type' && strtolower($val) !== 'button')
+            || ($name === 'aria-hidden' && !in_array(strtolower($val), ['true', 'false'], true))
+            || ($name === 'aria-live' && !in_array(strtolower($val), ['polite', 'assertive', 'off'], true))
+            || ($name === 'role' && !preg_match('/^[a-z]{2,20}$/', $val))
+            || ($name === 'aria-label' && mb_strlen($val) > 200)
+            || ($name === 'loading' && !in_array(strtolower($val), ['lazy', 'eager'], true))
+            || ($name === 'decoding' && !in_array(strtolower($val), ['async', 'sync', 'auto'], true))
+            || (in_array($name, ['colspan', 'rowspan', 'start'], true) && !preg_match('/^\d{1,3}$/', $val))
+            || ($name === 'scope' && !in_array(strtolower($val), ['row', 'col', 'rowgroup', 'colgroup'], true))
+        ) {
+            $toRemove[] = $attr->name;
+        }
     }
     foreach ($toRemove as $n) {
         $el->removeAttribute($n);
@@ -412,8 +463,19 @@ function html_sanitize_attrs(DOMElement $el, array $allowedAttrs): void
 
     if (strtolower($el->tagName) === 'a' && $el->hasAttribute('href')) {
         $href = (string)$el->getAttribute('href');
+        $external = html_link_is_external($href);
+        if ($rich) {
+            if ($external) {
+                $el->setAttribute('rel', 'noopener noreferrer');
+                $el->setAttribute('target', '_blank');
+            } else {
+                $el->removeAttribute('rel');
+                $el->removeAttribute('target');
+            }
+            return;
+        }
         $el->setAttribute('rel', 'nofollow ugc noopener');
-        if (html_link_is_external($href)) {
+        if ($external) {
             $el->setAttribute('target', '_blank');
         } else {
             $el->removeAttribute('target');
@@ -445,8 +507,12 @@ function security_headers_send(): void
 /**
  * CMS article body: safe_html plus allowlisted review widgets (Yandex Maps / 2GIS).
  * Do not use for news or comments — those stay on safe_html.
+ * $rich null = current storefront theme decides (theme.json "rich_html": true).
  */
-function page_html(string $html): string {
+function page_html(string $html, ?bool $rich = null): string {
+    if ($rich === null) {
+        $rich = class_exists('SiteTheme', false) && SiteTheme::richHtml();
+    }
     $kept = [];
     $html = preg_replace_callback(
         '#<iframe\b([^>]*)>(.*?)</iframe>|<iframe\b([^>]*)/?>#is',
@@ -462,7 +528,8 @@ function page_html(string $html): string {
         },
         $html
     ) ?? $html;
-    $out = safe_html($html);
+    // Rich: authored markup as-is (no linkify rewrite of existing anchors / rel=nofollow).
+    $out = $rich ? html_sanitize($html, true) : safe_html($html);
     foreach ($kept as $i => $iframe) {
         $out = str_replace('{{PAGE_IFRAME_' . $i . '}}', $iframe, $out);
     }

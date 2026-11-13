@@ -13,6 +13,7 @@ return [
     'updates.lede' => 'Check reads versions from the git ref; apply downloads one monorepo archive. Disabled modules are hidden from this list.',
     'updates.missing_ini' => 'No source configured — open update settings.',
     'updates.pkg.core' => 'Platform (core)',
+    'updates.pkg.theme' => 'Storefront theme “{name}”',
     'updates.col_name' => 'Module',
     'updates.col_id' => 'Target',
     'updates.col_version' => 'Version',

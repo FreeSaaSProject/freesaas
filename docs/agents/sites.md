@@ -19,12 +19,15 @@ Each row:
 |-------|--------|
 | `host` | Match `HTTP_HOST` (no scheme) |
 | `theme` | `themes/<id>/` |
+| `locale` | Storefront UI language for this domain (`ru`, `en`, …). Empty = session / cookie / `app.locale`. Set → theme chrome in that language + `hreflang` alternates between locale hosts |
 | `promo_id` | Home `/` content + META |
 | `catalog_root_ids` | Shop folders + descendants (JSON list; empty = entire catalog). `catalog_root_id` kept as first id for BC. |
 | `tel` / `name` | Storefront phone / brand (fallback: `[sites]` `tel` / `seo_name`) |
 | `is_default` | Used when Host is unknown |
 
 Articles (`base_page_categories.site_host_id`) and redirects (`base_redirects.site_host_id`): `0` = all hosts; otherwise only that host. Migration assigns existing rows to the default host.
+
+**Language branches (RU / EN):** one host per language (`example.com` locale `ru`, `en.example.com` locale `en`), articles bound to their host. Give translated articles the **same `link_rw`** (e.g. `/solutions/clinics/` on both) — the storefront then emits `<link rel="alternate" hreflang>` for each locale host plus `x-default` (default host). Hosts without `locale` never get alternates. Articles also carry `META_TITLE` / `META_DESCR` (empty = name / site meta).
 
 Terminals keep product allowlists via `base_terminals.GOODS` — not tied to hosts.
 
@@ -59,6 +62,8 @@ DocumentRoot /path/to/freesaas
 
 **Option B — storefront htaccess:** copy [`cfg/htaccess.storefront.example`](../../cfg/htaccess.storefront.example) over `.htaccess` on a storefront-only copy, or point `DirectoryIndex` / rewrite at `site.php`.
 
+**Option C — hosts in config (shared hosting, no .htaccess edits):** `cfg/config.ini` → `[app] storefront_hosts="example.com,www.example.com,en.example.com"`. Requests for those exact hosts run the storefront flow even when Apache routes them to `index.php`. Never list `admin_host` there.
+
 Point **multiple** public vhosts at the same tree; Host header selects the row.
 
 Smoke:
@@ -78,7 +83,7 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://www.example.com/agent/heal
 | `/shop`, `/shop/c/{id}`, `/shop/{id}` | Catalog under host `catalog_root_ids` (union) |
 | `/cart`, `GET /cart/availability`, `POST /cart/checkout` | Session cart; **phone first** (`SitesGuest`) then, with `booking` on + bookable services → slot wizard → `BookingBook::createOrder`; else → `OrdersRepository::create`. Clients with status `block_online` cannot proceed (message: book at the centre). |
 | `/promo/{code}` | Promo LP by code |
-| `/sitemap.xml`, `/robots.txt` | Current host |
+| `/sitemap.xml`, `/robots.txt` | Current host. Sitemap = `/`, `/shop` (catalog on), enabled articles of the host, plus URLs from EventBus `sites.sitemap` (`urls[]`, paths or absolute) |
 | `/.well-known/ai-catalog.json` | Domain AI Catalog for agent discovery; entries from EventBus `sites.ai_catalog` (`identifier`, `type`, `url` or `data`); 404 when no module contributes (e.g. `client_mcp` adds its server card per host) |
 | `/llms.txt` | Site card for LLM readers ([llmstxt.org](https://llmstxt.org)): host name, summary, contacts, shop/cart links; modules append sections via EventBus `sites.llms_txt` (`sections[] = {title, lines[]}`) |
 
@@ -156,10 +161,11 @@ UI twin: **Sites → Diagnostics** (`/sites/status`).
 | `sites.seo.get` / `.save` | `/sites/seo` | Fallback name/title/keywords/tel in `cfg/modules/sites.ini` (`seo_name`, `seo_title`, `seo_keywords`, `tel`) |
 | `sites.promopages.list` | `GET /sites/promopages` | Promo LPs |
 | `sites.pages.list` | `GET /sites/pages` | CMS articles; `site_host_id` |
+| `sites.pages.get` / `.create` / `.update` | `/sites/pages/{id}/edit`, `/sites/pages/new` | One article incl. `content`, `meta_title`, `meta_descr`, `link_rw`; JSON update merges with current values |
 | `sites.redirects.list` | `GET /sites/redirects` | Redirects; `site_host_id` |
 | `sites.cart.availability` | `GET /cart/availability` | **Public** slots — call with the **public** `Host` header / vhost |
 
-Host write fields (POST body / form): `host`, `name`, `theme`, `promo_id`, `catalog_root_ids[]` (multi; empty = entire catalog), `tel`, `enabled`, `is_default`, `num`. Extra host fields come from EventBus `sites.host_edit.sections` / `.save`.
+Host write fields (POST body / form): `host`, `name`, `theme`, `locale`, `promo_id`, `catalog_root_ids[]` (multi; empty = entire catalog), `tel`, `enabled`, `is_default`, `num`. Extra host fields come from EventBus `sites.host_edit.sections` / `.save`.
 
 Cart booking meta for themes: EventBus `sites.cart.booking` (sites emits; product modules fill optional keys).
 

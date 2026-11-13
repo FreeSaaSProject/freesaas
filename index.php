@@ -9,6 +9,11 @@ error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
 require_once __DIR__ . '/app/bootstrap.php';
+// Host in app.storefront_hosts → storefront flow, even when the web server routed to index.php.
+if (AppRuntime::isStorefront()) {
+    require __DIR__ . '/site.php';
+    return;
+}
 security_headers_send();
 
 try {

@@ -39,6 +39,17 @@ final class UpdateOverlay
             }
             throw new RuntimeException('Module tree not found in archive: ' . $id);
         }
+        if ($kind === 'theme') {
+            $theme = (string)UpdateVersions::themeIdOf($id);
+            if (is_file($root . '/theme.json')) {
+                return $root;
+            }
+            $nested = $root . '/themes/' . $theme;
+            if (is_dir($nested)) {
+                return $nested;
+            }
+            throw new RuntimeException('Theme tree not found in archive: ' . $theme);
+        }
         // core / full tree root
         return $root;
     }
@@ -64,6 +75,7 @@ final class UpdateOverlay
     {
         unset($bundle);
         $private = array_fill_keys(UpdateConfig::privateModuleIds(), true);
+        $privateThemes = array_fill_keys(UpdateConfig::privateThemeIds(), true);
         $frozen = array_fill_keys(UpdateConfig::frozenModules(), true);
         $out = ['files' => [], 'skipped_frozen' => [], 'skipped_new_modules' => []];
         if ($kind === 'module' && isset($frozen[$id])) {
@@ -87,8 +99,13 @@ final class UpdateOverlay
             }
             if ($kind === 'module') {
                 $destRel = 'modules/' . $id . '/' . $rel;
+            } elseif ($kind === 'theme') {
+                $destRel = 'themes/' . UpdateVersions::themeIdOf($id) . '/' . $rel;
             } else {
                 $destRel = $rel;
+                if (preg_match('#^themes/([^/]+)/#', $destRel, $tm) && isset($privateThemes[strtolower($tm[1])])) {
+                    continue;
+                }
                 if (preg_match('#^modules/([a-z][a-z0-9_]*)(/|$)#', $destRel, $m)) {
                     $mid = $m[1];
                     if (isset($private[$mid])) {

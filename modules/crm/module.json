@@ -2,8 +2,9 @@
     "id": "crm",
     "name": "crm.module.name",
     "description": "crm.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
+    "runtime": "both",
     "requires": {
         "core": ">=1.0.0",
         "clients": ">=1.0.0"

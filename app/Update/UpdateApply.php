@@ -118,7 +118,7 @@ final class UpdateApply
                 $dumpFile = self::dumpFileFromResult($dump);
             }
 
-            if ($migrate) {
+            if ($migrate && $kind !== 'theme') {
                 $failPhase = 'migrate';
                 $mig = $kind === 'module'
                     ? AgentOps::migrateRun($id)
@@ -173,6 +173,11 @@ final class UpdateApply
         ];
         if ($kind === 'core') {
             $state['core'] = $entry;
+        } elseif ($kind === 'theme') {
+            if (!isset($state['themes']) || !is_array($state['themes'])) {
+                $state['themes'] = [];
+            }
+            $state['themes'][(string)UpdateVersions::themeIdOf($id)] = $entry;
         } else {
             if (!isset($state['modules']) || !is_array($state['modules'])) {
                 $state['modules'] = [];
@@ -471,7 +476,9 @@ final class UpdateApply
                 $work['copied'] = $overlay['copied'];
                 $work['overlay'] = self::overlayReport($overlay);
                 $job['work'] = $work;
-                if (!empty($job['migrate']) && $dbBackup) {
+                if ((string)$source['kind'] === 'theme') {
+                    $job['step'] = 'health'; // themes ship no migrations
+                } elseif (!empty($job['migrate']) && $dbBackup) {
                     $job['step'] = 'migrate'; // dump happens at start of migrate step
                 } else {
                     $job['step'] = !empty($job['migrate']) ? 'migrate' : 'health';

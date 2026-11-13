@@ -77,4 +77,26 @@ $assert(html_ugc_reject_reason('JavaScript: The Good Parts') === null, 'ugc allo
 $assert(html_ugc_reject_reason('see ?online=1 in URL') === null, 'ugc allow prose online=');
 $assert(html_ugc_reject_reason('<b>ok</b>') === null, 'ugc allow bold');
 
+// Rich storefront articles (theme.json rich_html): same negatives must stay stripped.
+foreach ($neg as $i => $in) {
+    $out = page_html($in, true);
+    $bad = preg_match('/\bon[a-z]+\s*=/i', $out)
+        || preg_match('/javascript\s*:/i', $out)
+        || preg_match('/\sstyle\s*=/i', $out)
+        || preg_match('/data\s*:\s*text\/html/i', $out)
+        || strpos($out, '<!--') !== false;
+    $assert(!$bad, "rich negative#$i stripped handlers/js/style/comments");
+}
+$rich = page_html('<section class="case-card" id="case-1"><figure><img src="/a.png" alt="a" loading="lazy"></figure>'
+    . '<table><tr><th scope="col">A</th></tr></table><a href="/solutions/">in</a></section>', true);
+$assert(strpos($rich, '<section class="case-card" id="case-1">') !== false, 'rich keeps section class/id');
+$assert(strpos($rich, '<figure>') !== false && strpos($rich, 'loading="lazy"') !== false, 'rich keeps figure + img loading');
+$assert(strpos($rich, '<th scope="col">') !== false, 'rich keeps table');
+$assert(strpos($rich, 'nofollow') === false, 'rich internal link without nofollow');
+$assert(strpos(page_html('<p class="x" onclick="1" id="1bad">t</p>', true), 'id=') === false, 'rich rejects bad id');
+$assert(strpos(page_html('<section class="x">t</section>', false), 'class=') === false, 'non-rich still strips class');
+$btn = page_html('<button type="submit" class="b" data-x="1" onclick="1">x</button><button type="button" aria-label="Copy">y</button>', true);
+$assert(strpos($btn, 'type="submit"') === false && strpos($btn, 'data-x') === false, 'rich button: no submit type, no data-*');
+$assert(strpos($btn, 'type="button" aria-label="Copy"') !== false, 'rich keeps type=button + aria-label');
+
 exit($failed > 0 ? 1 : 0);

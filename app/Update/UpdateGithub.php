@@ -68,10 +68,12 @@ final class UpdateGithub
         $kind = (string)$pkg['kind'];
 
         // Version from modules/<id>/module.json on the ref (core included). Root VERSION is not used.
+        // Themes ([theme.<id>]) carry it in theme.json.
+        $versionFile = $kind === 'theme' ? 'theme.json' : 'module.json';
         if ($bundle === 'external' && (string)($pkg['path_prefix'] ?? '') === '') {
-            $path = 'module.json';
+            $path = $versionFile;
         } elseif ($bundle === 'external' && (string)($pkg['path_prefix'] ?? '') !== '') {
-            $path = rtrim((string)$pkg['path_prefix'], '/') . '/module.json';
+            $path = rtrim((string)$pkg['path_prefix'], '/') . '/' . $versionFile;
         } else {
             $path = 'modules/' . ($kind === 'core' ? 'core' : $id) . '/module.json';
         }

@@ -460,7 +460,80 @@ final class PageCategoriesRepository
         $row['link_rw'] = (string)($row['link_rw'] ?? '');
         $row['bg_url'] = (string)($row['bg_url'] ?? '');
         $row['hashtags'] = (string)($row['hashtags'] ?? '');
-        return $row;
+        return array_merge($row, self::meta($id));
+    }
+
+    public static function metaReady(): bool
+    {
+        return Database::columnExists('base_page_categories', 'META_TITLE')
+            && Database::columnExists('base_page_categories', 'META_DESCR');
+    }
+
+    /** @return array{meta_title:string,meta_descr:string} */
+    public static function meta(int $id): array
+    {
+        $out = ['meta_title' => '', 'meta_descr' => ''];
+        if ($id < 1 || !self::metaReady()) {
+            return $out;
+        }
+        $st = Database::pdo()->prepare('SELECT META_TITLE, META_DESCR FROM base_page_categories WHERE id = ? LIMIT 1');
+        $st->execute([$id]);
+        $r = $st->fetch(PDO::FETCH_ASSOC);
+        if ($r) {
+            $out['meta_title'] = (string)($r['META_TITLE'] ?? '');
+            $out['meta_descr'] = (string)($r['META_DESCR'] ?? '');
+        }
+        return $out;
+    }
+
+    /** @param array<string,mixed> $data */
+    private static function saveMeta(int $id, array $data): void
+    {
+        if ($id < 1 || !self::metaReady()
+            || (!array_key_exists('meta_title', $data) && !array_key_exists('meta_descr', $data))) {
+            return;
+        }
+        Database::pdo()->prepare('UPDATE base_page_categories SET META_TITLE = ?, META_DESCR = ? WHERE id = ?')
+            ->execute([
+                mb_substr(trim((string)($data['meta_title'] ?? '')), 0, 255),
+                mb_substr(trim((string)($data['meta_descr'] ?? '')), 0, 512),
+                $id,
+            ]);
+    }
+
+    /**
+     * Enabled storefront articles of one host (host-scoped + shared), for sitemap / alternates.
+     *
+     * @return list<array{id:int,name:string,link:string,link_rw:string,parent_to:int,site_host_id:int}>
+     */
+    public static function listEnabledForHost(int $siteHostId = 0): array
+    {
+        if (!Database::tableExists('base_page_categories')) {
+            return [];
+        }
+        $hasHost = Database::columnExists('base_page_categories', 'site_host_id');
+        $sql = 'SELECT id, name, parent_to, link, linkRW AS link_rw' . ($hasHost ? ', site_host_id' : '')
+            . ' FROM base_page_categories WHERE enabled = 1';
+        $params = [];
+        if ($hasHost && $siteHostId > 0) {
+            $sql .= ' AND (site_host_id = 0 OR site_host_id = ?)';
+            $params[] = $siteHostId;
+        }
+        $sql .= ' ORDER BY parent_to ASC, num ASC, id ASC';
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+            $out[] = [
+                'id' => (int)$r['id'],
+                'name' => (string)$r['name'],
+                'link' => (string)($r['link'] ?? ''),
+                'link_rw' => (string)($r['link_rw'] ?? ''),
+                'parent_to' => (int)$r['parent_to'],
+                'site_host_id' => (int)($r['site_host_id'] ?? 0),
+            ];
+        }
+        return $out;
     }
 
     public static function childCount(int $id): int
@@ -660,6 +733,8 @@ final class PageCategoriesRepository
             'enabled' => !empty($post['enabled']) ? 1 : 0,
             'content' => (string)($post['content'] ?? ''),
             'datas' => time(),
+            'meta_title' => mb_substr(trim((string)($post['meta_title'] ?? '')), 0, 255),
+            'meta_descr' => mb_substr(trim((string)($post['meta_descr'] ?? '')), 0, 512),
         ];
         if (Database::columnExists('base_page_categories', 'site_host_id')) {
             $out['site_host_id'] = max(0, (int)($post['site_host_id'] ?? 0));
@@ -708,6 +783,7 @@ final class PageCategoriesRepository
             ]);
         }
         $id = (int)Database::pdo()->lastInsertId();
+        self::saveMeta($id, $data);
         self::syncLegacyPage($data);
         return $id;
     }
@@ -759,6 +835,7 @@ final class PageCategoriesRepository
                 $id,
             ]);
         }
+        self::saveMeta($id, $data);
         self::syncLegacyPage($data);
     }
 

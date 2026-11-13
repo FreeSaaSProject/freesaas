@@ -187,6 +187,7 @@ final class SiteHostsRepository
             'enabled' => !empty($post['enabled']) ? 1 : 0,
             'name' => mb_substr(trim((string)($post['name'] ?? '')), 0, 255),
             'theme' => $theme,
+            'locale' => self::normalizeLocale((string)($post['locale'] ?? '')),
             'promo_id' => max(0, (int)($post['promo_id'] ?? 0)),
             'catalog_root_ids' => $roots,
             // BC: first selected folder (0 = entire catalog).
@@ -284,7 +285,30 @@ final class SiteHostsRepository
                 (int)$data['num'],
             ]);
         }
-        return (int)$pdo->lastInsertId();
+        $newId = (int)$pdo->lastInsertId();
+        self::saveLocale($newId, $data);
+        return $newId;
+    }
+
+    /** Empty or a supported I18n locale code. */
+    public static function normalizeLocale(string $raw): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+        return I18n::normalize($raw) ?? '';
+    }
+
+    /** @param array<string,mixed> $data */
+    private static function saveLocale(int $id, array $data): void
+    {
+        if ($id < 1 || !array_key_exists('locale', $data)
+            || !Database::columnExists('base_site_hosts', 'locale')) {
+            return;
+        }
+        Database::pdo()->prepare('UPDATE base_site_hosts SET locale = ? WHERE id = ?')
+            ->execute([self::normalizeLocale((string)$data['locale']), $id]);
     }
 
     /** @param array<string,mixed> $data */
@@ -385,6 +409,7 @@ final class SiteHostsRepository
                 $id,
             ]);
         }
+        self::saveLocale($id, $data);
     }
 
     /**
@@ -477,6 +502,9 @@ final class SiteHostsRepository
     private static function selectCols(): string
     {
         $cols = ['id', 'host', 'enabled', 'name', 'theme', 'promo_id', 'catalog_root_id'];
+        if (Database::columnExists('base_site_hosts', 'locale')) {
+            $cols[] = 'locale';
+        }
         if (Database::columnExists('base_site_hosts', 'catalog_root_ids')) {
             $cols[] = 'catalog_root_ids';
         }
@@ -509,6 +537,7 @@ final class SiteHostsRepository
         $row['host'] = (string)$row['host'];
         $row['name'] = (string)($row['name'] ?? '');
         $row['theme'] = (string)($row['theme'] ?? 'default');
+        $row['locale'] = (string)($row['locale'] ?? '');
         $row['tel'] = (string)($row['tel'] ?? '');
         return $row;
     }

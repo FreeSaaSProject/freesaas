@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
+$wantsJson = AgentHttp::wantsJson();
 
 $defaultHost = SiteHostsRepository::findDefault();
 $row = [
@@ -15,10 +16,16 @@ $row = [
     'link_rw' => '',
     'bg_url' => '',
     'content' => '',
+    'meta_title' => '',
+    'meta_descr' => '',
 ];
 if (!$isNew) {
     $found = PageCategoriesRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('sites.pages.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('core.common.not_found'),
@@ -42,9 +49,18 @@ if (!$isNew && EntityDelete::tryHandle('sites_pages', $id, '/sites/pages', [
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
-        $data = PageCategoriesRepository::dataFromPost($_POST);
+        $post = $_POST;
+        if ($wantsJson && !$isNew) {
+            // Agent partial update: unspecified fields keep current values.
+            $post = array_merge($row, $post);
+        }
+        $data = PageCategoriesRepository::dataFromPost($post);
         if ($isNew) {
             $newId = PageCategoriesRepository::create($data);
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'id' => $newId, 'page' => PageCategoriesRepository::find($newId)]);
+                return;
+            }
             redirect('/sites/pages/' . $newId . '/edit?saved=1');
             return;
         }
@@ -52,8 +68,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $message = t('core.common.saved');
         $row = PageCategoriesRepository::find($id) ?: $row;
         $hasChildren = PageCategoriesRepository::childCount($id) > 0;
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'id' => $id, 'page' => $row]);
+            return;
+        }
     } catch (Throwable $e) {
         $error = $e->getMessage();
+        if ($wantsJson) {
+            AgentHttp::error($error, 400);
+            return;
+        }
         $row = array_merge($row, [
             'name' => (string)($_POST['name'] ?? ''),
             'num' => (int)($_POST['num'] ?? 1),
@@ -63,6 +87,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'link_rw' => (string)($_POST['link_rw'] ?? ''),
             'bg_url' => (string)($_POST['bg_url'] ?? ''),
             'content' => (string)($_POST['content'] ?? ''),
+            'meta_title' => (string)($_POST['meta_title'] ?? ''),
+            'meta_descr' => (string)($_POST['meta_descr'] ?? ''),
             'enabled' => !empty($_POST['enabled']) ? 1 : 0,
         ]);
     }
@@ -70,6 +96,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 if (isset($_GET['saved']) && $message === '') {
     $message = t('core.common.saved');
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'is_new' => $isNew,
+        'page' => $row,
+        'href' => $isNew ? '' : SitesFront::pageHref($row),
+        'parent_options' => PageCategoriesRepository::parentOptions($isNew ? null : $id),
+        'host_options' => SiteHostsRepository::options(true),
+    ]);
+    return;
 }
 
 View::render('page_edit', [

@@ -13,6 +13,7 @@ return [
     'updates.lede' => 'Проверка читает версии с git-ref; установка качает один архив монорепо. Отключённые модули в списке не показываются.',
     'updates.missing_ini' => 'Источник не настроен — откройте настройки обновлений.',
     'updates.pkg.core' => 'Платформа (core)',
+    'updates.pkg.theme' => 'Тема витрины «{name}»',
     'updates.col_name' => 'Модуль',
     'updates.col_id' => 'Цель',
     'updates.col_version' => 'Версия',

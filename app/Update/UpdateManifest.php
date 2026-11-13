@@ -147,6 +147,8 @@ final class UpdateManifest
             return $map;
         }
         $id = (string)($source['id'] ?? '');
+        $theme = UpdateVersions::themeIdOf($id);
+        $destBase = $theme !== null ? 'themes/' . $theme . '/' : 'modules/' . $id . '/';
         $prefix = trim((string)($source['path_prefix'] ?? ''), '/');
         $out = [];
         foreach ($map as $repoPath => $sha) {
@@ -156,7 +158,7 @@ final class UpdateManifest
                 }
                 $repoPath = substr($repoPath, strlen($prefix) + 1);
             }
-            $out['modules/' . $id . '/' . $repoPath] = $sha;
+            $out[$destBase . $repoPath] = $sha;
         }
         return $out;
     }

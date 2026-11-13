@@ -4,12 +4,27 @@ declare(strict_types=1);
 /** Update engine: UpdateVersions. */
 final class UpdateVersions
 {
+    /** Same charset as SiteTheme ids (themes/<id>/), lowercase. */
+    public const THEME_ID_RE = '/^[a-z0-9][a-z0-9_-]*$/';
+
+    /** Theme id for package id theme:<id>, else null. */
+    public static function themeIdOf(string $target): ?string
+    {
+        return strpos($target, 'theme:') === 0 ? substr($target, strlen('theme:')) : null;
+    }
+
     /** Human label for UI (translated module name). */
     public static function packageLabel(string $target): string
     {
         $target = UpdateVersions::normalizeTarget($target);
         if ($target === 'core') {
             return t('updates.pkg.core');
+        }
+        $theme = UpdateVersions::themeIdOf($target);
+        if ($theme !== null) {
+            $data = json_decode((string)@file_get_contents(base_path('themes/' . $theme . '/theme.json')), true);
+            $name = is_array($data) ? trim((string)($data['name'] ?? '')) : '';
+            return t('updates.pkg.theme', ['name' => $name !== '' ? $name : $theme]);
         }
         $meta = ModuleManager::get($target);
         if (is_array($meta)) {
@@ -25,13 +40,17 @@ final class UpdateVersions
     public static function versionJsonPath(string $target): string
     {
         $target = UpdateVersions::normalizeTarget($target);
+        $theme = UpdateVersions::themeIdOf($target);
+        if ($theme !== null) {
+            return base_path('themes/' . $theme . '/theme.json');
+        }
         return base_path('modules/' . $target . '/module.json');
     }
 
     public static function localVersion(string $target): string
     {
         $target = UpdateVersions::normalizeTarget($target);
-        $meta = ModuleManager::get($target);
+        $meta = UpdateVersions::themeIdOf($target) === null ? ModuleManager::get($target) : null;
         if (is_array($meta) && isset($meta['version']) && trim((string)$meta['version']) !== '') {
             return trim((string)$meta['version']);
         }
@@ -124,6 +143,12 @@ final class UpdateVersions
         $t = strtolower(trim($target));
         if (strpos($t, 'module:') === 0) {
             $t = substr($t, strlen('module:'));
+        }
+        if (strpos($t, 'theme:') === 0) {
+            if (!preg_match(UpdateVersions::THEME_ID_RE, substr($t, strlen('theme:')))) {
+                throw new InvalidArgumentException('Invalid theme target id');
+            }
+            return $t;
         }
         if ($t === '' || $t === 'core') {
             return 'core';

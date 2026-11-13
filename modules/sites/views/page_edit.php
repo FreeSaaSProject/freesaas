@@ -59,6 +59,18 @@ $hostOptions = $hostOptions ?? [];
   </fieldset>
 
   <fieldset>
+    <legend><?= te('sites.pages.sec.seo') ?></legend>
+    <label><?= te('sites.pages.field.meta_title') ?>
+      <input name="meta_title" maxlength="255" value="<?= e((string)($row['meta_title'] ?? '')) ?>">
+      <span class="field-hint muted"><?= te('sites.pages.field.meta_title_hint') ?></span>
+    </label>
+    <label><?= te('sites.pages.field.meta_descr') ?>
+      <textarea name="meta_descr" rows="2" maxlength="512"><?= e((string)($row['meta_descr'] ?? '')) ?></textarea>
+      <span class="field-hint muted"><?= te('sites.pages.field.meta_descr_hint') ?></span>
+    </label>
+  </fieldset>
+
+  <fieldset>
     <legend><?= te('sites.pages.sec.content') ?></legend>
     <label><?= te('sites.pages.field.content') ?>
       <textarea name="content" rows="16"><?= e((string)($row['content'] ?? '')) ?></textarea>

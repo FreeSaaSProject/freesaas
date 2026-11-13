@@ -70,6 +70,21 @@ final class SitesHostContext
         return $t !== '' ? $t : 'default';
     }
 
+    /** Host storefront locale; '' = not set (session / cookie / app.locale apply). */
+    public static function locale(): string
+    {
+        return trim((string)(self::current()['locale'] ?? ''));
+    }
+
+    /** Storefront only: force the host locale over session/cookie for this request. */
+    public static function applyLocale(): void
+    {
+        $loc = self::locale();
+        if ($loc !== '') {
+            I18n::setLocale($loc);
+        }
+    }
+
     public static function promoId(): int
     {
         return (int)(self::current()['promo_id'] ?? 0);
@@ -157,6 +172,7 @@ final class SitesHostContext
             'enabled' => 1,
             'name' => (string)Config::get('connect', 'sitename', ''),
             'theme' => $theme,
+            'locale' => '',
             'promo_id' => 0,
             'catalog_root_id' => 0,
             'catalog_root_ids' => [],

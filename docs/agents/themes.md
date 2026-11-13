@@ -34,7 +34,7 @@ Public URLs: `/themes/<id>/assets/...` (`.htaccess`). PHP under `layouts|views|p
 | View | Typical data |
 |------|----------------|
 | `home` | `title`, `lead`, `html`, `show_shop`, `site`, `nav` |
-| `page` | `page`, `html`, `title`, `site`, `nav` |
+| `page` | `page`, `html`, `title`, `meta_title`, `meta_description`, `site`, `nav`, `breadcrumbs`, `children` |
 | `shop` | `title`, `items[]`, `categories[]`, `flash`, `ret`, `site`, `nav` |
 | `product` | `product`, `categories[]`, `site`, `nav` |
 | `cart` | `lines[]`, `total`, `flash`, `orders_ok`, `booking_ok`, `booking_product_ids[]`, `booking_date`, `booking_meta`, `site`, `nav` |
@@ -42,6 +42,10 @@ Public URLs: `/themes/<id>/assets/...` (`.htaccess`). PHP under `layouts|views|p
 | `error` | `title`, `message`, `hint`, `site`, `nav` |
 
 Layout receives `$content` plus page vars. Prefer `SiteTheme::partial(...)`. Missing view → `modules/sites/views/` if present; missing layout → `_fallback_layout.php`.
+
+Render article bodies with `page_html($html)`. A theme may set `"rich_html": true` in `theme.json`: articles then keep `class` / `id`, `section`, `article`, `figure`, tables, and internal links without `nofollow` (staff-authored marketing pages). Scripts, `style`, `on*` and unsafe URLs are stripped either way. Default `false` — existing skins render as before.
+
+Use `I18n::locale()` for `<html lang>`; with a host `locale` set the storefront forces that language, so theme chrome via `t()` follows the domain.
 
 ## Port checklist (any legacy site)
 
@@ -68,7 +72,7 @@ Admin stores a `MODULES` blob (`base_promopages`). Storefront renders via `Promo
 | `likespa` | https://github.com/ilcommm/freesaas-theme-likespa |
 | `balance` | https://github.com/ilcommm/freesaas-theme-balance |
 
-Clone or sync into `themes/<id>/` on the instance (or storefront tree). Do not commit them to `FreeSaaSProject/freesaas`.
+Clone or sync into `themes/<id>/` on the instance (or storefront tree), or let `/updates` pull them: add `[theme.<id>]` (repo, token, channel, optional `path_prefix`) to `cfg/updates.ini` — see [`update.md`](update.md). Bump `version` in `theme.json` to publish a theme update. Do not commit them to `FreeSaaSProject/freesaas`.
 
 ## Do / don’t
 

@@ -53,6 +53,7 @@ For each package, UpdateEngine reads the live file from the configured git ref v
 | `core` | `modules/core/module.json` → `version` |
 | module in monorepo | `modules/<id>/module.json` → `version` |
 | external `[module.x]` | that repo’s `module.json` (or path under `path_prefix`) |
+| theme `[theme.x]` → package `theme:x` | that repo’s `theme.json` (or under `path_prefix`); files go to `themes/x/` |
 
 Root `VERSION` is a **derived** copy of core (written by `module bump core` / release build). Agents must not edit it for update detection.
 
@@ -80,6 +81,7 @@ CLI / agent: `php bin/freesaas.php module install|dismiss|undismiss <id>` · `PO
 - Channel `stable` / `latest` → latest Release: prefer one **full** asset (`freesaas-<ver>.zip` or `asset=`), else zipball of the release tag.
 - Overlay skips deny-list (`cfg/`, `var/`, …) and any module that has its own `[module.<id>]` (private/external).
 - External modules: download that repo’s archive and overlay only `modules/<id>/`.
+- Private themes (`[theme.<id>]`): download that repo’s archive and overlay only `themes/<id>/` (payload = zip root with `theme.json`, `themes/<id>/`, or `path_prefix`). No migrations; health must pass. Full core zips skip `themes/<id>/` when such a section exists. One private repo may feed both a module and a theme (two sections, different `path_prefix`). Target in CLI/API: `--target=theme:<id>`.
 - Success = migrate (if enabled) **and** health not `fail`.
 
 Product modules are **not** shipped as separate zips from this monorepo. If a module later lives in another repo, add `[module.id]` and build with `bin/build-release-artifacts.sh --module=id`.

@@ -6,8 +6,9 @@ declare(strict_types=1);
  *
  * Resolution order:
  * 1. Constant FREESAAS_ROLE (set by site.php / index.php before bootstrap)
- * 2. Config app.role (admin|storefront)
- * 3. Default: admin
+ * 2. Config app.storefront_hosts (comma list) contains HTTP_HOST → storefront
+ * 3. Config app.role (admin|storefront)
+ * 4. Default: admin
  */
 final class AppRuntime
 {
@@ -26,9 +27,34 @@ final class AppRuntime
         if (defined('FREESAAS_ROLE')) {
             $raw = (string)constant('FREESAAS_ROLE');
         } elseif (class_exists('Config', false)) {
-            $raw = (string)Config::get('app', 'role', self::ROLE_ADMIN);
+            $raw = self::isConfiguredStorefrontHost()
+                ? self::ROLE_STOREFRONT
+                : (string)Config::get('app', 'role', self::ROLE_ADMIN);
         }
         self::$role = self::normalize($raw);
+    }
+
+    /**
+     * HTTP_HOST listed in app.storefront_hosts (e.g. "example.com,www.example.com,en.example.com").
+     * Lets a shared tree serve storefront domains without per-host .htaccess rules.
+     */
+    public static function isConfiguredStorefrontHost(?string $httpHost = null): bool
+    {
+        $list = trim((string)Config::get('app', 'storefront_hosts', ''));
+        if ($list === '') {
+            return false;
+        }
+        $host = strtolower(trim((string)($httpHost ?? ($_SERVER['HTTP_HOST'] ?? ''))));
+        $host = rtrim(preg_replace('/:\d+$/', '', $host) ?? $host, '.');
+        if ($host === '') {
+            return false;
+        }
+        foreach (explode(',', $list) as $cand) {
+            if (strtolower(trim($cand)) === $host) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static function role(): string

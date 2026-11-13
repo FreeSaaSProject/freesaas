@@ -52,6 +52,12 @@ final class SiteTheme
         return self::$manifest = is_array($data) ? $data : ['id' => self::id()];
     }
 
+    /** Theme opts into the wider article allowlist (class/id, section, table…) — see page_html(). */
+    public static function richHtml(): bool
+    {
+        return !empty(self::manifest()['rich_html']);
+    }
+
     /** @return list<string> */
     public static function listIds(): array
     {

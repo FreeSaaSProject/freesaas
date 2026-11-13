@@ -146,8 +146,9 @@ final class UpdateCheck
     {
         $id = (string)($row['id'] ?? '');
         $row['label'] = UpdateVersions::packageLabel($id);
-        $row['enabled'] = ($id === 'core') || ModuleManager::isEnabled($id);
-        $row['frozen'] = $id !== 'core' && UpdateConfig::isFrozen($id);
+        $isTheme = UpdateVersions::themeIdOf($id) !== null;
+        $row['enabled'] = ($id === 'core') || $isTheme || ModuleManager::isEnabled($id);
+        $row['frozen'] = $id !== 'core' && !$isTheme && UpdateConfig::isFrozen($id);
         if ($row['frozen']) {
             $row['update_available'] = false;
         }

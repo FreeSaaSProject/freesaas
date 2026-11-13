@@ -2,7 +2,7 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -122,14 +122,14 @@
                 "method": "POST",
                 "path": "/sites/hosts/new",
                 "permission": "sites.edit",
-                "description": "Create host: host, theme, promo_id, catalog_root_ids[], tel, enabled, is_default (+ product overlays via EventBus)"
+                "description": "Create host: host, theme, locale (ru|en|…, empty = system), promo_id, catalog_root_ids[], tel, enabled, is_default (+ product overlays via EventBus)"
             },
             {
                 "id": "sites.hosts.update",
                 "method": "POST",
                 "path": "/sites/hosts/{id}/edit",
                 "permission": "sites.edit",
-                "description": "Update host; catalog_root_ids[] multi-folder; overlays (e.g. free_ticket) via EventBus"
+                "description": "Update host; locale sets storefront UI language + hreflang; catalog_root_ids[] multi-folder; overlays (e.g. free_ticket) via EventBus"
             },
             {
                 "id": "sites.settings.get",
@@ -172,6 +172,27 @@
                 "path": "/sites/pages",
                 "permission": "sites.pages",
                 "description": "List site articles; filters: q, enabled, site_host_id"
+            },
+            {
+                "id": "sites.pages.get",
+                "method": "GET",
+                "path": "/sites/pages/{id}/edit",
+                "permission": "sites.pages",
+                "description": "Get one article (name, link, link_rw, parent_to, site_host_id, content HTML, meta_title, meta_descr, enabled) + public href; new at /sites/pages/new"
+            },
+            {
+                "id": "sites.pages.create",
+                "method": "POST",
+                "path": "/sites/pages/new",
+                "permission": "sites.pages",
+                "description": "Create article: link (required slug), name, link_rw (public path like /solutions/clinics/), parent_to, site_host_id, content, meta_title, meta_descr, enabled, num"
+            },
+            {
+                "id": "sites.pages.update",
+                "method": "POST",
+                "path": "/sites/pages/{id}/edit",
+                "permission": "sites.pages",
+                "description": "Update article; JSON calls merge with current values so only changed fields are needed (e.g. content, meta_descr)"
             },
             {
                 "id": "sites.redirects.list",
@@ -270,7 +291,8 @@
             "sites.host_edit.save",
             "sites.ai_catalog",
             "sites.llms_txt",
-            "sites.page.inject"
+            "sites.page.inject",
+            "sites.sitemap"
         ]
     },
     "bulkActions": [
