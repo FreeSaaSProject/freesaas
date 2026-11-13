@@ -98,6 +98,7 @@ final class UpdateApply
             );
             $kind = (string)$source['kind'];
             $bundle = (string)($source['bundle'] ?? '');
+            self::assertPayloadVersion($payloadRoot, $kind, $id, $source, $remote);
             $plan = UpdateOverlay::plan($payloadRoot, $kind, $id, $bundle, $source);
             $snap = UpdateRollback::snapshotBeforeOverlay(
                 UpdateOverlay::writePaths($plan),
@@ -158,6 +159,32 @@ final class UpdateApply
         } catch (Throwable $e) {
             return self::failApply($id, (string)($source['kind'] ?? 'module'), $e->getMessage(), $snapshotId, $dumpFile, $failPhase, $dbBackup);
         }
+    }
+
+    /**
+     * The archive must contain the version Check promised; a stale CDN/API snapshot must not be
+     * installed and then reported as the new version. Runs before any file is written.
+     *
+     * @param array<string,mixed> $source
+     * @param array<string,mixed> $remote
+     */
+    private static function assertPayloadVersion(string $payloadRoot, string $kind, string $id, array $source, array $remote): void
+    {
+        if ((string)($source['provider'] ?? 'github') !== 'github') {
+            return;
+        }
+        $want = trim((string)($remote['version'] ?? ''));
+        $got = UpdateVersions::payloadVersion($payloadRoot, $kind);
+        if ($want === '' || $got === '' || $got === $want) {
+            return;
+        }
+        throw new RuntimeException(sprintf(
+            'Downloaded archive for %s contains version %s, expected %s (GitHub cache lag%s). Nothing was installed — run Check again and retry in a minute.',
+            $id,
+            $got,
+            $want,
+            !empty($remote['commit']) ? ', commit ' . substr((string)$remote['commit'], 0, 12) : ''
+        ));
     }
 
     /** @param array<string,mixed> $remote */
@@ -455,6 +482,13 @@ final class UpdateApply
                     (string)($source['path_prefix'] ?? ''),
                     (string)$source['kind'],
                     $sid
+                );
+                self::assertPayloadVersion(
+                    $payloadRoot,
+                    (string)$source['kind'],
+                    $sid,
+                    $source,
+                    is_array($work['remote'] ?? null) ? $work['remote'] : []
                 );
                 $plan = UpdateOverlay::plan(
                     $payloadRoot,

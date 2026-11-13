@@ -47,6 +47,20 @@ final class UpdateVersions
         return base_path('modules/' . $target . '/module.json');
     }
 
+    /** Version declared inside a downloaded payload ('' if the version file is missing). */
+    public static function payloadVersion(string $payloadRoot, string $kind): string
+    {
+        if ($kind === 'theme') {
+            $file = $payloadRoot . '/theme.json';
+        } elseif ($kind === 'core') {
+            $file = $payloadRoot . '/modules/core/module.json';
+        } else {
+            $file = $payloadRoot . '/module.json';
+        }
+        $data = is_file($file) ? json_decode((string)@file_get_contents($file), true) : null;
+        return is_array($data) ? trim((string)($data['version'] ?? '')) : '';
+    }
+
     public static function localVersion(string $target): string
     {
         $target = UpdateVersions::normalizeTarget($target);

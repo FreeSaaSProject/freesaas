@@ -66,6 +66,21 @@ final class UpdateGithub
         $bundle = (string)($pkg['bundle'] ?? 'monorepo');
         $id = (string)$pkg['id'];
         $kind = (string)$pkg['kind'];
+        $channel = strtolower((string)($pkg['channel'] ?? 'main'));
+        $isRelease = $channel === 'stable' || $channel === 'latest' || (isset($channel[0]) && $channel[0] === 'v');
+
+        // Floating ref (branch): pin the commit first and read the version from that same commit.
+        // GitHub caches /contents and /commits independently; reading both by branch name could
+        // report the new version while downloading the previous commit.
+        $commit = '';
+        if (!$isRelease) {
+            try {
+                $commit = UpdateGithub::commitShaCached($repo, $ref, $token);
+            } catch (Throwable $e) {
+                $commit = '';
+            }
+        }
+        $readRef = $commit !== '' ? $commit : $ref;
 
         // Version from modules/<id>/module.json on the ref (core included). Root VERSION is not used.
         // Themes ([theme.<id>]) carry it in theme.json.
@@ -77,20 +92,19 @@ final class UpdateGithub
         } else {
             $path = 'modules/' . ($kind === 'core' ? 'core' : $id) . '/module.json';
         }
-        $raw = UpdateGithub::githubFileContents($repo, $path, $ref, $token);
+        $raw = UpdateGithub::githubFileContents($repo, $path, $readRef, $token);
         $j = json_decode($raw, true);
         $ver = is_array($j) ? trim((string)($j['version'] ?? '')) : '';
         if ($ver === '') {
             throw new RuntimeException('Cannot read remote version for ' . $id . ' @ ' . $ref);
         }
 
-        $channel = strtolower((string)($pkg['channel'] ?? 'main'));
         $url = '';
         $sha = null;
         $artifact = null;
 
         // Stable: prefer one full release zip asset; else zipball of the release tag/ref.
-        if ($channel === 'stable' || $channel === 'latest' || (isset($channel[0]) && $channel[0] === 'v')) {
+        if ($isRelease) {
             $release = UpdateGithub::githubRelease($repo, (string)$pkg['channel'], $token);
             $assets = isset($release['assets']) && is_array($release['assets']) ? $release['assets'] : [];
             $want = (string)($pkg['asset'] ?? '');
@@ -127,18 +141,34 @@ final class UpdateGithub
                 $artifact = 'zipball:' . $ref;
             }
         } else {
-            // Branch / floating channel: archive of ref
-            $url = UpdateGithub::githubArchiveUrl($repo, $ref);
+            // Branch / floating channel: archive of the pinned commit (fallback: ref)
+            $url = UpdateGithub::githubArchiveUrl($repo, $readRef);
             $artifact = 'zipball:' . $ref;
         }
 
-        return [
+        $out = [
             'version' => $ver,
             'url' => $url,
             'sha256' => $sha,
             'artifact' => $artifact,
             'ref' => $ref,
         ];
+        if ($commit !== '') {
+            $out['commit'] = $commit;
+        }
+        return $out;
+    }
+
+    /** @var array<string,string> repo@ref → commit sha (one GitHub call per check/apply run) */
+    private static array $commitCache = [];
+
+    public static function commitShaCached(string $repo, string $ref, string $token): string
+    {
+        $key = $repo . '@' . $ref;
+        if (!array_key_exists($key, self::$commitCache)) {
+            self::$commitCache[$key] = UpdateGithub::commitSha($repo, $ref, $token);
+        }
+        return self::$commitCache[$key];
     }
 
     /**
@@ -223,7 +253,7 @@ final class UpdateGithub
             return $remote;
         }
         try {
-            $sha = UpdateGithub::commitSha($repo, $ref, (string)($pkg['token'] ?? ''));
+            $sha = UpdateGithub::commitShaCached($repo, $ref, (string)($pkg['token'] ?? ''));
         } catch (Throwable $e) {
             return $remote;
         }

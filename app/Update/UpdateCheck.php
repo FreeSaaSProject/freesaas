@@ -124,6 +124,9 @@ final class UpdateCheck
                             'artifact' => $cached[$id]['artifact'] ?? null,
                             'ref' => $cached[$id]['ref'] ?? null,
                         ];
+                        if (!empty($cached[$id]['commit'])) {
+                            $p['_remote']['commit'] = (string)$cached[$id]['commit'];
+                        }
                     }
                     $out[] = $p;
                 }
@@ -429,6 +432,7 @@ final class UpdateCheck
                 'url' => (string)($remote['url'] ?? ''),
                 'sha256' => $remote['sha256'] ?? null,
                 'artifact' => $remote['artifact'] ?? null,
+                'commit' => $remote['commit'] ?? null,
             ]);
         } catch (Throwable $e) {
             // Local-only / not yet pushed to the monorepo ref — do not abort the whole check.
