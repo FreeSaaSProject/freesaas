@@ -412,6 +412,9 @@ final class CrmDealsRepository
         if (Database::tableExists('base_crm_stage_history')) {
             $pdo->prepare('DELETE FROM base_crm_stage_history WHERE deal_id = ?')->execute([$id]);
         }
+        if (class_exists('CrmLinksRepository')) {
+            CrmLinksRepository::removeEntity('deal', $id);
+        }
         $pdo->prepare('DELETE FROM base_crm_deals WHERE id = ?')->execute([$id]);
         EventBus::emit('crm.deal.deleted', CrmSyncContext::withOrigin([
             'id' => $id,

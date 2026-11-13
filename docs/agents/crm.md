@@ -48,6 +48,7 @@ Contact add/remove/role/primary on a company or deal also emit `crm.company.upda
 - `/crm/deals/{id}` — card: stage bar on top (click = move stage), left column details (amount, pipeline, responsible, source, typed custom fields, description) + contacts (role from company, primary, add from company / by phone, unlink), right column note form + timeline (notes + stage changes with author, newest first; other modules extend via `crm.deal.timeline`).
 - `/crm/deals/{id}/edit`, `/crm/companies/{id}/edit` — responsible is a staff picker (`UsersRepository::staffNamesIncluding`), custom fields render by type (`bool` checkbox, `enum` select from `enums_json`, `text` textarea, `number`). Contacts are managed on the card, not in the form.
 - `/crm/companies/{id}` — card with contacts + role (`base_crm_company_contacts.role`, e.g. «ЛПР», «контактное лицо»), deals of the company, notes.
+- **Meetings / tasks** on the deal card: «Встречи и задачи» creates a core ticket (`base_news` TYPE=2; assignee = deal responsible by default, curator = you) linked via `base_crm_links` (`entity=deal`, `target=ticket`); link an existing ticket by number, unlink keeps the ticket. Comments, status, deadline and assignees stay on the ticket (`/news/{id}`, `comments` module); Google Calendar sync is the usual `gcal` path. Ticket card shows «Сделки CRM» (hook `core.news_item.section`); ticket JSON carries `extensions.crm.deals` (`core.news_item.agent`). Needs `core.news` in addition to `crm.edit`.
 - Seeded pipelines: `Leads` (lead), `Sales` (sale), `B2B` (sale: new lead → meeting → questionnaire sent → questionnaire received → proposal → pilot/contract → won/lost). Stage names are data, not i18n.
 
 Bridges set `CrmSyncContext` / `sync_origin` (`bitrix` \| `amocrm`) while applying inbound so outbox listeners **skip echo**.
@@ -92,6 +93,7 @@ Same routes as UI; `?format=json` or `Accept: application/json`. Catalog: `modul
 |------|------------------|
 | New B2B lead | `crm.deals.quick_form` → `crm.deals.quick_create` (company + contact with role + deal; dedupe by INN/name and phone) |
 | CRM day-to-day | `crm.deals.list` (`view=kanban`, `responsible=me`) → `crm.deals.get` (timeline) → `crm.deals.move_stage` / `crm.deals.add_note` / `crm.deals.update` (PATCH) |
+| Meeting / task for a deal | `crm.deals.add_ticket` (name, deadline) → work on it with `core.news.get` / `core.news.act` (comments, status, assignees) → `crm.deals.get` shows `tickets[]` + timeline; `crm.deals.link_ticket` / `unlink_ticket` |
 | Contacts | `crm.companies.add_contact` / `set_contact_role` / `set_primary_contact` / `remove_contact`; `crm.deals.add_contact` (`link_company=1`) / `remove_contact` / `set_primary_contact` |
 | Classic forms | `crm.deals.new_form` → `crm.deals.create`; companies + `crm.pipelines.list` |
 | Dictionaries | `crm.pipelines.*`, `crm.stages.*`, `crm.fields.*` |

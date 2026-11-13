@@ -406,9 +406,18 @@ if ($wantsJson) {
         $gcalLinked = !empty(GcalSyncRepository::linkedNewsIds([$id])[$id]) ? 1 : 0;
     }
 
+    $agentExt = EventBus::emit('core.news_item.agent', [
+        'id' => $id,
+        'row' => $row,
+        'is_folder' => $isFolder,
+        'extensions' => [],
+    ]);
+    $extensions = is_array($agentExt) && is_array($agentExt['extensions'] ?? null) ? $agentExt['extensions'] : [];
+
     AgentHttp::emit([
         'ok' => true,
         'item' => $itemPayload,
+        'extensions' => $extensions,
         'needs_sign' => $needsSign,
         'signed' => NewsRepository::hasSigned($id, $uid),
         'in_archive_folder' => $inArchiveFolder,

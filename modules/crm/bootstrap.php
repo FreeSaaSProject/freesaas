@@ -10,6 +10,8 @@ require_once __DIR__ . '/lib/CrmNotesRepository.php';
 require_once __DIR__ . '/lib/CrmUi.php';
 require_once __DIR__ . '/lib/CrmTimeline.php';
 require_once __DIR__ . '/lib/CrmContactResolver.php';
+require_once __DIR__ . '/lib/CrmLinksRepository.php';
+require_once __DIR__ . '/lib/CrmTickets.php';
 
 Assets::register('crm', [
     'css' => ['crm.css'],
@@ -67,6 +69,42 @@ BulkActions::register('crm_deals', 'delete', [
         return ['done' => CrmDealsRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
+
+EventBus::on('core.news_item.section', static function ($payload) {
+    if (!is_array($payload) || !empty($payload['is_folder']) || !Auth::can('crm.view')) {
+        return $payload;
+    }
+    $row = is_array($payload['row'] ?? null) ? $payload['row'] : [];
+    if ((int)($row['TYPE'] ?? 0) !== 2) {
+        return $payload;
+    }
+    $deals = CrmTickets::dealsForTicket((int)($row['ID'] ?? 0));
+    if ($deals === []) {
+        return $payload;
+    }
+    $html = '<section class="crm-news-deals crm-panel"><strong>' . te('crm.tickets.on_ticket') . '</strong><ul>';
+    foreach ($deals as $d) {
+        $html .= '<li><a href="' . e($d['url']) . '">' . e($d['title']) . '</a>'
+            . ' <span class="crm-stage-pill crm-sem-' . e(strtolower($d['stage_semantic'])) . '">' . e($d['stage_name']) . '</span>'
+            . ($d['company_name'] !== '' ? ' <span class="muted">' . e($d['company_name']) . '</span>' : '')
+            . '</li>';
+    }
+    $html .= '</ul></section>';
+    Assets::need('crm');
+    $payload['html'] = (string)($payload['html'] ?? '') . $html;
+    return $payload;
+});
+
+EventBus::on('core.news_item.agent', static function ($payload) {
+    if (!is_array($payload) || !Auth::can('crm.view')) {
+        return $payload;
+    }
+    $deals = CrmTickets::dealsForTicket((int)($payload['id'] ?? 0));
+    if ($deals !== []) {
+        $payload['extensions']['crm'] = ['deals' => $deals];
+    }
+    return $payload;
+});
 
 EventBus::on('clients.view.profile', static function ($payload) {
     if (!is_array($payload)) {

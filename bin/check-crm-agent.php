@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * CRM agent layer: JSON ops invoked in-process like the assistant (route handler + AgentHttp::capture)
  * as a superadmin via Auth::runAs. Quick lead dedupe, PATCH semantics, contacts with roles, kanban,
- * timeline. Throwaway fixtures are deleted at the end.
+ * timeline, deal ↔ ticket links. Throwaway fixtures are deleted at the end.
  * Exit: 0 ok, 1 fail; SKIP if crm/clients are off or no superadmin exists.
  */
 require_once dirname(__DIR__) . '/app/bootstrap.php';
@@ -72,8 +72,15 @@ $call = static function (string $method, string $pattern, array $pathArgs = [], 
     ];
 };
 
-$created = ['deals' => [], 'companies' => [], 'clients' => []];
+$created = ['deals' => [], 'companies' => [], 'clients' => [], 'tickets' => []];
 $cleanup = static function () use (&$created, $pdo): void {
+    foreach (array_unique(array_filter($created['tickets'])) as $tid) {
+        $pdo->prepare('DELETE FROM base_news WHERE ID = ? AND TYPE = 2')->execute([(int)$tid]);
+        $pdo->prepare("DELETE FROM base_crm_links WHERE target = 'ticket' AND target_id = ?")->execute([(int)$tid]);
+        if (Database::tableExists('base_gcal_sync_queue')) {
+            $pdo->prepare('DELETE FROM base_gcal_sync_queue WHERE ID_TASK = ?')->execute([(int)$tid]);
+        }
+    }
     foreach (array_unique($created['deals']) as $id) {
         CrmDealsRepository::delete((int)$id);
         $pdo->prepare("DELETE FROM base_crm_notes WHERE entity = 'deal' AND entity_id = ?")->execute([(int)$id]);
@@ -207,6 +214,38 @@ try {
         $rm = $call('POST', '/crm/deals/{id}', ['id' => $dealId], ['action' => 'remove_contact', 'client_id' => $clientA]);
         $links = CrmDealsRepository::contactLinks($dealId);
         $assert($rm['ok'] && count($links) === 1 && !empty($links[0]['is_primary']), 'crm.deals.remove_contact keeps a primary');
+
+        if (CrmTickets::available()) {
+            $tk = $call('POST', '/crm/deals/{id}', ['id' => $dealId], [
+                'action' => 'add_ticket', 'name' => 'Meeting ' . $suffix, 'deadline' => date('Y-m-d', time() + 86400),
+                'body' => 'agenda',
+            ]);
+            $ticketId = (int)($tk['payload']['ticket_id'] ?? 0);
+            $created['tickets'][] = $ticketId;
+            $ticket = $ticketId > 0 ? NewsRepository::find($ticketId) : null;
+            $assert($tk['ok'] && $ticket !== null && (int)$ticket['TYPE'] === 2
+                && NewsRepository::parseUserList((string)$ticket['USERS_RESP']) === [$uid],
+                'crm.deals.add_ticket creates TYPE=2 ticket, assignee = deal responsible ' . $tk['error']);
+            $dg = $call('GET', '/crm/deals/{id}', ['id' => $dealId]);
+            $tks = (array)($dg['payload']['tickets'] ?? []);
+            $assert(count($tks) === 1 && (int)$tks[0]['id'] === $ticketId && (int)$tks[0]['status_id'] > 0,
+                'crm.deals.get tickets[] with status');
+            $assert(in_array('ticket', array_column((array)$dg['payload']['timeline'], 'type'), true), 'timeline has ticket');
+            $news = $call('GET', '/news/{id}', ['id' => $ticketId], ['comments' => '0']);
+            $ext = (array)($news['payload']['extensions']['crm']['deals'] ?? []);
+            $assert($news['ok'] && count($ext) === 1 && (int)$ext[0]['id'] === $dealId,
+                'core.news.get extensions.crm.deals points back to the deal');
+            $other = (int)($q2['payload']['deal_id'] ?? 0);
+            $lk = $call('POST', '/crm/deals/{id}', ['id' => $other], ['action' => 'link_ticket', 'ticket_id' => $ticketId]);
+            $assert($lk['ok'] && count(CrmTickets::dealsForTicket($ticketId)) === 2, 'crm.deals.link_ticket (one ticket, two deals)');
+            $ul = $call('POST', '/crm/deals/{id}', ['id' => $other], ['action' => 'unlink_ticket', 'ticket_id' => $ticketId]);
+            $assert($ul['ok'] && count(CrmTickets::dealsForTicket($ticketId)) === 1 && NewsRepository::find($ticketId) !== null,
+                'crm.deals.unlink_ticket keeps the ticket');
+            $lb = $call('POST', '/crm/deals/{id}', ['id' => $dealId], ['action' => 'link_ticket', 'ticket_id' => 999999999]);
+            $assert(!$lb['ok'] && $lb['http'] === 400, 'link_ticket rejects unknown ticket');
+        } else {
+            echo "SKIP tickets (core news unavailable)\n";
+        }
 
         $bad = $call('POST', '/crm/deals/{id}', ['id' => $dealId], ['action' => 'nope']);
         $assert(!$bad['ok'] && $bad['http'] === 400, 'unknown action → 400');

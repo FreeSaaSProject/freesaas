@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Unified activity feed of a deal (notes + stage changes); other modules append via
+ * Unified activity feed of a deal (notes + stage changes + linked tickets); other modules append via
  * EventBus `crm.deal.timeline` ({deal_id, deal, items[]}) — items: {type, at, author_id, ...}.
  */
 final class CrmTimeline
@@ -37,6 +37,15 @@ final class CrmTimeline
                 'to_stage_id' => (int)$h['to_stage_id'],
                 'from_name' => (string)($h['from_name'] ?? ''),
                 'to_name' => (string)($h['to_name'] ?? ''),
+            ];
+        }
+        foreach (CrmTickets::forDeal($dealId) as $tk) {
+            $items[] = [
+                'type' => 'ticket',
+                'id' => (int)$tk['id'],
+                'at' => max((int)$tk['created_at'], (int)$tk['linked_at']),
+                'author_id' => (int)$tk['linked_by'],
+                'ticket' => $tk,
             ];
         }
         $payload = EventBus::emit('crm.deal.timeline', ['deal_id' => $dealId, 'deal' => $deal, 'items' => $items]);

@@ -142,6 +142,67 @@ $passed = true;
   </aside>
 
   <main class="crm-card-main">
+    <?php if ($ticketsAvailable): ?>
+    <section class="crm-panel">
+      <h2><?= te('crm.tickets.title') ?></h2>
+      <ul class="crm-tickets">
+      <?php foreach ($tickets as $tk): ?>
+        <li class="<?= !empty($tk['done']) ? 'is-done' : '' ?>">
+          <div class="crm-ticket-head">
+            <a href="<?= e((string)$tk['url']) ?>"><?= e((string)$tk['name']) ?></a>
+            <?php $sc = (string)$tk['status_color']; ?>
+            <span class="crm-stage-pill"<?= preg_match('/^#[0-9a-f]{3,8}$/i', $sc) ? ' style="border-color:' . e($sc) . '"' : '' ?>><?= e((string)$tk['status_name']) ?></span>
+          </div>
+          <div class="muted crm-ticket-meta">
+            <?php if ((int)$tk['deadline'] > 0): ?>
+              <span class="<?= !empty($tk['overdue']) ? 'crm-overdue' : '' ?>"><?= te('crm.tickets.deadline') ?>: <?= e(I18n::formatDate((int)$tk['deadline'])) ?></span>
+            <?php endif; ?>
+            <?php if ($tk['users_resp_names']): ?><span>· <?= e(implode(', ', $tk['users_resp_names'])) ?></span><?php endif; ?>
+            <?php if ((int)$tk['comment_count'] > 0): ?><span>· <?= te('crm.tickets.comments', ['n' => (string)(int)$tk['comment_count']]) ?></span><?php endif; ?>
+          </div>
+          <?php if ($canEdit): ?>
+          <form method="post" class="crm-inline-actions">
+            <input type="hidden" name="action" value="unlink_ticket">
+            <input type="hidden" name="ticket_id" value="<?= (int)$tk['id'] ?>">
+            <button class="btn-sm" type="submit"><?= te('crm.tickets.unlink') ?></button>
+          </form>
+          <?php endif; ?>
+        </li>
+      <?php endforeach; ?>
+      <?php if (!$tickets): ?><li class="muted"><?= te('crm.tickets.empty') ?></li><?php endif; ?>
+      </ul>
+      <?php if ($canEdit): ?>
+      <details class="crm-add-contact"<?= $tickets ? '' : ' open' ?>>
+        <summary><?= te('crm.tickets.new') ?></summary>
+        <form method="post" class="form-grid">
+          <input type="hidden" name="action" value="add_ticket">
+          <label class="crm-span-2"><?= te('crm.tickets.name') ?>
+            <input name="name" required placeholder="<?= te('crm.tickets.name_hint') ?>">
+          </label>
+          <label><?= te('crm.tickets.deadline') ?>
+            <input name="deadline" type="date" required value="<?= e(date('Y-m-d')) ?>">
+          </label>
+          <label><?= te('crm.tickets.resp') ?>
+            <select name="users_resp[]" multiple size="3">
+              <?php foreach ($staff as $uid => $uname): ?>
+                <option value="<?= (int)$uid ?>"<?= (int)$row['responsible_user_id'] === (int)$uid ? ' selected' : '' ?>><?= e((string)$uname) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </label>
+          <label class="crm-span-2"><?= te('crm.tickets.body') ?>
+            <textarea name="body" rows="3"></textarea>
+          </label>
+          <button class="btn-primary" type="submit"><?= te('crm.tickets.create') ?></button>
+        </form>
+        <form method="post" class="crm-inline-form">
+          <input type="hidden" name="action" value="link_ticket">
+          <input name="ticket_id" inputmode="numeric" required placeholder="<?= te('crm.tickets.link_hint') ?>" aria-label="<?= te('crm.tickets.link_hint') ?>">
+          <button class="btn-sm" type="submit"><?= te('crm.tickets.link') ?></button>
+        </form>
+      </details>
+      <?php endif; ?>
+    </section>
+    <?php endif; ?>
     <?php if ($canEdit): ?>
     <section class="crm-panel">
       <form method="post" class="crm-note-form">
@@ -158,7 +219,8 @@ $passed = true;
         <li class="crm-tl-item crm-tl-<?= e($type) ?>">
           <div class="crm-tl-head">
             <span class="crm-tl-kind"><?= $type === 'note' ? te('crm.timeline.kind_note')
-                : ($type === 'stage' ? te('crm.timeline.kind_stage') : e((string)($it['kind_label'] ?? ''))) ?></span>
+                : ($type === 'stage' ? te('crm.timeline.kind_stage')
+                : ($type === 'ticket' ? te('crm.timeline.kind_ticket') : e((string)($it['kind_label'] ?? '')))) ?></span>
             <span class="muted"><?= e(I18n::formatDate((int)($it['at'] ?? 0), 'datetime')) ?></span>
             <?php if ((string)($it['author_name'] ?? '') !== ''): ?><span class="muted">· <?= e((string)$it['author_name']) ?></span><?php endif; ?>
           </div>
@@ -167,6 +229,9 @@ $passed = true;
               <?= e_nl((string)$it['body']) ?>
             <?php elseif ($type === 'stage'): ?>
               <?= e((string)($it['from_name'] !== '' ? $it['from_name'] : '—')) ?> → <strong><?= e((string)($it['to_name'] ?? '—')) ?></strong>
+            <?php elseif ($type === 'ticket' && isset($it['ticket'])): $tk = $it['ticket']; ?>
+              <a href="<?= e((string)$tk['url']) ?>"><?= e((string)$tk['name']) ?></a>
+              <span class="muted">· <?= e((string)$tk['status_name']) ?><?php if ((int)$tk['deadline'] > 0): ?> · <?= e(I18n::formatDate((int)$tk['deadline'])) ?><?php endif; ?></span>
             <?php elseif (isset($it['html'])): ?>
               <?= safe_html((string)$it['html']) ?>
             <?php else: ?>

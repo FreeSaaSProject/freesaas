@@ -91,5 +91,16 @@ fieldset.crm-panel legend { font-weight: 600; padding: 0 0.35rem; }
 .crm-tl-kind { font-weight: 600; }
 .crm-tl-body { margin-top: 0.15rem; overflow-wrap: anywhere; }
 
+.crm-tickets { list-style: none; margin: 0 0 0.5rem; padding: 0; }
+.crm-tickets > li { padding: 0.5rem 0; border-bottom: 1px solid var(--line); }
+.crm-tickets > li:last-child { border-bottom: 0; }
+.crm-tickets > li.is-done .crm-ticket-head a { text-decoration: line-through; color: var(--muted); }
+.crm-ticket-head { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.crm-ticket-meta { font-size: 0.88em; display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.crm-overdue { color: var(--danger); }
+.crm-tl-ticket::before { background: var(--ok); }
+.crm-news-deals { margin: 1rem 0; }
+.crm-news-deals ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+
 .crm-quick { max-width: 56rem; }
 .crm-danger-zone { margin-top: 1.5rem; }

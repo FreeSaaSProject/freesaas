@@ -48,6 +48,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !Auth::can('crm.edit')) {
         } elseif ($action === 'set_primary_contact') {
             CrmDealsRepository::addContact($id, (int)($_POST['client_id'] ?? 0), true);
             $message = t('crm.flash.saved');
+        } elseif ($action === 'add_ticket') {
+            $out['ticket_id'] = CrmTickets::createForDeal($row, $_POST);
+            $message = t('crm.flash.ticket_created');
+        } elseif ($action === 'link_ticket') {
+            $tid = (int)preg_replace('/\D+/', '', (string)($_POST['ticket_id'] ?? ''));
+            CrmTickets::link($id, $tid);
+            $out['ticket_id'] = $tid;
+            $message = t('crm.flash.ticket_linked');
+        } elseif ($action === 'unlink_ticket') {
+            CrmLinksRepository::remove('deal', $id, CrmTickets::TARGET, (int)($_POST['ticket_id'] ?? 0));
+            $message = t('crm.flash.ticket_unlinked');
         } else {
             throw new InvalidArgumentException(t('crm.err.unknown_action'));
         }
@@ -91,11 +102,16 @@ $stages = CrmPipelinesRepository::listStages((int)$row['pipeline_id'], true);
 $cfDefs = CrmCustomFieldsRepository::listFields('deal', true);
 $cfValues = CrmCustomFieldsRepository::valuesFor('deal', $id);
 $timeline = CrmTimeline::forDeal($row);
+$tickets = array_values(array_map(static fn(array $it): array => $it['ticket'], array_filter(
+    $timeline,
+    static fn(array $it): bool => ($it['type'] ?? '') === 'ticket' && isset($it['ticket'])
+)));
 
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'item' => $row,
+        'tickets' => $tickets,
         'contacts' => $contacts,
         'company_contacts' => $companyContacts,
         'stages' => $stages,
@@ -121,6 +137,9 @@ View::render('deal_view', [
     'cfDefs' => $cfDefs,
     'cfValues' => $cfValues,
     'timeline' => $timeline,
+    'tickets' => $tickets,
+    'ticketsAvailable' => CrmTickets::available() && Auth::can('core.news'),
+    'staff' => CrmUi::staffOptions([(int)$row['responsible_user_id']]),
     'canEdit' => Auth::can('crm.edit'),
     'canCreateClient' => Auth::can('clients.edit'),
     'message' => $message,

@@ -362,6 +362,9 @@ final class CrmCompaniesRepository
             $pdo->prepare('DELETE FROM base_crm_company_contacts WHERE company_id = ?')->execute([$id]);
         }
         $pdo->prepare('DELETE FROM base_crm_companies WHERE id = ?')->execute([$id]);
+        if (class_exists('CrmLinksRepository')) {
+            CrmLinksRepository::removeEntity('company', $id);
+        }
         EventBus::emit('crm.company.deleted', CrmSyncContext::withOrigin([
             'id' => $id,
             'row' => $row,

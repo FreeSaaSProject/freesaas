@@ -2,7 +2,7 @@
     "id": "crm",
     "name": "crm.module.name",
     "description": "crm.module.description",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -249,7 +249,59 @@
                 "path": "/crm/deals/{id}",
                 "permission": "crm.view",
                 "side_effect": "read",
-                "description": "Deal card: item (company_name, responsible_name), contacts (with company role), company_contacts, stages, custom fields, timeline[] (notes + stage changes + module entries, newest first), notes, stage_history"
+                "description": "Deal card: item (company_name, responsible_name), contacts (with company role), company_contacts, tickets[] (linked core tickets: status, deadline, overdue, users_resp_names, comment_count, url), stages, custom fields, timeline[] (notes + stage changes + tickets + module entries, newest first), notes, stage_history"
+            },
+            {
+                "id": "crm.deals.add_ticket",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Create a core ticket (meeting / task; TYPE=2, status 1, syncs to Google Calendar via gcal) linked to the deal; action=add_ticket. users_resp defaults to the deal responsible, curator to the caller. Needs core.news. Comments, status and assignee changes then go through core.news.* ops on /news/{ticket_id}.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "name", "deadline"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["add_ticket"]},
+                        "name": {"type": "string"},
+                        "deadline": {"type": "string", "description": "YYYY-MM-DD"},
+                        "users_resp": {"type": "string", "description": "Comma-separated staff user ids"},
+                        "curator_id": {"type": "integer"},
+                        "body": {"type": "string", "description": "Plain text description"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.link_ticket",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Link an existing ticket (TYPE=2) to the deal; action=link_ticket&ticket_id=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "ticket_id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["link_ticket"]},
+                        "ticket_id": {"type": "integer"}
+                    }
+                }
+            },
+            {
+                "id": "crm.deals.unlink_ticket",
+                "method": "POST",
+                "path": "/crm/deals/{id}",
+                "permission": "crm.edit",
+                "side_effect": "write",
+                "description": "Unlink a ticket from the deal (ticket itself stays); action=unlink_ticket&ticket_id=",
+                "parameters": {
+                    "type": "object",
+                    "required": ["action", "ticket_id"],
+                    "properties": {
+                        "action": {"type": "string", "enum": ["unlink_ticket"]},
+                        "ticket_id": {"type": "integer"}
+                    }
+                }
             },
             {
                 "id": "crm.deals.add_contact",
@@ -618,12 +670,15 @@
         "base_crm_custom_fields",
         "base_crm_custom_values",
         "base_crm_notes",
-        "base_crm_stage_history"
+        "base_crm_stage_history",
+        "base_crm_links"
     ],
     "migrators": [],
     "hooks": {
         "subscribe": [
-            "clients.view.profile"
+            "clients.view.profile",
+            "core.news_item.section",
+            "core.news_item.agent"
         ],
         "publish": [
             "crm.company.created",
