@@ -293,30 +293,44 @@ final class BackupCdc
      *
      * @return list<array{tbl:string,pk_json:string,op:string}>
      */
-    public static function collapsedChanges(int $cursorFrom, int $cursorTo): array
+    public static function collapsedChanges(int $cursorFrom, int $cursorTo, int $chunk = 5000): array
     {
         if (!self::journalReady() || $cursorTo <= $cursorFrom) {
             return [];
         }
-        $pdo = Database::pdo();
-        $st = $pdo->prepare(
-            'SELECT TBL AS tbl, PK_JSON AS pk_json,
-                    SUBSTRING_INDEX(GROUP_CONCAT(OP ORDER BY ID DESC SEPARATOR \',\'), \',\', 1) AS op
-             FROM ' . self::JOURNAL . '
+        // Keyset scan on PRIMARY + collapse in PHP. GROUP BY/GROUP_CONCAT here forces an on-disk
+        // MySQL temp table, which fails with Errcode 28 when the shared host's tmpdir is full.
+        $chunk = max(500, min(20000, $chunk));
+        $st = Database::pdo()->prepare(
+            'SELECT ID, TBL, PK_JSON, OP FROM ' . self::JOURNAL . '
              WHERE ID > ? AND ID <= ?
-             GROUP BY TBL, PK_JSON'
+             ORDER BY ID ASC
+             LIMIT ' . $chunk
         );
-        $st->execute([$cursorFrom, $cursorTo]);
-        $out = [];
-        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-            if (!is_array($row)) {
-                continue;
+        $last = [];
+        $after = $cursorFrom;
+        while ($after < $cursorTo) {
+            $st->execute([$after, $cursorTo]);
+            $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+            $st->closeCursor();
+            if ($rows === []) {
+                break;
             }
-            $out[] = [
-                'tbl' => (string)$row['tbl'],
-                'pk_json' => (string)$row['pk_json'],
-                'op' => (string)$row['op'],
-            ];
+            foreach ($rows as $row) {
+                $after = (int)$row['ID'];
+                $key = (string)$row['TBL'] . "\0" . (string)$row['PK_JSON'];
+                // Re-append so output follows last-change order (REPLACE vs secondary UNIQUE keys).
+                unset($last[$key]);
+                $last[$key] = (string)$row['OP'];
+            }
+            if (count($rows) < $chunk) {
+                break;
+            }
+        }
+        $out = [];
+        foreach ($last as $key => $op) {
+            [$tbl, $pkJson] = explode("\0", $key, 2);
+            $out[] = ['tbl' => $tbl, 'pk_json' => $pkJson, 'op' => $op];
         }
         return $out;
     }

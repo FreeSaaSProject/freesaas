@@ -668,16 +668,14 @@ final class BackupRunner
         if ($to <= $from) {
             throw new RuntimeException(t('backups.err.incr_empty'));
         }
+        @ini_set('memory_limit', '512M');
         $changes = BackupCdc::collapsedChanges($from, $to);
         $localDir = (string)$state['local_dir'];
         $sqlPath = $localDir . '/incr.sql';
         $stats = BackupCdc::writeIncrSql($sqlPath, $changes);
+        unset($changes);
         $gzPath = $sqlPath . '.gz';
-        $raw = (string)file_get_contents($sqlPath);
-        $gz = gzencode($raw, 6);
-        if ($gz === false || file_put_contents($gzPath, $gz) === false) {
-            throw new RuntimeException('incr gzip failed');
-        }
+        self::gzipFileStream($sqlPath, $gzPath);
         @unlink($sqlPath);
         $arts = is_array($state['artifacts'] ?? null) ? $state['artifacts'] : [];
         $arts[] = [
@@ -690,6 +688,33 @@ final class BackupRunner
         $state['incr_stats'] = $stats;
         $state['phase_detail'] = [];
         return ['done' => true, 'state' => $state];
+    }
+
+    private static function gzipFileStream(string $src, string $dest): void
+    {
+        $in = fopen($src, 'rb');
+        if ($in === false) {
+            throw new RuntimeException('incr gzip failed: cannot read ' . basename($src));
+        }
+        $out = gzopen($dest, 'wb6');
+        if ($out === false) {
+            fclose($in);
+            throw new RuntimeException('incr gzip failed: cannot write ' . basename($dest));
+        }
+        try {
+            while (!feof($in)) {
+                $chunk = fread($in, 1048576);
+                if ($chunk === false) {
+                    throw new RuntimeException('incr gzip failed: read error');
+                }
+                if ($chunk !== '' && gzwrite($out, $chunk) === false) {
+                    throw new RuntimeException('incr gzip failed: write error (disk full?)');
+                }
+            }
+        } finally {
+            fclose($in);
+            gzclose($out);
+        }
     }
 
     /** @param array<string,mixed> $state @return array{done:bool,state:array<string,mixed>} */
