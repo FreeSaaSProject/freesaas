@@ -104,18 +104,44 @@
     return '';
   }
 
-  function addViaAjax(btn, productId, form) {
-    if (btn.getAttribute('data-cart-busy') === '1') {
-      return;
+  function setCsrfToken(token) {
+    qsa('input[name="csrf"]').forEach(function (inp) {
+      inp.value = token;
+    });
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) {
+      meta.setAttribute('content', token);
     }
-    btn.setAttribute('data-cart-busy', '1');
-    btn.classList.add('is-adding');
+  }
 
+  function refreshCsrf() {
+    return fetch('/cart?ajax=1', {
+      method: 'GET',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        Accept: 'application/json'
+      }
+    })
+      .then(function (res) {
+        return res.json();
+      })
+      .then(function (data) {
+        var token = data && data.csrf ? String(data.csrf) : '';
+        if (!token) {
+          throw new Error('csrf refresh');
+        }
+        setCsrfToken(token);
+        return token;
+      });
+  }
+
+  function postAdd(productId, form, token) {
     var body = new FormData();
     body.append('add', '1');
     body.append('product_id', String(productId));
     body.append('ajax', '1');
-    var token = csrfToken(form);
     if (token) {
       body.append('csrf', token);
     }
@@ -134,16 +160,34 @@
       headers['X-CSRF-Token'] = token;
     }
 
-    fetch('/cart', {
+    return fetch('/cart', {
       method: 'POST',
       credentials: 'same-origin',
       headers: headers,
       body: body
-    })
-      .then(function (res) {
-        return res.json().then(function (data) {
-          return { okHttp: res.ok, data: data || {} };
-        });
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        return { okHttp: res.ok, data: data || {} };
+      });
+    });
+  }
+
+  function addViaAjax(btn, productId, form) {
+    if (btn.getAttribute('data-cart-busy') === '1') {
+      return;
+    }
+    btn.setAttribute('data-cart-busy', '1');
+    btn.classList.add('is-adding');
+
+    postAdd(productId, form, csrfToken(form))
+      .then(function (pack) {
+        // Tab restored from memory after the session cookie was dropped: stale token.
+        if (!pack.okHttp && pack.data.error === 'csrf') {
+          return refreshCsrf().then(function (token) {
+            return postAdd(productId, form, token);
+          });
+        }
+        return pack;
       })
       .then(function (pack) {
         var data = pack.data;
@@ -158,7 +202,8 @@
         btn.removeAttribute('data-cart-busy');
         btn.classList.remove('is-adding');
         if (form) {
-          form.removeEventListener('submit', onFormSubmit, true);
+          // The capture listener lives on document; mark the form so it lets the native submit through.
+          form.setAttribute('data-cart-native', '1');
           var submitter =
             form.querySelector('.cd-add-to-cart') ||
             form.querySelector('button[name="add"]') ||
@@ -206,7 +251,7 @@
 
   function onFormSubmit(e) {
     var form = e.target;
-    if (!isAddForm(form)) {
+    if (!isAddForm(form) || form.getAttribute('data-cart-native') === '1') {
       return;
     }
     var btn =

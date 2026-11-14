@@ -70,11 +70,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guest_phone_clear']))
 
 if ($ajax && $_SERVER['REQUEST_METHOD'] === 'GET') {
     $snap = SitesCart::snapshot();
+    // Restored mobile tabs keep stale HTML tokens after the session cookie is gone.
     SitesCart::emitJson([
         'ok' => true,
         'count' => $snap['count'],
         'total' => $snap['total'],
         'lines' => $snap['lines'],
+        'csrf' => Csrf::token(),
     ]);
 }
 
