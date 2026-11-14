@@ -36,7 +36,12 @@ final class Auth
         // GC must cover the longest cookie; remember flag is known only after start.
         self::applySessionIni(self::rememberLifetimeSeconds());
         session_set_cookie_params(self::cookieParams(0));
+        $staleCookie = self::resolveDuplicateSessionCookie($name);
         session_start();
+        if ($staleCookie !== null) {
+            // After session_start: PHP drops earlier Set-Cookie headers with the session name.
+            setcookie($name, '', self::setCookieOptions(time() - 42000, $staleCookie));
+        }
         if (!empty($_SESSION['user_id']) && !empty($_SESSION['remember'])) {
             self::touchSessionCookie();
         }
@@ -135,6 +140,60 @@ final class Auth
             $slug = substr($slug, 0, 24) . '_' . substr(hash('sha256', $host), 0, 8);
         }
         return $slug;
+    }
+
+    /**
+     * Same cookie name stored twice (host-only + Domain=…) after a session_cookie_domain change.
+     * Browsers send the older one first and PHP reads only that, so a dead id wins on every
+     * request: a fresh session each hit, CSRF never matches, cart always empty.
+     * Resume the id that still has a session file; returns cookie params of the variant
+     * we no longer set, so the caller can expire it.
+     *
+     * @return array{lifetime:int,path:string,domain:string,secure:bool,httponly:bool,samesite:string}|null
+     */
+    private static function resolveDuplicateSessionCookie(string $name): ?array
+    {
+        $values = [];
+        foreach (explode(';', (string)($_SERVER['HTTP_COOKIE'] ?? '')) as $pair) {
+            $eq = strpos($pair, '=');
+            if ($eq === false || trim(substr($pair, 0, $eq)) !== $name) {
+                continue;
+            }
+            $val = trim(substr($pair, $eq + 1));
+            if (preg_match('/^[a-zA-Z0-9,-]{22,256}$/', $val) === 1) {
+                $values[] = $val;
+            }
+        }
+        if (count(array_unique($values)) < 2) {
+            return null;
+        }
+
+        $params = self::cookieParams(0);
+        $stale = $params;
+        if ($params['domain'] !== '') {
+            $stale['domain'] = '';
+        } else {
+            $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+            $stale['domain'] = explode(':', $host, 2)[0];
+        }
+        $stale = $stale['domain'] !== $params['domain'] ? $stale : null;
+
+        if (ini_get('session.save_handler') !== 'files') {
+            return $stale;
+        }
+        $dir = (string)session_save_path();
+        $dir = $dir !== '' ? $dir : sys_get_temp_dir();
+        if (strpos($dir, ';') !== false) {
+            $parts = explode(';', $dir);
+            $dir = (string)end($parts);
+        }
+        foreach ($values as $val) {
+            if (is_file(rtrim($dir, '/') . '/sess_' . $val)) {
+                session_id($val);
+                break;
+            }
+        }
+        return $stale;
     }
 
     /** Expire pre-host-scoped session cookie (name "freesaas"). */
