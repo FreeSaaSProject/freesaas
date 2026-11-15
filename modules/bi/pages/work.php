@@ -107,6 +107,9 @@ try {
                 if ($type === 'table') {
                     $row['rows'] = count(is_array($sec['rows'] ?? null) ? $sec['rows'] : []);
                     $row['columns'] = count(is_array($sec['columns'] ?? null) ? $sec['columns'] : []);
+                } elseif ($type === 'chart') {
+                    $row['labels'] = count(is_array($sec['labels'] ?? null) ? $sec['labels'] : []);
+                    $row['series'] = count(is_array($sec['datasets'] ?? null) ? $sec['datasets'] : []);
                 } elseif ($type === 'metrics') {
                     $row['metrics'] = count(is_array($sec['metrics'] ?? null) ? $sec['metrics'] : []);
                 } elseif ($type === 'text') {

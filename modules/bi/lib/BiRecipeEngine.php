@@ -100,6 +100,8 @@ final class BiRecipeEngine
                 $sections[] = self::sectionMetrics($sec, $frames);
             } elseif ($type === 'table') {
                 $sections[] = self::sectionTable($sec, $frames);
+            } elseif ($type === 'chart') {
+                $sections[] = self::sectionChart($sec, $frames);
             } elseif ($type === 'pivot') {
                 $sections[] = self::sectionPivot($sec, $params);
             } elseif ($type === 'text') {
@@ -1297,6 +1299,104 @@ final class BiRecipeEngine
             'title' => (string)($sec['title'] ?? ''),
             'type' => 'text',
             'body' => $body,
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $sec
+     * @param array<string,list<array<string,mixed>>> $frames
+     * @return array<string,mixed>
+     */
+    private static function sectionChart(array $sec, array $frames): array
+    {
+        $from = (string)($sec['from'] ?? '');
+        $rows = $frames[$from] ?? [];
+        $xField = trim((string)($sec['x'] ?? ''));
+        $chartType = strtolower(trim((string)($sec['chart_type'] ?? 'line')));
+        if (!in_array($chartType, ['line', 'bar', 'doughnut'], true)) {
+            $chartType = 'line';
+        }
+        $seriesIn = is_array($sec['series'] ?? null) ? $sec['series'] : [];
+
+        $labels = [];
+        $seriesData = [];
+        $colDefs = [['id' => '_x', 'label' => $xField !== '' ? $xField : 'x']];
+        foreach ($seriesIn as $si => $ser) {
+            if (!is_array($ser)) {
+                continue;
+            }
+            $field = trim((string)($ser['field'] ?? ''));
+            if ($field === '') {
+                continue;
+            }
+            $label = trim((string)($ser['label'] ?? $field));
+            $st = strtolower(trim((string)($ser['chart_type'] ?? '')));
+            if ($st === '' || !in_array($st, ['line', 'bar', 'doughnut'], true)) {
+                $st = $chartType;
+            }
+            $yAxis = strtolower(trim((string)($ser['y_axis'] ?? 'left')));
+            if ($yAxis !== 'right') {
+                $yAxis = 'left';
+            }
+            $sid = 's' . $si;
+            $seriesData[] = [
+                'id' => $sid,
+                'field' => $field,
+                'label' => $label !== '' ? $label : $field,
+                'chart_type' => $st,
+                'y_axis' => $yAxis,
+                'data' => [],
+            ];
+            $colDefs[] = ['id' => $sid, 'label' => $label !== '' ? $label : $field];
+        }
+
+        $outRows = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $label = $xField !== '' ? (string)($row[$xField] ?? '') : '';
+            $labels[] = $label;
+            $out = ['_x' => $label];
+            foreach ($seriesData as $si => &$ser) {
+                $raw = $row[$ser['field']] ?? 0;
+                if (is_bool($raw)) {
+                    $num = $raw ? 1.0 : 0.0;
+                } elseif (is_int($raw) || is_float($raw)) {
+                    $num = (float)$raw;
+                } elseif (is_string($raw) && is_numeric($raw)) {
+                    $num = (float)$raw;
+                } else {
+                    $num = 0.0;
+                }
+                if (is_nan($num) || is_infinite($num)) {
+                    $num = 0.0;
+                }
+                $ser['data'][] = $num;
+                $out[$ser['id']] = $num;
+            }
+            unset($ser);
+            $outRows[] = $out;
+        }
+
+        $datasets = [];
+        foreach ($seriesData as $ser) {
+            $datasets[] = [
+                'label' => $ser['label'],
+                'data' => $ser['data'],
+                'chart_type' => $ser['chart_type'],
+                'y_axis' => $ser['y_axis'],
+            ];
+        }
+
+        return [
+            'title' => (string)($sec['title'] ?? 'Chart'),
+            'type' => 'chart',
+            'chart_type' => $chartType,
+            'labels' => $labels,
+            'datasets' => $datasets,
+            'columns' => $colDefs,
+            'rows' => $outRows,
         ];
     }
 

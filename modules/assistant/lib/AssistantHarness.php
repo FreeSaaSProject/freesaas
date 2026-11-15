@@ -420,8 +420,15 @@ final class AssistantHarness
                     foreach ($ops as $o) {
                         $catalogIds[(string)($o['id'] ?? '')] = true;
                     }
+                    $userText = '';
+                    for ($ui = count($norm) - 1; $ui >= 0; $ui--) {
+                        if (($norm[$ui]['role'] ?? '') === 'user') {
+                            $userText = trim((string)($norm[$ui]['content'] ?? ''));
+                            break;
+                        }
+                    }
                     $preflight = class_exists('AssistantWritePreflight', false)
-                        ? AssistantWritePreflight::run($opId, $args, $catalogIds)
+                        ? AssistantWritePreflight::run($opId, $args, $catalogIds, ['user_text' => $userText])
                         : ['blockers' => [], 'suggest' => [], 'noop' => false];
                     foreach (AssistantWritePreflight::previewLines($preflight) as $line) {
                         $preview['lines'][] = $line;
@@ -441,6 +448,10 @@ final class AssistantHarness
                                 : t('assistant.preflight.noop'),
                             'preflight' => $preflight,
                         ];
+                        if ($replan) {
+                            // Same turn: model must CALL the fixed write (or ask one short question).
+                            $needsFollowup = true;
+                        }
                         $trace[] = [
                             'op_id' => $opId,
                             'label' => self::humanOpTitle($opId),

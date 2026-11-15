@@ -12,8 +12,10 @@ require_once __DIR__ . '/lib/ScriptPack.php';
 require_once __DIR__ . '/lib/DictDescrSuggest.php';
 require_once __DIR__ . '/lib/AudioDictsLongJob.php';
 require_once __DIR__ . '/lib/AudioDictsAgentOps.php';
+require_once __DIR__ . '/lib/AudioDictsBiContrib.php';
 
 AudioDictsAgentOps::register();
+EventBus::on('bi.datasets', [AudioDictsBiContrib::class, 'onDatasets']);
 
 Assets::register('audio_dicts', [
     'css' => ['audio_dicts.css'],

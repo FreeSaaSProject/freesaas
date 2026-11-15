@@ -14,11 +14,24 @@ final class WorkweeksAssistantPreflight
     public static function onWritePreflight(array $payload): array
     {
         $opId = (string)($payload['op_id'] ?? '');
-        if ($opId !== 'workweeks.create' && $opId !== 'workweeks.update') {
+        if ($opId !== 'workweeks.create' && $opId !== 'workweeks.update' && $opId !== 'workweeks.delete') {
             return $payload;
         }
         $args = is_array($payload['args'] ?? null) ? $payload['args'] : [];
-        if (strtolower(trim((string)($args['action'] ?? ''))) === 'delete') {
+        $isDelete = $opId === 'workweeks.delete'
+            || strtolower(trim((string)($args['action'] ?? ''))) === 'delete';
+        if ($isDelete) {
+            $id = (int)($args['id'] ?? 0);
+            if ($id < 1 || WorkweeksRepository::find($id) === null) {
+                return self::block(
+                    $payload,
+                    'workweeks_delete_id',
+                    t('workweeks.preflight.delete_need_id')
+                );
+            }
+            return $payload;
+        }
+        if ($opId === 'workweeks.delete') {
             return $payload;
         }
 
@@ -29,7 +42,11 @@ final class WorkweeksAssistantPreflight
             $id = (int)($args['id'] ?? 0);
             $row = $id > 0 ? WorkweeksRepository::find($id) : null;
             if ($row === null) {
-                return $payload;
+                return self::block(
+                    $payload,
+                    'workweeks_missing',
+                    t('workweeks.preflight.missing_id')
+                );
             }
             $defaults = [
                 'date' => date('Y-m-d', (int)$row['dt']),

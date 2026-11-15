@@ -35,6 +35,8 @@ return [
     'workweeks.preflight.swap_manual' => 'Измените строку #{dup_id} на нужную смену и удалите #{id} (workweeks.delete) в одном плане.',
     'workweeks.preflight.extend' => 'Чтобы расширить смену: workweeks.update id={dup_id} price_col={pc} («{lane}»).',
     'workweeks.preflight.edit_existing' => 'Измените существующую строку #{dup_id} (workweeks.update).',
+    'workweeks.preflight.delete_need_id' => 'Нет id смены для удаления (получили «?» или пусто). Сначала CALL workweeks.day(date), найди строку по operator_acronym (ЯСО/БЮР) и CALL workweeks.delete с этим id — не выдумывай id.',
+    'workweeks.preflight.missing_id' => 'Смена не найдена. CALL workweeks.day(date) и возьми id из ответа.',
     'workweeks.err.forbidden' => 'Нет доступа',
     'workweeks.nazop.title' => 'Управление графиками',
     'workweeks.nazop.title_all' => 'График на период',

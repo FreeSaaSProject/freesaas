@@ -210,15 +210,17 @@ final class BiRecipeValidator
                 continue;
             }
             $type = (string)($sec['type'] ?? '');
-            if (!in_array($type, ['metrics', 'table', 'pivot', 'text'], true)) {
+            if (!in_array($type, ['metrics', 'table', 'pivot', 'text', 'chart'], true)) {
                 $errors[] = 'sections[' . $i . '].type: bad';
                 continue;
             }
-            if ($type === 'table') {
+            if ($type === 'table' || $type === 'chart') {
                 $from = (string)($sec['from'] ?? '');
                 if ($from === '' || !isset($frameNames[$from])) {
                     $errors[] = 'sections[' . $i . '].from: unknown frame';
                 }
+            }
+            if ($type === 'table') {
                 $columns = is_array($sec['columns'] ?? null) ? $sec['columns'] : [];
                 foreach ($columns as $ci => $col) {
                     if (!is_array($col)) {
@@ -227,6 +229,37 @@ final class BiRecipeValidator
                     $fmt = strtolower((string)($col['format'] ?? ''));
                     if ($fmt !== '' && $fmt !== 'user_badge') {
                         $errors[] = 'sections[' . $i . '].columns[' . $ci . '].format: bad';
+                    }
+                }
+            }
+            if ($type === 'chart') {
+                $chartType = strtolower(trim((string)($sec['chart_type'] ?? 'line')));
+                if (!in_array($chartType, ['line', 'bar', 'doughnut'], true)) {
+                    $errors[] = 'sections[' . $i . '].chart_type: bad';
+                }
+                $x = trim((string)($sec['x'] ?? ''));
+                if ($x === '') {
+                    $errors[] = 'sections[' . $i . '].x: required';
+                }
+                $series = is_array($sec['series'] ?? null) ? $sec['series'] : [];
+                if ($series === []) {
+                    $errors[] = 'sections[' . $i . '].series: empty';
+                }
+                foreach ($series as $si => $ser) {
+                    if (!is_array($ser)) {
+                        $errors[] = 'sections[' . $i . '].series[' . $si . ']: not object';
+                        continue;
+                    }
+                    if (trim((string)($ser['field'] ?? '')) === '') {
+                        $errors[] = 'sections[' . $i . '].series[' . $si . '].field: required';
+                    }
+                    $st = strtolower(trim((string)($ser['chart_type'] ?? '')));
+                    if ($st !== '' && !in_array($st, ['line', 'bar', 'doughnut'], true)) {
+                        $errors[] = 'sections[' . $i . '].series[' . $si . '].chart_type: bad';
+                    }
+                    $ya = strtolower(trim((string)($ser['y_axis'] ?? 'left')));
+                    if (!in_array($ya, ['left', 'right'], true)) {
+                        $errors[] = 'sections[' . $i . '].series[' . $si . '].y_axis: bad';
                     }
                 }
             }

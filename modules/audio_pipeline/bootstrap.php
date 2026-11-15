@@ -20,9 +20,11 @@ require_once __DIR__ . '/lib/RatingAggregates.php';
 require_once __DIR__ . '/lib/AudioCoverageConfig.php';
 require_once __DIR__ . '/lib/AudioCoverageProfiles.php';
 require_once __DIR__ . '/lib/AudioPipelineAgentOps.php';
+require_once __DIR__ . '/lib/AudioPipelineBiContrib.php';
 
 AudioPipelineAgentOps::register();
 AsrPushAgentOps::register();
+EventBus::on('bi.datasets', [AudioPipelineBiContrib::class, 'onDatasets']);
 
 /**
  * Cabin audio analytics workers (ingest / base_records ASR / stem / collect).

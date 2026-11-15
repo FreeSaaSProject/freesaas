@@ -59,6 +59,12 @@ final class BiXlsxExport
                 if ($body !== '') {
                     $w->addRow([['v' => BiSafeHtml::plainCell($body), 's' => BiXlsxWriter::STYLE_WRAP]]);
                 }
+            } elseif ($type === 'chart') {
+                self::table(
+                    $w,
+                    is_array($sec['columns'] ?? null) ? $sec['columns'] : [],
+                    is_array($sec['rows'] ?? null) ? $sec['rows'] : []
+                );
             } else {
                 self::table(
                     $w,

@@ -30,6 +30,8 @@ final class ReportRenderer
                         . BiSafeHtml::expandCell($v) . '</dd></div>';
                 }
                 $html .= '</dl>';
+            } elseif ($type === 'chart') {
+                $html .= self::chartHtml($sec);
             } elseif ($type === 'text') {
                 $body = (string)($sec['body'] ?? '');
                 if ($body !== '') {
@@ -47,6 +49,28 @@ final class ReportRenderer
             $html .= '</section>';
         }
         return $html;
+    }
+
+    /**
+     * Safe chart shell: canvas + JSON payload (Chart.js boots from bi.js after inject).
+     *
+     * @param array<string,mixed> $sec
+     */
+    public static function chartHtml(array $sec): string
+    {
+        $payload = [
+            'chart_type' => (string)($sec['chart_type'] ?? 'line'),
+            'labels' => is_array($sec['labels'] ?? null) ? array_values($sec['labels']) : [],
+            'datasets' => is_array($sec['datasets'] ?? null) ? array_values($sec['datasets']) : [],
+        ];
+        $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
+        if ($json === false) {
+            $json = '{"chart_type":"line","labels":[],"datasets":[]}';
+        }
+        return '<div class="bi-chart-wrap">'
+            . '<canvas class="bi-chart-canvas" height="160" aria-label="' . e((string)($sec['title'] ?? 'Chart')) . '"></canvas>'
+            . '<script type="application/json" class="bi-chart-data">' . $json . '</script>'
+            . '</div>';
     }
 
     /**

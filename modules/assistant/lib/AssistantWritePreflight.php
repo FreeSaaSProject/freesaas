@@ -10,6 +10,7 @@ final class AssistantWritePreflight
     /**
      * @param array<string,mixed> $args
      * @param array<string,bool> $catalogIds
+     * @param array{user_text?:string} $ctx
      * @return array{
      *   blockers:list<array{code:string,message:string}>,
      *   suggest:list<array{op_id:string,args:array<string,mixed>,label:string}>,
@@ -18,12 +19,13 @@ final class AssistantWritePreflight
      *   replan:bool
      * }
      */
-    public static function run(string $opId, array $args, array $catalogIds = []): array
+    public static function run(string $opId, array $args, array $catalogIds = [], array $ctx = []): array
     {
         $payload = [
             'op_id' => $opId,
             'args' => $args,
             'catalog_ids' => $catalogIds,
+            'user_text' => trim((string)($ctx['user_text'] ?? '')),
             'blockers' => [],
             'suggest' => [],
             'choices' => [],

@@ -94,6 +94,28 @@ curl -sS -b jar.txt -H 'Accept: application/json' -H 'Content-Type: application/
 curl -sS -b jar.txt -H 'Accept: application/json' 'https://example/bi/shares'
 ```
 
+### Chart sections
+
+Recipe `sections[]` may use `type: chart` (Chart.js 4.4.1, lazy CDN from `bi.js`):
+
+```json
+{
+  "type": "chart",
+  "title": "Daily trend",
+  "chart_type": "line",
+  "from": "day_frame",
+  "x": "date",
+  "series": [
+    {"field": "fish", "label": "Sales", "chart_type": "bar"},
+    {"field": "invites", "label": "Invites", "y_axis": "right"}
+  ]
+}
+```
+
+`chart_type`: `line` | `bar` | `doughnut`. Per-series optional `chart_type` and `y_axis` (`left`|`right`) for dual-axis overlays. Engine fills `labels` + `datasets` (numeric); Excel export writes the same series as a table. UI boots charts after iframe inject (`biWorkDone` → `renderCharts`).
+
+Audio dictionary hits (invites / tracking): datasets `record_instances` (period `DT_START`), `record_keys`, `record_dictionaries` — filter e.g. `record_keys.id_dict = 10` after joining keys. Counts are raw instance hits (same as `/audio/calendar` tracking), not SummaryRunner cooldown.
+
 ### Excel download
 
 UI button «Скачать Excel» on `/bi/run` and share pages. Same access rules as a run (`bi.manage`, staff share, or guest share with rate limit):
@@ -101,7 +123,7 @@ UI button «Скачать Excel» on `/bi/run` and share pages. Same access rul
 - `GET /bi/work?action=xlsx&family=…&year=…&month=…[&share=…]`
 - `GET /bi/s/{token}?action=xlsx&year=…&month=…`
 
-Returns `.xlsx` (one sheet: title, period, then sections — metrics as label/value pairs, tables with header row, text). Writer is pure PHP (`BiXlsxWriter`, no ext-zip). Agents should keep reading JSON from `/bi/work` or `/agent/bi/run`.
+Returns `.xlsx` (one sheet: title, period, then sections — metrics as label/value pairs, tables with header row, chart series as tables, text). Writer is pure PHP (`BiXlsxWriter`, no ext-zip). Agents should keep reading JSON from `/bi/work` or `/agent/bi/run`.
 
 ### Reading results
 
@@ -110,8 +132,8 @@ Returns `.xlsx` (one sheet: title, period, then sections — metrics as label/va
 | Field | Use |
 |-------|-----|
 | `report.title` | Plain title from recipe |
-| `report.sections[]` | **Source of truth** — `metrics` / `table` / `text` (and pivot as table) |
-| `section_summary[]` | Quick skim (row counts, metric counts) |
+| `report.sections[]` | **Source of truth** — `metrics` / `table` / `text` / `chart` (and pivot as table) |
+| `section_summary[]` | Quick skim (row counts, metric counts, chart labels/series) |
 | `html` | Optional UI HTML (escaped); agents should prefer `report` |
 | `params` | Normalized year/month/filters |
 | `stages` | Progress log from the engine |

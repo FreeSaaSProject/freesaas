@@ -153,7 +153,8 @@ final class AssistantRelations
 
             $fromItem = null;
             $fromError = '';
-            if ($rel['from'] !== '' && isset($catalogIds[$rel['from']])) {
+            $fromRequired = $rel['from'] !== '';
+            if ($fromRequired && isset($catalogIds[$rel['from']])) {
                 $cacheKey = $rel['from'] . '|' . $rel['from_key'];
                 if (!array_key_exists($cacheKey, $fromCache)) {
                     $from = $invokeRead($rel['from'], $args);
@@ -166,6 +167,8 @@ final class AssistantRelations
                 }
                 $fromItem = $fromCache[$cacheKey]['item'];
                 $fromError = $fromCache[$cacheKey]['error'];
+            } elseif ($fromRequired && !isset($catalogIds[$rel['from']])) {
+                $fromError = t('assistant.relations.check_unavailable', ['op' => $rel['from']]);
             }
 
             $cond = self::conditionMet($rel['if'], $args, $fromItem);
@@ -178,7 +181,8 @@ final class AssistantRelations
                 'hint' => self::text($rel['hint']),
                 'check' => $rel['check'],
             ];
-            if ($cond === null) {
+            // from is required for {from.*} placeholders — empty `if` must not skip a failed from.
+            if ($fromRequired && $fromItem === null) {
                 $entry['check_skipped'] = true;
                 $entry['note'] = $fromError !== ''
                     ? t('assistant.relations.from_failed', [
@@ -188,8 +192,17 @@ final class AssistantRelations
                     ])
                     : t('assistant.relations.check_skipped', [
                         'check' => $rel['check'],
-                        'vars' => implode(', ', array_keys($rel['if'])),
+                        'vars' => 'from.' . $rel['from_key'],
                     ]);
+                $out[] = $entry;
+                continue;
+            }
+            if ($cond === null) {
+                $entry['check_skipped'] = true;
+                $entry['note'] = t('assistant.relations.check_skipped', [
+                    'check' => $rel['check'],
+                    'vars' => implode(', ', array_keys($rel['if'])),
+                ]);
                 $out[] = $entry;
                 continue;
             }

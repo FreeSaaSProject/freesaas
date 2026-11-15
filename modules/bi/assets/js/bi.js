@@ -93,6 +93,141 @@
     appendLog(msg);
   };
 
+  var biChartInstances = [];
+  var biChartJsPromise = null;
+  var biChartPalette = [
+    { border: 'rgb(66,133,244)', bg: 'rgba(66,133,244,0.35)' },
+    { border: 'rgb(251,146,60)', bg: 'rgba(251,146,60,0.35)' },
+    { border: 'rgb(34,197,94)', bg: 'rgba(34,197,94,0.35)' },
+    { border: 'rgb(168,85,247)', bg: 'rgba(168,85,247,0.35)' },
+    { border: 'rgb(236,72,153)', bg: 'rgba(236,72,153,0.35)' },
+    { border: 'rgb(20,184,166)', bg: 'rgba(20,184,166,0.35)' }
+  ];
+
+  function destroyBiCharts() {
+    biChartInstances.forEach(function (c) {
+      try { c.destroy(); } catch (e) { /* ignore */ }
+    });
+    biChartInstances = [];
+  }
+
+  function loadChartJs() {
+    if (typeof Chart !== 'undefined') {
+      return Promise.resolve();
+    }
+    if (biChartJsPromise) {
+      return biChartJsPromise;
+    }
+    biChartJsPromise = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+      s.async = true;
+      s.onload = function () { resolve(); };
+      s.onerror = function () { reject(new Error('chartjs_load_failed')); };
+      document.head.appendChild(s);
+    });
+    return biChartJsPromise;
+  }
+
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  function renderBiCharts(root) {
+    destroyBiCharts();
+    if (!root) return;
+    var nodes = root.querySelectorAll('.bi-chart-wrap');
+    if (!nodes.length) return;
+    loadChartJs().then(function () {
+      if (typeof Chart === 'undefined') return;
+      var textColor = cssVar('--text', '#0f172a');
+      var mutedColor = cssVar('--muted', '#64748b');
+      var gridColor = cssVar('--line', 'rgba(15,23,42,0.08)');
+      Array.prototype.forEach.call(nodes, function (wrap) {
+        var canvas = wrap.querySelector('.bi-chart-canvas');
+        var dataEl = wrap.querySelector('.bi-chart-data');
+        if (!canvas || !dataEl) return;
+        var payload;
+        try {
+          payload = JSON.parse(dataEl.textContent || '{}');
+        } catch (e) {
+          return;
+        }
+        var labels = payload.labels || [];
+        var series = payload.datasets || [];
+        var defaultType = payload.chart_type || 'line';
+        var hasRight = false;
+        var datasets = series.map(function (ser, i) {
+          var pal = biChartPalette[i % biChartPalette.length];
+          var t = ser.chart_type || defaultType;
+          var yAxis = ser.y_axis === 'right' ? 'y1' : 'y';
+          if (yAxis === 'y1') hasRight = true;
+          var ds = {
+            label: ser.label || ('s' + i),
+            data: ser.data || [],
+            type: t === 'doughnut' ? 'doughnut' : t,
+            borderColor: pal.border,
+            backgroundColor: t === 'line' ? pal.bg.replace('0.35', '0.12') : pal.bg,
+            borderWidth: 2,
+            tension: 0.2,
+            fill: t === 'line' ? false : true,
+            yAxisID: yAxis
+          };
+          if (t === 'line') {
+            ds.pointRadius = 3;
+            ds.pointHoverRadius = 5;
+          }
+          return ds;
+        });
+        var isDoughnut = defaultType === 'doughnut' && datasets.every(function (d) { return d.type === 'doughnut'; });
+        var scales = isDoughnut ? {} : {
+          x: {
+            ticks: { color: mutedColor, maxRotation: 45, minRotation: 0 },
+            grid: { color: gridColor }
+          },
+          y: {
+            position: 'left',
+            ticks: { color: mutedColor },
+            grid: { color: gridColor },
+            beginAtZero: true
+          }
+        };
+        if (!isDoughnut && hasRight) {
+          scales.y1 = {
+            position: 'right',
+            ticks: { color: mutedColor },
+            grid: { drawOnChartArea: false },
+            beginAtZero: true
+          };
+        }
+        var chart = new Chart(canvas.getContext('2d'), {
+          type: isDoughnut ? 'doughnut' : (datasets[0] && datasets[0].type === 'bar' && datasets.every(function (d) { return d.type === 'bar'; }) ? 'bar' : 'bar'),
+          data: { labels: labels, datasets: datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { labels: { color: textColor } }
+            },
+            scales: scales
+          }
+        });
+        biChartInstances.push(chart);
+      });
+    }).catch(function () {
+      Array.prototype.forEach.call(nodes, function (wrap) {
+        if (!wrap.querySelector('.bi-chart-fallback')) {
+          var p = document.createElement('p');
+          p.className = 'muted bi-chart-fallback';
+          p.textContent = 'Chart.js unavailable';
+          wrap.appendChild(p);
+        }
+      });
+    });
+  }
+
   window.biWorkDone = function (data) {
     var strip = qs('#bi-progress-strip');
     var report = qs('#bi-report');
@@ -100,9 +235,11 @@
       strip.classList.remove('is-running');
       strip.hidden = true;
     }
+    destroyBiCharts();
     if (report) {
       if (data && data.ok && data.html) {
         report.innerHTML = data.html;
+        renderBiCharts(report);
       } else {
         report.innerHTML = '<p class="flash-err">' + (data && data.error ? data.error : 'error') + '</p>';
       }

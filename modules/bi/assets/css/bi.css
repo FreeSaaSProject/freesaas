@@ -39,6 +39,21 @@
   max-width: 48rem;
 }
 
+.bi-chart-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 56rem;
+  height: 18rem;
+  margin: 0.5rem 0 1rem;
+}
+.bi-chart-wrap .bi-chart-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+.bi-chart-fallback {
+  margin: 0.5rem 0;
+}
+
 .bi-run-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));

@@ -35,6 +35,8 @@ return [
     'workweeks.preflight.swap_manual' => 'Change row #{dup_id} to the needed lane and delete #{id} (workweeks.delete) in one plan.',
     'workweeks.preflight.extend' => 'To extend the shift: workweeks.update id={dup_id} price_col={pc} («{lane}»).',
     'workweeks.preflight.edit_existing' => 'Edit the existing row #{dup_id} (workweeks.update).',
+    'workweeks.preflight.delete_need_id' => 'No shift id to delete (got «?» or empty). CALL workweeks.day(date) first, find the row by operator_acronym (ЯСО/БЮР), then CALL workweeks.delete with that id — do not invent ids.',
+    'workweeks.preflight.missing_id' => 'Shift not found. CALL workweeks.day(date) and take id from the response.',
     'workweeks.err.forbidden' => 'Access denied',
     'workweeks.nazop.title' => 'Schedule management',
     'workweeks.nazop.title_all' => 'Multi-day schedule',
