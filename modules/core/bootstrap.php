@@ -7,6 +7,7 @@ require_once __DIR__ . '/lib/NewsChecklistRepository.php';
 require_once __DIR__ . '/lib/NewsLogsRepository.php';
 require_once __DIR__ . '/lib/UsersRepository.php';
 require_once __DIR__ . '/lib/EdgeHostsAgentOps.php';
+require_once __DIR__ . '/lib/EdgeHostsNotify.php';
 require_once __DIR__ . '/lib/StatusesRepository.php';
 require_once __DIR__ . '/lib/SystemRepository.php';
 require_once __DIR__ . '/lib/SystemLogo.php';

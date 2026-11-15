@@ -2,7 +2,7 @@
     "id": "docs",
     "name": "docs.module.name",
     "description": "docs.module.description",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "type": "product",
     "runtime": "admin",
     "requires": {
@@ -99,6 +99,14 @@
                 "permission": "docs.edit",
                 "side_effect": "write",
                 "description": "action=save (f[field_id]) | revise | void | accept (proposal_id) | reject (proposal_id) | pull_segments"
+            },
+            {
+                "id": "docs.instance.confirm",
+                "method": "POST",
+                "path": "/documents/{id}/edit",
+                "permission": "docs.edit",
+                "side_effect": "write",
+                "description": "action=confirm: save optional f[field_id] edits, then doctor-confirm this document and every filled document of its visit (drafts reported back)"
             },
             {
                 "id": "docs.print",

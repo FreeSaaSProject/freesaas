@@ -8,6 +8,7 @@ $services = EdgeHosts::services();
 
 if ($ready && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $warnings = [];
+    EdgeHostsNotify::saveFromPost($_POST);
     $rows = is_array($_POST['hosts'] ?? null) ? $_POST['hosts'] : [];
     foreach ($rows as $id => $row) {
         $id = (int)$id;
@@ -33,7 +34,12 @@ if ($ready && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $once = $warnings !== [] ? ['kind' => 'warn', 'text' => implode(' ', $warnings)] : ['kind' => 'ok', 'text' => t('core.edge_hosts.saved')];
     [$verb, $rawId] = array_pad(explode(':', (string)($_POST['edge_action'] ?? ''), 2), 2, '0');
     $id = (int)$rawId;
-    if ($verb === 'add') {
+    if ($verb === 'notify_test') {
+        $queued = EdgeHostsNotify::sendTest();
+        $once = $queued !== []
+            ? ['kind' => 'ok', 'text' => t('core.edge_hosts.notify.test_ok', ['n' => count($queued)])]
+            : ['kind' => 'warn', 'text' => t('core.edge_hosts.notify.test_fail')];
+    } elseif ($verb === 'add') {
         $new = is_array($_POST['new'] ?? null) ? $_POST['new'] : [];
         $name = trim((string)($new['name'] ?? ''));
         $url = trim((string)($new['base_url'] ?? ''));
@@ -93,4 +99,5 @@ View::render('edge_hosts', [
     'hosts' => $ready ? EdgeHosts::all() : [],
     'services' => $services,
     'once' => is_array($once) ? $once : null,
+    'notify' => EdgeHostsNotify::formValues(),
 ], 'layout', 'core');

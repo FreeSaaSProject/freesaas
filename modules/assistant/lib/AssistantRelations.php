@@ -152,14 +152,20 @@ final class AssistantRelations
             }
 
             $fromItem = null;
+            $fromError = '';
             if ($rel['from'] !== '' && isset($catalogIds[$rel['from']])) {
                 $cacheKey = $rel['from'] . '|' . $rel['from_key'];
                 if (!array_key_exists($cacheKey, $fromCache)) {
                     $from = $invokeRead($rel['from'], $args);
                     $item = is_array($from['data'] ?? null) ? ($from['data'][$rel['from_key']] ?? null) : null;
-                    $fromCache[$cacheKey] = !empty($from['ok']) && is_array($item) ? $item : null;
+                    $ok = !empty($from['ok']) && is_array($item);
+                    $fromCache[$cacheKey] = [
+                        'item' => $ok ? $item : null,
+                        'error' => $ok ? '' : (trim((string)($from['error'] ?? '')) ?: 'no ' . $rel['from_key']),
+                    ];
                 }
-                $fromItem = $fromCache[$cacheKey];
+                $fromItem = $fromCache[$cacheKey]['item'];
+                $fromError = $fromCache[$cacheKey]['error'];
             }
 
             $cond = self::conditionMet($rel['if'], $args, $fromItem);
@@ -174,10 +180,16 @@ final class AssistantRelations
             ];
             if ($cond === null) {
                 $entry['check_skipped'] = true;
-                $entry['note'] = t('assistant.relations.check_skipped', [
-                    'check' => $rel['check'],
-                    'vars' => implode(', ', array_keys($rel['if'])),
-                ]);
+                $entry['note'] = $fromError !== ''
+                    ? t('assistant.relations.from_failed', [
+                        'check' => $rel['check'],
+                        'from' => $rel['from'],
+                        'error' => $fromError,
+                    ])
+                    : t('assistant.relations.check_skipped', [
+                        'check' => $rel['check'],
+                        'vars' => implode(', ', array_keys($rel['if'])),
+                    ]);
                 $out[] = $entry;
                 continue;
             }

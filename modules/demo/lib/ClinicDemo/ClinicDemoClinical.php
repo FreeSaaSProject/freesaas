@@ -41,7 +41,7 @@ final class ClinicDemoClinical
             throw new RuntimeException('clinical stage needs catalog and staff');
         }
 
-        $clientIds = $this->seedClients((int)($ctx['clients'] ?? 520));
+        $clientIds = $this->seedClients((int)($ctx['clients'] ?? 760));
         $history = $this->seedHistory($staff, $products, $types, (int)($ctx['days'] ?? 0));
         return ['clients' => count($clientIds), 'history' => $history];
     }

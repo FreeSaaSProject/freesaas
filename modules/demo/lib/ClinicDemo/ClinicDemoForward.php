@@ -25,6 +25,7 @@ final class ClinicDemoForward
     {
         require_once base_path('modules/calendar/lib/EventsRepository.php');
         require_once base_path('modules/orders/lib/OrdersRepository.php');
+        require_once base_path('modules/procedures/lib/ProceduresRepository.php');
 
         $staff = (array)$this->m->get('index.staff', []);
         $products = (array)$this->m->get('index.products', []);
@@ -41,11 +42,13 @@ final class ClinicDemoForward
         }
 
         $fill = ['t_a' => 0.92, 't_b' => 0.45, 'cardio' => 0.50, 'neuro' => 0.40,
-            'uzi' => 0.50, 'nurse1' => 0.30, 'nurse2' => 0.30];
+            'uzi' => 0.50, 'cosmo' => 0.55, 'nurse1' => 0.30, 'nurse2' => 0.30];
 
         $from = (int)strtotime(ClinicDemoPlan::forwardFrom() . ' 00:00:00');
         $to = (int)strtotime(ClinicDemoPlan::bookingTo() . ' 00:00:00');
+        $anchor = ClinicDemoPlan::anchorTs();
         $created = 0;
+        $completed = 0;
         $plannedByStaff = [];
         for ($day = $from; $day <= $to; $day = (int)strtotime('+1 day', $day)) {
             $dow = (int)date('N', $day);
@@ -87,7 +90,9 @@ final class ClinicDemoForward
                             'dtend' => $cursor + $duration,
                             'name' => (string)$client['name'],
                             'phone' => (string)$client['tel'],
-                            'descr' => ClinicDemoPlan::copyStr('booking_descr', ['service' => (string)$svc['name']]),
+                            'descr' => $cursor + $duration <= $anchor
+                                ? (string)$svc['name']
+                                : ClinicDemoPlan::copyStr('booking_descr', ['service' => (string)$svc['name']]),
                             'is_block' => 0,
                             'items' => [[
                                 'id_good' => (int)$products[$code],
@@ -95,7 +100,19 @@ final class ClinicDemoForward
                                 'qty' => 1,
                             ]],
                         ]);
-                        $this->m->add('events_forward', $eventId);
+                        if ($cursor + $duration <= $anchor) {
+                            // Anchor day before "now": already delivered, so it joins history (docs fill it).
+                            try {
+                                ProceduresRepository::createFromEvent($eventId);
+                            } catch (Throwable $e) {
+                                error_log('[clinic forward] ' . $e->getMessage());
+                            }
+                            $this->m->add('events', $eventId);
+                            $this->m->add('procedures_event', $eventId);
+                            $completed++;
+                        } else {
+                            $this->m->add('events_forward', $eventId);
+                        }
                         $created++;
                         $plannedByStaff[$key] = ($plannedByStaff[$key] ?? 0) + 1;
                     } catch (Throwable $e) {
@@ -107,7 +124,7 @@ final class ClinicDemoForward
         }
 
         $orders = $this->seedOrders($byId, $staff, $products);
-        return ['events' => $created, 'orders' => $orders, 'by_staff' => $plannedByStaff];
+        return ['events' => $created, 'completed_today' => $completed, 'orders' => $orders, 'by_staff' => $plannedByStaff];
     }
 
     /**

@@ -21,7 +21,7 @@ final class DocsRender
         'visit.objective_general', 'visit.next_text', 'contract.id', 'contract.date',
         'profile.bmi', 'profile.ana_gyno_print',
         'dossier.diagnoses', 'dossier.visits', 'dossier.procedures', 'dossier.stage_epicrisis',
-        'org.ogrn_boxes', 'doc.id', 'doc.code', 'doc.name', 'doc.date', 'doc.expire', 'staff.name', 'qr',
+        'org.ogrn_boxes', 'doc.id', 'doc.code', 'doc.name', 'doc.date', 'doc.expire', 'doc.confirmed', 'staff.name', 'qr',
     ];
 
     /** Flags for {?flag:yes|no}. */
@@ -368,6 +368,16 @@ final class DocsRender
         $vars['doc.name'] = (string)($def['name'] ?? '');
         $vars['doc.date'] = I18n::formatDate($printTs, 'date');
         $vars['doc.expire'] = $expire > 0 ? I18n::formatDate($expire, 'date') : '';
+        $vars['doc.confirmed'] = '';
+        $confirmedAt = (int)($instance['dt_confirmed'] ?? 0);
+        if ($confirmedAt > 0) {
+            $by = (int)($instance['id_user_confirmed'] ?? 0);
+            $names = $by > 0 && class_exists('UsersRepository', false) ? UsersRepository::staffNamesIncluding([$by]) : [];
+            $vars['doc.confirmed'] = t('docs.print.confirmed', [
+                'name' => (string)($names[$by] ?? ''),
+                'date' => I18n::formatDate($confirmedAt, 'datetime'),
+            ]);
+        }
         $vars['staff.name'] = (string)($_SESSION['user_name'] ?? '');
         foreach (DocsConfig::org() as $k => $v) {
             $vars['org.' . $k] = $v;

@@ -2,7 +2,7 @@
     "id": "demo",
     "name": "demo.module.name",
     "description": "demo.module.description",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "type": "product",
     "catalog": {
         "categories": [

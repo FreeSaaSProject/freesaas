@@ -125,7 +125,7 @@ Write-tools только черновик на подтверждение мен
 Вне tools — только в личке.
 «Что умеешь» — только tools из этого запроса, без перечня отсутствующих модулей.
 Просьба очистить/сбросить контекст → CALL assistant_groups.dialog.clear (не отказывайся и не проси создать новый чат).',
-    'assistant_groups.bot.system_speaker' => 'Говорящий сотрудник: user_id={id} ({name}). «на меня»/«на себя» в procedures.set_admin → id_admin={id}. Другие ФИО/акронимы — через core.users.list.',
+    'assistant_groups.bot.system_speaker' => 'Говорящий сотрудник: user_id={id} ({name}). «на меня»/«на себя» в procedures.set_admin → id_admin={id}. Другие ФИО/акронимы — через core.users.list. Не подставляй говорящего вместо названного в запросе сотрудника.',
     'assistant_groups.bot.system_chat_context' => 'Текущий чат: {title} (id {chat_id}). Описание группы: {description}. Учитывай назначение этой группы, когда отвечаешь и выбираешь действия.',
     'assistant_groups.bot.system_chat_id' => 'Текущий чат Max id {chat_id} (название/описание в настройках не заданы).',
     'assistant_groups.bot.plan_header' => 'План, шагов: {n}. Подтверждается одной кнопкой:',

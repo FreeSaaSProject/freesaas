@@ -5,8 +5,10 @@ $wantsJson = AgentHttp::wantsJson();
 
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
+// Group assistant drafts read the current row as the speaker (GET only; writes keep the assign gate).
+$readOnlyAgent = $wantsJson && !$isNew && AgentHttp::readScopeUnrestricted();
 
-if (!WorkweeksRepository::canAssign()) {
+if (!$readOnlyAgent && !WorkweeksRepository::canAssign()) {
     if ($wantsJson) {
         AgentHttp::error(t('workweeks.err.no_assign'), 403);
         return;
@@ -34,7 +36,7 @@ if (!$isNew) {
         ]);
         return;
     }
-    if (!WorkweeksRepository::canAssignOperator((int)$found['id_operator'])) {
+    if (!$readOnlyAgent && !WorkweeksRepository::canAssignOperator((int)$found['id_operator'])) {
         if ($wantsJson) {
             AgentHttp::error(t('workweeks.err.no_assign'), 403);
             return;

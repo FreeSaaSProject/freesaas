@@ -11,9 +11,29 @@ final class DocsInstancesRepository
         i.STATUS, i.HASH, i.HASH_EXT, i.DT_CREATE, i.DT_UPDATE, i.DT_PRINT, i.DT_EXPIRE,
         i.ID_ADMIN_CREATE, i.ID_ADMIN_UPDATE, i.ID_ADMIN_PRINT, i.ID_ADMIN_SIGNED, i.DT_SIGNED';
 
+    /** Field sources written by automatic fillers (badge "from audio" until the doctor edits the field). */
+    public const AUTO_SOURCES = ['audio_bot', 'audio_llm', 'audio_records'];
+
+    /** @var bool|null */
+    private static $confirmReady = null;
+
     public static function tableReady(): bool
     {
         return Database::tableExists('base_doc_instances');
+    }
+
+    /** Confirmation columns exist (migration 002). */
+    public static function confirmReady(): bool
+    {
+        if (self::$confirmReady === null) {
+            self::$confirmReady = self::tableReady() && Database::columnExists('base_doc_instances', 'DT_CONFIRMED');
+        }
+        return self::$confirmReady;
+    }
+
+    private static function metaCols(): string
+    {
+        return self::META_COLS . (self::confirmReady() ? ', i.DT_CONFIRMED, i.ID_USER_CONFIRMED' : '');
     }
 
     /** @return array<string,mixed>|null */
@@ -23,7 +43,7 @@ final class DocsInstancesRepository
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT ' . self::META_COLS . ', i.PAYLOAD, i.PRINT_SNAPSHOT, d.NAME AS DEF_NAME, d.CODE AS DEF_CODE
+            'SELECT ' . self::metaCols() . ', i.PAYLOAD, i.PRINT_SNAPSHOT, d.NAME AS DEF_NAME, d.CODE AS DEF_CODE
              FROM base_doc_instances i LEFT JOIN base_doc_defs d ON d.ID = i.ID_DEF
              WHERE i.ID = ? LIMIT 1'
         );
@@ -40,7 +60,7 @@ final class DocsInstancesRepository
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT ' . self::META_COLS . ', d.NAME AS DEF_NAME, d.CODE AS DEF_CODE
+            'SELECT ' . self::metaCols() . ', d.NAME AS DEF_NAME, d.CODE AS DEF_CODE
              FROM base_doc_instances i LEFT JOIN base_doc_defs d ON d.ID = i.ID_DEF
              WHERE i.HASH_EXT = ? LIMIT 1'
         );
@@ -117,7 +137,7 @@ final class DocsInstancesRepository
             ? 'LEFT JOIN base_clients c ON c.id = i.ID_CLIENT'
             : '';
         $clientCol = $clientJoin !== '' ? 'c.name AS CLIENT_NAME' : "'' AS CLIENT_NAME";
-        $sql = 'SELECT ' . self::META_COLS . ', d.NAME AS DEF_NAME, d.CODE AS DEF_CODE, ' . $clientCol . '
+        $sql = 'SELECT ' . self::metaCols() . ', d.NAME AS DEF_NAME, d.CODE AS DEF_CODE, ' . $clientCol . '
                 FROM base_doc_instances i
                 LEFT JOIN base_doc_defs d ON d.ID = i.ID_DEF
                 ' . $clientJoin . '
@@ -328,16 +348,27 @@ final class DocsInstancesRepository
             ) {
                 continue;
             }
+            $prevProv = is_array($payload['_prov'][$fid] ?? null) ? $payload['_prov'][$fid] : [];
+            $entry = array_merge(['source' => $source, 'by' => $userId, 'at' => $now], $prov);
+            // Keep the trail "filled from audio, then corrected by the doctor".
+            $autoFrom = in_array((string)($prevProv['source'] ?? ''), self::AUTO_SOURCES, true)
+                ? (string)$prevProv['source']
+                : (string)($prevProv['edited_from'] ?? '');
+            if ($autoFrom !== '' && !in_array($source, self::AUTO_SOURCES, true)) {
+                $entry['edited_from'] = $autoFrom;
+            }
             $payload[$fid] = $new;
-            $payload['_prov'][$fid] = array_merge(['source' => $source, 'by' => $userId, 'at' => $now], $prov);
+            $payload['_prov'][$fid] = $entry;
             $changed[] = $fid;
         }
         if ($changed === []) {
             return [];
         }
         $status = DocsSchema::missingRequired($schema, $payload) === [] ? 'ready' : 'draft';
+        // Any content change withdraws an earlier confirmation.
+        $unconfirm = self::confirmReady() ? ', DT_CONFIRMED = 0, ID_USER_CONFIRMED = 0' : '';
         Database::pdo()->prepare(
-            'UPDATE base_doc_instances SET PAYLOAD = ?, STATUS = ?, DT_UPDATE = ?, ID_ADMIN_UPDATE = ? WHERE ID = ?'
+            'UPDATE base_doc_instances SET PAYLOAD = ?, STATUS = ?, DT_UPDATE = ?, ID_ADMIN_UPDATE = ?' . $unconfirm . ' WHERE ID = ?'
         )->execute([self::encodePayload($payload), $status, $now, $userId, $id]);
         self::syncIndex($id, $schema, $payload, (string)$row['kind'], (int)$row['id_client']);
         EventBus::emit('docs.instance.saved', [
@@ -403,6 +434,59 @@ final class DocsInstancesRepository
         Database::pdo()->prepare(
             'UPDATE base_doc_instances SET ID_ADMIN_SIGNED = ?, DT_SIGNED = ? WHERE ID = ? AND DT_SIGNED = 0'
         )->execute([(int)(Auth::userId() ?? 0), time(), $id]);
+    }
+
+    /** Doctor confirms a filled (ready / printed) document. False when not confirmable or already confirmed. */
+    public static function confirm(int $id, int $userId, ?int $at = null): bool
+    {
+        if (!self::confirmReady() || $id < 1) {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            "UPDATE base_doc_instances SET DT_CONFIRMED = ?, ID_USER_CONFIRMED = ?
+             WHERE ID = ? AND DT_CONFIRMED = 0 AND STATUS IN ('ready', 'printed')"
+        );
+        $st->execute([$at ?? time(), max(0, $userId), $id]);
+        $ok = $st->rowCount() > 0;
+        if ($ok) {
+            EventBus::emit('docs.instance.confirmed', ['id' => $id, 'user_id' => $userId]);
+        }
+        return $ok;
+    }
+
+    /**
+     * Confirm every filled document of a visit; drafts (required fields missing) are reported back.
+     *
+     * @return array{confirmed:list<int>,already:list<int>,drafts:list<array{id:int,name:string}>}
+     */
+    public static function confirmForEvent(int $eventId, int $userId, ?int $at = null): array
+    {
+        $out = ['confirmed' => [], 'already' => [], 'drafts' => []];
+        foreach (self::listForEvent($eventId) as $inst) {
+            if ((int)($inst['dt_confirmed'] ?? 0) > 0) {
+                $out['already'][] = (int)$inst['id'];
+                continue;
+            }
+            if ($inst['status'] === 'draft') {
+                $out['drafts'][] = ['id' => (int)$inst['id'], 'name' => (string)$inst['def_name']];
+                continue;
+            }
+            if (self::confirm((int)$inst['id'], $userId, $at)) {
+                $out['confirmed'][] = (int)$inst['id'];
+            }
+        }
+        return $out;
+    }
+
+    /** True when any field still carries an automatic (audio) value the doctor has not touched. */
+    public static function hasAutoFields(array $payload): bool
+    {
+        foreach ((array)($payload['_prov'] ?? []) as $p) {
+            if (is_array($p) && in_array((string)($p['source'] ?? ''), self::AUTO_SOURCES, true)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static function setProcedure(int $id, int $procedureId): void
@@ -516,6 +600,8 @@ final class DocsInstancesRepository
             'id_admin_print' => (int)$row['ID_ADMIN_PRINT'],
             'id_admin_signed' => (int)$row['ID_ADMIN_SIGNED'],
             'dt_signed' => (int)$row['DT_SIGNED'],
+            'dt_confirmed' => (int)($row['DT_CONFIRMED'] ?? 0),
+            'id_user_confirmed' => (int)($row['ID_USER_CONFIRMED'] ?? 0),
             'def_name' => DocsSeed::localizedName((string)($row['DEF_CODE'] ?? ''), (string)($row['DEF_NAME'] ?? '')),
             'def_code' => (string)($row['DEF_CODE'] ?? ''),
             'client_name' => (string)($row['CLIENT_NAME'] ?? ''),

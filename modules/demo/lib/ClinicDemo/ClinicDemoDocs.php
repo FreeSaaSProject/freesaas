@@ -49,6 +49,10 @@ final class ClinicDemoDocs
 
         require_once __DIR__ . '/ClinicDemoClinical.php';
         $passports = (new ClinicDemoClinical($this->m))->fillMissingPassports($this->m->ids('clients'));
+        $cosmoDefs = self::ensureCosmoDefs($this->m);
+        $staffIdx = (array)$this->m->get('index.staff', []);
+        $cosmoId = (int)($staffIdx['cosmo'] ?? 0);
+        $confirmed = 0;
 
         $events = $this->m->ids('events');
         if ($events === []) {
@@ -109,10 +113,17 @@ final class ClinicDemoDocs
                 }
                 $clientDocsDone[$clientId] = true;
             }
-            $vid = $this->ensureFilledVisit($eventId, $clientId, $operatorId, (int)$row['DTSTART']);
-            if ($vid > 0) {
-                $this->m->add('doc_instances', $vid);
+            if ($cosmoId > 0 && $operatorId === $cosmoId && isset($cosmoDefs['medcard_cosmo'])) {
+                foreach ($this->ensureFilledCosmo($cosmoDefs, $eventId, $clientId, $operatorId) as $cid) {
+                    $this->m->add('doc_instances', $cid);
+                }
                 $visits++;
+            } else {
+                $vid = $this->ensureFilledVisit($eventId, $clientId, $operatorId, (int)$row['DTSTART']);
+                if ($vid > 0) {
+                    $this->m->add('doc_instances', $vid);
+                    $visits++;
+                }
             }
             if ($consentDef !== null) {
                 // ensureForEvent inside ensureFilledVisit already spawned IDS; ensure explicitly if needed.
@@ -122,8 +133,16 @@ final class ClinicDemoDocs
                     $consents++;
                 }
             }
+            // Past visits: the treating doctor confirmed the paperwork at the end of the visit.
+            $confirmed += count(DocsInstancesRepository::confirmForEvent(
+                $eventId,
+                $operatorId,
+                min(ClinicDemoPlan::anchorTs() - 600, (int)$row['DTSTART'] + 3600)
+            )['confirmed']);
         }
         return [
+            'confirmed' => $confirmed,
+            'cosmo_defs' => count($cosmoDefs),
             'profiles' => $profiles,
             'visits' => $visits,
             'contracts' => $contracts,
@@ -227,6 +246,119 @@ final class ClinicDemoDocs
             return $id;
         }
         return $id;
+    }
+
+    /** Library pack «cosmetology» (+ procedure consents) bound to the cosmetology procedure type. */
+    public const COSMO_TEMPLATES = ['medcard_cosmo', 'cosmo_prescriptions', 'cosmo_plan'];
+    public const COSMO_CONSENTS = ['ids_bio_n', 'ids_bt_b', 'ids_m_dna_rna'];
+
+    /**
+     * @return array<string,array<string,mixed>> code => definition
+     */
+    public static function ensureCosmoDefs(ClinicDemoManifest $m): array
+    {
+        require_once base_path('modules/docs/lib/DocsLibrary.php');
+        $typeId = (int)(((array)$m->get('index.types', []))['cosmo'] ?? 0);
+        if ($typeId < 1) {
+            return [];
+        }
+        $out = [];
+        foreach (self::COSMO_TEMPLATES as $code) {
+            $data = DocsLibrary::readPackFile('cosmetology', $code);
+            if ($data === null) {
+                continue;
+            }
+            $data['trigger_mode'] = 'types';
+            $data['trigger_types'] = [$typeId];
+            $res = DocsLibrary::import($data, ['keep_ids' => true, 'update' => true, 'enable' => true]);
+            if ($res['status'] === 'created') {
+                $m->add('doc_defs', (int)$res['id']);
+            }
+            Database::pdo()->prepare('UPDATE base_doc_defs SET ENABLED = 1 WHERE ID = ?')->execute([(int)$res['id']]);
+            $def = DocsDefsRepository::find((int)$res['id']);
+            if ($def !== null) {
+                $out[$code] = $def;
+            }
+        }
+        foreach (self::COSMO_CONSENTS as $code) {
+            $data = DocsLibrary::readPackFile('elos63', $code);
+            if ($data === null) {
+                continue;
+            }
+            $data['trigger_mode'] = 'manual';
+            $res = DocsLibrary::import($data, ['enable' => true]);
+            if ($res['status'] === 'created') {
+                $m->add('doc_defs', (int)$res['id']);
+            }
+            Database::pdo()->prepare('UPDATE base_doc_defs SET ENABLED = 1 WHERE ID = ?')->execute([(int)$res['id']]);
+            $def = DocsDefsRepository::find((int)$res['id']);
+            if ($def !== null) {
+                $out[$code] = $def;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Cosmetologist visit: specialty card + prescriptions + patient memo (no generic 025 sheet).
+     *
+     * @param array<string,array<string,mixed>> $defs
+     * @return list<int>
+     */
+    private function ensureFilledCosmo(array $defs, int $eventId, int $clientId, int $operatorId): array
+    {
+        DocsSpawner::ensureForEvent($eventId);
+        self::dropGenericVisitSheets($eventId);
+        $samples = array_values((array)(ClinicDemoPlan::cosmoPack()['samples'] ?? []));
+        $s = $samples !== [] ? $samples[$this->rng->int(0, count($samples) - 1)] : [];
+        $s['doctor_id'] = $operatorId;
+        $rx = [
+            'rx_procedures' => (string)($s['course_plan'] ?? ''),
+            'rx_frequency' => (string)($s['course_schedule'] ?? ''),
+            'rx_drugs' => (string)($s['preparation'] ?? ''),
+            'rx_home_evening' => (string)($s['home_care'] ?? ''),
+            'rx_control' => (string)($s['control_visits'] ?? ''),
+            'doctor_id' => $operatorId,
+        ];
+        $ids = [];
+        foreach (['medcard_cosmo' => $s, 'cosmo_prescriptions' => $rx, 'cosmo_plan' => $s] as $code => $values) {
+            if (!isset($defs[$code])) {
+                continue;
+            }
+            $id = DocsInstancesRepository::findForEventDef($eventId, (int)$defs[$code]['id']);
+            try {
+                if ($id === null || $id < 1) {
+                    $id = DocsInstancesRepository::create($defs[$code], [
+                        'client' => $clientId, 'event' => $eventId, 'payload' => $values, 'source' => 'import',
+                    ]);
+                } else {
+                    DocsInstancesRepository::updateFields($id, $values, 'import');
+                }
+                $ids[] = $id;
+            } catch (Throwable $e) {
+                continue;
+            }
+        }
+        return $ids;
+    }
+
+    /** Generic form 025 visit sheets on a visit that has a specialty sheet instead. */
+    public static function dropGenericVisitSheets(int $eventId): void
+    {
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            "SELECT i.ID FROM base_doc_instances i JOIN base_doc_defs d ON d.ID = i.ID_DEF
+             WHERE i.ID_EVENT = ? AND d.CODE = 'medcard_visit' AND i.DT_PRINT = 0"
+        );
+        $st->execute([$eventId]);
+        $ids = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        if ($ids === []) {
+            return;
+        }
+        $in = implode(',', $ids);
+        $pdo->exec('DELETE FROM base_doc_field_index WHERE ID_INSTANCE IN (' . $in . ')');
+        $pdo->exec('DELETE FROM base_doc_proposals WHERE ID_INSTANCE IN (' . $in . ')');
+        $pdo->exec('DELETE FROM base_doc_instances WHERE ID IN (' . $in . ')');
     }
 
     private function ensureFilledVisit(int $eventId, int $clientId, int $operatorId, int $ts): int

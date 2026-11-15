@@ -10,6 +10,7 @@ require_once __DIR__ . '/ClinicDemoDocs.php';
 require_once __DIR__ . '/ClinicDemoForward.php';
 require_once __DIR__ . '/ClinicDemoAudio.php';
 require_once __DIR__ . '/ClinicDemoFeed.php';
+require_once __DIR__ . '/ClinicDemoShowcase.php';
 
 /**
  * Orchestrator: DemoStand safety, stage dispatch, manifest lifecycle, cleanup.
@@ -21,13 +22,14 @@ final class ClinicDemo
         'calendar', 'procedures', 'clients', 'catalog', 'workweeks', 'ledger', 'payments', 'rates',
     ];
 
-    private const STAGES = ['structure', 'clinical', 'money', 'forward', 'docs', 'audio', 'feed'];
+    private const STAGES = ['structure', 'clinical', 'money', 'forward', 'docs', 'audio', 'feed', 'showcase'];
 
     private const STAGE_MODULES = [
         'structure' => ['units', 'cabinets'],
         'forward' => ['orders'],
         'docs' => ['docs'],
         'audio' => ['audio', 'audio_dicts'],
+        'showcase' => ['docs'],
     ];
 
     private ClinicDemoManifest $manifest;
@@ -139,6 +141,14 @@ final class ClinicDemo
 
         $locale = (string)($opts['locale'] ?? ClinicDemoPlan::locale());
         ClinicDemoPlan::setLocale($locale);
+        $anchor = ClinicDemoPlan::parseAnchor((string)($opts['anchor'] ?? ''));
+        if ($anchor === null) {
+            $anchor = ClinicDemoPlan::parseAnchor((string)$this->manifest->get('anchor', ''));
+        }
+        ClinicDemoPlan::setAnchor($anchor);
+        if ($anchor !== null) {
+            $this->manifest->kv('anchor', date('Y-m-d H:i', $anchor));
+        }
 
         $pre = $this->preflight(!empty($opts['allow_dirty']), $steps);
         if (!$pre['ok']) {
@@ -197,7 +207,7 @@ final class ClinicDemo
         if ($should('clinical')) {
             $clinical = new ClinicDemoClinical($this->manifest);
             $stats = $clinical->run([
-                'clients' => (int)($opts['clients'] ?? 520),
+                'clients' => (int)($opts['clients'] ?? 760),
                 'days' => (int)($opts['days'] ?? 0),
                 'products' => $ctx['products'] ?? [],
                 'staff' => $ctx['staff'] ?? [],
@@ -241,6 +251,13 @@ final class ClinicDemo
             $feed = new ClinicDemoFeed($this->manifest);
             $result['stages']['feed'] = $feed->run();
             $mark('feed');
+            $this->manifest->save();
+        }
+
+        if ($should('showcase')) {
+            $showcase = new ClinicDemoShowcase($this->manifest);
+            $result['stages']['showcase'] = $showcase->run();
+            $mark('showcase');
             $this->manifest->save();
         }
 
@@ -309,6 +326,7 @@ final class ClinicDemo
         $events = array_values(array_unique(array_merge(
             $this->manifest->ids('events'),
             $this->manifest->ids('events_forward'),
+            $this->manifest->ids('events_showcase'),
             $this->eventsOfSeededPeople()
         )));
         $procedures = $this->manifest->ids('procedures');
@@ -323,8 +341,13 @@ final class ClinicDemo
             $deleted['base_news'] = true;
         }
 
+        if ($events !== [] && Database::tableExists('base_doc_instances')) {
+            $st = $pdo->query('SELECT ID FROM base_doc_instances WHERE ID_EVENT IN (' . $in($events) . ')');
+            $docs = array_values(array_unique(array_merge($docs, array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN) ?: []))));
+        }
         if ($docs !== []) {
             $del('DELETE FROM base_doc_field_index WHERE ID_INSTANCE IN (' . $in($docs) . ')');
+            $del('DELETE FROM base_doc_proposals WHERE ID_INSTANCE IN (' . $in($docs) . ')');
             $del('DELETE FROM base_doc_instances WHERE ID IN (' . $in($docs) . ')');
             $deleted['base_doc_instances'] = true;
         }

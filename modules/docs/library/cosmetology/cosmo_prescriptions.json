@@ -1,0 +1,121 @@
+{
+    "format": "freesaas.doc-template",
+    "format_version": 1,
+    "code": "cosmo_prescriptions",
+    "kind": "check",
+    "name": "Лист назначений врача-косметолога",
+    "scope": "event",
+    "trigger_mode": "manual",
+    "trigger_types": [],
+    "trigger_procs": [],
+    "expire_days": 0,
+    "require_medcard": 0,
+    "orientation": "portrait",
+    "paper": "A4",
+    "copies": 1,
+    "schema": {
+        "sections": [
+            {
+                "id": "rx_course",
+                "title": "Назначенные процедуры",
+                "fields": [
+                    {
+                        "id": "rx_procedures",
+                        "type": "textarea",
+                        "label": "Процедуры курса: № — процедура — ориентировочная дата",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "rx_frequency",
+                        "type": "textarea",
+                        "label": "Кратность и интервалы",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "rx_drugs",
+                "title": "Препараты",
+                "fields": [
+                    {
+                        "id": "rx_drugs",
+                        "type": "textarea",
+                        "label": "Препарат — дозировка — кратность — длительность",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "rx_home",
+                "title": "Домашний уход",
+                "fields": [
+                    {
+                        "id": "rx_home_morning",
+                        "type": "textarea",
+                        "label": "Утро",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "rx_home_evening",
+                        "type": "textarea",
+                        "label": "Вечер",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "rx_home_weekly",
+                        "type": "text",
+                        "label": "1–2 раза в неделю",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "rx_limits",
+                "title": "Ограничения и контроль",
+                "fields": [
+                    {
+                        "id": "rx_restrictions",
+                        "type": "textarea",
+                        "label": "Ограничения после процедуры",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "rx_control",
+                        "type": "textarea",
+                        "label": "Контрольные визиты",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "rx_done",
+                        "type": "textarea",
+                        "label": "Отметки о выполнении",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "rx_staff",
+                "title": "Врач",
+                "fields": [
+                    {
+                        "id": "doctor_id",
+                        "type": "staff",
+                        "label": "Врач",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            }
+        ]
+    },
+    "print_html": "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-size:9pt;border-bottom:1px solid #999;margin-bottom:8px\"><tr><td valign=\"top\"><b>{org.name}</b><br>{org.address}<br>Тел.: {org.phone|__________}</td><td width=\"40%\" valign=\"top\" style=\"text-align:right\">Лицензия {org.license|__________}<br>от {org.license_date|__________}</td></tr></table><h3 style=\"text-align:center;margin:6px 0\">Лист назначений</h3><table width=\"100%\" cellpadding=\"3\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse\"><tr><td width=\"28%\">Пациент</td><td><b>{client.name}</b></td><td width=\"18%\">Дата рождения</td><td width=\"16%\">{client.birthday|__________}</td></tr><tr><td>Телефон</td><td>{client.tel|__________}</td><td>Дата приёма</td><td>{event.date} {event.time}</td></tr><tr><td>Врач</td><td colspan=\"3\">{doctor.name}, врач-косметолог</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">Назначенные процедуры</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Процедуры курса</td><td valign=\"top\">{rx_procedures}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Кратность и интервалы</td><td valign=\"top\">{rx_frequency|—}</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">Препараты</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Препарат — дозировка — кратность — длительность</td><td valign=\"top\">{rx_drugs|—}</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">Домашний уход</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Утро</td><td valign=\"top\">{rx_home_morning|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Вечер</td><td valign=\"top\">{rx_home_evening|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">1–2 раза в неделю</td><td valign=\"top\">{rx_home_weekly|—}</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">Ограничения и контроль</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Ограничения после процедуры</td><td valign=\"top\">{rx_restrictions|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Контрольные визиты</td><td valign=\"top\">{rx_control|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Отметки о выполнении</td><td valign=\"top\">{rx_done|—}</td></tr></table><table width=\"100%\" style=\"margin-top:16px;font-size:9.5pt\"><tr><td>Врач: ____________ / {doctor.name}</td><td style=\"text-align:right\">Пациент: ____________ / {client.name}</td></tr><tr><td colspan=\"2\" style=\"padding-top:6px;color:#555;font-size:8.5pt\">{doc.confirmed|Документ не подтверждён врачом}</td></tr></table>{qr}"
+}

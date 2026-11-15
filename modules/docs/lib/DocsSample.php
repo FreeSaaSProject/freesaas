@@ -59,6 +59,7 @@ final class DocsSample
             'doc.name' => (string)$def['name'],
             'doc.date' => I18n::formatDate($now, 'date'),
             'doc.expire' => (int)$def['expire_days'] > 0 ? I18n::formatDate($now + (int)$def['expire_days'] * 86400, 'date') : '',
+            'doc.confirmed' => t('docs.print.confirmed', ['name' => $staff, 'date' => I18n::formatDate($now, 'datetime')]),
             'staff.name' => $staff,
         ];
         $demo['client.passport'] = $demo['client.passport_serie'] . ' ' . $demo['client.passport_number']

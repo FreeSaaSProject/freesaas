@@ -24,6 +24,13 @@ $canPrint = Auth::can('docs.print');
         <li>
           <a href="/documents/<?= (int)$inst['id'] ?>/edit"><?= e((string)$inst['def_name']) ?></a>
           <span class="docs-status docs-status--<?= e((string)$inst['status']) ?>"><?= te('docs.status.' . $inst['status']) ?></span>
+          <?php if (DocsInstancesRepository::confirmReady() && $inst['status'] !== 'void'): ?>
+            <?php if ((int)($inst['dt_confirmed'] ?? 0) > 0): ?>
+              <span class="docs-status docs-status--confirmed"><?= te('docs.confirm.badge') ?></span>
+            <?php elseif (in_array($inst['kind'], ['medcard_visit', 'check'], true)): ?>
+              <span class="docs-status docs-status--unconfirmed"><?= te('docs.confirm.badge_pending') ?></span>
+            <?php endif; ?>
+          <?php endif; ?>
           <?php if ($canPrint && $inst['status'] !== 'void'): ?>
             · <a href="/documents/<?= (int)$inst['id'] ?>/print"><?= te((int)$inst['dt_print'] > 0 ? 'docs.edit.open_print' : 'docs.edit.print') ?></a>
           <?php endif; ?>

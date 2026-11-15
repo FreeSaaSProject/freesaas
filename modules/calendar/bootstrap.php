@@ -11,6 +11,7 @@ require_once __DIR__ . '/lib/CalendarDayStats.php';
 require_once __DIR__ . '/lib/CalendarTimelineEnrich.php';
 require_once __DIR__ . '/lib/CalendarViewPref.php';
 require_once __DIR__ . '/lib/CalendarAssistantPreview.php';
+require_once __DIR__ . '/lib/CalendarAssistantPreflight.php';
 require_once __DIR__ . '/lib/CalendarBiContrib.php';
 
 EventBus::on('bi.datasets', [CalendarBiContrib::class, 'onDatasets']);
@@ -20,6 +21,13 @@ EventBus::on('assistant.write.preview', static function ($payload) {
         return [];
     }
     return CalendarAssistantPreview::onWritePreview($payload);
+});
+
+EventBus::on('assistant.write.preflight', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return CalendarAssistantPreflight::onWritePreflight($payload);
 });
 
 EventBus::on('assistant.system.hints', static function ($payload) {

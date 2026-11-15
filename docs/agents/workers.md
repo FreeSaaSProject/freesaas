@@ -428,6 +428,9 @@ FreeSaaS ──https://IP:18443/v1/<service>/…──▶ gateway (dashboard pro
 | Outbound from the FreeSaaS server to that port | Shared hosting may block non-standard ports — «Test» on `/edge-hosts`; if blocked forward public 443 → 18443 |
 | Default route not via VPN | Full-tunnel VPN sends replies into the tunnel; doctor check `gateway.default_route` |
 | macOS must not sleep | Disable system sleep in Energy settings |
+| Stable Wi‑Fi / prefer Ethernet | AP deauth or beacon loss drops inbound push; FreeSaaS then backs off the host |
+
+**Unreachable alerts (FreeSaaS → staff bot):** on the first `EdgeHosts::noteFailure` after a healthy period (and again on recovery) core can enqueue `bots.send`. Configure on `/edge-hosts` → «Bot alerts» (`cfg/modules/core.ini`: `edge_notify_enabled`, `edge_notify_chat_id`, `edge_notify_platform`, `edge_notify_staff_ids`). Needs `bots` enabled + drain.
 
 **Setup (new host):**
 

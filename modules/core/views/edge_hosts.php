@@ -5,10 +5,12 @@ declare(strict_types=1);
  * @var list<array<string,mixed>> $hosts
  * @var array<string,array{module:string,label:string,max_inflight:int}> $services
  * @var array<string,mixed>|null $once
+ * @var array<string,string> $notify
  */
 $hosts = is_array($hosts ?? null) ? $hosts : [];
 $services = is_array($services ?? null) ? $services : [];
 $once = is_array($once ?? null) ? $once : null;
+$notify = is_array($notify ?? null) ? $notify : EdgeHostsNotify::formValues();
 $fmtTime = static function (int $ts): string {
     return $ts > 0 ? date('d.m H:i:s', $ts) : '—';
 };
@@ -136,6 +138,31 @@ $fmtTime = static function (int $ts): string {
       <button class="btn-secondary" type="submit" name="edge_action" value="add:0"><?= te('core.edge_hosts.btn_add') ?></button>
     </div>
     <p class="muted small"><?= te('core.edge_hosts.add_hint') ?></p>
+  </fieldset>
+
+  <fieldset class="form-fieldset">
+    <legend><?= te('core.edge_hosts.notify.title') ?></legend>
+    <p class="muted small"><?= te('core.edge_hosts.notify.hint') ?></p>
+    <label class="checkbox">
+      <input type="checkbox" name="edge_notify_enabled" value="1"<?= ($notify['edge_notify_enabled'] ?? '') === '1' ? ' checked' : '' ?>>
+      <?= te('core.edge_hosts.notify.enabled') ?>
+    </label>
+    <div class="form-row-inline">
+      <label><?= te('core.edge_hosts.notify.chat_id') ?>
+        <input type="text" name="edge_notify_chat_id" value="<?= e((string)($notify['edge_notify_chat_id'] ?? '')) ?>" autocomplete="off" size="22">
+      </label>
+      <label><?= te('core.edge_hosts.notify.platform') ?>
+        <select name="edge_notify_platform">
+          <?php foreach (['max', 'telegram', 'both'] as $p): ?>
+            <option value="<?= e($p) ?>"<?= ($notify['edge_notify_platform'] ?? '') === $p ? ' selected' : '' ?>><?= e($p) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </label>
+      <label><?= te('core.edge_hosts.notify.staff_ids') ?>
+        <input type="text" name="edge_notify_staff_ids" value="<?= e((string)($notify['edge_notify_staff_ids'] ?? '')) ?>" autocomplete="off" size="18" placeholder="1,2">
+      </label>
+      <button class="btn-secondary" type="submit" name="edge_action" value="notify_test:0"><?= te('core.edge_hosts.notify.btn_test') ?></button>
+    </div>
   </fieldset>
 </form>
 <?php endif; ?>

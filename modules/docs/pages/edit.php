@@ -130,6 +130,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $n = DocsProposals::proposeTalkSegments($id);
                 $message = $n > 0 ? t('docs.msg.segments_proposed', ['n' => $n]) : t('docs.msg.segments_none');
                 break;
+            case 'confirm':
+                if (!DocsInstancesRepository::confirmReady()) {
+                    throw new RuntimeException(t('docs.confirm.err.not_ready'));
+                }
+                if (!in_array((string)$row['status'], ['printed', 'void'], true)) {
+                    DocsInstancesRepository::updateFields($id, $values, 'manual');
+                }
+                $uid = (int)(Auth::userId() ?? 0);
+                $fresh = DocsInstancesRepository::find($id) ?: $row;
+                if ((string)$fresh['status'] === 'draft') {
+                    throw new RuntimeException(t('docs.confirm.err.draft'));
+                }
+                if ((int)$row['id_event'] > 0) {
+                    $res = DocsInstancesRepository::confirmForEvent((int)$row['id_event'], $uid);
+                } else {
+                    $res = ['confirmed' => DocsInstancesRepository::confirm($id, $uid) ? [$id] : [], 'already' => [], 'drafts' => []];
+                }
+                $message = t('docs.confirm.msg.done', ['n' => count($res['confirmed']) + count($res['already'])]);
+                if ($res['drafts'] !== []) {
+                    $error = t('docs.confirm.msg.drafts', ['list' => implode(', ', array_column($res['drafts'], 'name'))]);
+                }
+                break;
             default:
                 $changed = DocsInstancesRepository::updateFields($id, $values, 'manual');
                 $message = $changed !== [] ? t('core.common.saved') : t('docs.msg.no_changes');
@@ -192,6 +214,40 @@ if ($wantsJson) {
     return;
 }
 
+// Review banner: values filled automatically (audio) wait for the doctor's confirmation.
+$review = ['auto' => false, 'auto_at' => 0, 'record_id' => 0, 'confirmed_at' => 0, 'confirmed_by' => '', 'event_docs' => []];
+if (!$isNew) {
+    foreach ((array)($row['payload']['_prov'] ?? []) as $p) {
+        if (!is_array($p)) {
+            continue;
+        }
+        $src = (string)($p['source'] ?? '');
+        $from = (string)($p['edited_from'] ?? '');
+        if (in_array($src, DocsInstancesRepository::AUTO_SOURCES, true) || $from !== '') {
+            $review['auto'] = true;
+            $review['auto_at'] = max($review['auto_at'], (int)($p['recorded_at'] ?? $p['at'] ?? 0));
+            if ($review['record_id'] < 1 && (int)($p['record_id'] ?? 0) > 0) {
+                $review['record_id'] = (int)$p['record_id'];
+            }
+        }
+    }
+    $review['confirmed_at'] = (int)($row['dt_confirmed'] ?? 0);
+    if ($review['confirmed_at'] > 0 && (int)($row['id_user_confirmed'] ?? 0) > 0 && class_exists('UsersRepository', false)) {
+        $names = UsersRepository::staffNamesIncluding([(int)$row['id_user_confirmed']]);
+        $review['confirmed_by'] = (string)($names[(int)$row['id_user_confirmed']] ?? '');
+    }
+    if ((int)$row['id_event'] > 0) {
+        foreach (DocsInstancesRepository::listForEvent((int)$row['id_event']) as $inst) {
+            $review['event_docs'][] = [
+                'id' => (int)$inst['id'],
+                'name' => (string)$inst['def_name'],
+                'status' => (string)$inst['status'],
+                'confirmed' => (int)($inst['dt_confirmed'] ?? 0) > 0,
+            ];
+        }
+    }
+}
+
 $clientLabel = '';
 if ((int)$row['id_client'] > 0 && class_exists('ClientsRepository', false)) {
     $c = ClientsRepository::find((int)$row['id_client']);
@@ -216,6 +272,8 @@ View::render('edit', [
     'proposals' => $proposals,
     'hasSegments' => $hasSegments && !$isNew && $hasProposals,
     'clientLabel' => $clientLabel,
+    'review' => $review,
+    'canConfirm' => $canEdit && DocsInstancesRepository::confirmReady(),
     'message' => $message,
     'error' => $error,
     'breadcrumbs' => Breadcrumbs::withHome([

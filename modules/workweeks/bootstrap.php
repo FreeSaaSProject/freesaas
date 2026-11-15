@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/WorkweeksRepository.php';
 require_once __DIR__ . '/lib/WorkweeksAssistantPreview.php';
+require_once __DIR__ . '/lib/WorkweeksAssistantPreflight.php';
 require_once __DIR__ . '/lib/NeededPeopleBotPlugin.php';
 require_once __DIR__ . '/lib/ShiftsBotPlugin.php';
 require_once __DIR__ . '/lib/WorkweeksBiShiftLanes.php';
@@ -17,6 +18,13 @@ EventBus::on('assistant.write.preview', static function ($payload) {
         return [];
     }
     return WorkweeksAssistantPreview::onWritePreview($payload);
+});
+
+EventBus::on('assistant.write.preflight', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return WorkweeksAssistantPreflight::onWritePreflight($payload);
 });
 
 EventBus::on('assistant.system.hints', static function ($payload) {

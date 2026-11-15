@@ -14,7 +14,8 @@ final class AssistantWritePreflight
      *   blockers:list<array{code:string,message:string}>,
      *   suggest:list<array{op_id:string,args:array<string,mixed>,label:string}>,
      *   choices:list<array{op_id:string,args:array<string,mixed>,label:string}>,
-     *   noop:bool
+     *   noop:bool,
+     *   replan:bool
      * }
      */
     public static function run(string $opId, array $args, array $catalogIds = []): array
@@ -27,6 +28,7 @@ final class AssistantWritePreflight
             'suggest' => [],
             'choices' => [],
             'noop' => false,
+            'replan' => false,
         ];
         if (class_exists('EventBus', false)) {
             $payload = EventBus::emit('assistant.write.preflight', $payload);
@@ -103,7 +105,24 @@ final class AssistantWritePreflight
             'suggest' => $suggest,
             'choices' => $choices,
             'noop' => !empty($payload['noop']),
+            // Draft cannot run as written and the model can fix it: do not queue, re-plan this turn.
+            'replan' => !empty($payload['replan']) && $blockers !== [] && $suggest === [] && $choices === [],
         ];
+    }
+
+    /**
+     * @param array{blockers?:list<array<string,mixed>>} $preflight
+     */
+    public static function blockerText(array $preflight): string
+    {
+        $msgs = [];
+        foreach ((array)($preflight['blockers'] ?? []) as $b) {
+            $msg = is_array($b) ? trim((string)($b['message'] ?? '')) : '';
+            if ($msg !== '' && !in_array($msg, $msgs, true)) {
+                $msgs[] = $msg;
+            }
+        }
+        return implode(' ', $msgs);
     }
 
     /**

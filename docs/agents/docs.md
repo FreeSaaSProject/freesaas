@@ -102,6 +102,8 @@ Field ids: `^[a-z][a-z0-9_]{0,63}$`, unique per schema, **stable across versions
 
 Status: `draft` (some `required` field empty) → `ready` → `printed` (snapshot frozen, payload immutable) → `void`. "New revision" voids a printed instance and clones its payload into a new draft.
 
+Doctor confirmation is separate from status (`ready` only means required fields are filled): `DT_CONFIRMED` / `ID_USER_CONFIRMED` (migration `002_instance_confirm`). `action=confirm` on `/documents/{id}/edit` (op `docs.instance.confirm`) saves the posted edits and confirms every `ready`/`printed` document of the visit (`DocsInstancesRepository::confirmForEvent`); drafts are reported back. Any later content change clears the confirmation. Print placeholder `{doc.confirmed}` = "Confirmed by the doctor: name, date" (empty when not confirmed).
+
 ## Payload JSON (instance)
 
 ```json
@@ -155,7 +157,8 @@ Seed templates follow form 025/у (приказ Минздрава № 834н) as
 
 Templates (definitions, never instances) can live as files instead of DB rows:
 
-- `modules/docs/library/<pack>/<code>.json` — format `freesaas.doc-template` v1 (`code`, `kind`, `name`, `scope`, trigger, `expire_days`, `orientation`, `paper`, `copies`, `schema`, `print_html`, `source`); `pack.json` describes the pack.
+- `modules/docs/library/<pack>/<code>.json` — format `freesaas.doc-template` v1 (`code`, `kind`, `name`, `scope`, trigger, `expire_days`, `orientation`, `paper`, `copies`, `schema`, `print_html`, `source`); `pack.json` describes the pack. Bundled: `elos63` (cosmetology consents/contracts, print-only) and `cosmetology` (cosmetologist visit sheet `medcard_cosmo` with course plan / frequency / home care / course cost / control visits, prescriptions sheet `cosmo_prescriptions`, patient memo `cosmo_plan`).
+- Spawn: when a visit matches a `medcard_visit` definition by `types`/`procs`, generic `medical`/`every` visit sheets are skipped for that visit (specialty sheet replaces the generic one).
 - `/documents/defs/import` — pick templates from a pack (or upload a file / array of files); options: keep service/type id triggers (same DB only — otherwise `procs`/`types` become `manual`), update existing (new version), enable. Imported definitions start disabled.
 - `/documents/defs/{id}/export` — download one definition as a template file.
 - `/documents/defs/{id}/sample[?version=<version id>]` and `/documents/defs/import/sample?pack=&file=` — print a sample with demo data (watermark, nothing stored). Organization requisites use the real settings where filled, demo values otherwise.
@@ -213,6 +216,7 @@ EventBus::emit('docs.instance.propose', [
 - `audio_llm` emits `audio_llm.study.result` after a successful result; `docs` parses `RESULT_TEXT` when it is JSON with a `docs` object (`{"docs": {"kind": "medcard_visit", "fields": {...}}}`) and proposes into the visit of the study procedure (`ID_PROCEDURE` → `ID_EVENT_PARENT`).
 - "Time with patient": instance page action builds a `talk_segments` proposal from `base_records` of the visit operator inside the event window (record ↔ visit link is computed by operator + time; `base_records` is not modified).
 - Accepting a proposal writes the field with `_prov.source` from the proposal; unknown field ids are rejected.
+- Whole-card review: a filler may write a draft card directly with an automatic source (`audio_bot`, `audio_llm`, `audio_records` — `DocsInstancesRepository::AUTO_SOURCES`) while it is **not confirmed**. Fields show a "from audio" badge; a manual edit keeps `_prov.edited_from` ("from audio, corrected by doctor"). Optional `_prov` extras `record_id` / `recorded_at` link the review banner to `/audio/{id}`. After confirmation, further automatic input must go through proposals.
 
 ## Legacy → field ids
 

@@ -338,6 +338,30 @@ final class EventsRepository
     }
 
     /**
+     * Same checks as the save path (operator gate, blocks mode, busy timeline) without writing.
+     *
+     * @param array<string,mixed> $data dataFromPost() result
+     * @param array<string,mixed>|null $existing stored row for updates
+     */
+    public static function validateDraft(array $data, ?array $existing = null, bool $checkOperator = true): void
+    {
+        if ($checkOperator) {
+            self::assertOperatorAllowed(
+                (int)$data['id_operator'],
+                (int)$data['dtstart'],
+                $existing !== null ? (int)($existing['id_operator'] ?? 0) : 0
+            );
+        }
+        self::assertModeAllowsWrite($data, $existing);
+        self::assertTimelineFree(
+            (int)$data['id_operator'],
+            (int)$data['dtstart'],
+            (int)$data['dtend'],
+            $existing !== null ? (int)($existing['id'] ?? 0) : 0
+        );
+    }
+
+    /**
      * @param list<array{id_good:int,qty?:int}> $items
      */
     private static function assertOperatorCanPerform(int $operatorId, array $items, int $dayTs): void

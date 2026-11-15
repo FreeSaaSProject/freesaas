@@ -97,7 +97,7 @@ final class ClinicDemoStructure
                     'bonus_procent' => 30,
                     'multiwork' => 0,
                     'photo_req' => 0,
-                    'is_medical' => in_array($key, ['consult_th', 'consult_cd', 'consult_nr'], true) ? 1 : 0,
+                    'is_medical' => in_array($key, ['consult_th', 'consult_cd', 'consult_nr', 'cosmo'], true) ? 1 : 0,
                     'parallels' => 0,
                     'bonus_procent_out' => 0,
                     'site_amo_show' => 0,
@@ -140,15 +140,17 @@ final class ClinicDemoStructure
         return $out;
     }
 
-    /** @return array<string,string> category name => short code */
+    /** @return array<string,true> category name (from the locale pack services) */
     private function serviceCategories(): array
     {
-        return [
-            'Консультации врачей' => 'cons',
-            'Функциональная диагностика' => 'func',
-            'Ультразвуковая диагностика' => 'uzi',
-            'Процедуры и манипуляции' => 'proc',
-        ];
+        $out = [];
+        foreach (ClinicDemoPlan::services() as $svc) {
+            $name = (string)($svc['category'] ?? '');
+            if ($name !== '') {
+                $out[$name] = true;
+            }
+        }
+        return $out;
     }
 
     private function ensureUnit(): int

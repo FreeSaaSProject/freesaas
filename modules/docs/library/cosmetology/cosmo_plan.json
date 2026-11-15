@@ -1,0 +1,82 @@
+{
+    "format": "freesaas.doc-template",
+    "format_version": 1,
+    "code": "cosmo_plan",
+    "kind": "check",
+    "name": "Памятка пациенту: план курса, уход и стоимость",
+    "scope": "event",
+    "trigger_mode": "manual",
+    "trigger_types": [],
+    "trigger_procs": [],
+    "expire_days": 0,
+    "require_medcard": 0,
+    "orientation": "portrait",
+    "paper": "A4",
+    "copies": 1,
+    "schema": {
+        "sections": [
+            {
+                "id": "pl_course",
+                "title": "Ваш курс",
+                "fields": [
+                    {
+                        "id": "course_plan",
+                        "type": "textarea",
+                        "label": "План процедур",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "course_schedule",
+                        "type": "textarea",
+                        "label": "Периодичность и последовательность",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "course_cost",
+                        "type": "number",
+                        "label": "Предполагаемая стоимость курса, ₽",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "course_cost_note",
+                        "type": "textarea",
+                        "label": "Из чего складывается стоимость",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "pl_care",
+                "title": "Уход и контроль",
+                "fields": [
+                    {
+                        "id": "home_care",
+                        "type": "textarea",
+                        "label": "Домашний уход",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "control_visits",
+                        "type": "textarea",
+                        "label": "Контрольные визиты",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "next_visit",
+                        "type": "date",
+                        "label": "Следующий визит",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            }
+        ]
+    },
+    "print_html": "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-size:9pt;border-bottom:1px solid #999;margin-bottom:8px\"><tr><td valign=\"top\"><b>{org.name}</b><br>{org.address}<br>Тел.: {org.phone|__________}</td><td width=\"40%\" valign=\"top\" style=\"text-align:right\">Лицензия {org.license|__________}<br>от {org.license_date|__________}</td></tr></table><h3 style=\"text-align:center;margin:6px 0\">Памятка пациенту</h3><p style=\"font-size:10pt\">{client.name}, спасибо, что выбрали «{org.brand|нашу клинику}». Ниже — ваш персональный план, составленный врачом {doctor.name} на приёме {event.date}.</p><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">Ваш курс</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">План процедур</td><td valign=\"top\">{course_plan}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Периодичность</td><td valign=\"top\">{course_schedule|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Стоимость курса</td><td valign=\"top\"><b>{course_cost|—} ₽</b><br>{course_cost_note|}</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">Уход дома</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Рекомендации</td><td valign=\"top\">{home_care|—}</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">Контроль</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Контрольные визиты</td><td valign=\"top\">{control_visits|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Следующий визит</td><td valign=\"top\">{next_visit|по согласованию}</td></tr></table><p style=\"font-size:9pt;color:#555\">Вопросы — по телефону {org.phone|клиники}. Перед процедурой сообщите врачу о любых изменениях в самочувствии и приёме лекарств.</p>{qr}"
+}

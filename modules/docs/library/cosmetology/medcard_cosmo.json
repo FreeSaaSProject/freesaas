@@ -1,0 +1,380 @@
+{
+    "format": "freesaas.doc-template",
+    "format_version": 1,
+    "code": "medcard_cosmo",
+    "kind": "medcard_visit",
+    "name": "Медицинская карта: приём врача-косметолога",
+    "scope": "event",
+    "trigger_mode": "manual",
+    "trigger_types": [],
+    "trigger_procs": [],
+    "expire_days": 0,
+    "require_medcard": 0,
+    "orientation": "portrait",
+    "paper": "A4",
+    "copies": 1,
+    "schema": {
+        "sections": [
+            {
+                "id": "cs_request",
+                "title": "Жалобы и запрос пациента",
+                "fields": [
+                    {
+                        "id": "complaints",
+                        "type": "textarea",
+                        "label": "Жалобы",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "patient_goals",
+                        "type": "textarea",
+                        "label": "Запрос и ожидания пациента",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "cs_anamnesis",
+                "title": "Анамнез",
+                "fields": [
+                    {
+                        "id": "allergy",
+                        "type": "text",
+                        "label": "Аллергологический анамнез",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "contraindications",
+                        "type": "textarea",
+                        "label": "Противопоказания",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "prev_procedures",
+                        "type": "textarea",
+                        "label": "Ранее выполненные косметологические процедуры",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "medications",
+                        "type": "text",
+                        "label": "Принимаемые препараты",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "home_care_now",
+                        "type": "text",
+                        "label": "Текущий домашний уход",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "cs_skin",
+                "title": "Осмотр кожи",
+                "fields": [
+                    {
+                        "id": "skin_type",
+                        "type": "select",
+                        "label": "Тип кожи",
+                        "required": false,
+                        "index": false,
+                        "options": [
+                            {
+                                "value": "normal",
+                                "label": "нормальная"
+                            },
+                            {
+                                "value": "dry",
+                                "label": "сухая"
+                            },
+                            {
+                                "value": "oily",
+                                "label": "жирная"
+                            },
+                            {
+                                "value": "combo",
+                                "label": "комбинированная"
+                            },
+                            {
+                                "value": "sensitive",
+                                "label": "чувствительная"
+                            }
+                        ]
+                    },
+                    {
+                        "id": "phototype",
+                        "type": "select",
+                        "label": "Фототип по Фицпатрику",
+                        "required": false,
+                        "index": false,
+                        "options": [
+                            {
+                                "value": "I",
+                                "label": "I"
+                            },
+                            {
+                                "value": "II",
+                                "label": "II"
+                            },
+                            {
+                                "value": "III",
+                                "label": "III"
+                            },
+                            {
+                                "value": "IV",
+                                "label": "IV"
+                            },
+                            {
+                                "value": "V",
+                                "label": "V"
+                            },
+                            {
+                                "value": "VI",
+                                "label": "VI"
+                            }
+                        ]
+                    },
+                    {
+                        "id": "turgor",
+                        "type": "select",
+                        "label": "Тургор и эластичность",
+                        "required": false,
+                        "index": false,
+                        "options": [
+                            {
+                                "value": "kept",
+                                "label": "сохранены"
+                            },
+                            {
+                                "value": "low",
+                                "label": "снижены"
+                            },
+                            {
+                                "value": "very_low",
+                                "label": "значительно снижены"
+                            }
+                        ]
+                    },
+                    {
+                        "id": "pigmentation",
+                        "type": "text",
+                        "label": "Пигментация, сосудистый рисунок",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "wrinkles",
+                        "type": "textarea",
+                        "label": "Морщины: локализация и выраженность",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "zones",
+                        "type": "multiselect",
+                        "label": "Зоны коррекции",
+                        "required": false,
+                        "index": false,
+                        "options": [
+                            {
+                                "value": "forehead",
+                                "label": "лоб"
+                            },
+                            {
+                                "value": "glabella",
+                                "label": "межбровье"
+                            },
+                            {
+                                "value": "periorbital",
+                                "label": "периорбитальная зона"
+                            },
+                            {
+                                "value": "nasolabial",
+                                "label": "носогубные складки"
+                            },
+                            {
+                                "value": "lips",
+                                "label": "губы"
+                            },
+                            {
+                                "value": "cheeks",
+                                "label": "щёки и скулы"
+                            },
+                            {
+                                "value": "chin",
+                                "label": "подбородок"
+                            },
+                            {
+                                "value": "neck",
+                                "label": "шея"
+                            },
+                            {
+                                "value": "decollete",
+                                "label": "декольте"
+                            }
+                        ]
+                    },
+                    {
+                        "id": "ana_obj",
+                        "type": "textarea",
+                        "label": "Объективный статус",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "cs_diagnosis",
+                "title": "Диагноз",
+                "fields": [
+                    {
+                        "id": "dia_codes",
+                        "type": "text",
+                        "label": "Диагноз (МКБ-10)",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "cs_procedure",
+                "title": "Процедура сегодня",
+                "fields": [
+                    {
+                        "id": "procedure_name",
+                        "type": "text",
+                        "label": "Процедура",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "preparation",
+                        "type": "text",
+                        "label": "Препарат, производитель",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "lot",
+                        "type": "text",
+                        "label": "Серия (лот), срок годности",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "dose",
+                        "type": "text",
+                        "label": "Объём / дозы",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "technique",
+                        "type": "textarea",
+                        "label": "Техника и точки введения",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "anesthesia",
+                        "type": "text",
+                        "label": "Анестезия",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "reaction",
+                        "type": "textarea",
+                        "label": "Реакция и состояние после процедуры",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "cs_course",
+                "title": "План лечения",
+                "fields": [
+                    {
+                        "id": "course_plan",
+                        "type": "textarea",
+                        "label": "План процедур на несколько месяцев",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "course_schedule",
+                        "type": "textarea",
+                        "label": "Периодичность и последовательность процедур",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "home_care",
+                        "type": "textarea",
+                        "label": "Рекомендации по домашнему уходу",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "course_cost",
+                        "type": "number",
+                        "label": "Предполагаемая стоимость курса, ₽",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "course_cost_note",
+                        "type": "textarea",
+                        "label": "Расшифровка стоимости",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "control_visits",
+                        "type": "textarea",
+                        "label": "Контрольные визиты и корректировки",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "next_visit",
+                        "type": "date",
+                        "label": "Следующий визит",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            },
+            {
+                "id": "cs_staff",
+                "title": "Врач",
+                "fields": [
+                    {
+                        "id": "doctor_id",
+                        "type": "staff",
+                        "label": "Лечащий врач",
+                        "required": false,
+                        "index": false
+                    },
+                    {
+                        "id": "talk_segments",
+                        "type": "segments",
+                        "label": "Время с пациентом",
+                        "required": false,
+                        "index": false
+                    }
+                ]
+            }
+        ]
+    },
+    "print_html": "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-size:9pt;border-bottom:1px solid #999;margin-bottom:8px\"><tr><td valign=\"top\"><b>{org.name}</b><br>{org.address}<br>Тел.: {org.phone|__________}</td><td width=\"40%\" valign=\"top\" style=\"text-align:right\">Лицензия {org.license|__________}<br>от {org.license_date|__________}</td></tr></table><h3 style=\"text-align:center;margin:6px 0\">Медицинская карта пациента, получающего медицинскую помощь в амбулаторных условиях<br><span style=\"font-weight:normal;font-size:10pt\">Лист приёма врача-косметолога · карта № {card.no}</span></h3><table width=\"100%\" cellpadding=\"3\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse\"><tr><td width=\"28%\">Пациент</td><td><b>{client.name}</b></td><td width=\"18%\">Дата рождения</td><td width=\"16%\">{client.birthday|__________}</td></tr><tr><td>Телефон</td><td>{client.tel|__________}</td><td>Дата приёма</td><td>{event.date} {event.time}</td></tr><tr><td>Врач</td><td colspan=\"3\">{doctor.name}, врач-косметолог</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">1. Жалобы и запрос пациента</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Жалобы</td><td valign=\"top\">{complaints}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Запрос и ожидания</td><td valign=\"top\">{patient_goals|—}</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">2. Анамнез</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Аллергологический анамнез</td><td valign=\"top\">{allergy|не отягощён}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Противопоказания</td><td valign=\"top\">{contraindications|не выявлены}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Ранее выполненные процедуры</td><td valign=\"top\">{prev_procedures|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Принимаемые препараты</td><td valign=\"top\">{medications|не принимает}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Текущий домашний уход</td><td valign=\"top\">{home_care_now|—}</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">3. Осмотр кожи</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Тип кожи / фототип</td><td valign=\"top\">{skin_type|—} / {phototype|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Тургор и эластичность</td><td valign=\"top\">{turgor|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Пигментация, сосуды</td><td valign=\"top\">{pigmentation|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Морщины</td><td valign=\"top\">{wrinkles|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Зоны коррекции</td><td valign=\"top\">{zones|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Объективный статус</td><td valign=\"top\">{ana_obj}</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">4. Диагноз</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">МКБ-10</td><td valign=\"top\"><b>{dia_codes}</b></td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">5. Выполненная процедура</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Процедура</td><td valign=\"top\">{procedure_name|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Препарат</td><td valign=\"top\">{preparation|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Серия (лот)</td><td valign=\"top\">{lot|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Объём / дозы</td><td valign=\"top\">{dose|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Техника, точки</td><td valign=\"top\">{technique|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Анестезия</td><td valign=\"top\">{anesthesia|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Реакция</td><td valign=\"top\">{reaction|—}</td></tr></table><h4 style=\"margin:10px 0 2px;font-size:10.5pt\">6. План лечения</h4><table width=\"100%\" cellpadding=\"4\" cellspacing=\"0\" border=\"1\" style=\"font-size:9.5pt;border-collapse:collapse;margin:4px 0 8px\"><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">План процедур на несколько месяцев</td><td valign=\"top\">{course_plan|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Периодичность и последовательность</td><td valign=\"top\">{course_schedule|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Рекомендации по домашнему уходу</td><td valign=\"top\">{home_care|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Предполагаемая стоимость курса</td><td valign=\"top\"><b>{course_cost|—} ₽</b><br>{course_cost_note|}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Контрольные визиты и корректировки</td><td valign=\"top\">{control_visits|—}</td></tr><tr><td width=\"30%\" valign=\"top\" style=\"color:#444\">Следующий визит</td><td valign=\"top\">{next_visit|по согласованию}</td></tr></table><table width=\"100%\" style=\"margin-top:16px;font-size:9.5pt\"><tr><td>Врач: ____________ / {doctor.name}</td><td style=\"text-align:right\">Пациент: ____________ / {client.name}</td></tr><tr><td colspan=\"2\" style=\"padding-top:6px;color:#555;font-size:8.5pt\">{doc.confirmed|Документ не подтверждён врачом}</td></tr></table>{qr}"
+}

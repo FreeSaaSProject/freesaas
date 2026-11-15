@@ -15,6 +15,10 @@ declare(strict_types=1);
 /** @var string $clientLabel */
 /** @var string $message */
 /** @var string $error */
+/** @var array<string,mixed> $review */
+/** @var bool $canConfirm */
+$review = $review ?? ['auto' => false, 'confirmed_at' => 0, 'event_docs' => []];
+$canConfirm = !empty($canConfirm);
 $payload = is_array($row['payload'] ?? null) ? $row['payload'] : [];
 $prov = is_array($payload['_prov'] ?? null) ? $payload['_prov'] : [];
 $readonly = $locked || !$canEdit;
@@ -26,6 +30,11 @@ $fieldMap = DocsSchema::fieldMap($schema);
   <p class="muted docs-meta">
     <span><?= e(DocsDefsRepository::kindLabel((string)$row['kind'])) ?></span>
     · <span class="docs-status docs-status--<?= e((string)$row['status']) ?>"><?= te('docs.status.' . $row['status']) ?></span>
+    <?php if ((int)($row['dt_confirmed'] ?? 0) > 0): ?>
+      <span class="docs-status docs-status--confirmed"><?= te('docs.confirm.badge') ?></span>
+    <?php elseif (!$isNew && !empty($review['auto']) && $row['status'] !== 'void'): ?>
+      <span class="docs-status docs-status--unconfirmed"><?= te('docs.confirm.badge_pending') ?></span>
+    <?php endif; ?>
     · <?= te('docs.edit.version', ['n' => (int)$version['version']]) ?>
     <?php if ((int)$row['id_client'] > 0): ?>
       · <a href="/clients/<?= (int)$row['id_client'] ?>"><?= e($clientLabel !== '' ? $clientLabel : ('#' . (int)$row['id_client'])) ?></a>
@@ -47,6 +56,34 @@ $fieldMap = DocsSchema::fieldMap($schema);
 
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
+
+<?php if (!$isNew && (int)($review['confirmed_at'] ?? 0) > 0): ?>
+  <div class="docs-review docs-review--confirmed">
+    <b><?= te('docs.confirm.done_title') ?></b>
+    <?= te('docs.confirm.done_by', [
+        'name' => (string)($review['confirmed_by'] ?? '') !== '' ? (string)$review['confirmed_by'] : '—',
+        'date' => I18n::formatDate((int)$review['confirmed_at'], 'datetime'),
+    ]) ?>
+    <?php if (!empty($review['auto'])): ?><span class="muted"> · <?= te('docs.confirm.from_audio_note') ?></span><?php endif; ?>
+  </div>
+<?php elseif (!$isNew && !empty($review['auto']) && $row['status'] !== 'void'): ?>
+  <div class="docs-review docs-review--pending">
+    <b><?= te('docs.confirm.pending_title') ?></b>
+    <p><?= te('docs.confirm.pending_text') ?>
+      <?php if ((int)($review['record_id'] ?? 0) > 0): ?>
+        <a href="/audio/<?= (int)$review['record_id'] ?>"><?= te('docs.confirm.open_record') ?></a>
+      <?php endif; ?>
+    </p>
+    <?php if (count((array)($review['event_docs'] ?? [])) > 1): ?>
+      <p class="muted"><?= te('docs.confirm.event_docs') ?>:
+        <?php foreach ((array)$review['event_docs'] as $i => $d): ?>
+          <?= $i > 0 ? ' · ' : '' ?><a href="/documents/<?= (int)$d['id'] ?>/edit"><?= e((string)$d['name']) ?></a>
+          <span class="docs-status docs-status--<?= e((string)$d['status']) ?>"><?= te(!empty($d['confirmed']) ? 'docs.confirm.badge' : 'docs.status.' . $d['status']) ?></span>
+        <?php endforeach; ?>
+      </p>
+    <?php endif; ?>
+  </div>
+<?php endif; ?>
 <?php if ($locked): ?>
   <p class="flash flash-warn"><?= te($row['status'] === 'void' ? 'docs.edit.locked_void' : 'docs.edit.locked_printed') ?></p>
 <?php elseif ($missing !== [] && !$isNew): ?>
@@ -108,9 +145,14 @@ $fieldMap = DocsSchema::fieldMap($schema);
           $value = $payload[$fid] ?? null;
           $req = !empty($f['required']);
           $src = (string)($prov[$fid]['source'] ?? '');
-          $badge = ($src !== '' && $src !== 'manual' && $src !== 'spawn' && $src !== 'revision')
-              ? '<span class="docs-prov docs-prov--' . e($src) . '">' . te('docs.source.' . $src) . '</span>'
-              : '';
+          $editedFrom = (string)($prov[$fid]['edited_from'] ?? '');
+          if ($editedFrom !== '' && $src === 'manual') {
+              $badge = '<span class="docs-prov docs-prov--edited">' . te('docs.source.edited_from_audio') . '</span>';
+          } elseif ($src !== '' && $src !== 'manual' && $src !== 'spawn' && $src !== 'revision') {
+              $badge = '<span class="docs-prov docs-prov--' . e($src) . '">' . te('docs.source.' . $src) . '</span>';
+          } else {
+              $badge = '';
+          }
           ?>
         <?php if ($f['type'] === 'checkbox'): ?>
           <label class="check">
@@ -181,8 +223,11 @@ $fieldMap = DocsSchema::fieldMap($schema);
   <?php endforeach; ?>
 
   <div class="page-actions">
+    <?php if (!$isNew && $canConfirm && (int)($review['confirmed_at'] ?? 0) < 1 && $row['status'] !== 'void'): ?>
+      <button class="btn-primary" type="submit" name="action" value="confirm"><?= te((int)$row['id_event'] > 0 ? 'docs.confirm.button_event' : 'docs.confirm.button') ?></button>
+    <?php endif; ?>
     <?php if (!$readonly): ?>
-      <button class="btn-primary" type="submit" name="action" value="save"><?= te($isNew ? 'docs.edit.create' : 'core.common.save') ?></button>
+      <button class="<?= !$isNew && $canConfirm && (int)($review['confirmed_at'] ?? 0) < 1 ? 'btn-secondary' : 'btn-primary' ?>" type="submit" name="action" value="save"><?= te($isNew ? 'docs.edit.create' : 'core.common.save') ?></button>
     <?php endif; ?>
     <?php if (!$isNew && $canPrint && $row['status'] !== 'void'): ?>
       <a class="btn-secondary" href="/documents/<?= (int)$row['id'] ?>/print"><?= te((int)($row['dt_print'] ?? 0) > 0 ? 'docs.edit.open_print' : 'docs.edit.print') ?></a>

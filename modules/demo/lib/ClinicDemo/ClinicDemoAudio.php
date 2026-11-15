@@ -21,7 +21,7 @@ final class ClinicDemoAudio
     /** Doctor cabinet / dictophone serial. */
     private const CABINETS = [
         't_a' => 101, 't_b' => 101, 'cardio' => 102, 'neuro' => 103,
-        'uzi' => 201, 'nurse1' => 202, 'nurse2' => 202,
+        'uzi' => 201, 'cosmo' => 203, 'nurse1' => 202, 'nurse2' => 202,
     ];
 
     public function __construct(ClinicDemoManifest $manifest)

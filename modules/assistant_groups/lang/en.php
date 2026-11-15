@@ -125,7 +125,7 @@ Cancel the draft → CALL assistant_groups.pending.cancel.
 Outside tools — private chat only.
 «What can you do» — only tools in this request; do not list modules that are not in the tool list.
 Clear/reset context requests → CALL assistant_groups.dialog.clear (do not refuse or ask to create a new chat).',
-    'assistant_groups.bot.system_speaker' => 'Speaker staff: user_id={id} ({name}). «на меня»/to me for procedures.set_admin → id_admin={id}. Other names/acronyms → core.users.list.',
+    'assistant_groups.bot.system_speaker' => 'Speaker staff: user_id={id} ({name}). «на меня»/to me for procedures.set_admin → id_admin={id}. Other names/acronyms → core.users.list. Never substitute the speaker for a staff member named in the request.',
     'assistant_groups.bot.system_chat_context' => 'Current chat: {title} (id {chat_id}). Group description: {description}. Use this group’s purpose when answering and choosing actions.',
     'assistant_groups.bot.system_chat_id' => 'Current Max chat id {chat_id} (no title/description in settings).',
     'assistant_groups.bot.plan_header' => 'Plan ({n} steps), one Confirm runs all:',

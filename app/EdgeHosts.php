@@ -246,11 +246,20 @@ final class EdgeHosts
     public static function noteSuccess(int $id, string $service, array $status): void
     {
         $pdo = Database::pdo();
+        $prevFails = 0;
+        $hostSnap = null;
         $pdo->beginTransaction();
         try {
-            $st = $pdo->prepare('SELECT LAST_STATUS FROM base_edge_hosts WHERE ID = ? FOR UPDATE');
+            $st = $pdo->prepare('SELECT * FROM base_edge_hosts WHERE ID = ? FOR UPDATE');
             $st->execute([$id]);
-            $all = json_decode((string)$st->fetchColumn(), true);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row)) {
+                $pdo->commit();
+                return;
+            }
+            $prevFails = (int)($row['FAILS'] ?? 0);
+            $hostSnap = $row;
+            $all = json_decode((string)($row['LAST_STATUS'] ?? ''), true);
             $all = is_array($all) ? $all : [];
             $all[$service] = $status;
             $pdo->prepare(
@@ -265,18 +274,34 @@ final class EdgeHosts
             }
             throw $e;
         }
+        if ($prevFails > 0 && is_array($hostSnap) && class_exists('EdgeHostsNotify', false)) {
+            try {
+                EdgeHostsNotify::recovered($hostSnap, $prevFails);
+            } catch (Throwable $e) {
+                error_log('[edge_hosts] notify recovered: ' . $e->getMessage());
+            }
+        }
     }
 
     /** Backoff ladder 5m → 10m → 30m → 60m, shared by all services of the host. */
     public static function noteFailure(int $id, string $error): int
     {
         $h = self::find($id);
-        $fails = (int)($h['FAILS'] ?? 0) + 1;
+        $prevFails = (int)($h['FAILS'] ?? 0);
+        $fails = $prevFails + 1;
         $ladder = [300, 600, 1800, 3600];
         $delay = $ladder[min($fails, count($ladder)) - 1];
         Database::pdo()->prepare(
             'UPDATE base_edge_hosts SET LAST_ERROR = ?, FAILS = ?, BACKOFF_UNTIL = ? WHERE ID = ?'
         )->execute([mb_substr($error, 0, 500), $fails, time() + $delay, $id]);
+        // First failure after a healthy period → one bot alert (not on every backoff step).
+        if ($prevFails === 0 && is_array($h) && class_exists('EdgeHostsNotify', false)) {
+            try {
+                EdgeHostsNotify::unreachable($h, $error, $fails, $delay);
+            } catch (Throwable $e) {
+                error_log('[edge_hosts] notify unreachable: ' . $e->getMessage());
+            }
+        }
         return $delay;
     }
 

@@ -432,10 +432,13 @@ final class AssistantHarness
                     $preflightSuggestOps = class_exists('AssistantWritePreflight', false)
                         ? AssistantWritePreflight::suggestOpIds($preflight)
                         : [];
-                    if (!empty($preflight['noop'])) {
+                    $replan = !empty($preflight['replan']);
+                    if (!empty($preflight['noop']) || $replan) {
                         $payload = [
                             'ok' => false,
-                            'error' => t('assistant.preflight.noop'),
+                            'error' => $replan
+                                ? t('assistant.preflight.replan', ['v' => AssistantWritePreflight::blockerText($preflight)])
+                                : t('assistant.preflight.noop'),
                             'preflight' => $preflight,
                         ];
                         $trace[] = [

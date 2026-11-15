@@ -45,8 +45,22 @@ final class DocsSpawner
 
         $created = [];
         $now = time();
-        foreach (DocsDefsRepository::listAll(true) as $def) {
-            if (!self::matches($def, $goods, $types, $hasMedical)) {
+        $matched = array_values(array_filter(
+            DocsDefsRepository::listAll(true),
+            static fn(array $def): bool => self::matches($def, $goods, $types, $hasMedical)
+        ));
+        // A specialty visit sheet (by type / service) replaces the generic one for that visit.
+        $specificVisit = false;
+        foreach ($matched as $def) {
+            if ($def['kind'] === 'medcard_visit' && in_array((string)$def['trigger_mode'], ['types', 'procs'], true)) {
+                $specificVisit = true;
+                break;
+            }
+        }
+        foreach ($matched as $def) {
+            if ($specificVisit && $def['kind'] === 'medcard_visit'
+                && !in_array((string)$def['trigger_mode'], ['types', 'procs'], true)
+            ) {
                 continue;
             }
             if ($def['scope'] === 'client') {

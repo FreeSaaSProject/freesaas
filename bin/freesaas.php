@@ -246,7 +246,7 @@ function freesaas_cmd_demo(string $sub, array $args, array $opts): void
     if (!in_array($sub, ['seed', 'provision', 'claim', 'status'], true)) {
         Cli::usage(
             "Usage:\n  demo provision [--login=demo] [--password=demodemo] [--name=Demo] [--format=json]\n"
-            . "  demo seed [--locale=ru|en] [--profile=spa|clinic] [--reset] [--clients=N] [--only=stages] [--force] [--format=json]\n"
+            . "  demo seed [--locale=ru|en] [--profile=spa|clinic] [--reset] [--clients=N] [--only=stages] [--force] [--anchor=\"Y-m-d H:i\"] [--format=json]\n"
             . "  demo claim [--existing] [--format=json]\n"
             . '  demo status [--format=json]'
         );
@@ -297,9 +297,10 @@ function freesaas_cmd_demo(string $sub, array $args, array $opts): void
                 'profile' => (string)($opts['profile'] ?? Config::get('demo', 'profile', 'spa')),
                 'reset' => !empty($opts['reset']),
                 'force' => !empty($opts['force']),
-                'clients' => (int)($opts['clients'] ?? 520),
+                'clients' => (int)($opts['clients'] ?? 760),
                 'days' => (int)($opts['days'] ?? 0),
                 'audio_days' => (int)($opts['audio-days'] ?? $opts['audio_days'] ?? 0),
+                'anchor' => isset($opts['anchor']) && is_string($opts['anchor']) ? (string)$opts['anchor'] : '',
             ];
             if ($only !== []) {
                 $seedOpts['only'] = $only;

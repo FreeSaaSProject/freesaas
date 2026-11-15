@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/ClinicDemoCosmoPack.php';
+
 /**
  * Static model of the synthetic clinic «Harmony» / «Клиника Гармония».
  *
@@ -21,7 +23,7 @@ final class ClinicDemoPlan
 
     public const SLOTS_PER_SHIFT = [
         't_a' => 13, 't_b' => 6, 'cardio' => 5, 'neuro' => 4,
-        'uzi' => 5, 'nurse1' => 1, 'nurse2' => 1,
+        'uzi' => 5, 'cosmo' => 5, 'nurse1' => 1, 'nurse2' => 1,
     ];
 
     /** Extra slots per shift in the boost month (mid history window). */
@@ -44,6 +46,32 @@ final class ClinicDemoPlan
     private static string $locale = 'ru';
     /** @var array<string,mixed>|null */
     private static ?array $packCache = null;
+    private static ?int $anchorOverride = null;
+
+    /** Seed against a fixed "now" (e.g. a client meeting day) without freezing the demo clock. */
+    public static function setAnchor(?int $ts): void
+    {
+        self::$anchorOverride = $ts !== null && $ts > 0 ? $ts : null;
+    }
+
+    public static function hasAnchor(): bool
+    {
+        return self::$anchorOverride !== null;
+    }
+
+    /** "Y-m-d H:i[:s]" or unix timestamp in app timezone; null when empty or invalid. */
+    public static function parseAnchor(string $raw): ?int
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return null;
+        }
+        if (ctype_digit($raw)) {
+            return (int)$raw > 0 ? (int)$raw : null;
+        }
+        $ts = strtotime($raw);
+        return $ts !== false && $ts > 0 ? $ts : null;
+    }
 
     public static function setLocale(string $locale): void
     {
@@ -65,6 +93,9 @@ final class ClinicDemoPlan
     /** Anchor "today" for the clinic narrative (DemoMode::now when available). */
     public static function anchorTs(): int
     {
+        if (self::$anchorOverride !== null) {
+            return self::$anchorOverride;
+        }
         if (class_exists('DemoMode', false)) {
             return DemoMode::now();
         }
@@ -210,6 +241,7 @@ final class ClinicDemoPlan
             'cardio' => [1, 3, 5],
             'neuro' => [2, 4, 6],
             'uzi' => [1, 2, 3, 4],
+            'cosmo' => [1, 2, 4, 5, 6],
             'nurse1' => [1, 2, 3, 4, 5, 6],
             'nurse2' => [1, 3, 4, 5, 6],
             'admin1' => [1, 2, 3, 4, 5, 6],
@@ -227,6 +259,7 @@ final class ClinicDemoPlan
             'cardio' => ['consult_cd' => 0.30, 'func' => 0.20, 'uzi' => 0.15],
             'neuro' => ['consult_nr' => 0.32, 'physio' => 0.20],
             'uzi' => ['uzi' => 0.30],
+            'cosmo' => ['cosmo' => 0.30],
             'nurse1' => ['nurse' => 0.15, 'physio' => 0.10],
             'nurse2' => ['nurse' => 0.15, 'physio' => 0.10],
         ];
@@ -241,6 +274,8 @@ final class ClinicDemoPlan
             'cardio' => ['cd_primary' => 30, 'cd_repeat' => 35, 'ecg_text' => 15, 'holter' => 8, 'abpm' => 12],
             'neuro' => ['nr_primary' => 35, 'nr_repeat' => 45, 'physio' => 20],
             'uzi' => ['us_abd' => 30, 'us_thyroid' => 22, 'us_echo' => 22, 'us_kidney' => 14, 'us_vessels' => 12],
+            'cosmo' => ['cs_consult' => 20, 'cs_biorev' => 20, 'cs_meso' => 18, 'cs_botox' => 16,
+                'cs_lips' => 8, 'cs_peel' => 10, 'cs_review' => 8],
             'nurse1' => ['blood' => 40, 'inj_im' => 30, 'iv_drip' => 15, 'nurse_consult' => 15],
             'nurse2' => ['blood' => 30, 'inj_im' => 25, 'iv_drip' => 20, 'bandage' => 15, 'nurse_consult' => 10],
         ];
@@ -255,6 +290,7 @@ final class ClinicDemoPlan
             'cardio' => ['ecg' => 0.25],
             'neuro' => [],
             'uzi' => [],
+            'cosmo' => [],
             'nurse1' => [],
             'nurse2' => [],
         ];
@@ -302,7 +338,7 @@ final class ClinicDemoPlan
     /** @return list<string> */
     public static function performers(): array
     {
-        return ['t_a', 't_b', 'cardio', 'neuro', 'uzi', 'nurse1', 'nurse2'];
+        return ['t_a', 't_b', 'cardio', 'neuro', 'uzi', 'cosmo', 'nurse1', 'nurse2'];
     }
 
     /** @return array{surnames:list<string>,male:list<string>,female:list<string>} */
@@ -326,6 +362,12 @@ final class ClinicDemoPlan
     public static function audioPack(): array
     {
         return (array)(self::pack()['audio'] ?? []);
+    }
+
+    /** @return array<string,mixed> cosmetology history samples + showcase visits */
+    public static function cosmoPack(): array
+    {
+        return (array)(self::pack()['cosmo'] ?? []);
     }
 
     /** @return array<string,mixed> articles / tickets / messages for the home feed */
@@ -377,14 +419,14 @@ final class ClinicDemoPlan
                     'flags' => ['SUPERADMIN_ACCESS' => 0, 'CONTROL_ACCESS' => 0, 'CAN_BE_ASSIGNED' => 0,
                         'SHOW_IN_LOADS' => 0, 'SHOW_ADMINISTRATOR_DATA' => 1, 'CAN_SEE_SUM_OTHERS' => 1,
                         'SHOW_NEWS' => 1, 'EVT_ASSIGN' => 1, 'EVT_MONEY_DATA' => 1, 'CLIENT_BASE' => 1,
-                        'EVT_CONTACT_DATA' => 1],
+                        'EVT_CONTACT_DATA' => 1, 'EVT_DOC_LINKS' => 1],
                 ],
                 'doctor' => [
                     'name' => 'Врач',
                     'flags' => ['SUPERADMIN_ACCESS' => 0, 'CAN_BE_ASSIGNED' => 1, 'SHOW_IN_LOADS' => 1,
                         'IS_DOCTOR' => 1, 'SHOW_NEWS' => 1, 'EVT_ASSIGN_MY' => 1, 'EVT_MODIFY' => 1,
                         'EVT_CREATE_NEW' => 1, 'EVT_MONEY_DATA' => 1, 'CLIENT_BASE' => 1,
-                        'EVT_CONTACT_DATA' => 1, 'SHOW_MEDINFO' => 1],
+                        'EVT_CONTACT_DATA' => 1, 'SHOW_MEDINFO' => 1, 'EVT_DOC_LINKS' => 1],
                 ],
                 'nurse' => [
                     'name' => 'Медицинская сестра',
@@ -404,6 +446,7 @@ final class ClinicDemoPlan
                 'cardio' => ['Громова Светлана Юрьевна', 'Кардиолог'],
                 'neuro' => ['Орлов Максим Денисович', 'Невролог'],
                 'uzi' => ['Белова Марина Сергеевна', 'Врач УЗИ'],
+                'cosmo' => ['Романова Алина Сергеевна', 'Врач-косметолог'],
                 'nurse1' => ['Тихонова Вера Алексеевна', 'Медсестра'],
                 'nurse2' => ['Кузьмина Дарья Романовна', 'Медсестра'],
             ]),
@@ -413,6 +456,7 @@ final class ClinicDemoPlan
                 ['name' => '103 · Неврология', 'descr' => 'Кабинет невролога', 'limit_min' => 15, 'limit_max' => 60],
                 ['name' => '201 · УЗИ', 'descr' => 'Кабинет ультразвуковой диагностики', 'limit_min' => 20, 'limit_max' => 60],
                 ['name' => '202 · Процедурный', 'descr' => 'Капельницы, инъекции, перевязки', 'limit_min' => 10, 'limit_max' => 90],
+                ['name' => '203 · Косметология', 'descr' => 'Кабинет врача-косметолога', 'limit_min' => 20, 'limit_max' => 90],
             ],
             'procedure_types' => [
                 'consult_th' => 'Консультация терапевта',
@@ -422,10 +466,11 @@ final class ClinicDemoPlan
                 'func' => 'Функциональная диагностика',
                 'nurse' => 'Процедуры и манипуляции',
                 'physio' => 'Физиотерапия',
+                'cosmo' => 'Косметология',
             ],
             'specialty_labels' => [
                 't_a' => 'терапевт', 't_b' => 'терапевт', 'cardio' => 'кардиолог',
-                'neuro' => 'невролог', 'uzi' => 'врач УЗИ',
+                'neuro' => 'невролог', 'uzi' => 'врач УЗИ', 'cosmo' => 'врач-косметолог',
                 'nurse1' => 'медсестра', 'nurse2' => 'медсестра',
             ],
             'services' => self::servicesSkeleton([
@@ -450,6 +495,13 @@ final class ClinicDemoPlan
                 'bandage' => ['Перевязка', 'Процедуры и манипуляции'],
                 'physio' => ['Магнитотерапия', 'Процедуры и манипуляции'],
                 'nurse_consult' => ['Консультация медицинской сестры', 'Процедуры и манипуляции'],
+                'cs_consult' => ['Консультация врача-косметолога', 'Косметология'],
+                'cs_biorev' => ['Биоревитализация лица', 'Косметология'],
+                'cs_meso' => ['Мезотерапия лица', 'Косметология'],
+                'cs_botox' => ['Ботулинотерапия (лоб и межбровье)', 'Косметология'],
+                'cs_lips' => ['Контурная пластика губ', 'Косметология'],
+                'cs_peel' => ['Химический пилинг (срединный)', 'Косметология'],
+                'cs_review' => ['Контрольный осмотр косметолога', 'Косметология'],
             ]),
             'copy' => [
                 'catalog_descr' => 'Синтетический демо-каталог «{org}»',
@@ -464,6 +516,7 @@ final class ClinicDemoPlan
             'docs_org' => self::docsOrgRu(),
             'audio' => self::audioRu(),
             'feed' => self::feedRu(),
+            'cosmo' => ClinicDemoCosmoPack::ru(),
             'name_surnames' => ['Иванов', 'Петров', 'Смирнов', 'Кузнецов', 'Попов', 'Васильев', 'Соколов', 'Михайлов',
                 'Новиков', 'Фёдоров', 'Морозов', 'Волков', 'Алексеев', 'Лебедев', 'Семёнов', 'Егоров',
                 'Павлов', 'Козлов', 'Степанов', 'Николаев', 'Орлов', 'Андреев', 'Макаров', 'Никитин',
@@ -504,14 +557,14 @@ final class ClinicDemoPlan
                     'flags' => ['SUPERADMIN_ACCESS' => 0, 'CONTROL_ACCESS' => 0, 'CAN_BE_ASSIGNED' => 0,
                         'SHOW_IN_LOADS' => 0, 'SHOW_ADMINISTRATOR_DATA' => 1, 'CAN_SEE_SUM_OTHERS' => 1,
                         'SHOW_NEWS' => 1, 'EVT_ASSIGN' => 1, 'EVT_MONEY_DATA' => 1, 'CLIENT_BASE' => 1,
-                        'EVT_CONTACT_DATA' => 1],
+                        'EVT_CONTACT_DATA' => 1, 'EVT_DOC_LINKS' => 1],
                 ],
                 'doctor' => [
                     'name' => 'Doctor',
                     'flags' => ['SUPERADMIN_ACCESS' => 0, 'CAN_BE_ASSIGNED' => 1, 'SHOW_IN_LOADS' => 1,
                         'IS_DOCTOR' => 1, 'SHOW_NEWS' => 1, 'EVT_ASSIGN_MY' => 1, 'EVT_MODIFY' => 1,
                         'EVT_CREATE_NEW' => 1, 'EVT_MONEY_DATA' => 1, 'CLIENT_BASE' => 1,
-                        'EVT_CONTACT_DATA' => 1, 'SHOW_MEDINFO' => 1],
+                        'EVT_CONTACT_DATA' => 1, 'SHOW_MEDINFO' => 1, 'EVT_DOC_LINKS' => 1],
                 ],
                 'nurse' => [
                     'name' => 'Nurse',
@@ -531,6 +584,7 @@ final class ClinicDemoPlan
                 'cardio' => ['Svetlana Gromova', 'Cardiologist'],
                 'neuro' => ['Maxim Orlov', 'Neurologist'],
                 'uzi' => ['Marina Belova', 'Ultrasound'],
+                'cosmo' => ['Alina Romanova', 'Cosmetologist'],
                 'nurse1' => ['Vera Tikhonova', 'Nurse'],
                 'nurse2' => ['Daria Kuzmina', 'Nurse'],
             ]),
@@ -540,6 +594,7 @@ final class ClinicDemoPlan
                 ['name' => '103 · Neurology', 'descr' => 'Neurology room', 'limit_min' => 15, 'limit_max' => 60],
                 ['name' => '201 · Ultrasound', 'descr' => 'Ultrasound diagnostics', 'limit_min' => 20, 'limit_max' => 60],
                 ['name' => '202 · Procedures', 'descr' => 'IV drips, injections, dressings', 'limit_min' => 10, 'limit_max' => 90],
+                ['name' => '203 · Cosmetology', 'descr' => 'Cosmetologist room', 'limit_min' => 20, 'limit_max' => 90],
             ],
             'procedure_types' => [
                 'consult_th' => 'GP consultation',
@@ -549,10 +604,11 @@ final class ClinicDemoPlan
                 'func' => 'Functional diagnostics',
                 'nurse' => 'Procedures and nursing',
                 'physio' => 'Physiotherapy',
+                'cosmo' => 'Cosmetology',
             ],
             'specialty_labels' => [
                 't_a' => 'GP', 't_b' => 'GP', 'cardio' => 'cardiologist',
-                'neuro' => 'neurologist', 'uzi' => 'ultrasound doctor',
+                'neuro' => 'neurologist', 'uzi' => 'ultrasound doctor', 'cosmo' => 'cosmetologist',
                 'nurse1' => 'nurse', 'nurse2' => 'nurse',
             ],
             'services' => self::servicesSkeleton([
@@ -577,6 +633,13 @@ final class ClinicDemoPlan
                 'bandage' => ['Dressing', 'Procedures and nursing'],
                 'physio' => ['Magnetotherapy', 'Procedures and nursing'],
                 'nurse_consult' => ['Nurse consultation', 'Procedures and nursing'],
+                'cs_consult' => ['Cosmetologist consultation', 'Cosmetology'],
+                'cs_biorev' => ['Facial biorevitalization', 'Cosmetology'],
+                'cs_meso' => ['Facial mesotherapy', 'Cosmetology'],
+                'cs_botox' => ['Botulinum therapy (forehead and glabella)', 'Cosmetology'],
+                'cs_lips' => ['Lip contouring', 'Cosmetology'],
+                'cs_peel' => ['Chemical peel (medium)', 'Cosmetology'],
+                'cs_review' => ['Cosmetology follow-up', 'Cosmetology'],
             ]),
             'copy' => [
                 'catalog_descr' => 'Synthetic demo catalog «{org}»',
@@ -591,6 +654,7 @@ final class ClinicDemoPlan
             'docs_org' => self::docsOrgEn(),
             'audio' => self::audioEn(),
             'feed' => self::feedEn(),
+            'cosmo' => ClinicDemoCosmoPack::en(),
             'name_surnames' => ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis',
                 'Wilson', 'Anderson', 'Taylor', 'Thomas', 'Moore', 'Jackson', 'Martin', 'Lee',
                 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis',
@@ -624,6 +688,7 @@ final class ClinicDemoPlan
             'uzi' => ['m.belova', 'doctor', '79161010110'],
             'nurse1' => ['v.tihonova', 'nurse', '79161010111'],
             'nurse2' => ['d.kuzmina', 'nurse', '79161010112'],
+            'cosmo' => ['a.romanova', 'doctor', '79161010113'],
         ];
         $out = [];
         foreach ($meta as $key => $row) {
@@ -667,6 +732,13 @@ final class ClinicDemoPlan
             'bandage' => ['nurse', 900, 30, ['nurse1', 'nurse2']],
             'physio' => ['physio', 1200, 30, ['nurse2', 'neuro']],
             'nurse_consult' => ['nurse', 700, 20, ['nurse1', 'nurse2']],
+            'cs_consult' => ['cosmo', 2500, 40, ['cosmo']],
+            'cs_biorev' => ['cosmo', 9500, 45, ['cosmo']],
+            'cs_meso' => ['cosmo', 6500, 45, ['cosmo']],
+            'cs_botox' => ['cosmo', 14000, 30, ['cosmo']],
+            'cs_lips' => ['cosmo', 18000, 60, ['cosmo']],
+            'cs_peel' => ['cosmo', 5500, 40, ['cosmo']],
+            'cs_review' => ['cosmo', 1500, 20, ['cosmo']],
         ];
         $out = [];
         foreach ($base as $code => $row) {
@@ -700,7 +772,7 @@ final class ClinicDemoPlan
             'license_date' => '20.04.2019',
             'license_issuer' => 'Департаментом здравоохранения города Москвы',
             'license_issuer_address' => 'г. Москва, Оружейный пер., д. 43',
-            'license_scope' => 'при оказании первичной медико-санитарной помощи в амбулаторных условиях по: терапии, кардиологии, неврологии, ультразвуковой диагностике, сестринскому делу',
+            'license_scope' => 'при оказании первичной медико-санитарной помощи в амбулаторных условиях по: терапии, кардиологии, неврологии, ультразвуковой диагностике, косметологии, сестринскому делу',
             'address' => '129090, г. Москва, ул. Щепкина, д. 10, стр. 1',
             'city' => 'Москва',
             'region' => 'город Москва',
@@ -736,7 +808,7 @@ final class ClinicDemoPlan
             'license_date' => '20.04.2019',
             'license_issuer' => 'Moscow Department of Health',
             'license_issuer_address' => '43 Oruzheyny Lane, Moscow',
-            'license_scope' => 'primary outpatient care: general practice, cardiology, neurology, ultrasound, nursing',
+            'license_scope' => 'primary outpatient care: general practice, cardiology, neurology, ultrasound, cosmetology, nursing',
             'address' => '10/1 Schepkina St, Moscow, 129090',
             'city' => 'Moscow',
             'region' => 'Moscow',
@@ -993,6 +1065,7 @@ final class ClinicDemoPlan
                 'cardio' => ['беспокоят перебои в работе сердца', 'одышка при нагрузке', 'давящая боль за грудиной'],
                 'neuro' => ['беспокоят головные боли', 'боль в пояснице после нагрузки', 'онемение в руке'],
                 'uzi' => ['пришёл на плановое обследование', 'направлен на УЗИ терапевтом', 'беспокоит дискомфорт в правом подреберье'],
+                'cosmo' => ['хочу освежить кожу лица', 'беспокоят мимические морщины на лбу', 'сухость и тусклый цвет лица'],
                 'nurse1' => ['пришёл на процедуру по назначению врача', 'нужно сдать кровь на анализ'],
                 'nurse2' => ['пришёл на перевязку', 'назначена капельница'],
             ],
@@ -1022,6 +1095,7 @@ final class ClinicDemoPlan
                 'cardio' => ['heart palpitations', 'shortness of breath on exertion', 'pressing chest pain'],
                 'neuro' => ['headaches', 'lower back pain after strain', 'numbness in the arm'],
                 'uzi' => ['came for a scheduled exam', 'referred for ultrasound by GP', 'right upper quadrant discomfort'],
+                'cosmo' => ['wants to refresh facial skin', 'forehead expression lines', 'dry and dull skin'],
                 'nurse1' => ['came for a procedure as ordered', 'needs a blood draw'],
                 'nurse2' => ['came for a dressing change', 'IV drip prescribed'],
             ],
