@@ -2,7 +2,7 @@
 
 Product module `laundry`: clean linen ledger for the wash cycle (ship → laundry → accept). Stock by account × item type. Catalog maturity: `release`.
 
-Does **not** use or migrate `sheets` / `base_sheet_*`. Legacy sheets can be removed later.
+Replaces the retired `sheets` / `base_sheet_*` ledger. Orphan `base_sheet_*` tables may remain in old databases until dropped manually.
 
 ## Enable
 

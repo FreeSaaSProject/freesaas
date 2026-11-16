@@ -277,7 +277,7 @@ See [Module Authoring Test](#module-authoring-test).
 | Menu homes → `/catalog`, `/payments`, `/ledger/moves` | Product modules; resilient fallbacks |
 | Messenger chat ids / bot gates in core user edit | Product `bots` module (`base_bot_links`, not columns on `base_users`) |
 | `dbase=` default / host branding | Deployment only; public repo is `FreeSaaSProject/freesaas` |
-| sheets linen, massage tables, audio ASR workers | Already product modules — OK |
+| laundry linen, massage tables, audio ASR workers | Already product modules — OK |
 
 ---
 

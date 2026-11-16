@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-16T08:18:44+00:00",
+    "generated_at": "2026-11-16T08:26:55+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -1389,12 +1389,12 @@
                 "ru": "Стирка"
             },
             "description": {
-                "en": "Linen laundry cycle: shipments, returns, stock by item type. Clean ledger (not sheets).",
-                "ru": "Учёт белья: сдачи на стирку, приёмки, остатки по типам. Чистый контур (не sheets)."
+                "en": "Linen laundry cycle: shipments, returns, stock by item type.",
+                "ru": "Учёт белья: сдачи на стирку, приёмки, остатки по типам."
             },
             "summary": {
-                "en": "Enable for the new laundry ledger. Ship/accept with item types (sheets, tees…). Do not use legacy sheets. Ticket #78 can embed the panel.",
-                "ru": "Включайте для нового учёта стирки. Сдачи/приёмки с типами (простыни, майки…). Старый модуль sheets не используется. Заявка №78 может быть оболочкой."
+                "en": "Enable for the laundry ledger. Ship/accept with item types (sheets, tees…). Ticket #78 can embed the panel.",
+                "ru": "Включайте для учёта стирки. Сдачи/приёмки с типами (простыни, майки…). Заявка №78 может быть оболочкой."
             },
             "requires": {
                 "core": ">=1.0.0"
@@ -2017,37 +2017,6 @@
             },
             "agent": {
                 "docs": "docs/agents/remittances.md"
-            }
-        },
-        {
-            "id": "sheets",
-            "version": "1.0.1",
-            "type": "product",
-            "name": {
-                "en": "Sheets",
-                "ru": "Простынки"
-            },
-            "description": {
-                "en": "Legacy linen accounts and moves (base_sheet_*); disableable. Prefer laundry.",
-                "ru": "Legacy учёт простынок (base_sheet_*); отключаемый. Предпочтителен laundry."
-            },
-            "summary": {
-                "en": "Legacy linen ledger. Prefer the laundry module for new installs. Turn on only if the site still uses base_sheet_* separately from stickers.",
-                "ru": "Legacy учёт простынок. Для новых инстансов предпочтителен модуль laundry. Только если сайт ещё ведёт base_sheet_* отдельно от stickers."
-            },
-            "requires": {
-                "core": ">=1.0.0"
-            },
-            "optionalRequires": [],
-            "catalog": {
-                "categories": [
-                    "warehouse"
-                ],
-                "maturity": "release",
-                "tags": []
-            },
-            "agent": {
-                "docs": "docs/agents/sheets.md"
             }
         },
         {

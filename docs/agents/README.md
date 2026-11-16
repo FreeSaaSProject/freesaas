@@ -103,7 +103,6 @@ Staff/MCP how-to uses these via `core.help.search` / `core.help.get`. Keep **Hum
 | [rates.md](rates.md) | `rates` |
 | [recons.md](recons.md) | `recons` |
 | [remittances.md](remittances.md) | `remittances` |
-| [sheets.md](sheets.md) | `sheets` (legacy; prefer laundry) |
 | [laundry.md](laundry.md) | `laundry` |
 | [sites.md](sites.md) | `sites` |
 | [staff_reports.md](staff_reports.md) | `staff_reports` |

@@ -22,7 +22,6 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_stocks` | stocks | Warehouses + leftovers |
 | `base_acts2_in` / `base_acts2_out` / `base_good_sticker_*` | stickers | Receipt/writeoff acts + sticker lines |
 | `base_good_defaults` | norms | Procedure → material norms |
-| `base_sheet_accounts` / `base_sheet_moves` | sheets | Legacy linen ledger (disableable; prefer `laundry`) |
 | `base_laundry_accounts` / `base_laundry_item_types` / `base_laundry_moves` / `base_laundry_shipments*` / `base_laundry_returns*` | laundry | Wash-cycle linen SoT (ship/accept by type) |
 | `base_term_scans` | likespa | Terminal scans / promoter conversion (disableable) |
 | `base_staff_bracelets` / `base_comments` / `base_news` (usage) | likespa (staff debts scan) | No owned tables; cron/UI posts 1C folio debts as comments when `staff_debts_enabled` |

@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 return [
     'laundry.module.name' => 'Laundry',
-    'laundry.module.description' => 'Linen laundry cycle: shipments, returns, stock by item type. Clean ledger (not sheets).',
-    'laundry.module.summary' => 'Enable for the new laundry ledger. Ship/accept with item types (sheets, tees…). Do not use legacy sheets. Ticket #78 can embed the panel.',
+    'laundry.module.description' => 'Linen laundry cycle: shipments, returns, stock by item type.',
+    'laundry.module.summary' => 'Enable for the laundry ledger. Ship/accept with item types (sheets, tees…). Ticket #78 can embed the panel.',
     'laundry.menu.home' => 'Laundry',
     'laundry.menu.moves' => 'Laundry moves',
     'laundry.menu.shipments' => 'Laundry shipments',

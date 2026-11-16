@@ -19,7 +19,7 @@ Source of truth: repo `modules-catalog.json` (regenerate with `php bin/build-mod
 | Staff shifts / leave | `team` | `workweeks`, `vacations`, `staff_reports` |
 | Finance / management accounting | `finance` | `ledger`, `finance`, `funds`, `bi`, `liquid_assets`; soft `banks`, `remittances` |
 | Settlements / commissions | `accounting` | `payments`, `contracts`, `rates`, `procents` |
-| Warehouse / consumables | `warehouse`, `dictionaries` | `stocks`, `stickers`, `catalog`, `norms`; linen: `laundry` / legacy `sheets` |
+| Warehouse / consumables | `warehouse`, `dictionaries` | `stocks`, `stickers`, `catalog`, `norms`; linen: `laundry` |
 | Conversation QA / ASR | `audio` | `audio`, `asr`, `audio_dicts`, `audio_pipeline`, `audio_reports`; LLM: `audio_llm` |
 | Messaging bots | `communications` | `bots`, `polls`, `poll_invites` |
 | Storefront / CMS | `site` | `sites`, optional `likespa` spa pack |

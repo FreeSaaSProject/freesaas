@@ -1175,24 +1175,6 @@
             "uncovered_routes": [],
             "uncovered_actions": []
         },
-        "sheets": {
-            "ops": [
-                "sheets.accounts.create",
-                "sheets.accounts.get_edit",
-                "sheets.accounts.list",
-                "sheets.accounts.update",
-                "sheets.moves.create",
-                "sheets.moves.get_edit",
-                "sheets.moves.list",
-                "sheets.moves.update",
-                "sheets.reconcile.apply",
-                "sheets.reconcile.get",
-                "sheets.transfers.create",
-                "sheets.transfers.get"
-            ],
-            "uncovered_routes": [],
-            "uncovered_actions": []
-        },
         "sites": {
             "ops": [
                 "sites.cart.availability",
@@ -1217,7 +1199,7 @@
                 "/cart",
                 "/cart/checkout",
                 "/llms.txt",
-                "/page/…",
+                "/page/\u2026",
                 "/promo/{code}",
                 "/robots.txt",
                 "/shop",
