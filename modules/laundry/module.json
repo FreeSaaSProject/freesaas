@@ -2,7 +2,7 @@
     "id": "laundry",
     "name": "laundry.module.name",
     "description": "laundry.module.description",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -84,7 +84,7 @@
                 "method": "POST",
                 "path": "/laundry/accept",
                 "permission": "laundry.ship",
-                "description": "Accept return: ret[shipment_line_id]=qty against open lines; extra[item_type_id]=qty for late arrivals beyond any open shipment (credited to terms)"
+                "description": "Accept return: accept_line[shipment_line_id]=qty against open lines; extra[item_type_id]=qty for late arrivals beyond any open shipment (credited to terms)"
             },
             {
                 "id": "laundry.inventory.apply",

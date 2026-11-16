@@ -98,7 +98,7 @@ $formAction = $postUrl !== '' ? ' action="' . e($postUrl) . '"' : '';
             <td>#<?= (int)$s['id'] ?></td>
             <td><?= e($typeNames[(int)$l['id_item_type']] ?? ('#' . (int)$l['id_item_type'])) ?></td>
             <td><?= (int)$l['qty_open'] ?></td>
-            <td><input type="number" min="0" max="<?= (int)$l['qty_open'] ?>" name="ret[<?= (int)$l['id'] ?>]" value="0" style="width:5rem"></td>
+            <td><input type="number" min="0" max="<?= (int)$l['qty_open'] ?>" name="accept_line[<?= (int)$l['id'] ?>]" value="0" style="width:5rem"></td>
           </tr>
         <?php endforeach; ?>
       <?php endforeach; ?>

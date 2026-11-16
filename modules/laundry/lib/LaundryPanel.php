@@ -36,12 +36,17 @@ final class LaundryPanel
                 $userId,
                 $newsId
             );
-            LaundryComments::postShip($newsId, $userId, $qtyLines);
+            LaundryComments::postShip($newsId, $userId, $qtyLines, $descr, $weight);
             return;
         }
         $lines = [];
-        $ret = is_array($post['ret'] ?? null) ? $post['ret'] : [];
-        foreach ($ret as $lineId => $qty) {
+        // accept_line[] — not "ret[]": NavContext owns POST/GET ret for return URLs.
+        $accept = is_array($post['accept_line'] ?? null) ? $post['accept_line'] : [];
+        // Legacy field name (pre-1.0.4) if a stale form is posted.
+        if ($accept === [] && is_array($post['ret'] ?? null)) {
+            $accept = $post['ret'];
+        }
+        foreach ($accept as $lineId => $qty) {
             $lines[] = ['id_shipment_line' => (int)$lineId, 'qty' => (int)$qty];
         }
         $extras = self::typeQtyLines($post['extra'] ?? null);
@@ -54,7 +59,7 @@ final class LaundryPanel
             $newsId,
             $extras
         );
-        LaundryComments::postAccept($newsId, $userId, $lines, $extras);
+        LaundryComments::postAccept($newsId, $userId, $lines, $extras, $descr, $weight);
     }
 
     /**

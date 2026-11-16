@@ -30,8 +30,12 @@ final class NavContext
         if (self::$returnUrl !== null) {
             return self::$returnUrl;
         }
-        $raw = (string)($_POST['ret'] ?? $_GET['ret'] ?? '');
-        self::$returnUrl = self::sanitize($raw);
+        // Modules may POST arrays under unrelated keys; never cast arrays to string.
+        $raw = $_POST['ret'] ?? $_GET['ret'] ?? '';
+        if (is_array($raw)) {
+            $raw = '';
+        }
+        self::$returnUrl = self::sanitize(is_string($raw) ? $raw : (string)$raw);
         return self::$returnUrl;
     }
 
@@ -141,7 +145,7 @@ final class NavContext
         if (is_array($parts) && !empty($parts['query'])) {
             parse_str((string)$parts['query'], $query);
         }
-        if (isset($query['ret']) && (string)$query['ret'] !== '') {
+        if (isset($query['ret']) && is_string($query['ret']) && $query['ret'] !== '') {
             return $url;
         }
         return self::appendRet($url, $ret);
@@ -250,7 +254,7 @@ final class NavContext
         if (is_array($parts) && !empty($parts['query'])) {
             parse_str((string)$parts['query'], $query);
         }
-        if (isset($query['ret']) && (string)$query['ret'] !== '') {
+        if (isset($query['ret']) && is_string($query['ret']) && $query['ret'] !== '') {
             return $href;
         }
         return self::appendRet($href, $current);

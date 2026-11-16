@@ -20,27 +20,40 @@ final class LaundryComments
      * Soft-fail: never undoes a successful laundry op.
      *
      * @param list<array{id_item_type:int,qty:int}> $typeQty
-     * @param list<array{id_item_type:int,qty:int}> $extras
      */
-    public static function postShip(int $newsId, int $userId, array $typeQty): void
-    {
+    public static function postShip(
+        int $newsId,
+        int $userId,
+        array $typeQty,
+        string $descr = '',
+        float $weight = 0.0
+    ): void {
         $items = self::formatItems($typeQty);
-        if ($items === '') {
+        if ($items === '' && trim($descr) === '' && $weight <= 0) {
             return;
         }
-        self::post($newsId, $userId, t('laundry.comment.ship', ['items' => $items]));
+        $text = $items !== ''
+            ? t('laundry.comment.ship', ['items' => $items])
+            : t('laundry.comment.ship_bare');
+        self::post($newsId, $userId, self::withMeta($text, $descr, $weight));
     }
 
     /**
      * @param list<array{id_shipment_line:int,qty:int}> $returnLines
      * @param list<array{id_item_type:int,qty:int}> $extras
      */
-    public static function postAccept(int $newsId, int $userId, array $returnLines, array $extras): void
-    {
+    public static function postAccept(
+        int $newsId,
+        int $userId,
+        array $returnLines,
+        array $extras,
+        string $descr = '',
+        float $weight = 0.0
+    ): void {
         $byType = self::aggregateReturnByType($returnLines);
         $items = self::formatItems($byType);
         $extraItems = self::formatItems($extras);
-        if ($items === '' && $extraItems === '') {
+        if ($items === '' && $extraItems === '' && trim($descr) === '' && $weight <= 0) {
             return;
         }
         if ($items !== '') {
@@ -48,10 +61,26 @@ final class LaundryComments
             if ($extraItems !== '') {
                 $text .= t('laundry.comment.extra_suffix', ['items' => $extraItems]);
             }
-        } else {
+        } elseif ($extraItems !== '') {
             $text = t('laundry.comment.accept_extra_only', ['items' => $extraItems]);
+        } else {
+            $text = t('laundry.comment.accept_bare');
         }
-        self::post($newsId, $userId, $text);
+        self::post($newsId, $userId, self::withMeta($text, $descr, $weight));
+    }
+
+    private static function withMeta(string $text, string $descr, float $weight): string
+    {
+        $text = trim($text);
+        if ($weight > 0) {
+            $w = rtrim(rtrim(number_format($weight, 2, '.', ''), '0'), '.');
+            $text .= t('laundry.comment.weight_suffix', ['weight' => $w]);
+        }
+        $descr = trim($descr);
+        if ($descr !== '') {
+            $text .= t('laundry.comment.descr_suffix', ['descr' => $descr]);
+        }
+        return trim($text);
     }
 
     private static function post(int $newsId, int $userId, string $text): void
@@ -115,7 +144,7 @@ final class LaundryComments
     }
 
     /**
-     * Non-zero qty only, joined with " + ".
+     * Non-zero qty only, joined with " + ". Format: «Простыни 1 шт.»
      *
      * @param list<array{id_item_type:int,qty:int}> $typeQty
      */

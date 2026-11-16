@@ -42,7 +42,7 @@ Permissions: `laundry.view`, `laundry.ship`, `laundry.accounts`, `laundry.edit`,
 
 `/laundry` (and the ticket card) show one panel: balances, **Ship**, **Accept**. Everything else is reference, linked at the bottom of `/laundry`.
 
-- **Accept** closes open shipment lines (`ret[line_id]`). Surplus beyond any open line — e.g. late arrivals of items earlier written off by inventory — goes in **Beyond shipments** (`extra[type_id]`): credited to the terms account, tagged with the return id.
+- **Accept** closes open shipment lines (`accept_line[line_id]`). Surplus beyond any open line — e.g. late arrivals of items earlier written off by inventory — goes in **Beyond shipments** (`extra[type_id]`): credited to the terms account, tagged with the return id. Do not use the form field name `ret` — that key belongs to NavContext return URLs.
 - **Destroyed / lost** items: `/laundry/inventory`, set the fact on the account where they were held.
 
 ## Day zero
@@ -64,7 +64,7 @@ Permissions: `laundry.view`, `laundry.ship`, `laundry.accounts`, `laundry.edit`,
 | `/laundry/types` | `laundry.edit` |
 | `/laundry/settings` | `laundry.edit` — linked ticket + default accounts |
 
-Ticket `/news/{ticket_news_id}` shows the laundry panel via `core.news_item.section` (ship/accept POST via `core.news_item.handle_post`). With `auto_comment=1` and `comments` enabled, each ship/accept posts a short comment (e.g. «Сдала 128 простыней + 2 майки»); zeros are omitted. Comments are chat only — not stock.
+Ticket `/news/{ticket_news_id}` shows the laundry panel via `core.news_item.section` (ship/accept POST via `core.news_item.handle_post`). With `auto_comment=1` and `comments` enabled, each ship/accept posts a short comment (e.g. «Сдал(а) Простыни 128 шт. + Майки 2 шт., 12.5 кг — текст из поля описания»); zeros are omitted. Comments are chat only — not stock.
 
 ## Agent JSON
 
