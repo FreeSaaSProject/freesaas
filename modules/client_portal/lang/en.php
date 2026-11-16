@@ -38,6 +38,8 @@ return [
     'client_portal.section.forbidden' => 'This section is not available.',
     'client_portal.section.not_found' => 'Section not found',
     'client_portal.nav.home' => 'Home',
+    'client_portal.nav.cabinet' => 'Cabinet',
+    'client_portal.nav.sign_in' => 'Sign in',
 
     'client_portal.section.profile' => 'Profile',
     'client_portal.profile.name' => 'Name',

@@ -19,25 +19,39 @@ final class ClientPortalView
         $data['cabinet_nav'] = $data['cabinet_nav'] ?? [];
         $data['client'] = $data['client'] ?? ClientPortalAuth::client();
 
-        if (class_exists('SiteTheme', false) && class_exists('SitesHostContext', false)) {
-            // Prefer theme views; fall back to module capture injected as content.
-            $themeView = $view === 'login' ? 'cabinet_login' : 'cabinet';
-            $themeFile = SiteTheme::path('views/' . $themeView . '.php');
-            $fallback = base_path('modules/sites/views/' . $themeView . '.php');
-            if (is_file($themeFile) || is_file($fallback)) {
-                if ($view !== 'login' && $view !== 'cabinet') {
-                    $data['cabinet_body'] = self::captureModule($view, $data);
-                    $view = 'cabinet';
-                    $themeView = 'cabinet';
-                } elseif ($view === 'cabinet') {
-                    $data['cabinet_body'] = (string)($data['cabinet_body'] ?? '');
-                }
-                SiteTheme::render($themeView, $data);
-                return;
-            }
+        $themeView = $view === 'login' ? 'cabinet_login' : 'cabinet';
+        if ($view !== 'login' && $view !== 'cabinet') {
+            $data['cabinet_body'] = self::captureModule($view, $data);
+            $themeView = 'cabinet';
+        } elseif ($view === 'cabinet') {
+            $data['cabinet_body'] = (string)($data['cabinet_body'] ?? '');
         }
 
-        View::render($view, $data, 'layout_auth', 'client_portal');
+        $useStorefront = class_exists('SiteTheme', false)
+            && class_exists('SitesFront', false)
+            && self::themeViewExists($themeView);
+
+        if ($useStorefront) {
+            $navKey = $themeView === 'cabinet_login' ? 'cabinet_login' : 'cabinet';
+            if (!isset($data['nav']) || !is_array($data['nav'])) {
+                $data['nav'] = SitesFront::nav($navKey);
+            }
+            SiteTheme::render($themeView, $data);
+            return;
+        }
+
+        View::render($view === 'login' ? 'login' : 'home', $data, 'layout_auth', 'client_portal');
+    }
+
+    private static function themeViewExists(string $themeView): bool
+    {
+        if (class_exists('SiteTheme', false)) {
+            $themeFile = SiteTheme::path('views/' . $themeView . '.php');
+            if (is_file($themeFile)) {
+                return true;
+            }
+        }
+        return is_file(base_path('modules/sites/views/' . $themeView . '.php'));
     }
 
     /** @param array<string,mixed> $data */

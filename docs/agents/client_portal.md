@@ -21,6 +21,8 @@ Soft sections appear when those modules are enabled **and** visible under `/clie
 | `/client-portal/settings` | Section visibility / order (superadmin) |
 | `/client-portal/status` | Diagnose |
 
+Storefront chrome: theme views `cabinet` / `cabinet_login` (shipped in `themes/default`, private `likespa` / `balance`; fallback `modules/sites/views/`). Nav link via EventBus `sites.nav` (Cabinet / Sign in).
+
 ## EventBus contract
 
 Owning modules register on `client_portal.sections` (`id`, `module`, `title`, `weight`, `nav`, `home_card`), optionally fill `client_portal.home` cards and `client_portal.render` HTML.

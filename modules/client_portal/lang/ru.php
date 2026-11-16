@@ -38,6 +38,8 @@ return [
     'client_portal.section.forbidden' => 'Раздел недоступен.',
     'client_portal.section.not_found' => 'Раздел не найден',
     'client_portal.nav.home' => 'Главная',
+    'client_portal.nav.cabinet' => 'Кабинет',
+    'client_portal.nav.sign_in' => 'Вход',
 
     'client_portal.section.profile' => 'Профиль',
     'client_portal.profile.name' => 'Имя',

@@ -2,7 +2,7 @@
     "id": "client_portal",
     "name": "client_portal.module.name",
     "description": "client_portal.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "runtime": "both",
     "catalog": {
@@ -134,6 +134,7 @@
             "client_portal.profile.save"
         ],
         "subscribe": [
+            "sites.nav",
             "sites.diagnose",
             "sites.llms_txt",
             "sites.sitemap"

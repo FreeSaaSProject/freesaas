@@ -3,7 +3,7 @@ declare(strict_types=1);
 /** @var string $error */
 $error = $error ?? '';
 ?>
-<div class="client-portal-login">
+<section class="site-section client-portal-login">
   <h1><?= e(t('client_portal.login.title')) ?></h1>
   <?php if ($error !== ''): ?>
     <p class="flash err"><?= e($error) ?></p>
@@ -18,5 +18,5 @@ $error = $error ?? '';
     </label>
     <p><button type="submit" class="btn"><?= e(t('client_portal.login.submit')) ?></button></p>
   </form>
-</div>
+</section>
 <link rel="stylesheet" href="/modules/client_portal/assets/css/client_portal.css">

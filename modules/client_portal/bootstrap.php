@@ -106,6 +106,20 @@ EventBus::on('client_portal.render', static function (array $payload): array {
     return $payload;
 });
 
+EventBus::on('sites.nav', static function (array $payload): array {
+    $items = is_array($payload['items'] ?? null) ? $payload['items'] : [];
+    $current = (string)($payload['current'] ?? '');
+    $loggedIn = ClientPortalAuth::check();
+    $items[] = [
+        'label' => $loggedIn ? t('client_portal.nav.cabinet') : t('client_portal.nav.sign_in'),
+        'href' => $loggedIn ? '/cabinet' : '/cabinet/login',
+        'current' => $current === 'cabinet' || $current === 'cabinet_login',
+        'cabinet' => true,
+    ];
+    $payload['items'] = $items;
+    return $payload;
+});
+
 EventBus::on('sites.diagnose', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;

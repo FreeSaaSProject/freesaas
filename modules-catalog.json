@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-16T08:26:55+00:00",
+    "generated_at": "2026-11-16T08:32:08+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -923,7 +923,7 @@
         },
         {
             "id": "client_portal",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Client portal",

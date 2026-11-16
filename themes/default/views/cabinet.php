@@ -6,7 +6,7 @@ declare(strict_types=1);
 $cabinet_nav = $cabinet_nav ?? [];
 $cabinet_body = $cabinet_body ?? '';
 ?>
-<div class="client-portal">
+<section class="site-section client-portal">
   <div class="client-portal-toolbar">
     <div>
       <?php if (is_array($client) && !empty($client['name'])): ?>
@@ -29,5 +29,5 @@ $cabinet_body = $cabinet_body ?? '';
   <div class="client-portal-body">
     <?= $cabinet_body ?>
   </div>
-</div>
+</section>
 <link rel="stylesheet" href="/modules/client_portal/assets/css/client_portal.css">
