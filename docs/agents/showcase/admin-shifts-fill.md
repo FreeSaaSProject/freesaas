@@ -4,7 +4,7 @@
 
 ## Ask
 
-> @…_bot Макс, а можешь предложить распределение смен чтобы заполнить администраторов (нужны 1 и 2 смены) из-за отпуска Серовой?
+> @…_bot Max, can you propose a shift distribution to cover administrators (need 1st and 2nd shifts) because of Serova's vacation?
 
 ## Done
 

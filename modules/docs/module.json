@@ -2,7 +2,7 @@
     "id": "docs",
     "name": "docs.module.name",
     "description": "docs.module.description",
-    "version": "0.2.6",
+    "version": "0.2.8",
     "type": "product",
     "runtime": "admin",
     "requires": {
@@ -64,6 +64,7 @@
             "/documents/defs/{id}/sample",
             "/documents/clients/{id}/profile",
             "/documents/clients/{id}/medcard",
+            "/documents/fill-templates",
             "/documents/settings"
         ]
     },
@@ -98,7 +99,7 @@
                 "path": "/documents/{id}/edit",
                 "permission": "docs.edit",
                 "side_effect": "write",
-                "description": "action=save (f[field_id]) | revise | void | accept (proposal_id) | reject (proposal_id) | pull_segments"
+                "description": "action=save (f[field_id]) | revise | void | accept (proposal_id) | reject (proposal_id) | pull_segments | fill_gaps"
             },
             {
                 "id": "docs.instance.confirm",
@@ -284,7 +285,21 @@
                 "method": "GET",
                 "path": "/documents/defs/{id}/sample",
                 "permission": "docs.print",
-                "description": "Sample print HTML with demo data (nothing stored); optional version= version id"
+                "description": "Demo sample for a definition: JSON returns schema, sample_fields, fillable (visit sheets). Add html=1 for print HTML. Use with docs.fill_templates.save to draft clinic/doctor default phrases. Optional version=",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "version": {
+                            "type": "integer",
+                            "description": "Optional version id (default: current)"
+                        },
+                        "html": {
+                            "type": "integer",
+                            "enum": [0, 1],
+                            "description": "1 = include full print HTML in JSON (large)"
+                        }
+                    }
+                }
             },
             {
                 "id": "docs.defs.export",
@@ -316,6 +331,58 @@
                 "description": "Ensure + return current medcard_profile instance id for a client"
             },
             {
+                "id": "docs.fill_templates.get",
+                "method": "GET",
+                "path": "/documents/fill-templates",
+                "permission": "docs.medical",
+                "description": "Get fill template + fillable field catalog. Query def= visit-sheet def id; admin=0 for clinic (docs.manage). Recipe: defs.list → defs.sample → fill_templates.save",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "def": {
+                            "type": "integer",
+                            "description": "Visit-sheet definition id"
+                        },
+                        "admin": {
+                            "type": "integer",
+                            "description": "0 = clinic; omit = current doctor"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "docs.fill_templates.save",
+                "method": "POST",
+                "path": "/documents/fill-templates",
+                "permission": "docs.medical",
+                "side_effect": "write",
+                "description": "Save fill template phrases (JSON merges with existing; \"\" clears a key). def + fill{field_id:phrase}; admin=0 clinic (docs.manage). Prefer clinical defaults for empty/normal findings only — do not invent diagnoses.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "def": {
+                            "type": "integer",
+                            "description": "Visit-sheet definition id (from docs.defs.list / fill_templates.get defs[])"
+                        },
+                        "admin": {
+                            "type": "integer",
+                            "description": "0 = clinic template; omit = current doctor"
+                        },
+                        "enabled": {
+                            "type": "integer",
+                            "enum": [0, 1],
+                            "description": "Omit in JSON to keep current (default on for new)"
+                        },
+                        "fill": {
+                            "type": "object",
+                            "description": "Map of fillable field_id → default phrase (from fillable[].id). Empty string clears."
+                        }
+                    },
+                    "required": ["def", "fill"],
+                    "additionalProperties": true
+                }
+            },
+            {
                 "id": "docs.settings",
                 "method": "POST",
                 "path": "/documents/settings",
@@ -344,6 +411,14 @@
         },
         {
             "group": "docs.menu.group",
+            "num": 25,
+            "path": "/documents/fill-templates",
+            "title": "docs.menu.fill_templates",
+            "permission": "docs.medical",
+            "kind": "work"
+        },
+        {
+            "group": "docs.menu.group",
             "num": 90,
             "path": "/documents/settings",
             "title": "docs.menu.settings",
@@ -364,7 +439,8 @@
         "base_doc_def_versions",
         "base_doc_instances",
         "base_doc_field_index",
-        "base_doc_proposals"
+        "base_doc_proposals",
+        "base_doc_fill_templates"
     ],
     "migrators": [],
     "hooks": {

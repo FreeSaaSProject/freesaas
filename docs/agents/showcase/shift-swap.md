@@ -1,19 +1,19 @@
-# Swap two people on tomorrow’s shifts
+# Swap two people on tomorrow's shifts
 
-**Claim:** «Поменяй Олю и Катю» works from the day roster — Max must call tools first, not ask for IDs when the day has a unique match.
+**Claim:** "Swap Olya and Katya" works from the day roster — Max must call tools first, not ask for IDs when the day has a unique match.
 
 ## Ask
 
-> Поменяй завтра Олю и Катю местами сменами — одну в первую, другую во вторую.
+> Swap Olya and Katya on tomorrow's shifts — one on the first, the other on the second.
 
 ## Done
 
 1. `CALL workweeks.day` (or list) for tomorrow  
-2. Resolve Оля / Катя on that roster (if two Кати — ask surname **after** search)  
+2. Resolve Olya / Katya on that roster (if two Katyas — ask surname **after** search)  
 3. Pending writes to swap lanes / shift slots  
 4. Confirm with `workweeks.edit`  
 
-Locked in as live evals so regressions («asked for surname without opening the day») fail CI-style `/assistant/eval`.
+Locked in as live evals so regressions ("asked for surname without opening the day") fail CI-style `/assistant/eval`.
 
 ## Proof
 

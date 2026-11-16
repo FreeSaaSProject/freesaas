@@ -125,6 +125,7 @@ final class Csrf
             '/audio/asr/',
             '/audio/voice-transcribe/',
             '/video/worker/',
+            '/egisz/worker/',
             '/terminals/jobs/',
             '/banks/jobs/',
             '/yclients/jobs/',

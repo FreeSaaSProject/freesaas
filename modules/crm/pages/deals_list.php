@@ -13,7 +13,8 @@ $responsibleId = CrmUi::responsibleFilter($responsibleRaw);
 
 $pipelines = CrmPipelinesRepository::pipelineNames(true);
 if ($view === 'kanban' && ($pipelineId < 1 || !isset($pipelines[$pipelineId]))) {
-    $pipelineId = (int)(array_key_first($pipelines) ?? 0);
+    // Do not land on an empty newly-seeded board (e.g. B2B) when Sales/Leads already have deals.
+    $pipelineId = CrmDealsRepository::defaultKanbanPipelineId(array_keys($pipelines));
 }
 
 $lq = ListQuery::resolve([

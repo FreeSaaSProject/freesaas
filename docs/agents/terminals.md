@@ -85,7 +85,7 @@ curl -sS -X POST -H "X-Terminals-Token: $TOKEN" \
 
 Platform Cron: `terminals.tickets` every 15m (today); `terminals.tickets_finalize` daily at 02:00 (yesterday). Staff UI force-load: `/terminals/fullstats` LongJob `terminals.tickets_import` (`from`/`to`, one day per tick).
 
-Classification enums (oper parity + oasis): `ID_TYPE` 0/1 child/2 senior/3 adult; `IS_LIMITED` 0/1 unlim/2–5 hours/9=1h; `IS_PAYER` 0/1 yes/2 no; `IS_OASIS` 0/1 oasis/2 not (0 = provisional not-oasis). Unclassified = `ID_TYPE`/`IS_LIMITED`/`IS_PAYER` is 0 (oasis alone does not keep a type in the wizard). Rules: certificates → adult; child → non-payer; adult/senior → payer; name with «оазис» → oasis **only** for visits in Sep–Nov 2026 (else always not-oasis). Migration `006` only adds indexes + marks oasis-by-name in that window — **no** full-table `IS_OASIS 0→2` (UI schema LongJob ~25s/tick). Remaining zeros drain via Cron `terminals.oasis_backfill` (every 5m) or LongJob on `/terminals/fullstats`. List search `q=` filters `TICKET_TYPE`/`TITLE_FULL` (no day default when searching). Wizard `/terminals/fullstats/classify` proposes via regex+visit stats then optional LLM, then one-click apply by `TICKET_TYPE`.
+Classification enums (oper parity + oasis): `ID_TYPE` 0/1 child/2 senior/3 adult; `IS_LIMITED` 0/1 unlim/2–5 hours/9=1h; `IS_PAYER` 0/1 yes/2 no; `IS_OASIS` 0/1 oasis/2 not (0 = provisional not-oasis). Unclassified = `ID_TYPE`/`IS_LIMITED`/`IS_PAYER` is 0 (oasis alone does not keep a type in the wizard). Rules: certificates → adult; child → non-payer; adult/senior → payer; name containing "oasis" (local spelling) → oasis **only** for visits in Sep–Nov 2026 (else always not-oasis). Migration `006` only adds indexes + marks oasis-by-name in that window — **no** full-table `IS_OASIS 0→2` (UI schema LongJob ~25s/tick). Remaining zeros drain via Cron `terminals.oasis_backfill` (every 5m) or LongJob on `/terminals/fullstats`. List search `q=` filters `TICKET_TYPE`/`TITLE_FULL` (no day default when searching). Wizard `/terminals/fullstats/classify` proposes via regex+visit stats then optional LLM, then one-click apply by `TICKET_TYPE`.
 
 ## Config keys
 
@@ -123,11 +123,11 @@ Terminal writers resolve staff with `StaffBraceletsRepository::findByUid` before
 When a staff NFC has a linked `base_clients.staff_user_id`, `/t` opens the employee guest floor (fake 1C client `999`, balance `9999`, live 1C off). On book:
 
 1. Procedure `1C_ID` is set to **`999`** (not `stub-*`) so calendar `dayColumnStats` / revenue exclude it.
-2. If the spa instance pack is on with `employee_settle_enabled=1` and **payments** is enabled, `EmployeeProcedureSettle::applyOnBook` inserts `base_payments` with `DIRECTION=-1`, `ACCOUNT=0`, `ID_USER` = staff user, `DESCR` = `Оплата процедуры: ID: {procedureId}`.
+2. If the spa instance pack is on with `employee_settle_enabled=1` and **payments** is enabled, `EmployeeProcedureSettle::applyOnBook` inserts `base_payments` with `DIRECTION=-1`, `ACCOUNT=0`, `ID_USER` = staff user, `DESCR` = procedure payment line with procedure id (legacy DESCR template in likespa EmployeeProcedureSettle).
 
 Cancel disables the procedure and does **not** delete/reverse that payment. Chill rows are not settled. Settings: `/likespa/settings`.
 
 ## Notes
 
-- Column `IS_MASSЕUR_MODE` keeps Cyrillic Е for shared legacy DB compatibility.
+- Column `IS_MASSEUR_MODE` — the live legacy column name uses a Cyrillic Ye in place of Latin E for shared DB compatibility; code must match the real column, not the Latin spelling in this doc.
 - When `terminals` is enabled, the instance-pack term-scans UI soft-resolves terminal names.

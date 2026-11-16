@@ -1,4 +1,4 @@
-# Clientics / Клиентикс (dual-run)
+# Clientics (dual-run)
 
 Product module `clientics`: dual-run bridge with Clientics into FreeSaaS.
 

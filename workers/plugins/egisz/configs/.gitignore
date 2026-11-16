@@ -1,0 +1,4 @@
+local.json
+*.ovpn
+*.pid
+*.log

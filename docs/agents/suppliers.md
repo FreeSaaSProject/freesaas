@@ -49,4 +49,4 @@ curl -sS -b jar.txt 'https://example/suppliers?format=json'
 
 ## Notes
 
-- Search q in both Cyrillic and Latin (озон/ozon).
+- Search q matches both script variants (e.g. translit `ozon` and local spelling).

@@ -1,6 +1,6 @@
 # Docs (documents + medical cards)
 
-Product module `docs`: one engine for printable documents (consents, checks) **and** medical cards. Catalog maturity: `alpha`.
+Product module `docs`: one engine for printable documents (consents, checks) **and** medical cards. Catalog maturity: `beta`.
 
 URL prefix is `/documents` (not `/docs`: `.htaccess` forbids `^docs/` because the repo's `docs/` folder must not be served). Module id, permissions (`docs.*`) and tables (`base_doc_*`) keep the short name.
 
@@ -22,9 +22,9 @@ Default definitions seeded on first open of `/documents` (or any `DocsDefsReposi
 | `medcard_visit` | medcard_visit | event | medical | yes |
 | `medcard_dossier` | medcard_dossier | client | manual | yes |
 | `consent_medical` | consent | client | medical | no (legacy sample) |
-| `contract_citizen` | contract | client | medical | yes — print body from `library/elos63/d_zg` (rich Д-ЗГ) |
-| `consent_list` | consent | client | medical | yes — print body from `library/elos63/ids_p` (Перечень 390н) |
-| `consent_procedure` | consent | event | medical | yes — short ИДС for the visit basket |
+| `contract_citizen` | contract | client | medical | yes — print body from `library/elos63/d_zg` (rich paid-services contract) |
+| `consent_list` | consent | client | medical | yes — print body from `library/elos63/ids_p` (intervention list, order 390n) |
+| `consent_procedure` | consent | event | medical | yes — short informed consent for the visit basket |
 
 Untouched seeds upgrade when `DocsSeed::REVISION` rises (`cfg` key `docs.seed_revision`); unprinted instances of those defs are retargeted to the new version. Edited definitions (more than one version) are left alone. New codes appear on the next `ensureSeeded()` even if revision already matches.
 
@@ -32,10 +32,10 @@ Permissions: `docs.view`, `docs.edit`, `docs.print`, `docs.medical` (medcard kin
 
 ## Agent checklist: make medcards work
 
-Use when the business needs ambulatory cards (form 025/у) or visit sheets. Skip this module entirely for pure salon/retail stands that never print clinical charts.
+Use when the business needs ambulatory cards (form 025/u) or visit sheets. Skip this module entirely for pure salon/retail stands that never print clinical charts.
 
-1. **Dependencies on:** `core`, `clients`, `calendar` (+ `workweeks`), `procedures` (medical types). Soft: `audio` / `audio_llm` for autofill proposals.
-2. **Enable + migrate** as above (`--accept-risk`: maturity `alpha`). Confirm `php bin/freesaas.php module inspect docs --format=json` → enabled, no migration errors.
+1. **Dependencies on:** `core`, `clients`, `calendar` (+ `workweeks`), `procedures` (medical types). Soft: `audio` / `audio_llm` for cabin autofill proposals; optional `medcard_audio` for messenger voice fill without cabin analytics ([`medcard-audio.md`](medcard-audio.md)).
+2. **Enable + migrate** as above. Confirm `php bin/freesaas.php module inspect docs --format=json` → enabled, no migration errors.
 3. **Org requisites** — print header `{org.*}`: UI `/documents/settings` or agent `docs.settings` with `org[name]`, `org[address]`, `org[inn]`, `org[ogrn]`, licence fields, optional `org[signature]` URL. Empty org → blank underlines on the title page.
 4. **Roles:** grant staff `docs.view` / `docs.edit` / `docs.print` / `docs.medical`; directors also `docs.manage`. On doctor/admin statuses set `EVT_DOC_LINKS` so calendar event edit shows the Documents block.
 5. **Medical procedure types:** at least one `base_procedure_types.IS_MEDICAL=1` and products linked to it. Seeded `medcard_visit` trigger is `medical` — shells spawn only when the visit basket has a medical product.
@@ -44,11 +44,11 @@ Use when the business needs ambulatory cards (form 025/у) or visit sheets. Skip
    - `medcard_visit` — per-visit sheet (`complaints`, `ana_gen`, `ana_obj`, `dia_codes`, `doctor_id`, `recommends`, …)
    - `medcard_dossier` — full card print (aggregates profile + visits)
    - `contract_citizen` — rich paid-services contract (library `elos63/d_zg`; one per client; medical trigger)
-   - `consent_list` — rich «Перечень» IDS (library `elos63/ids_p`; one per client)
-   - `consent_procedure` — short ИДС listing `{event.items}` (one per medical event)
+   - `consent_list` — rich intervention-list IDS (library `elos63/ids_p`; one per client)
+   - `consent_procedure` — short informed consent listing `{event.items}` (one per medical event)
    - Clinic demo also turns on `docs.qr_archive=1` (archive QR on prints; needs stickers’ phpqrcode)
-7. **Smoke path:** create/open a calendar event with a medical service → Documents section shows visit sheet + ИДС (+ contract once per client) → fill visit until `ready` → print ИДС/contract → client → «Медкарта» / `/documents/clients/{id}/medcard`. Item 20 / stage epicrisis read **only** def code `medcard_visit`.
-8. **What fills what on 025/у:**
+7. **Smoke path:** create/open a calendar event with a medical service → Documents section shows visit sheet + informed consent (+ contract once per client) → fill visit until `ready` → print consent/contract → client → medcard / `/documents/clients/{id}/medcard`. Item 20 / stage epicrisis read **only** def code `medcard_visit`.
+8. **What fills what on form 025/u:**
    - Title (1–23): client + `medcard_profile` (`{profile.*}`; use `{profile.work_position|__________}` style fallbacks)
    - Item 20 `{dossier.diagnoses}`: unique `dia_codes` (+ doctor) across official visit sheets
    - Visit pages 24/25: visit payload; on the **first** visit also `{visit.anamnesis_life}` / `{visit.objective_general}` from profile (`ana_life`, `ana_gyno`, `ana_alerg`, `obj_skin`, `obj_sliz`, `obj_nogot`, optional height/weight/BMI)
@@ -64,7 +64,8 @@ Use when the business needs ambulatory cards (form 025/у) or visit sheets. Skip
 | Version | `base_doc_def_versions` | Immutable: `SCHEMA_JSON`, `PRINT_HTML`, `ORIENTATION`, `FORMAT`, `COPIES`. Editing schema/template creates a new version; instances keep their `ID_VERSION` |
 | Instance | `base_doc_instances` | `ID_CLIENT`, `ID_EVENT`, `ID_PROCEDURE`, `KIND` (denormalized), `STATUS`, `PAYLOAD` JSON, `PRINT_SNAPSHOT` (frozen HTML), `HASH`, `HASH_EXT`, `DT_PRINT`, `DT_EXPIRE`, sign fields |
 | Search index | `base_doc_field_index` | Only fields with `"index": true` (diagnosis code, doctor id). Never a copy of the whole payload |
-| Autofill proposals | `base_doc_proposals` | Pending values from audio/LLM/import; staff accepts or rejects |
+| Autofill proposals | `base_doc_proposals` | Pending values from audio/LLM/import/bot; staff accepts or rejects |
+| Fill templates | `base_doc_fill_templates` | Clinic (`ID_ADMIN=0`) or per-doctor default phrases per visit-sheet definition |
 
 Indexes: instances `(ID_CLIENT, KIND, STATUS)`, `(ID_EVENT)`, `(ID_PROCEDURE)`, unique `HASH`, `HASH_EXT`. Lists and calendar sections read id + meta columns; `PAYLOAD` / `PRINT_SNAPSHOT` are loaded only on the instance page / print.
 
@@ -118,7 +119,7 @@ Doctor confirmation is separate from status (`ready` only means required fields 
 }
 ```
 
-`_prov` is per-field provenance: `source` = `manual` \| `audio_llm` \| `audio_records` \| `import`; optional `confidence`, `study_id`, `result_id`, `record_id(s)`.
+`_prov` is per-field provenance: `source` = `manual` \| `audio_llm` \| `audio_records` \| `audio_bot` \| `fill_template` \| `import` \| `spawn`; optional `confidence`, `study_id`, `result_id`, `record_id(s)`, `scope` (`doctor`\|`clinic` for fill templates).
 
 ## Print template placeholders
 
@@ -133,25 +134,25 @@ Template HTML is sanitized (tables, inline `style`, no scripts/forms/iframes) be
 | `{profile.field_id}` | Field of the client's current `medcard_profile` |
 | `{client.mail}` `{client.passport_serie}` `{client.passport_number}` `{client.passport_issued_at}` `{client.passport_issued_by}` `{client.address_fact}` `{client.address_passport}` | Client details (legacy `{pass*}`, `{addressFact}`) |
 | `{event.total_text}` `{event.procedures}` `{event.service_types}` | Sum in words, journal procedures, procedure type names |
-| `{doctor.name}` `{doctor.position}` | Visit sheet doctor (or event operator), "Фамилия И.О." + role name |
+| `{doctor.name}` `{doctor.position}` | Visit sheet doctor (or event operator), "Surname I.O." short form + role name |
 | `{visit.recommends}` | Recommendations from the visit medcard sheet |
 | `{contract.id}` `{contract.date}` | Client's latest `contract` document (acts reference it) |
 | `{org.*}` | Organization requisites from `/documents/settings` (`DocsConfig::ORG_KEYS`; `{org.signature}` renders the facsimile image) |
-| `{g:female|male|unknown}` | Gender form by client (`gender` 1 = male); legacy `[ая|ий|]` is converted to this |
+| `{g:female|male|unknown}` | Gender form by client (`gender` 1 = male); legacy Cyrillic adjective endings in templates are converted to this |
 | `{doc.id}` `{doc.code}` `{doc.name}` `{doc.date}` `{doc.expire}` | Instance meta |
 | `{staff.name}` | Current user at first print |
 | `{key\|default}` | Any placeholder with a fallback (escaped) when the value is empty, e.g. `{profile.snils\|__________}` |
 | `{?flag:yes\|no}` | Conditional text; flags `visit.first` (first `medcard_visit` of the client), `client.male`, `client.female` |
-| `{client.surname}` `{client.pname}` `{client.patronymic}` `{client.gender}` `{client.birth_day}` `{client.birth_month}` `{client.birth_year}` `{client.locality}` | Name/birth parts for form 025/у |
+| `{client.surname}` `{client.pname}` `{client.patronymic}` `{client.gender}` `{client.birth_day}` `{client.birth_month}` `{client.birth_year}` `{client.locality}` | Name/birth parts for form 025/u |
 | `{card.no}` `{card.day}` `{card.month}` `{card.year}` | Card number (client id) and opening date (first visit) |
 | `{visit.date}` `{visit.anamnesis_life}` `{visit.objective_general}` `{visit.next_text}` | Visit sheet helpers; on the first visit anamnesis/objective lines come from the profile (blanks when empty) |
 | `{profile.bmi}` `{profile.ana_gyno_print}` | BMI with band; gynecological anamnesis ("not applicable" for men) |
 | `{org.ogrn_boxes}` | OGRN digits in boxed cells |
-| `{dossier.diagnoses}` `{dossier.visits}` `{dossier.procedures}` `{dossier.stage_epicrisis}` | 025/у item 20 table; all visit sheets; medical procedures list; item 26 stage epicrisis from filled visits |
+| `{dossier.diagnoses}` `{dossier.visits}` `{dossier.procedures}` `{dossier.stage_epicrisis}` | Form 025/u item 20 table; all visit sheets; medical procedures list; item 26 stage epicrisis from filled visits |
 | `{dossier}` | (`medcard_dossier` only) legacy profile + visit sheets list |
 | `{qr}` | Archive QR (empty when `qr_archive=0`) |
 
-Seed templates follow form 025/у (приказ Минздрава № 834н) as printed by legacy `getCardData`: `medcard_profile` = title page (items 1–23), `medcard_visit` = item 24 (first, B01.008.003) / 25 (follow-up, B01.008.004), `medcard_dossier` = title + all visits + procedures sheet + items 26–35. Untouched seeds are upgraded to the current seed revision automatically (`docs.seed_revision`); edited definitions are left alone.
+Seed templates follow form 025/u (Ministry of Health order No. 834n) as printed by legacy `getCardData`: `medcard_profile` = title page (items 1–23), `medcard_visit` = item 24 (first, B01.008.003) / 25 (follow-up, B01.008.004), `medcard_dossier` = title + all visits + procedures sheet + items 26–35. Untouched seeds are upgraded to the current seed revision automatically (`docs.seed_revision`); edited definitions are left alone.
 
 ## Template library and samples
 
@@ -170,9 +171,9 @@ php bin/docs-export-legacy.php --schema=elos63 --name="Cosmetology (elos)" [--pa
 ```
 
 - Reads `<schema>.base_docs` + `base_docs_datas`; exports only `ENABLED=1` and `DT_DISABLED=0`; identical texts collapse to the newest copy.
-- Company data is detected by patterns (legal form + quotes incl. Latin `OOO`, ИНН/КПП/ОГРН/accounts, licence number/date/issuer/address/scope, tax registrar, addresses with street types, phones, the most linked own domain, director full/short names, city/region in grammatical case) and replaced with `{org.*}`. No company literals are stored in code.
+- Company data is detected by patterns (legal form + quotes incl. Latin `OOO`, tax IDs INN/KPP/OGRN/accounts, licence number/date/issuer/address/scope, tax registrar, addresses with street types, phones, the most linked own domain, director full/short names, city/region in grammatical case) and replaced with `{org.*}`. No company literals are stored in code.
 - Legacy variables map to engine placeholders (`DocsLegacy::PLACEHOLDERS`), `[f|m|x]` → `{g:f|m|x}`, `QRID` → `{qr}`; local signature images → `{org.signature}`, other local images are dropped.
-- Kind: `Д-…` → `contract`, `А-…` → `check`, else `consent`. Expiry 9999 → client scope without expiry; 1 → per visit.
+- Kind: legacy codes with Cyrillic prefix D- → `contract`, A- → `check`, else `consent`. Expiry 9999 → client scope without expiry; 1 → per visit.
 - Every file is checked for residual company traces (plain text and raw HTML); a file with traces is not written without `--force`.
 
 EventBus `docs.merge.context` lets other modules add placeholders (`payload.vars[key] = string`, escaped).
@@ -197,9 +198,14 @@ On `calendar.event.saved` (and lazily when the event section renders) `DocsSpawn
 
 `client` scope reuses an unexpired instance of the same definition. `medcard_visit` is event scope; `ID_PROCEDURE` is filled when the visit already has exactly one medical journal row.
 
-## Autofill (audio)
+## Autofill (audio / bot / LLM)
 
-Producers never write the payload directly — they emit **proposals**:
+Two paths feed the same engine:
+
+| Path | Modules | How fields are chosen |
+|------|---------|------------------------|
+| Cabin study | `audio` → ASR → `audio_llm` | Staff study prompt; RESULT_TEXT may contain `{"docs":{"kind","fields",…}}` → proposals |
+| Messenger voice | `medcard_audio` + `asr` + `llm` (+ soft `bots`) | Schema-driven LLM extract; no cabin analytics — see [`medcard-audio.md`](medcard-audio.md) |
 
 ```php
 EventBus::emit('docs.instance.propose', [
@@ -213,10 +219,42 @@ EventBus::emit('docs.instance.propose', [
 ]);
 ```
 
-- `audio_llm` emits `audio_llm.study.result` after a successful result; `docs` parses `RESULT_TEXT` when it is JSON with a `docs` object (`{"docs": {"kind": "medcard_visit", "fields": {...}}}`) and proposes into the visit of the study procedure (`ID_PROCEDURE` → `ID_EVENT_PARENT`).
+- `audio_llm` emits `audio_llm.study.result` after a successful result; `docs` parses `RESULT_TEXT` when it is JSON with a `docs` object and proposes into the visit of the study procedure (`ID_PROCEDURE` → `ID_EVENT_PARENT`).
+- `medcard_audio`: after ASR, LLM gets the visit sheet field list and returns only fields with evidence; then **fill templates** fill remaining empty fields (doctor → clinic).
 - "Time with patient": instance page action builds a `talk_segments` proposal from `base_records` of the visit operator inside the event window (record ↔ visit link is computed by operator + time; `base_records` is not modified).
-- Accepting a proposal writes the field with `_prov.source` from the proposal; unknown field ids are rejected.
-- Whole-card review: a filler may write a draft card directly with an automatic source (`audio_bot`, `audio_llm`, `audio_records` — `DocsInstancesRepository::AUTO_SOURCES`) while it is **not confirmed**. Fields show a "from audio" badge; a manual edit keeps `_prov.edited_from` ("from audio, corrected by doctor"). Optional `_prov` extras `record_id` / `recorded_at` link the review banner to `/audio/{id}`. After confirmation, further automatic input must go through proposals.
+- Accepting a proposal requires the proposal to belong to the open document and `docs.medical` for medcard kinds (IDOR guard).
+- Whole-card review: automatic sources (`audio_bot`, `audio_llm`, `audio_records` — `DocsInstancesRepository::AUTO_SOURCES`) may write a draft while **not confirmed**. After confirmation, further automatic input should go through proposals. Manual edit keeps `_prov.edited_from`.
+
+## Fill templates (clinic / doctor)
+
+Default phrases for visit-sheet fields the doctor usually leaves as "normal / unremarkable" when not dictated.
+
+- Table `base_doc_fill_templates`: unique `(ID_DEF, ID_ADMIN)`; `ID_ADMIN=0` = clinic; otherwise the doctor's `base_users.id`.
+- Priority when applying gaps: **incoming/LLM or existing payload** → **doctor template** → **clinic template** → empty. Never overwrites a non-empty value.
+- Provenance: `_prov.source=fill_template`, `scope=doctor|clinic`.
+- If the instance is already doctor-confirmed, gaps go to **proposals** (not silent overwrite).
+- UI: clinic template on `/documents/defs/{id}/edit` (`docs.manage`, medcard_visit kinds); doctor's own on `/documents/fill-templates` (`docs.edit` + `docs.medical`). Button "Fill gaps from template" on the instance edit form.
+- Agent: `docs.fill_templates.get` / `docs.fill_templates.save` (`def`, optional `admin=0` for clinic with manage, else self).
+
+### Agent recipe: draft fill templates from a sample
+
+Goal: send GPT a medcard sample and save clinic/doctor default phrases for empty fields after voice fill.
+
+1. `docs.defs.list` — find visit sheet (`kind=medcard_visit`, e.g. code `medcard_visit` or specialty `medcard_cosmo`).
+2. `docs.defs.sample` with that `{id}` — JSON returns `schema`, `sample_fields`, `fillable[{id,type,label,options}]` (print `html` only if `html=1`).
+3. Ask the model for a `fill` map: only `fillable[].id` keys; phrases for "normal / unremarkable / standard plan"; skip diagnoses/ICD unless the clinic wants a fixed placeholder; language = UI locale.
+4. `docs.fill_templates.save` with `def`, `fill{…}`, optional `admin=0` (clinic, needs `docs.manage`). JSON **merges** with the existing template; `""` clears a key.
+5. Verify: `docs.fill_templates.get?def=` → `fields`; optional instance `docs.update` `action=fill_gaps`.
+
+## Specialty forms (dental / ophthalmology)
+
+| Level | What | Effort |
+|-------|------|--------|
+| A. Library pack | Like `cosmetology/`: textarea/select schema + print HTML, trigger `types`/`procs` | Low (days) |
+| B. Structured widgets | Odontogram (FDI grid), Visus OD/OS table | Medium–high: new `DocsSchema` type + edit/print + LLM extract strategy |
+| C. Separate product module | Only if specialty needs its own analytics/integrations | High; usually A→B inside `docs` is enough |
+
+Start with pack A; odontogram/Visus after fill templates are in use.
 
 ## Legacy → field ids
 
@@ -229,7 +267,7 @@ EventBus::emit('docs.instance.propose', [
 | `OBJ_SKIN` / `OBJ_SLIZ` / `OBJ_NOGOT` | `medcard_profile` | `obj_skin` / `obj_sliz` / `obj_nogot` |
 | blood / height / weight / eyes / hairs | `medcard_profile` | `blood_group` + `rh_factor` / `height_cm` / `weight_kg` / `eyes` / `hairs` |
 | `WORK_PLACE` / `WORK_POSITION` / `DISPANSER` | `medcard_profile` | `work_place` / `work_position` / `dispensary` |
-| — (025/у items 7–16) | `medcard_profile` | `oms_policy`, `snils`, `insurer`, `benefit_code`, `marital_status`, `education`, `employment`, `disability` |
+| — (form 025/u items 7–16) | `medcard_profile` | `oms_policy`, `snils`, `insurer`, `benefit_code`, `marital_status`, `education`, `employment`, `disability` |
 | `JAL` | `medcard_visit` | `complaints` |
 | `ANA_GEN` | `medcard_visit` | `ana_gen` |
 | `ANA_OBJ` | `medcard_visit` | `ana_obj` |
@@ -242,17 +280,18 @@ EventBus::emit('docs.instance.propose', [
 ## Human UI
 
 - `/documents` — instances (filters: kind, client, event, status)
-- `/documents/{id}/edit` — form generated from schema; proposals panel; print / new revision / void
-- `/documents/defs` — definitions; `/documents/defs/{id}/edit` — meta + constructor (fields builder, schema JSON, print HTML, placeholders)
+- `/documents/{id}/edit` — form generated from schema; proposals panel; confirm; fill gaps from template; print / new revision / void
+- `/documents/defs` — definitions; `/documents/defs/{id}/edit` — meta + constructor + clinic fill template (visit sheets)
+- `/documents/fill-templates` — doctor's personal fill templates per visit-sheet definition
 - `/documents/clients/{id}/profile` — open current medcard profile; `/documents/clients/{id}/medcard` — dossier print
-- `/documents/settings` — `qr_archive` (superadmin)
+- `/documents/settings` — `qr_archive` + org requisites (superadmin)
 - Calendar event edit — "Documents" section (`EVT_DOC_LINKS`); client profile — medcard links; procedure edit — visit sheet link
 
 ## Agent JSON
 
 Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (also exposed to the in-system assistant; write ops go through Confirm/Cancel).
 
-Editing templates on request: `docs.defs.get` (current `schema_json` + `print_html`) → `docs.defs.update` with only the changed keys (JSON requests merge with the current values; `schema_json` may be an object). Changed schema/HTML creates a new version; existing documents keep theirs. Check the result with `docs.defs.sample`. `docs.settings` is partial too (`qr_archive`, `org[key]`).
+Editing templates on request: `docs.defs.get` (current `schema_json` + `print_html`; visit sheets also return `fillable` + `clinic_fill`) → `docs.defs.update` with only the changed keys (JSON requests merge with the current values; `schema_json` may be an object). Changed schema/HTML creates a new version; existing documents keep theirs. Check the result with `docs.defs.sample` (`sample_fields` / `fillable` for fill-template drafting). `docs.settings` is partial too (`qr_archive`, `org[key]`).
 
 ## Disable / uninstall
 

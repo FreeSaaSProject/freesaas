@@ -33,7 +33,7 @@ No separate Excel-style report screen.
 
 ## Parser slots
 
-Named PCRE slots on the agreement: `period_from`, `period_to`, `gross`, `fee` (capture group 1 each). Preset `volga_termy_agency_v1` matches Volga Termy agency purpose text (period + Сумма + fee). Fee slot accepts both full «возмещаемых расходов» and bank-abbreviated «возмещ.расходов» (migration `002_widen_volga_fee_pattern`). Period-from allows optional «с»; if «по …» is missing, `period_to` falls back to `period_from` (single-day purpose). Badge **ВТ?** / `status=unparsed` means a slot missed — widen patterns (or re-apply preset). List/edit **re-parses `unparsed` batches automatically** after settings change; `ok`/`mismatch` stay until explicit `POST …/moves/{id}/action` `action=sync`.
+Named PCRE slots on the agreement: `period_from`, `period_to`, `gross`, `fee` (capture group 1 each). Preset `volga_termy_agency_v1` matches Volga Termy agency purpose text (period + amount/"Summa" + fee). Fee slot accepts both the full reimbursable-expenses phrase and the bank-abbreviated form (migration `002_widen_volga_fee_pattern`). Period-from allows an optional "from"; if "through …" is missing, `period_to` falls back to `period_from` (single-day purpose). Badge **VT?** / `status=unparsed` means a slot missed — widen patterns (or re-apply preset). List/edit **re-parses `unparsed` batches automatically** after settings change; `ok`/`mismatch` stay until explicit `POST …/moves/{id}/action` `action=sync`.
 
 ## Expected revenue
 
@@ -49,7 +49,7 @@ out: { amount, channels: [{ code, amount, source }] }
 ## Fee posting
 
 `fee_posting=none` — reconcile only.  
-`fee_posting=expense_move` — button on move edit creates expense ДПС (idempotent via `base_remittance_batches.ID_FEE_MOVE`). Binding is atomic (`setFeeMoveId`); parse refresh (`upsertForMove`) never clears an existing fee link.
+`fee_posting=expense_move` — button on move edit creates expense DPS (idempotent via `base_remittance_batches.ID_FEE_MOVE`). Binding is atomic (`setFeeMoveId`); parse refresh (`upsertForMove`) never clears an existing fee link.
 
 ## Agent JSON
 

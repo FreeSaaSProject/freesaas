@@ -104,6 +104,16 @@ final class MedcardAudioFill
             $filled = count($changed);
         }
 
+        // Doctor → clinic fill templates for fields the model left empty.
+        if (class_exists('DocsFillTemplates', false) && DocsFillTemplates::tableReady()) {
+            try {
+                $gap = DocsFillTemplates::applyGaps($instanceId, (int)($ev['id_operator'] ?? 0));
+                $filled += (int)$gap['filled'];
+            } catch (Throwable $e) {
+                // LLM write already succeeded; gaps are best-effort.
+            }
+        }
+
         $out['ok'] = true;
         $out['instance_id'] = $instanceId;
         $out['filled'] = $filled;

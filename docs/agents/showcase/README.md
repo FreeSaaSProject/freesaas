@@ -9,25 +9,25 @@ Staff write a sentence in chat (UI `/assistant`, personal bot, or Max **group**)
 | **This folder** (`showcase/`) | Natural-language ops Max already handles (or is wired to handle) |
 | [`../cases/`](../cases/) | Reproducible platform benchmarks (`bootstrap` / `module enable` / `doctor`) |
 
-Language in-repo is English; **Ask** quotes keep Russian staff wording (what goes on the marketing site later).
+Language in-repo is English-only (including Ask quotes).
 
 ## Cases
 
 | Case | Staff ask (short) |
 |------|-------------------|
-| [receipt-inbound.md](receipt-inbound.md) | «Заприходуй на склад Северный… МаркетПлюс» |
-| [sick-cover.md](sick-cover.md) | «Орлова заболела… найди замену и поменяй расписание» |
-| [vacation-move.md](vacation-move.md) | «Перенеси отпуск Серовой с 30.11 на 03.11–10.11» |
-| [admin-shifts-fill.md](admin-shifts-fill.md) | «Предложи распределение смен админов из‑за отпуска Серовой» |
-| [calendar-delete-blocks.md](calendar-delete-blocks.md) | «Удали блок у Кирилла / у Лены…» |
-| [shift-swap.md](shift-swap.md) | «Поменяй завтра Олю и Катю местами» |
-| [schedule-replace-staff.md](schedule-replace-staff.md) | «Убери БМА, поставь НДВ» / «Белову → Новикова» |
+| [receipt-inbound.md](receipt-inbound.md) | "Receive into North warehouse… MarketPlus" |
+| [sick-cover.md](sick-cover.md) | "Orlova is sick… find a replacement and change the schedule" |
+| [vacation-move.md](vacation-move.md) | "Move Serova's vacation from 30.11 to 03.11–10.11" |
+| [admin-shifts-fill.md](admin-shifts-fill.md) | "Propose admin shift coverage because of Serova's vacation" |
+| [calendar-delete-blocks.md](calendar-delete-blocks.md) | "Delete Kirill's / Lena's block…" |
+| [shift-swap.md](shift-swap.md) | "Swap Olya and Katya tomorrow" |
+| [schedule-replace-staff.md](schedule-replace-staff.md) | "Remove BMA, put NDV" / "Belova → Novikov" |
 
 ### More of the same shape (add a page when useful)
 
-- «Поставь блок Нине сегодня с 21 до 22» — calendar create + confirm ([calendar.md](../calendar.md))
-- «Сними X со смены + перенеси запись клиента» — multi-step plan ([assistant.md](../assistant.md))
-- Finance / BI «куда кликнуть» with allowed links only — live evals in `/assistant/eval`
+- "Put a block for Nina today from 21 to 22" — calendar create + confirm ([calendar.md](../calendar.md))
+- "Take X off the shift + move the client booking" — multi-step plan ([assistant.md](../assistant.md))
+- Finance / BI "where do I click" with allowed links only — live evals in `/assistant/eval`
 
 ## Template (new case)
 
@@ -38,7 +38,7 @@ Language in-repo is English; **Ask** quotes keep Russian staff wording (what goe
 
 ## Ask
 
-> Exact staff message (RU quote ok; use fictional names).
+> Exact staff message (English example; use fictional names).
 
 ## Done
 

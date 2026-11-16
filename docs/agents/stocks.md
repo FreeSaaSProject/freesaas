@@ -39,7 +39,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
 ## Human UI
 
-- `/stocks` warehouses; `/stocks/leftovers` leftovers report (rail: **Склад**).
+- `/stocks` warehouses; `/stocks/leftovers` leftovers report (rail: **Warehouse**).
 
 | Path | Permission |
 |------|------------|

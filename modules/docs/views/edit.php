@@ -235,6 +235,9 @@ $fieldMap = DocsSchema::fieldMap($schema);
     <?php if (!$isNew && $hasSegments && !$readonly): ?>
       <button class="btn-secondary" type="submit" name="action" value="pull_segments" formnovalidate><?= te('docs.edit.pull_segments') ?></button>
     <?php endif; ?>
+    <?php if (!$isNew && !$readonly && DocsFillTemplates::isVisitKind((string)$row['kind']) && DocsFillTemplates::tableReady()): ?>
+      <button class="btn-secondary" type="submit" name="action" value="fill_gaps" formnovalidate><?= te('docs.fill.apply') ?></button>
+    <?php endif; ?>
     <?php if (!$isNew && $canEdit && $row['status'] !== 'void'): ?>
       <?php if ($row['status'] === 'printed'): ?>
         <button class="btn-secondary" type="submit" name="action" value="revise" formnovalidate><?= te('docs.edit.revise') ?></button>

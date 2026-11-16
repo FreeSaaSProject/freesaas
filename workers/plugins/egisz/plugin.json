@@ -1,0 +1,14 @@
+{
+  "id": "egisz",
+  "title": "EGISZ / N3 IEMK (OpenVPN SOAP)",
+  "version": "0.1.0",
+  "entrypoint": "worker.py",
+  "requirements": "requirements.txt",
+  "status_file": "logs/status.json",
+  "depends_binaries": ["php", "openvpn"],
+  "models": [],
+  "widgets": ["health", "loop"],
+  "actions": [],
+  "log_sources": {},
+  "comment": "Disableable: omit from host.local.json enabled_plugins and/or set egisz.worker_enabled=0 on FreeSaaS. Runs N3 Pix/EMK SOAP via PHP SoapClient after OpenVPN split-tunnel."
+}

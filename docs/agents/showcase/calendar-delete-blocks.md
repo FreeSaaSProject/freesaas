@@ -1,14 +1,14 @@
 # Delete calendar blocks by person and weekday
 
-**Claim:** Floor managers remove «blocks» (calendar events) in natural language; Max finds event ids for that staffer and queues deletes.
+**Claim:** Floor managers remove "blocks" (calendar events) in natural language; Max finds event ids for that staffer and queues deletes.
 
 ## Ask
 
-> @…_bot удали блок у Кирилла в среду и четверг  
+> @…_bot delete Kirill's block on Wednesday and Thursday  
 
-> @…_bot удали блок у Лены в субботу и у Кирилла в воскресенье  
+> @…_bot delete Lena's block on Saturday and Kirill's on Sunday  
 
-Same family: «Макс удали блок у Нины с 21».
+Same family: "Max delete Nina's block from 21".
 
 ## Done
 

@@ -7,7 +7,7 @@ Product module `yclients`: pull-only import from YClients into FreeSaaS (`base_c
 | Field | Source | Notes |
 |-------|--------|--------|
 | `partner_token` | Marketplace developer account → API key | Required for **every** API call, including auth. |
-| `user_token` | `POST /api/v1/auth` with salon login/password, **or** app system user after marketplace «Подключить» | **Not** the salon password. |
+| `user_token` | `POST /api/v1/auth` with salon login/password, **or** app system user after marketplace "Connect" | **Not** the salon password. |
 | `company_id` | URL `yclients.com/company/{id}/` | Filial / salon id. |
 | `worker_token` | Invent in FreeSaaS | Cron secret for `/yclients/jobs/*` only — **not** from YClients. |
 

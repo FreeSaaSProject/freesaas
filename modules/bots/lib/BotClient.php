@@ -797,11 +797,19 @@ final class BotClient
     /**
      * Telegram getWebhookInfo (no secrets in return).
      *
-     * @return array{ok:bool,url:string,pending_update_count:int,last_error_message:string,error:string}
+     * @return array{ok:bool,url:string,pending_update_count:int,last_error_message:string,last_error_date:int,ip_address:string,error:string}
      */
     public static function telegramGetWebhookInfo(string $audience = 'client'): array
     {
-        $empty = ['ok' => false, 'url' => '', 'pending_update_count' => 0, 'last_error_message' => '', 'error' => ''];
+        $empty = [
+            'ok' => false,
+            'url' => '',
+            'pending_update_count' => 0,
+            'last_error_message' => '',
+            'last_error_date' => 0,
+            'ip_address' => '',
+            'error' => '',
+        ];
         $cfg = BotsConfig::channel($audience, 'telegram');
         if ($cfg === null || $cfg['token'] === '') {
             $empty['error'] = 'token not configured';
@@ -818,6 +826,8 @@ final class BotClient
             'url' => (string)($info['url'] ?? ''),
             'pending_update_count' => (int)($info['pending_update_count'] ?? 0),
             'last_error_message' => (string)($info['last_error_message'] ?? ''),
+            'last_error_date' => (int)($info['last_error_date'] ?? 0),
+            'ip_address' => (string)($info['ip_address'] ?? ''),
             'error' => '',
         ];
     }

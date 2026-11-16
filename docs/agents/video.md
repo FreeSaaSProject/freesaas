@@ -29,7 +29,7 @@ Or platform HTTP: `POST /agent/modules/video/enable` with `accept_risk=1`.
 
 UI: `/video/settings` (superadmin). Cron: `video.purge`.
 
-**Classes:** `CLASSES_JSON` is `[{id,name,label?,color},…]`. `name` = stable key; `label` = display (e.g. Russian) on boxes/legend. Textarea: `staff|сотрудник #e6194b`. Worker draws `label ?: name`.
+**Classes:** `CLASSES_JSON` is `[{id,name,label?,color},…]`. `name` = stable key; `label` = display (e.g. Russian) on boxes/legend. Textarea: `staff|employee #e6194b`. Worker draws `label ?: name`.
 
 ## Posts
 
@@ -73,7 +73,7 @@ Live view: when a host is online, `/video/cameras/{id}/live` polls `/video/camer
 
 ## Agent ↔ user (playbook)
 
-Alpha tone: «модуль экспериментальный; чиним по месту».
+Alpha tone: "module is experimental; we fix it in place".
 
 1. **Status first:** `GET /agent/video/status` — explain `issues[]` (no token / no worker / no cameras). Never paste RTSP passwords or tokens into chat logs.
 2. **Ask only what you cannot invent:** RTSP, `.pt` path on Mac, VPN if off-LAN, approval to regenerate token.
@@ -96,7 +96,7 @@ curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" -H 'Content-Type: applicati
     "post_name": "Pool post",
     "model_name": "spa-detect",
     "weights_path": "/path/best.pt",
-    "classes": ["staff|сотрудник #e6194b", "guest|гость #3cb44b"],
+    "classes": ["staff|employee #e6194b", "guest|guest #3cb44b"],
     "camera_name": "Cam A",
     "rtsp_url": "rtsp://user:pass@host/ch01/0",
     "schedule_mode": "simple",

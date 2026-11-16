@@ -56,7 +56,7 @@ After export, train from video: `POST /video/models` `action=enqueue_train&proje
 
 ## Classes
 
-`CLASSES_JSON`: `{id, name, label?, color}`. Textarea: `staff|сотрудник #e6194b`. `name` is the YOLO/export key; `label` is UI/box display (Russian OK). Local Mac collect remaps COCO person → target class into YOLO `.txt`; zip ingest uses `ingestLabeledFrame`.
+`CLASSES_JSON`: `{id, name, label?, color}`. Textarea: `staff|employee #e6194b`. `name` is the YOLO/export key; `label` is UI/box display (localized OK). Local Mac collect remaps COCO person → target class into YOLO `.txt`; zip ingest uses `ingestLabeledFrame`.
 
 ## Tables
 

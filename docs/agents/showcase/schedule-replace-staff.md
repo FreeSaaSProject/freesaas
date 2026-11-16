@@ -1,18 +1,18 @@
 # Replace one person on the schedule (acronyms ok)
 
-**Claim:** Staff use short labels (БМА, НДВ) or surnames; Max maps them to users and drafts remove + add on the target day.
+**Claim:** Staff use short labels (BMA, NDV) or surnames; Max maps them to users and drafts remove + add on the target day.
 
 ## Ask
 
-> @…_bot 25.10 убери из расписания БМА и поставь НДВ  
+> @…_bot 25.10 remove BMA from the schedule and put NDV  
 
 Follow-up shape:
 
-> Белову убрать из графика и поставить Новикова  
+> Remove Belova from the roster and put Novikov  
 
 ## Done
 
-1. Expand acronyms / surnames via staff dictionary on that day’s lanes  
+1. Expand acronyms / surnames via staff dictionary on that day's lanes  
 2. Pending: delete old shift + create new (`workweeks.*`)  
 3. One confirm — both steps (half-done after confirm was a bug we fixed: batch/plan must apply fully)  
 

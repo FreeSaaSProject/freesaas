@@ -1,10 +1,10 @@
 # Move a vacation and clear shifts
 
-**Claim:** One chat message reschedules leave and removes that person’s shifts in the new period — confirmed as one multi-step plan.
+**Claim:** One chat message reschedules leave and removes that person's shifts in the new period — confirmed as one multi-step plan.
 
 ## Ask
 
-> @…_bot перенеси отпуск Серовой с 30.11 на 03.11-10.11
+> @…_bot move Serova's vacation from 30.11 to 03.11-10.11
 
 ## Done
 
@@ -13,7 +13,7 @@
 3. List `workweeks` in the new period → draft deletes for those shifts  
 4. One confirm button applies the whole plan  
 
-Local harness checks used the same shape («Перенеси отпуск Паниной…»): vacation dates moved, shifts in-range removed, later shifts untouched.
+Local harness checks used the same shape ("Move Panina's vacation…"): vacation dates moved, shifts in-range removed, later shifts untouched.
 
 ## Proof
 

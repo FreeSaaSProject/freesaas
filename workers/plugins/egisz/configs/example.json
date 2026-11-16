@@ -1,0 +1,35 @@
+{
+  "server": "https://demomed.freesaas.ru",
+  "worker_token": "CHANGE_ME",
+  "worker_key": "mac-demo",
+  "tls": {
+    "verify": true
+  },
+  "endpoints": {
+    "hello": "/egisz/worker/hello",
+    "claim": "/egisz/worker/claim",
+    "result": "/egisz/worker/result"
+  },
+  "n3": {
+    "guid": "CHANGE_ME",
+    "id_lpu": "CHANGE_ME",
+    "pix_url": "http://b2b-demo.n3health.ru/emk/PixService.svc",
+    "emk_url": "http://b2b-demo.n3health.ru/emk/EMKService.svc",
+    "eventlog_url": "https://api.n3health.ru/eventlog/",
+    "eventlog_token": ""
+  },
+  "vpn": {
+    "enabled": true,
+    "ovpn": "/Users/YOU/Downloads/b2b-MedDemo-1.ovpn",
+    "hosts": ["b2b-demo.n3health.ru", "vpn0-b2b.n3health.ru", "vpn1-b2b.n3health.ru"],
+    "up_script": "scripts/n3_vpn_up.sh",
+    "down_script": "scripts/n3_vpn_down.sh"
+  },
+  "php_bin": "php",
+  "n3_cli": "bin/n3_call.php",
+  "loop": {
+    "sleep_seconds_idle": 5,
+    "sleep_seconds_run": 1
+  },
+  "comment": "Copy to local.json (gitignored). Disable plugin: remove egisz from workers/host.local.json enabled_plugins. Also set worker_enabled=0 on FreeSaaS settings."
+}

@@ -59,7 +59,26 @@ if ($def === null || $ver === null) {
 
 $html = DocsRender::renderSample($def, $ver);
 if ($wantsJson) {
-    AgentHttp::emit(['ok' => true, 'code' => (string)$def['code'], 'html' => $html]);
+    $schema = is_array($ver['schema'] ?? null) ? $ver['schema'] : ['sections' => []];
+    $sampleFields = DocsSample::payload($schema);
+    $emit = [
+        'ok' => true,
+        'id' => (int)($def['id'] ?? 0),
+        'code' => (string)$def['code'],
+        'name' => (string)($def['name'] ?? ''),
+        'kind' => (string)($def['kind'] ?? ''),
+        'schema' => $schema,
+        // Structured demo values for agents (prefer over parsing html when drafting fill templates).
+        'sample_fields' => $sampleFields,
+        'fillable' => DocsFillTemplates::isVisitKind((string)($def['kind'] ?? ''))
+            ? DocsFillTemplates::fillableCatalog($schema)
+            : [],
+    ];
+    // Full print HTML is large; opt in with html=1 when a visual sample is needed.
+    if (!empty($_GET['html']) || !empty($_GET['include_html'])) {
+        $emit['html'] = $html;
+    }
+    AgentHttp::emit($emit);
     return;
 }
 

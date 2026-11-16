@@ -1,4 +1,4 @@
-# Account ledger (ДПС)
+# Account ledger (DPS)
 
 Product module `ledger`: company accounts, move types, account moves, bank reconciliations, promised payments, optional auto-DPS from `payments`.
 

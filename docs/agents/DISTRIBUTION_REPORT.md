@@ -17,7 +17,7 @@ npx skills add FreeSaaSProject/freesaas
 
 ## Catalog / channel status
 
-| Площадка | URL | Состояние | Проверка установки | Проверка поиска |
+| Channel | URL | Status | Install check | Search check |
 |----------|-----|-----------|--------------------|-----------------|
 | GitHub (canonical skills) | https://github.com/FreeSaaSProject/freesaas/tree/main/.agents/skills | Published (`1a77acd` on `main`) | `npx skills add FreeSaaSProject/freesaas --list` → 3 skills | Browse tree OK |
 | README install docs | https://github.com/FreeSaaSProject/freesaas#agent-skills | Published | One-liner in README | — |

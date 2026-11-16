@@ -1,0 +1,226 @@
+{
+    "id": "egisz",
+    "name": "egisz.module.name",
+    "description": "egisz.module.description",
+    "version": "0.3.0",
+    "type": "product",
+    "runtime": "admin",
+    "catalog": {
+        "categories": ["integrations", "wellness"],
+        "maturity": "alpha",
+        "tags": ["integration", "journal"],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=1.0.0",
+        "docs": ">=0.2.0",
+        "clients": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "calendar": ">=1.0.0",
+        "procedures": ">=1.0.0"
+    },
+    "provides": [
+        "egisz.semd",
+        "egisz.identity",
+        "egisz.n3"
+    ],
+    "migrations": "migrations/",
+    "uninstall": { "strategy": "drop_owned" },
+    "permissions": [
+        { "id": "egisz.view", "label": "egisz.perm.view" },
+        { "id": "egisz.manage", "label": "egisz.perm.manage" },
+        { "id": "egisz.build", "label": "egisz.perm.build" }
+    ],
+    "routes": {
+        "pages": [
+            "/egisz/journal",
+            "/egisz/settings",
+            "/egisz/status",
+            "/egisz/icd/search",
+            "/egisz/term/lookup",
+            "/egisz/semd/preview",
+            "/egisz/patient/sync",
+            "/egisz/case/send",
+            "/egisz/eventlog/poll"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/egisz.md",
+        "ops": [
+            {
+                "id": "egisz.status",
+                "method": "GET",
+                "path": "/egisz/status",
+                "permission": "egisz.view",
+                "description": "Diagnose EGISZ readiness: N3 SOAP/term, transport, outbox; deploy demomed.freesaas.ru"
+            },
+            {
+                "id": "egisz.journal",
+                "method": "GET",
+                "path": "/egisz/journal",
+                "permission": "egisz.view",
+                "description": "List SEMD/IEMK outbox rows; filters: status, client_id"
+            },
+            {
+                "id": "egisz.settings.get",
+                "method": "GET",
+                "path": "/egisz/settings",
+                "permission": "egisz.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "EGISZ + N3 settings (secrets masked)"
+            },
+            {
+                "id": "egisz.settings.save",
+                "method": "POST",
+                "path": "/egisz/settings",
+                "permission": "egisz.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Save EGISZ/N3 settings"
+            },
+            {
+                "id": "egisz.icd.search",
+                "method": "GET",
+                "path": "/egisz/icd/search",
+                "permission": "egisz.view",
+                "description": "Search local ICD-10 dictionary; q="
+            },
+            {
+                "id": "egisz.term.lookup",
+                "method": "GET",
+                "path": "/egisz/term/lookup",
+                "permission": "egisz.view",
+                "description": "N3 terminology lookup; system=, code=, q="
+            },
+            {
+                "id": "egisz.semd.preview",
+                "method": "GET",
+                "path": "/egisz/semd/preview",
+                "permission": "egisz.build",
+                "description": "Build SEMD XML preview from docs instance_id (+ kind)"
+            },
+            {
+                "id": "egisz.semd.preview.save",
+                "method": "POST",
+                "path": "/egisz/semd/preview",
+                "permission": "egisz.build",
+                "side_effect": "write",
+                "description": "Build SEMD and optionally save to outbox (save_outbox=1)"
+            },
+            {
+                "id": "egisz.patient.sync",
+                "method": "POST",
+                "path": "/egisz/patient/sync",
+                "permission": "egisz.build",
+                "side_effect": "write",
+                "description": "N3 AddPatient for client_id"
+            },
+            {
+                "id": "egisz.case.send",
+                "method": "POST",
+                "path": "/egisz/case/send",
+                "permission": "egisz.build",
+                "side_effect": "write",
+                "description": "AddCase/UpdateCase from docs instance_id (unsigned SEMD)"
+            },
+            {
+                "id": "egisz.case.preview",
+                "method": "GET",
+                "path": "/egisz/case/send",
+                "permission": "egisz.build",
+                "description": "Dry SEMD build for case send form / agent"
+            },
+            {
+                "id": "egisz.eventlog.poll",
+                "method": "POST",
+                "path": "/egisz/eventlog/poll",
+                "permission": "egisz.build",
+                "side_effect": "write",
+                "description": "Poll N3 Eventlog for sent outbox rows"
+            }
+        ]
+    },
+    "jobs": [
+        {
+            "id": "egisz.eventlog_poll",
+            "every": 15,
+            "description": "egisz.cron.eventlog"
+        }
+    ],
+    "menu": [
+        {
+            "group": "egisz.menu.group",
+            "num": 1,
+            "path": "/egisz/journal",
+            "title": "egisz.menu.journal",
+            "kind": "crud"
+        },
+        {
+            "group": "egisz.menu.group",
+            "num": 10,
+            "path": "/egisz/status",
+            "title": "egisz.menu.status",
+            "kind": "work"
+        },
+        {
+            "group": "egisz.menu.group",
+            "num": 90,
+            "path": "/egisz/settings",
+            "title": "egisz.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_egisz_outbox",
+        "base_egisz_client_ids",
+        "base_egisz_staff",
+        "base_egisz_icd10",
+        "base_egisz_worker_jobs"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "clients.edit.sections",
+            "clients.edit.save",
+            "clients.view.profile",
+            "core.user_edit.sections",
+            "core.user_edit.save",
+            "core.user_edit.profile",
+            "core.layout.gate"
+        ],
+        "publish": [
+            "egisz.semd.built"
+        ]
+    },
+    "bulkActions": [],
+    "setup": {
+        "steps": [
+            {
+                "id": "org_oid",
+                "title": "egisz.setup.step.org",
+                "description": "egisz.setup.step.org_help",
+                "href": "/egisz/settings",
+                "ask_user": "egisz.setup.ask.org",
+                "choices": [
+                    { "id": "open", "label": "egisz.setup.choice.open", "recommended": true },
+                    { "id": "defer", "label": "core.modules.setup.choice.defer", "recommended": false }
+                ],
+                "agent_can": ["mark_done"]
+            },
+            {
+                "id": "operator",
+                "title": "egisz.setup.step.operator",
+                "description": "egisz.setup.step.operator_help",
+                "href": "/egisz/settings",
+                "ask_user": "egisz.setup.ask.operator",
+                "choices": [
+                    { "id": "open", "label": "egisz.setup.choice.open", "recommended": true },
+                    { "id": "defer", "label": "core.modules.setup.choice.defer", "recommended": false }
+                ],
+                "agent_can": ["mark_done"]
+            }
+        ]
+    }
+}

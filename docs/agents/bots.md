@@ -115,11 +115,11 @@ Permission **`bots.message`** (not SUPERADMIN). Data already in FreeSaaS:
 ```bash
 curl -sS -b jar.txt 'https://example/bots/recipients?format=json&q=7900'
 curl -sS -b jar.txt -X POST 'https://example/bots/message?format=json' \
-  -d 'user_id=58&text=Привет&dry_run=1'
+  -d 'user_id=58&text=Hello&dry_run=1'
 curl -sS -b jar.txt -X POST 'https://example/bots/message?format=json' \
-  -d 'client_id=42&text=Ждём вас завтра в 12:00'
+  -d 'client_id=42&text=We expect you tomorrow at 12:00'
 curl -sS -b jar.txt -X POST 'https://example/bots/message?format=json' \
-  -d 'chat_id=-8024…&platform=max&text=Напоминание'
+  -d 'chat_id=-8024…&platform=max&text=Reminder'
 ```
 
 Delivery: cron `bots.sends_drain`. Unknown `chat_id` / unlinked client is refused. Without a client-bot token, client rows enqueue but drain fails.
@@ -195,6 +195,7 @@ Column `PLATFORM` on `base_telegram_sends` (migration `007_sends_platform`). Cro
 | `my_tasks`, `news`, `password_restore` | `core` |
 | `voice_transcribe` | `asr` (queue `var/voice_transcribe/`, worker `/asr/voice-transcribe/worker`; BC alias `/audio/voice-transcribe/*`) |
 | `fit_food_entry` (+ recipes) | `wellness` (`BotChatState`, EventBus `bots.voice.transcription_result`) |
+| `medcard_audio` | `medcard_audio` — fill visit medcard from voice (no cabin analytics); see [`medcard-audio.md`](medcard-audio.md) |
 | Procedure notify on create/update | `procedures` (`ProcedureBotNotify` → `bots.send`) |
 | Order Max-group notify | `orders` (`OrdersMaxNotify` → `bots.send` direct chat) |
 | `client_cabinet` | `clients` (`ClientBotPlugin`) |

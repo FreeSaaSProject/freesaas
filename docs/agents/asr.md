@@ -61,7 +61,7 @@ Processing jobs the edge host no longer holds go back to pending on the next syn
 | `handled` | Set `true` to skip the default chat reply |
 | `audio_taken` | Set `true` when the consumer moved `audio_path` away (e.g. import into audio analytics); otherwise the file is deleted after the event |
 
-Consumer pattern: bot plugin with `BotChatState` → `VoiceTranscribeBotPlugin::enqueueFromPath(..., ['consumer_module' => '<id>', …])` → listener checks `job.consumer_module` (see wellness `FitFoodBotPlugin`). Medical use (visit recording → medcard): propose fields via `docs.instance.propose`, never reply clinical text into the chat.
+Consumer pattern: bot plugin with `BotChatState` → `VoiceTranscribeBotPlugin::enqueueFromPath(..., ['consumer_module' => '<id>', …])` → listener checks `job.consumer_module` (see wellness `FitFoodBotPlugin`, medcard `MedcardAudioBotPlugin`). Medical use: cabin path proposes via `docs.instance.propose` / `audio_llm`; messenger-only path is [`medcard-audio.md`](medcard-audio.md) (never reply clinical text into the chat).
 
 Download failures are answered in the chat (`too_large` — messenger bot file limit ~20 MB, `download_failed`).
 

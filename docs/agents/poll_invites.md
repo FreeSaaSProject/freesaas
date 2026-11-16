@@ -27,7 +27,7 @@ Permissions: `poll_invites.view`, `poll_invites.edit`, `poll_invites.delete`.
 
 ## Human UI
 
-- `/poll-invites` — day hub (default **today**; `day=all` = all days; ←→ keyboard via `.pager`). Filters: `progress=unviewed` (chip forces `day=all`), `unfilled`, `id_resp`, poll, search. Rows: transcript snippet, procedure, score. Badge **новое** + «Просмотрено» → `RESP_USERS_VIEWED`.
+- `/poll-invites` — day hub (default **today**; `day=all` = all days; ←→ keyboard via `.pager`). Filters: `progress=unviewed` (chip forces `day=all`), `unfilled`, `id_resp`, poll, search. Rows: transcript snippet, procedure, score. Badge **new** + "Viewed" → `RESP_USERS_VIEWED`.
 - Superadmin + `poll_speech` enabled + concrete day: **Fill from speech** / **Recreate day from speech** → `POST /poll-speech/fill-day` (returns to this list via `ret`).
 - Bulk ops need `poll_invites.delete` (superadmin bypasses `Auth::can`): plain delete, plus **Delete unfilled** (confirm + checks: never started/completed, empty answers/scores). Empty selection deletes unfilled **only inside the current list filters** (day / poll / progress / q / …); without a filter the action errors.
 - Legacy `/poll-invites/unviewed` redirects to the list filter (POST mark still works for old clients).

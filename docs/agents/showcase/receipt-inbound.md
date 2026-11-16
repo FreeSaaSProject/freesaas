@@ -1,18 +1,18 @@
-# Warehouse inbound («заприходуй»)
+# Warehouse inbound ("receive goods")
 
 **Claim:** Staff can dictate a goods receipt in chat; Max resolves stock, supplier, and product, then queues an act with lines and price.
 
 ## Ask
 
-> Макс заприходуй на склад Северный товар: Набор полотенец «Комфорт», 6 упаковок, общая сумма 6576. Поставщик МаркетПлюс.
+> @…_bot Max, receive into North warehouse: Comfort towel set, 6 packs, total 6576. Supplier MarketPlus.
 
 (Also tried without naming the stock — default staff stock applies when configured.)
 
 ## Done
 
-1. `stocks.list` / default stock → Северный  
-2. `suppliers.list` → МаркетПлюс  
-3. `catalog.browse` → Набор полотенец «Комфорт»  
+1. `stocks.list` / default stock → North  
+2. `suppliers.list` → MarketPlus  
+3. `catalog.browse` → Comfort towel set  
 4. One pending write: `stickers.receipts.create` with `lines` (`qty=6`, `price≈1096` so 6×price = 6576)  
 5. Manager confirms → receipt act on the warehouse  
 

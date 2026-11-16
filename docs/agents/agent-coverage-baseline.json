@@ -833,6 +833,8 @@
                 "docs.defs.list",
                 "docs.defs.sample",
                 "docs.defs.update",
+                "docs.fill_templates.get",
+                "docs.fill_templates.save",
                 "docs.get",
                 "docs.instance.confirm",
                 "docs.library",
@@ -852,6 +854,24 @@
                 "accept",
                 "upload"
             ]
+        },
+        "egisz": {
+            "ops": [
+                "egisz.case.preview",
+                "egisz.case.send",
+                "egisz.eventlog.poll",
+                "egisz.icd.search",
+                "egisz.journal",
+                "egisz.patient.sync",
+                "egisz.semd.preview",
+                "egisz.semd.preview.save",
+                "egisz.settings.get",
+                "egisz.settings.save",
+                "egisz.status",
+                "egisz.term.lookup"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
         },
         "finance": {
             "ops": [

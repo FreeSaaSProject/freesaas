@@ -23,7 +23,7 @@ Hooks: after `audio_reports.calendar.reparse.after` harvests the day when `with_
 
 ## Garbage filter
 
-Before N-gram extraction, lines go through `TranscriptGarbage` (`modules/audio/lib/`): dictionary trash, overlong lines, ASR token/phrase loops, **counting digit lists** (`8, 9, 10…`). Detected needles auto-fill `base_records_trashes`. N-gram slices that are pure repeats (`ну ну ну`) or **all-numeric** (`52 52 53`) are dropped.
+Before N-gram extraction, lines go through `TranscriptGarbage` (`modules/audio/lib/`): dictionary trash, overlong lines, ASR token/phrase loops, **counting digit lists** (`8, 9, 10…`). Detected needles auto-fill `base_records_trashes`. N-gram slices that are pure repeats (`nu nu nu` / filler repeats) or **all-numeric** (`52 52 53`) are dropped.
 
 Harvest speed: one DB transaction per admin; key catalog lemmatized once per request (filtered by position); warm `StemCache` helps most. Remaining cost is lemmatize of uncached transcript lines.
 
@@ -39,11 +39,11 @@ Dict select and auto key-match use the viewed staffer's `ID_STATUS` (+ `ID_AUDIO
 
 ## Similar / nested keys
 
-`RecordsKeysRepository::findOverlaps` (normalize: lower, ё→е, strip punctuation): exact, existing contains candidate, candidate contains existing. Used when creating a key from phrases («+») and from record selection (`/audio/api/dict`). UI shows overlaps and asks to confirm (`force=1`); on force, `ID_LOOKLIKE` is set to the first hit. Phrase create prefers surface `example` as key NAME (not lemmas).
+`RecordsKeysRepository::findOverlaps` (normalize: lower, yo→ye / e-umlaut→e, strip punctuation): exact, existing contains candidate, candidate contains existing. Used when creating a key from phrases («+») and from record selection (`/audio/api/dict`). UI shows overlaps and asks to confirm (`force=1`); on force, `ID_LOOKLIKE` is set to the first hit. Phrase create prefers surface `example` as key NAME (not lemmas).
 
 ## Phrase collapse / key inheritance
 
-Harvest folds longer surface examples into a shorter sense-root when the short normalized text is contained in the long one (e.g. «Как себя чувствуете?» ← «…? Все хорошо?»). Same matched key siblings fold into the shortest example. Key match: exact lemma bag, contiguous lemma subseq, or key name inside example. List/day also coalesce the current result set and persist `ID_KEY` when an existing key sits inside the phrase.
+Harvest folds longer surface examples into a shorter sense-root when the short normalized text is contained in the long one (e.g. "How are you feeling?" ← "…? All good?"). Same matched key siblings fold into the shortest example. Key match: exact lemma bag, contiguous lemma subseq, or key name inside example. List/day also coalesce the current result set and persist `ID_KEY` when an existing key sits inside the phrase.
 
 ## Status meanings
 
@@ -54,7 +54,7 @@ Harvest folds longer surface examples into a shorter sense-root when the short n
 | `junk` | Hidden; sample added to `base_records_trashes` (filters transcript lines) |
 | `skip` | Dimmed on day/list with **restore only** (no junk/create); harvest does not refresh day hits; restore → `new` |
 
-Personal chatter: prefer **skip** (reversible, does not pollute trash). Use a «личные разговоры» dictionary only if you want those phrases tracked as keys.
+Personal chatter: prefer **skip** (reversible, does not pollute trash). Use a "personal chatter" dictionary only if you want those phrases tracked as keys.
 
 ## Future: LLM auto-classify
 

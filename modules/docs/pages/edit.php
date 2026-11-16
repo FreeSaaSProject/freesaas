@@ -130,6 +130,27 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $n = DocsProposals::proposeTalkSegments($id);
                 $message = $n > 0 ? t('docs.msg.segments_proposed', ['n' => $n]) : t('docs.msg.segments_none');
                 break;
+            case 'fill_gaps':
+                if (!class_exists('DocsFillTemplates', false) || !DocsFillTemplates::tableReady()) {
+                    throw new RuntimeException(t('docs.fill.err.not_ready'));
+                }
+                $doctorId = (int)($row['payload']['doctor_id'] ?? 0);
+                if ($doctorId < 1 && (int)$row['id_event'] > 0 && class_exists('EventsRepository', false)) {
+                    $ev = EventsRepository::find((int)$row['id_event']);
+                    $doctorId = $ev ? (int)($ev['id_operator'] ?? 0) : 0;
+                }
+                if ($doctorId < 1) {
+                    $doctorId = (int)(Auth::userId() ?? 0);
+                }
+                $gap = DocsFillTemplates::applyGaps($id, $doctorId);
+                if ($gap['filled'] < 1) {
+                    $message = t('docs.fill.msg.none');
+                } elseif ($gap['via'] === 'propose') {
+                    $message = t('docs.fill.msg.proposed', ['n' => $gap['filled']]);
+                } else {
+                    $message = t('docs.fill.msg.filled', ['n' => $gap['filled']]);
+                }
+                break;
             case 'confirm':
                 if (!DocsInstancesRepository::confirmReady()) {
                     throw new RuntimeException(t('docs.confirm.err.not_ready'));

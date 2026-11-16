@@ -4,7 +4,7 @@ Product module `clients`: slim CRM (`base_clients`), statuses (`base_client_stat
 
 ## Contact channels
 
-`base_client_channels` (`ClientChannelsRepository`): `type` = `phone` | `telegram` | `max` | `whatsapp` | `email` | `vk` | `instagram` | `other`, `value`, `label` (work / personal …), `is_primary`; `value_norm` for matching (phones → `7XXXXXXXXXX`, Telegram → lowercase username without `@` / `t.me/`, email lowercase). UI: section «Способы связи» on the client form; card shows clickable links (`tel:`, `t.me`, `wa.me`, `mailto:`). JSON: `channels[]` on `clients.create` / `clients.update` (replaces the list only when sent), returned on `clients.get`. Messenger chat ids used by bots for delivery stay in `bots` `base_bot_links` — channels are contact info, not delivery bindings. CRM matches existing contacts by phone → channel → email (`CrmContactResolver`).
+`base_client_channels` (`ClientChannelsRepository`): `type` = `phone` | `telegram` | `max` | `whatsapp` | `email` | `vk` | `instagram` | `other`, `value`, `label` (work / personal …), `is_primary`; `value_norm` for matching (phones → `7XXXXXXXXXX`, Telegram → lowercase username without `@` / `t.me/`, email lowercase). UI: section "Contact methods" on the client form; card shows clickable links (`tel:`, `t.me`, `wa.me`, `mailto:`). JSON: `channels[]` on `clients.create` / `clients.update` (replaces the list only when sent), returned on `clients.get`. Messenger chat ids used by bots for delivery stay in `bots` `base_bot_links` — channels are contact info, not delivery bindings. CRM matches existing contacts by phone → channel → email (`CrmContactResolver`).
 
 ## Enable
 

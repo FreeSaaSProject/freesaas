@@ -1,6 +1,6 @@
 # Reconciliations board
 
-Product module `recons`: day board of ledger account reconciliations (сверки) across all accounts — what matched, what is still open, edit bank figures for today or the latest reconciliation day. Does **not** own tables; reads/writes `base_account_reconciliations` via ledger. Catalog maturity: `release`.
+Product module `recons`: day board of ledger account reconciliations across all accounts — what matched, what is still open, edit bank figures for today or the latest reconciliation day. Does **not** own tables; reads/writes `base_account_reconciliations` via ledger. Catalog maturity: `release`.
 
 ## Enable
 
@@ -27,7 +27,7 @@ Grant both to staff who should edit bank balances on the board.
 
 ## Human UI
 
-- `/recons/day?day=Y-m-d` — day board (menu **Сверки** under finance).
+- `/recons/day?day=Y-m-d` — day board (menu **Reconciliations** under finance).
 - `/recons` — redirect to `/recons/day`.
 
 | Path | Permission |

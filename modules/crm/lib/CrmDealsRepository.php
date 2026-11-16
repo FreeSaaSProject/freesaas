@@ -267,6 +267,39 @@ final class CrmDealsRepository
     }
 
     /**
+     * Prefer the pipeline that already has deals (so a new empty B2B board is not the default).
+     *
+     * @param list<int>|array<int,mixed> $pipelineIds
+     */
+    public static function defaultKanbanPipelineId(array $pipelineIds): int
+    {
+        $ids = [];
+        foreach ($pipelineIds as $pid) {
+            $pid = (int)$pid;
+            if ($pid > 0) {
+                $ids[$pid] = $pid;
+            }
+        }
+        $ids = array_values($ids);
+        if ($ids === []) {
+            return 0;
+        }
+        if (!self::tableReady()) {
+            return (int)$ids[0];
+        }
+        $in = implode(',', $ids);
+        $st = Database::pdo()->query(
+            "SELECT pipeline_id FROM base_crm_deals
+             WHERE pipeline_id IN ($in)
+             GROUP BY pipeline_id
+             ORDER BY COUNT(*) DESC, pipeline_id ASC
+             LIMIT 1"
+        );
+        $best = $st ? (int)$st->fetchColumn() : 0;
+        return $best > 0 ? $best : (int)$ids[0];
+    }
+
+    /**
      * Deals of one pipeline grouped by enabled stage, with count and amount per currency.
      *
      * @param array{q?:string,company_id?:int,responsible_user_id?:int,limit?:int} $opts

@@ -74,7 +74,7 @@ php bin/check-service-access-parity.php --format=json
 Grant never enables without `%`: uses explicit → existing → median of own other types → peer median → else `needs_percent`. Grant with `good_id` also clears that product’s `ban_procs`. Group bot: allowlist `rates.skill.*` (+ `core.users.list` to resolve staff).
 
 ```bash
-curl -sS -b jar.txt 'https://example/rates/skill?format=json&q=средиземноморский'
+curl -sS -b jar.txt 'https://example/rates/skill?format=json&q=mediterranean'
 curl -sS -b jar.txt 'https://example/rates/skill?format=json&operator_id=58&type_id=1'
 curl -sS -b jar.txt -X POST 'https://example/rates/skill?format=json' \
   -d 'action=grant&operator_id=58&good_id=12&dry_run=1'

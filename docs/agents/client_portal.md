@@ -27,7 +27,7 @@ Soft sections appear when those modules are enabled **and** visible under `/clie
 
 Storefront chrome: theme views `cabinet` / `cabinet_login` / `cabinet_forgot` / `cabinet_reset` (shipped in `themes/default`, private `likespa` / `balance`; fallback `modules/sites/views/`).
 
-**Nav:** one dynamic link via `sites.nav` + `sites.footer_pages` — «Sign in» → «Cabinet». CMS duplicates (`/lk/`, «Кабинет», «Вход») are stripped.
+**Nav:** one dynamic link via `sites.nav` + `sites.footer_pages` — «Sign in» → «Cabinet». CMS duplicates (`/lk/`, "Cabinet", "Sign in") are stripped.
 
 ## Password reset
 

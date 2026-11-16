@@ -32,7 +32,7 @@ Permissions: `laundry.view`, `laundry.ship`, `laundry.accounts`, `laundry.edit`,
 
 | Table | Role |
 |-------|------|
-| `base_laundry_accounts` | Location accounts (seed: ТЕРМЫ, ИП Терем стирка) |
+| `base_laundry_accounts` | Location accounts (seed: TERMY, IP Terem laundry) |
 | `base_laundry_item_types` | sheets / tees / shorts / curtains |
 | `base_laundry_moves` | Signed ledger (+ transfers linked) |
 | `base_laundry_shipments` / `_lines` | Outbound lots with open qty |
@@ -64,7 +64,7 @@ Permissions: `laundry.view`, `laundry.ship`, `laundry.accounts`, `laundry.edit`,
 | `/laundry/types` | `laundry.edit` |
 | `/laundry/settings` | `laundry.edit` — linked ticket + default accounts |
 
-Ticket `/news/{ticket_news_id}` shows the laundry panel via `core.news_item.section` (ship/accept POST via `core.news_item.handle_post`). With `auto_comment=1` and `comments` enabled, each ship/accept posts a short comment (e.g. «Сдал(а) Простыни 128 шт. + Майки 2 шт., 12.5 кг — текст из поля описания»); zeros are omitted. Comments are chat only — not stock.
+Ticket `/news/{ticket_news_id}` shows the laundry panel via `core.news_item.section` (ship/accept POST via `core.news_item.handle_post`). With `auto_comment=1` and `comments` enabled, each ship/accept posts a short comment (e.g. "Handed in Sheets 128 pcs + Shirts 2 pcs, 12.5 kg — text from description field"); zeros are omitted. Comments are chat only — not stock.
 
 ## Agent JSON
 

@@ -109,6 +109,30 @@ foreach (DocsSchema::TYPES as $t) {
     </details>
   </fieldset>
 
+  <?php
+  $showClinicFill = !empty($showClinicFill) && empty($isNew) && DocsFillTemplates::tableReady();
+  $clinicFillFields = is_array($clinicFillFields ?? null) ? $clinicFillFields : [];
+  $clinicFillEnabled = $clinicFillEnabled ?? true;
+  $fillSchema = is_array($fillSchema ?? null) ? $fillSchema : DocsSchema::parse((string)$form['schema_json']);
+  if ($showClinicFill && DocsFillTemplates::isVisitKind((string)$form['kind'])):
+      ?>
+  <fieldset>
+    <legend><?= te('docs.fill.sec_clinic') ?></legend>
+    <p class="form-hint"><?= te('docs.fill.hint_clinic') ?></p>
+    <?php
+    $schema = $fillSchema;
+    $fillFields = $clinicFillFields;
+    $inputPrefix = 'fill';
+    require __DIR__ . '/_fill_template_fields.php';
+    ?>
+    <input type="hidden" name="fill_save" value="1">
+    <label class="check">
+      <input type="checkbox" name="fill_enabled" value="1"<?= !empty($clinicFillEnabled) ? ' checked' : '' ?>>
+      <?= te('docs.fill.enabled') ?>
+    </label>
+  </fieldset>
+  <?php endif; ?>
+
   <fieldset>
     <legend><?= te('docs.def.sec_template') ?></legend>
     <p class="form-hint"><?= te('docs.def.template_hint') ?></p>

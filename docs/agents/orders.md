@@ -49,7 +49,7 @@ When `max_notify_enabled=1` and `max_notify_chat_id` set (`cfg/modules/orders.in
 2. Enqueue via `BotSend` (`chat_id` + `platform=max`) into `base_telegram_sends`
 3. Best-effort `BotDrain::run` + cron `bots.sends_drain`
 
-Needs `bots` enabled and `staff_max_token` (bot must be in the Max group). Message body includes raw `Источник: api_termy` (etc.). Optional single title overrides: `max_notify_title` / `max_notify_title_cancel`.
+Needs `bots` enabled and `staff_max_token` (bot must be in the Max group). Message body includes raw source line (legacy DESCR-style `Istochnik: api_termy`, etc.). Optional single title overrides: `max_notify_title` / `max_notify_title_cancel`.
 
 Same path covers storefront checkout (`source=site`) and `/api_termy.php` book (`source=api_termy`) — no extra wiring. Procedure-mode `/api.php` → `TerminalBooking` does not insert `base_orders`, so order Max notify does not fire there.
 

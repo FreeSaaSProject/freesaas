@@ -64,10 +64,10 @@ curl -sS -X POST "${H[@]}" -H "Content-Type: application/json" \
   -d '{"script_id":32,"confirm":1,"part":{"id":123,"timeout":180}}'
 
 # Example: create a key (overlap check first)
-curl -sS "${H[@]}" --get "$BASE/agent/audio_dicts/keys/check-overlap" --data-urlencode "name=ноги приподнимем"
+curl -sS "${H[@]}" --get "$BASE/agent/audio_dicts/keys/check-overlap" --data-urlencode "name=lets raise the legs"
 curl -sS -X POST "${H[@]}" -H "Content-Type: application/json" \
   "$BASE/agent/audio_dicts/key" \
-  -d '{"confirm":1,"name":"ноги приподнимем","dict":46}'
+  -d '{"confirm":1,"name":"lets raise the legs","dict":46}'
 # Hard nesting → 409 overlap_force_required; retry with "force":1
 ```
 
@@ -80,7 +80,7 @@ After definition changes, **reparse the day** (below). Stem/collect do not auto-
 | GET | `/agent/audio_pipeline/day-diag` | Aggregates; `?script=` fingerprint probe |
 | GET | `/agent/audio_pipeline/day-records` | List records; `transcription=1` truncates to 2k chars |
 | GET | `/agent/audio_pipeline/record?id=` | Full transcription + instances |
-| GET | `/agent/audio_pipeline/instances` | **Вхождения** for admin+date; `record=`, `key=`; includes `by_key` histogram |
+| GET | `/agent/audio_pipeline/instances` | **Instances** for admin+date; `record=`, `key=`; includes `by_key` histogram |
 | GET | `/agent/audio_pipeline/collections` | Collections for admin+date; `script=` filter; `datas_count`; `id_script_version` pin |
 | GET | `/agent/audio_pipeline/collection?id=` | One collection + `collections_datas` hits (part/key names); `id_script_version` |
 | POST | `/agent/audio_pipeline/day-reparse` | Reset+stem+collect for **one admin+day**; scripts **as-of day end**; `{admin,date,confirm:1}` optional `reset=0`, `time_budget_sec` (30–300, default 180) |
@@ -89,7 +89,7 @@ After definition changes, **reparse the day** (below). Stem/collect do not auto-
 # Who hit which keys that day?
 curl -sS "${H[@]}" "$BASE/agent/audio_pipeline/instances?admin=58&date=2026-10-16&limit=50"
 
-# Collections for М: Приём
+# Collections for M: Reception
 curl -sS "${H[@]}" "$BASE/agent/audio_pipeline/collections?admin=58&date=2026-10-16&script=32"
 
 # Zoom one collection → part hits
@@ -119,9 +119,9 @@ When `match_procedures=1` (coverage settings), day-report attaches paid procedur
 - **Pass 2:** leftover episodes stay unbound (`orphan_session_ids`); orphan procedures keep `near_session_id` + `near_gap_sec`.
 - JSON: `procedures.slots[].binds[]` (`session_id` / `overlap_sec` / `match_kind`), plus primary `session_id` / `session_ids`.
 - **Day-gate metrics (do not confuse with badge wear):**
-  - **`proc_ratio`** — `rated_sessions / paid_procedures` (volume count). Mislabeling it «Покрытие» confuses staff.
+  - **`proc_ratio`** — `rated_sessions / paid_procedures` (volume count). Mislabeling it "Coverage" confuses staff.
   - **`proc_overlap`** (preferred for reception scripts) — `% of paid procedures whose window hard-overlaps (≥ min_hard) any rated episode of that script`. One long episode may cover many CRM slots. UI shows `N/M (pct%)`.
-  - **Episode header «Покрытие эпизодами»** — accounted audio seconds vs rated collections (`work_sec` / (`work_sec`+`idle_sec`)), not a quality gate.
+  - **Episode header "Episode coverage"** — accounted audio seconds vs rated collections (`work_sec` / (`work_sec`+`idle_sec`)), not a quality gate.
 - Exclusive bind (`matched_slots`) still uses `usedSessions` (1 session → 1 primary procedure); orphan rows can sit inside a long episode with `near_gap_sec=0` while `proc_overlap` still counts them covered.
 
 **Collect idle TIMEOUT:** only flushes open bags that already passed the save gate. Mid-only bags (`save=0`) are not discarded on TIMEOUT (otherwise CRM-overlapping speech disappears until alt starts). Prefer non-zero `TIMEOUT` on mid parts after save; BREAK after farewell for guest boundaries.
@@ -134,12 +134,12 @@ Orphans with `near_gap_sec=0` usually share a window with an episode already tak
 
 | Window | Why no / bad episode |
 |--------|----------------------|
-| 15:35–16:05 Спина | Records exist but ASR is mostly subtitle garbage (`Редактор субтитров` / empty). Almost no key instances → no START_GATE hit → no collection. |
+| 15:35–16:05 Back | Records exist but ASR is mostly subtitle garbage (`Subtitle editor` ASR garbage / empty). Almost no key instances → no START_GATE hit → no collection. |
 | 20:31–20:32 | Micro-episode: greeting+comfort+farewell keys compressed into ~102s (ASR/rapid talk), then collect closes. |
-| 20:35–20:55 Ноги | Real work + farewell in transcripts, but after the micro-episode no new Alt-start (dict 4/40/41) until ~21:15; comfort/ping alone do not reopen. |
-| 13:40 Шейно | Swallowed inside long episode 12:41–13:52 (no BREAK between guests). |
+| 20:35–20:55 Legs | Real work + farewell in transcripts, but after the micro-episode no new Alt-start (dict 4/40/41) until ~21:15; comfort/ping alone do not reopen. |
+| 13:40 Neck | Swallowed inside long episode 12:41–13:52 (no BREAK between guests). |
 
-Follow-ups for script/ASR (not matcher): coach missed-starts on 15:35/20:35; keys for ASR variants (`Робокс-мастер`); whether BREAK should fire after FINISH/прощание before the next guest.
+Follow-ups for script/ASR (not matcher): coach missed-starts on 15:35/20:35; keys for ASR variants (`Robox-master` ASR variants); whether BREAK should fire after FINISH/farewell before the next guest.
 
 ## Suggested debug loop
 

@@ -272,7 +272,7 @@ See [Module Authoring Test](#module-authoring-test).
 | Residue | Class |
 |---------|-------|
 | Session `freesaas`, legacy password hash, `base_*` rule, EventBus, ModuleManager | Generic OK |
-| News/tickets TYPE=2, curator/ОЛ flows, RU ticket diffs | Extract toward tickets/contracts over time |
+| News/tickets TYPE=2, curator/owner flows, RU ticket diffs | Extract toward tickets/contracts over time |
 | Status flags ZGV/STA/MARKET/ASSIST/PARTNER | Owning product modules via `registerFieldGroup` |
 | Menu homes → `/catalog`, `/payments`, `/ledger/moves` | Product modules; resilient fallbacks |
 | Messenger chat ids / bot gates in core user edit | Product `bots` module (`base_bot_links`, not columns on `base_users`) |

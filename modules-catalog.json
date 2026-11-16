@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-16T09:58:32+00:00",
+    "generated_at": "2026-11-16T15:30:58+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -1146,7 +1146,7 @@
         },
         {
             "id": "crm",
-            "version": "0.5.0",
+            "version": "0.5.1",
             "type": "product",
             "name": {
                 "en": "Sales CRM",
@@ -1238,7 +1238,7 @@
         },
         {
             "id": "docs",
-            "version": "0.2.6",
+            "version": "0.2.8",
             "type": "product",
             "name": {
                 "en": "Documents & medical cards",
@@ -1249,8 +1249,8 @@
                 "ru": "Конструктор документов: согласия, чеки и медицинские карты на одном движке — шаблоны с версиями, заполнение по схеме, печать с фиксацией и QR-архив."
             },
             "summary": {
-                "en": "Enable to print consents and keep medical cards. Needs clients; soft: calendar (visits), procedures (medical types), audio/audio_llm (autofill), stickers (QR library). Alpha.",
-                "ru": "Включать для печати согласий и ведения медкарт. Нужен clients; мягко: calendar (визиты), procedures (мед. процедуры), audio/audio_llm (автозаполнение), stickers (QR-библиотека). Альфа."
+                "en": "Enable to print consents and keep medical cards. Needs clients; soft: calendar (visits), procedures (medical types), audio/audio_llm or medcard_audio (autofill), stickers (QR library). Beta.",
+                "ru": "Включать для печати согласий и ведения медкарт. Нужен clients; мягко: calendar (визиты), procedures (мед. процедуры), audio/audio_llm или medcard_audio (автозаполнение), stickers (QR-библиотека). Бета."
             },
             "requires": {
                 "core": ">=1.0.0",
@@ -1273,6 +1273,46 @@
             },
             "agent": {
                 "docs": "docs/agents/docs.md"
+            }
+        },
+        {
+            "id": "egisz",
+            "version": "0.3.0",
+            "type": "product",
+            "name": {
+                "en": "EGISZ / REMD",
+                "ru": "ЕГИСЗ / РЭМД"
+            },
+            "description": {
+                "en": "SEMD from medcards, identity (SNILS/OID/ICD), outbox journal and N3 IEMK adapter (demo SOAP). UKEP is a later slice.",
+                "ru": "СЭМД из медкарт, identity (СНИЛС/OID/МКБ), журнал исходящих и адаптер N3.ИЭМК (demo SOAP). УКЭП — отдельный срез."
+            },
+            "summary": {
+                "en": "Alpha. Test on demomed.freesaas.ru + OpenVPN to N3 b2b-demo. Requires docs + clients. Without real UKEP, Case goes unsigned (REMD reject expected).",
+                "ru": "Alpha. Тесты на demomed.freesaas.ru + OpenVPN к b2b-demo N3. Требует docs + clients. Без реальной УКЭП Case уйдёт unsigned (ожидаемый reject РЭМД)."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "docs": ">=0.2.0",
+                "clients": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "calendar": ">=1.0.0",
+                "procedures": ">=1.0.0"
+            },
+            "catalog": {
+                "categories": [
+                    "integrations",
+                    "wellness"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "integration",
+                    "journal"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/egisz.md"
             }
         },
         {
@@ -1574,7 +1614,7 @@
         },
         {
             "id": "medcard_audio",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Medcard from audio",
@@ -1608,6 +1648,9 @@
                     "llm",
                     "settings"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/medcard-audio.md"
             }
         },
         {

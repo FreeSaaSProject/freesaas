@@ -2,7 +2,7 @@
 
 Product module `assistant`: conversational agent that calls product `agent.ops` automatically. Channels: UI `/assistant`, floating single-letter FAB on admin pages, and staff Telegram/Max-messenger bot («Ask {name}»). Not platform `/agent/*`.
 
-**Persona name:** configurable under **System settings** (`/settings`, field «Assistant name»). Default **Макс**. Stored in `cfg/modules/assistant.ini` (`[assistant] name=`). The system prompt, chat UI, rail chat item, FAB letter, and bot cabinet button use this name.
+**Persona name:** configurable under **System settings** (`/settings`, field «Assistant name»). Default **Max**. Stored in `cfg/modules/assistant.ini` (`[assistant] name=`). The system prompt, chat UI, rail chat item, FAB letter, and bot cabinet button use this name.
 
 **Floating FAB:** one letter (first of the persona name) bottom-right on admin pages (not on `/assistant/*`). Opens a drawer that shares `AssistantDialog` history with the full chat and bot. Each FAB message sends `mode=page` + `page_context` JSON; the harness shrinks tools to the current module + `core.help.*` and appends the screen JSON to the system prompt. When the catalog is truncated, virtual meta-tools `assistant.tools.modules` → `list` → `unlock` let the model browse the full permitted catalog and unlock other modules mid-turn (still `Auth::can` — not a permission bypass).
 
@@ -47,7 +47,7 @@ Opt out of the assistant tool list with `"assistant": false` on an op (used for 
 
 Outgoing assistant text runs through `AssistantLinks::absolutize`: relative `/paths` become absolute admin URLs, and bare module roots with a single menu/route screen (e.g. `/finance` → `/finance/balance`) are rewritten so messengers and the chat UI do not get 404s.
 
-Link discipline: the system prompt is **tool-scoped** — no hardcoded product modules. Module hints (ФОТ, finance, BI `open_url`, wellness food chain) are appended only when the matching tool is in **this** user's catalog. If the final reply still invents denied admin URLs, the harness sends one **link_repair** turn (lists bad hrefs + allowed tool paths/`open_url`) and asks the model to rewrite. Then `AssistantLinks::filterUnauthorized` strips any leftovers so hallucinated links never reach the user.
+Link discipline: the system prompt is **tool-scoped** — no hardcoded product modules. Module hints (payroll fund / FOT, finance, BI `open_url`, wellness food chain) are appended only when the matching tool is in **this** user's catalog. If the final reply still invents denied admin URLs, the harness sends one **link_repair** turn (lists bad hrefs + allowed tool paths/`open_url`) and asks the model to rewrite. Then `AssistantLinks::filterUnauthorized` strips any leftovers so hallucinated links never reach the user.
 
 ## Eval (regression suite)
 
@@ -72,7 +72,7 @@ With `bots` enabled, plugin `assistant` handles free-text on the staff webhook. 
 
 **Max groups:** optional module [`assistant_groups`](assistant-groups.md) — mention → draft with `CONFIRM_MODE=capability` → manager confirm (button or text). Private DM flow unchanged (`CONFIRM_MODE=self`).
 
-## How-to («как сделать»)
+## How-to ("how do I…")
 
 Staff how-to answers use **`core.help.search`** / **`core.help.get`**, which read `module.json` → `agent.docs` → `docs/agents/*.md` (permission-filtered). Keep the **Human UI** section in that runbook updated — do not duplicate guides in i18n. Same tools appear on MCP `/llm/mcp`.
 

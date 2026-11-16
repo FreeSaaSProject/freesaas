@@ -29,7 +29,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP). Alters `base
 ## Human UI
 
 - `/payments` — staff settlements.
-- `/payments/transfer/new` — staff-to-staff transfer (oper «перемещение»): debit `ACCOUNT=0` + `ID_USER_TO`, credit `Парное движение от перемещения - #{descr}#`. Requires `payments.edit` and `CAN_SEE_SUM_OTHERS`. Delete either leg removes both.
+- `/payments/transfer/new` — staff-to-staff transfer (oper transfer / "peremeshchenie"): debit `ACCOUNT=0` + `ID_USER_TO`, credit paired-move DESCR template (legacy twin-leg marker around `#{descr}#` — see payments transfer). Requires `payments.edit` and `CAN_SEE_SUM_OTHERS`. Delete either leg removes both.
 - `/payments/settings` — payroll settings (superadmin): auto commission accrual, daily payroll (`day_pay_*` in `payments.ini`), soft contracts `deadline_penalty`.
 - Role edit: flag **Daily payroll** (`PAY_DAILY`) on `base_admin_statuses`.
 - Contract pay CTA when contracts enabled; auto-DPS when ledger on.
@@ -44,12 +44,12 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP). Alters `base
 
 For staff whose role has `PAY_DAILY=1`:
 
-1. Opening `/payments` (one staff) or the staff bot runs `DayPayroll::syncOperator` — upserts day lines `Начисление ЗП ФЛ {j.m.Y}` from procents day totals (floor + `day_pay_min_pay`). Window: **current month**, plus **previous month only if that month has no monthly `% …`** (so the 31st is still closed on the 1st for pure PAY_DAILY). Older months never auto-backfill — bulk «Recalculate day accruals» for selected rows.
-2. Monthly `% МЕСЯЦ YYYY` sync is **skipped** for these staff.
+1. Opening `/payments` (one staff) or the staff bot runs `DayPayroll::syncOperator` — upserts day lines with the legacy day-payroll DESCR prefix (see payments module / DayPayroll) plus `{j.m.Y}` from procents day totals (floor + `day_pay_min_pay`). Window: **current month**, plus **previous month only if that month has no monthly `% …`** (so the 31st is still closed on the 1st for pure PAY_DAILY). Older months never auto-backfill — bulk «Recalculate day accruals» for selected rows.
+2. Monthly `% {MONTH} YYYY` sync is **skipped** for these staff.
 3. Cash request on `/payments` (and optionally bot `shift_salary`): pick issuer shift day (≥ today+2) + issuer; PIN shown in UI; confirm on the same page (issuer role) or bot `day_payroll_issuer`.
 4. Settings: `day_pay_min_pay`, `day_pay_payout_account_id`, `day_pay_issuer_status2`.
 
-Machine DESCR prefixes keep legacy history markers (`Начисление ЗП ФЛ`, `Выдача ФЛ на`).
+Machine DESCR prefixes keep legacy history markers for day payroll and FL payout (see payments module / DayPayroll — do not invent new Russian prefixes).
 
 One-shot cleanup if day lines were backfilled alongside monthly `%`:
 
@@ -71,6 +71,6 @@ curl -sS -b jar.txt 'https://example/payments/settings?format=json'
 ## Notes
 
 - Links to ledger moves via `/payments/move-links/{moveId}`.
-- Soft from `procents`: when `auto_procent_accrual=1` and one monthly staff is selected, upserts `% {MONTH_RU} {YYYY}` (ФОТ). Toggle on `/payments/settings`.
+- Soft from `procents`: when `auto_procent_accrual=1` and one monthly staff is selected, upserts `% {MONTH_RU} {YYYY}` (payroll fund / FOT). Toggle on `/payments/settings`.
 - Soft from `contracts`: `deadline_penalty` edited here (writes `cfg/modules/contracts.ini`). Legacy `/contracts/settings` redirects here.
 - Staff transfers stay on `ACCOUNT=0` (no DPS). Monthly «Internal» subtotal still counts all `ACCOUNT=0` write-offs, not only transfers.

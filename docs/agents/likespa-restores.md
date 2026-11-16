@@ -17,7 +17,7 @@ Product module `likespa`: restores, FREE_TICKET, flyer/promo, term scans, calend
 
 ## Procedure restores
 
-Port of oper `show_procedure_restores` / `edit_procedure_restore`. Schema `base_procedure_restores` stays owned by `procedures`. UI + автовзаиморасчёт live in likespa.
+Port of oper `show_procedure_restores` / `edit_procedure_restore`. Schema `base_procedure_restores` stays owned by `procedures`. UI + auto mutual settlement live in likespa.
 
 ### Enable
 

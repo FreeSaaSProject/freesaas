@@ -8,7 +8,7 @@ Add a new product module under `modules/<id>/` that passes acceptance.
 
 ## Steps
 
-1. **Pick id** — lowercase snake, ASCII (`equipment`, not `оборуд`).
+1. **Pick id** — lowercase snake, ASCII (`equipment`, not a non-ASCII stub like `oborud`).
 2. **Scaffold (preferred)**
 
 ```bash

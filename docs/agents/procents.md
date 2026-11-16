@@ -48,7 +48,7 @@ curl -sS -b jar.txt 'https://example/procents/day?operator_id=150&day=2026-03-15
 ## Notes
 
 - Requires `rates` + `procedures` + `workweeks`.
-- Soft audio (when `base_records` exists): accrues accounted OffRecord hours × `AUDIO_HOUR_RATE` and `SUM(collections.SCORE)` × `SCRIPT_SCORE_RATE`. Day calendar chips: `А` / `С`.
-- Shift fix: `LOSS_FIX` × shift units from `base_workweeks` (composite I+II / covering window = 2 via workweeks; not hardcoded slot 3). Day chip `Ф`.
-- Soft `payments`: when `payments.auto_procent_accrual=1`, opening `/procents` or `/payments` for one staff upserts current-month total into `base_payments` as `% {MONTH_RU} {YYYY}` (ФОТ). Past months not rewritten. Toggle on `/payments/settings`. Director must pick staff first.
+- Soft audio (when `base_records` exists): accrues accounted OffRecord hours × `AUDIO_HOUR_RATE` and `SUM(collections.SCORE)` × `SCRIPT_SCORE_RATE`. Day calendar chips: `A` / `C`.
+- Shift fix: `LOSS_FIX` × shift units from `base_workweeks` (composite I+II / covering window = 2 via workweeks; not hardcoded slot 3). Day chip `F`.
+- Soft `payments`: when `payments.auto_procent_accrual=1`, opening `/procents` or `/payments` for one staff upserts current-month total into `base_payments` as `% {MONTH_RU} {YYYY}` (payroll fund / FOT). Past months not rewritten. Toggle on `/payments/settings`. Director must pick staff first.
 - Day audit lines use the same filters as the monthly report (no `ENABLED=1` on procedures); procedure/terminal rows are per journal line; shifts/sales/audio/scripts stay as day aggregates.

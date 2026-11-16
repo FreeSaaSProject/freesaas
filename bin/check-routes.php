@@ -238,6 +238,11 @@ $allowed = [
     '/video/worker/frame' => ['methods' => ['GET', 'POST'], 'why' => 'video worker live frame push'],
     '/video/worker/dataset-ingest' => ['methods' => ['GET', 'POST'], 'why' => 'video worker dataset zip ingest'],
 
+    // EGISZ Mac worker (X-Egisz-Token) — N3 SOAP via OpenVPN, disableable
+    '/egisz/worker/hello' => ['methods' => ['GET', 'POST'], 'why' => 'egisz worker heartbeat'],
+    '/egisz/worker/claim' => ['methods' => ['GET', 'POST'], 'why' => 'egisz worker claim'],
+    '/egisz/worker/result' => ['methods' => ['GET', 'POST'], 'why' => 'egisz worker result'],
+
     // Integration workers / OAuth callbacks
     '/banks/jobs/sync' => ['methods' => ['POST', 'GET'], 'why' => 'banks sync worker'],
     '/terminals/jobs/load' => ['methods' => ['POST', 'GET'], 'why' => 'terminals load worker'],

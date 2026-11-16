@@ -1,6 +1,6 @@
 # Funds
 
-Product module `funds`: tree of internal funds (groups → funds) and fund movements (CAPUSE / REFUND / REVAL / DEVAL / DESTROY), linked to ledger account moves (ДПС). Hard-requires `ledger`. Soft-used by finance reports and liquid assets for FUND_MATRIX / REVAL. Catalog maturity: `release`.
+Product module `funds`: tree of internal funds (groups → funds) and fund movements (CAPUSE / REFUND / REVAL / DEVAL / DESTROY), linked to ledger account moves (DPS). Hard-requires `ledger`. Soft-used by finance reports and liquid assets for FUND_MATRIX / REVAL. Catalog maturity: `release`.
 
 ## Enable
 
@@ -17,7 +17,7 @@ Permissions: `funds.view` (lists, fund card), `funds.edit` (create/edit, accrual
 - **Group** = fund with children (usually `PID=0`). Movements are never posted to a group; the group card shows children and their total.
 - **Fund** (leaf) holds movements. A root fund without children is also a leaf.
 - **Movement** types: `1` CAPUSE (capital use, needs linked DPS covering the full amount), `2` REFUND (incl. amortization/USN accruals), `3` REVAL, `4` DEVAL, `5` DESTROY.
-- **Link to ДПС**: `base_account_moves.ID_FUND_MOVEMENT` (ledger column). Several DPS may point to one movement; the movement is «covered» when the DPS sum equals its amount. CAPUSE with a different sum is flagged `mismatch`.
+- **Link to DPS**: `base_account_moves.ID_FUND_MOVEMENT` (ledger column). Several DPS may point to one movement; the movement is «covered» when the DPS sum equals its amount. CAPUSE with a different sum is flagged `mismatch`.
 
 ## Which DPS can be linked
 

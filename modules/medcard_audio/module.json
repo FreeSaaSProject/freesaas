@@ -2,7 +2,7 @@
     "id": "medcard_audio",
     "name": "medcard_audio.module.name",
     "description": "medcard_audio.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -31,6 +31,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/medcard-audio.md",
         "ops": [
             {
                 "id": "medcard_audio.settings",

@@ -4,15 +4,15 @@ Alpha product module: shared **slot engine** and **order-mode** book into `base_
 
 ## Entities — do not mix
 
-Three different things look like “запись” in the UI. Keep them separate:
+Three different things look like a "booking/appointment" in the UI. Keep them separate:
 
 | Entity | Table | Module / UI | Role |
 |--------|--------|-------------|------|
 | **Calendar event** | `base_events` (+ `base_event_items` in visits mode) | `calendar` → `/calendar/events/new` | Timeline block or visit. `event_mode=blocks|visits` + `EVT_CREATE_NEW`. |
-| **Booking (order)** | `base_orders` | `booking` → `/booking/new` | Client advance order with specialist + slot (`ID_COSMETOLOG`, `DT_EVENT_NEW`, status in `OrdersRepository::NEW_STATUSES`). Rail: Calendar group → «Новая запись». Also buttons on day/week headers. |
+| **Booking (order)** | `base_orders` | `booking` → `/booking/new` | Client advance order with specialist + slot (`ID_COSMETOLOG`, `DT_EVENT_NEW`, status in `OrdersRepository::NEW_STATUSES`). Rail: Calendar group → "New booking". Also buttons on day/week headers. |
 | **Procedure** | `base_procedures` | `procedures` / floor `/t` / “create procedures” from an event | Delivered service (journal). Occupancy for slots; not created by `/booking/new` in v0.1. |
 
-**No duplication with slot click:** timeline empty-hour links stay `/calendar/events/new?date=&hour=&staff=&ret=` (events only). Booking never hijacks that path. Staff who need a client order use `/booking/new` (menu or «Новая запись» on day/week).
+**No duplication with slot click:** timeline empty-hour links stay `/calendar/events/new?date=&hour=&staff=&ret=` (events only). Booking never hijacks that path. Staff who need a client order use `/booking/new` (menu or "New booking" on day/week).
 
 Cross-links on the booking form point to event create when the operator meant a calendar appointment instead.
 
@@ -33,7 +33,7 @@ Grant staff `booking.view` / `booking.edit` (or use SUPERADMIN).
 | `/booking/new` | `booking.edit` | Wizard: date → products → slots → phone → `BookingBook::createOrder` → redirect to `/orders/{id}/edit` |
 | `/booking/settings` | SUPERADMIN | Staff `lead_sec` (default 180) |
 | Query | optional | `date`, `product_ids[]`, `operator_id` or `staff`, `hour` (prefer nearest slot), `ret` |
-| Day/week | same perm + module on | Secondary button «Новая запись» → `/booking/new?date=…` |
+| Day/week | same perm + module on | Secondary button "New booking" → `/booking/new?date=…` |
 | Rail | Calendar group | Menu item `booking.menu.new` |
 
 ## Domain (order mode)

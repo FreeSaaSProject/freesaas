@@ -84,6 +84,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $vid = DocsDefsRepository::saveVersionIfChanged($id, $verData);
         $def = DocsDefsRepository::find($id);
         $ver = DocsDefsRepository::version($vid);
+        // Clinic fill template (visit sheets only); agents may omit fill[] to leave it unchanged.
+        if ($def !== null && DocsFillTemplates::isVisitKind((string)$def['kind'])
+            && DocsFillTemplates::tableReady()
+            && (isset($post['fill_save']) || is_array($post['fill'] ?? null))
+        ) {
+            $fillRaw = is_array($post['fill'] ?? null) ? $post['fill'] : [];
+            $fillOn = !empty($post['fill_enabled']);
+            DocsFillTemplates::save($id, 0, $fillRaw, $fillOn);
+        }
         if ($wantsJson) {
             AgentHttp::emit(['ok' => true, 'id' => $id, 'def' => $def, 'version' => (int)($ver['version'] ?? 0)]);
             return;
@@ -104,11 +113,29 @@ if (isset($_GET['saved']) && $message === '') {
 }
 
 if ($wantsJson) {
-    AgentHttp::emit(['ok' => true, 'is_new' => $isNew, 'def' => $def, 'form' => $form]);
+    $emit = ['ok' => true, 'is_new' => $isNew, 'def' => $def, 'form' => $form];
+    if (!$isNew && $def !== null && DocsFillTemplates::isVisitKind((string)$def['kind']) && DocsFillTemplates::tableReady()) {
+        $schemaObj = DocsSchema::parse($form['schema_json']);
+        $clinic = DocsFillTemplates::find($id, 0);
+        $emit['fillable'] = DocsFillTemplates::fillableCatalog($schemaObj);
+        $emit['clinic_fill'] = [
+            'fields' => $clinic !== null ? $clinic['fields'] : [],
+            'enabled' => $clinic === null || $clinic['enabled'],
+        ];
+    }
+    AgentHttp::emit($emit);
     return;
 }
 
 $schemaForKeys = DocsSchema::parse($form['schema_json']);
+$clinicFill = null;
+$clinicFillFields = [];
+$clinicFillEnabled = true;
+if (!$isNew && $def !== null && DocsFillTemplates::isVisitKind((string)$def['kind']) && DocsFillTemplates::tableReady()) {
+    $clinicFill = DocsFillTemplates::find($id, 0);
+    $clinicFillFields = $clinicFill !== null ? $clinicFill['fields'] : [];
+    $clinicFillEnabled = $clinicFill === null || $clinicFill['enabled'];
+}
 View::render('def_edit', [
     'title' => $isNew ? t('docs.defs.new') : t('docs.def.title', ['name' => (string)$def['name']]),
     'isNew' => $isNew,
@@ -116,6 +143,10 @@ View::render('def_edit', [
     'form' => $form,
     'versions' => $isNew ? [] : DocsDefsRepository::versions($id),
     'placeholders' => DocsRender::placeholderKeys($schemaForKeys, (string)$form['kind']),
+    'showClinicFill' => !$isNew && DocsFillTemplates::isVisitKind((string)($def['kind'] ?? $form['kind'])) && DocsFillTemplates::tableReady(),
+    'clinicFillFields' => $clinicFillFields,
+    'clinicFillEnabled' => $clinicFillEnabled,
+    'fillSchema' => $schemaForKeys,
     'message' => $message,
     'error' => $error,
     'breadcrumbs' => Breadcrumbs::withHome([

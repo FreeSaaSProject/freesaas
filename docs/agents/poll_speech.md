@@ -35,10 +35,10 @@ Permissions: `poll_speech.view`, `poll_speech.edit` (settings: `SUPERADMIN_ACCES
 
 ## Flow
 
-1. Calendar chip «собран отзыв» (if `oral_btn_enabled=1`) → `POST /poll-invites/oral-asked` → invite with empty `CODE`.
+1. Calendar chip "review collected" (if `oral_btn_enabled=1`) → `POST /poll-invites/oral-asked` → invite with empty `CODE`.
 2. Re-® emits `audio_reports.day.analyzed`.
 3. `PollSpeechFiller` searches cabin audio around **invite `DT_CREATE` ± `window_sec`** (default 900 / ±15 min): procedure **executor** cabin first, then linked/floor admin. Picks the cabin record **closest** to the oral-ask moment; each record is claimed once so overlapping procedures with the same floor admin do not share one transcript.
-   **Score ratchet (per record):** among transcript extracts + dict keys, the **highest** score wins («10» + «хорошо»→8 + «три»→3 ⇒ **10**); softer keys never lower an explicit digit. A fill needs a non-empty ask→reply snippet in `DATA_TEXT`.
+   **Score ratchet (per record):** among transcript extracts + dict keys, the **highest** score wins ("10" + "good"→8 + "three"→3 ⇒ **10**); softer keys never lower an explicit digit. A fill needs a non-empty ask→reply snippet in `DATA_TEXT`.
    On save, denormalizes procedure staff + digits: `ID_PROC_OPERATOR` / `ID_PROC_ADMIN` from the procedure, `SCORE_STAFF` / `SCORE_SERVICE` (1–10) from answer maps, and refreshes `RESP_USERS` as `#executor#,#admin#`.
    **No spoken score / no dialogue → no fill** (empty oral polls may be dropped when cabin audio exists). Day rebuild: `POST /poll-speech/fill-day` with `day=YYYY-MM-DD` + `recreate=1` (superadmin) or `PollSpeechFiller::recreateAllFromSpeech(['date'=>$day])` (preserves original oral-ask `DT_CREATE`; scopes deletes/creates to that procedure day).
    Cleanup key-only junk (safe): `php bin/data-migrate.php --module=poll_speech --id=purge_without_snippet`.
@@ -46,7 +46,7 @@ Permissions: `poll_speech.view`, `poll_speech.edit` (settings: `SUPERADMIN_ACCES
    Period backfill without wiping: `PollSpeechFiller::fillRangeFromSpeech(['from'=>'YYYY-MM-DD','to'=>'YYYY-MM-DD'])` + `PollSpeechDictEnrich::enrichRange([...])`. One cabin `record` fills at most one invite (`dedupeSharedSpeechRecords()`).
 4. `admin_field=both` (default): mark may be clicked by a supervisor (`ID_OPERATOR_LINKED`) while ASR is on the floor `proc_admin`. List/BI use procedure executor/admin, not the linked marker.
 
-Instance default dictionary: **50** («Отзывы 10»). Oral 10-point poll via migrator `oral_poll_10`. Legacy oral marks on poll `#1` → `#55`: migrator `repoint_oral_poll1_to_55`. Dict mining: `PollSpeechDictEnrich` (transcripts near invite create ±15 min).
+Instance default dictionary: **50** ("Reviews 10"). Oral 10-point poll via migrator `oral_poll_10`. Legacy oral marks on poll `#1` → `#55`: migrator `repoint_oral_poll1_to_55`. Dict mining: `PollSpeechDictEnrich` (transcripts near invite create ±15 min).
 
 ## Human UI
 

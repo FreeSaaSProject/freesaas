@@ -118,7 +118,7 @@ Audio dictionary hits (invites / tracking): datasets `record_instances` (period 
 
 ### Excel download
 
-UI button «Скачать Excel» on `/bi/run` and share pages. Same access rules as a run (`bi.manage`, staff share, or guest share with rate limit):
+UI button "Download Excel" on `/bi/run` and share pages. Same access rules as a run (`bi.manage`, staff share, or guest share with rate limit):
 
 - `GET /bi/work?action=xlsx&family=…&year=…&month=…[&share=…]`
 - `GET /bi/s/{token}?action=xlsx&year=…&month=…`

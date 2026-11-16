@@ -195,7 +195,9 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `poll_invites` | Poll invite instances + staff fill (`base_poll_invites`); requires `polls`; publish `poll_invites.*` for bots/site |
 | `poll_speech` | Oral feedback channel: calendar «review asked» + fill invites from `audio_dicts` keys after Re-® (`audio_reports.day.analyzed`); requires `polls`+`poll_invites`; alpha — [`docs/agents/poll_speech.md`](docs/agents/poll_speech.md) |
 | `calendar` | Day view + event CRUD (`base_events*`); requires `workweeks`; can create procedures from event |
-| `docs` | Document engine + medical cards (`base_doc_*`): versioned schema/template definitions, filled instances, frozen print, optional QR archive, audio/LLM autofill proposals; URL prefix `/documents`; alpha — [`docs/agents/docs.md`](docs/agents/docs.md) |
+| `docs` | Document engine + medical cards (`base_doc_*`): versioned schema/template definitions, filled instances, frozen print, optional QR archive, fill templates (clinic/doctor), audio/LLM/bot autofill; URL prefix `/documents`; beta — [`docs/agents/docs.md`](docs/agents/docs.md) |
+| `medcard_audio` | Staff bot: voice → ASR → LLM → visit medcard (no cabin analytics); soft `bots`; alpha — [`docs/agents/medcard-audio.md`](docs/agents/medcard-audio.md) |
+| `egisz` | EGISZ/REMD prep: SEMD builders from medcards, SNILS/OID/ICD identity, outbox journal; IIS transport + UKEP later; alpha — [`docs/agents/egisz.md`](docs/agents/egisz.md) |
 | `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |
 | `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
 | `asr` | Voice queue + shared Whisper worker token (`/asr/voice-transcribe/*`); requires `core` only; soft `bots` |
@@ -210,14 +212,14 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `payments` | Staff settlements (`base_payments`); contracts pay CTA; auto-DPS when `ledger` on |
 | `bonuses` | Client loyalty ledger (`base_bonus_moves`) + event settle (allocate/apply); EventBus on calendar event edit |
 | `vacations` | Leave register (`base_vacations`) + sign workflow |
-| `ledger` | Accounts + move types + ДПС + transfers + reconciliations (`base_accounts*`) |
+| `ledger` | Accounts + move types + DPS (cash-flow moves) + transfers + reconciliations (`base_accounts*`) |
 | `backups` | Scheduled DB+files → FTP/FTPS (`base_backup_runs`); CDC hourly incr (`base_backup_changes`); encrypt optional; restore wizard; warm standby — [`docs/agents/backups.md`](docs/agents/backups.md) [`docs/agents/standby.md`](docs/agents/standby.md) |
 | `recons` | Day board of account reconciliations (`tables: []`, uses ledger `base_account_reconciliations`); `/recons/day` |
-| `remittances` | Agency/acquiring remittance agreements; parse ДПС purpose; badges on `/ledger/moves`; expected via EventBus (likespa `spa_ops`); beta |
+| `remittances` | Agency/acquiring remittance agreements; parse DPS purpose; badges on `/ledger/moves`; expected via EventBus (likespa `spa_ops`); beta |
 | `funds` | Fund tree + CAPUSE/REFUND movements (`base_funds*`); requires `ledger` |
 | `finance` | Balance/ODDS report (no inflation, no amort schedule); soft `funds` for FUND_MATRIX |
 | `liquid_assets` | Liquid assets report + T-Invest accounts/sync (broker snapshots); requires `ledger`; soft `funds` for REVAL; disableable |
-| `banks` | Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL) → link `base_accounts`, sync statements into ДПС; soft `llm` classify; disableable |
+| `banks` | Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL) → link `base_accounts`, sync statements into DPS; soft `llm` classify; disableable |
 | `video` | Posts (N cameras), schedule gate, YOLO via edge worker, interactive train (person→class + coverage); soft `bots`/`video_label`; alpha — [`docs/agents/video.md`](docs/agents/video.md); edge host [`docs/agents/workers.md`](docs/agents/workers.md) |
 | `video_label` | YOLO labeling projects + workspace; requires `video`; alpha — [`docs/agents/video-label.md`](docs/agents/video-label.md) |
 | `client_portal` | Storefront client cabinet `/cabinet` + section EventBus + visibility settings; alpha — [`docs/agents/client_portal.md`](docs/agents/client_portal.md) |

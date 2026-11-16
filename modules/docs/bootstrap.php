@@ -15,6 +15,7 @@ require_once __DIR__ . '/lib/DocsLegacy.php';
 require_once __DIR__ . '/lib/DocsMoney.php';
 require_once __DIR__ . '/lib/DocsSample.php';
 require_once __DIR__ . '/lib/DocsLibrary.php';
+require_once __DIR__ . '/lib/DocsFillTemplates.php';
 
 Assets::register('docs', [
     'css' => ['docs.css'],
@@ -36,6 +37,7 @@ $pages = [
     '/documents/defs/{id}/edit' => ['permission' => 'docs.manage', 'methods' => ['GET', 'POST'], 'file' => 'def_edit.php'],
     '/documents/clients/{id}/profile' => ['permission' => 'docs.medical', 'methods' => ['GET'], 'file' => 'client_profile.php'],
     '/documents/clients/{id}/medcard' => ['permission' => 'docs.medical', 'methods' => ['GET'], 'file' => 'client_dossier.php'],
+    '/documents/fill-templates' => ['permission' => 'docs.medical', 'methods' => ['GET', 'POST'], 'file' => 'fill_templates.php'],
     '/documents/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
 ];
 foreach ($pages as $path => $def) {
