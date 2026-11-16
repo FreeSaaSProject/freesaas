@@ -180,4 +180,9 @@ return [
     'poll_invites.setup.step.config_help' => 'Откройте /polls/settings (суперадмин). При включённом poll_speech oral-секция живёт там.',
     'poll_invites.setup.ask.config' => 'Открыть /polls/settings?',
     'poll_invites.setup.choice.open' => 'Открыть настройки',
+    'poll_invites.portal.section' => 'Опросы',
+    'poll_invites.portal.home_card' => 'Анкеты для прохождения',
+    'poll_invites.portal.empty' => 'Опросов нет.',
+    'poll_invites.portal.open' => 'Пройти опрос',
+    'poll_invites.portal.done' => 'пройден',
 ];

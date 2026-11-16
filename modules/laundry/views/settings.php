@@ -6,6 +6,7 @@ declare(strict_types=1);
 /** @var string $ticketTitle */
 /** @var int $termsId */
 /** @var int $laundryId */
+/** @var bool $autoComment */
 /** @var array<int,string> $accounts */
 ?>
 <section class="page-head">
@@ -39,6 +40,11 @@ declare(strict_types=1);
       </p>
     <?php endif; ?>
     <p class="muted"><?= te('laundry.settings.ticket_hint') ?></p>
+    <label class="checkbox">
+      <input type="checkbox" name="auto_comment" value="1"<?= !empty($autoComment) ? ' checked' : '' ?>>
+      <?= te('laundry.settings.auto_comment') ?>
+    </label>
+    <p class="muted"><?= te('laundry.settings.auto_comment_hint') ?></p>
   </fieldset>
   <fieldset>
     <legend><?= te('laundry.settings.accounts') ?></legend>

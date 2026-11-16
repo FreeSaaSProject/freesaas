@@ -2,7 +2,7 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -254,14 +254,18 @@
             "calendar.day.stats",
             "calendar.settings.sections",
             "calendar.settings.save",
-            "orders.client.arrived"
+            "orders.client.arrived",
+            "client_portal.sections",
+            "client_portal.home",
+            "client_portal.render"
         ],
         "publish": [
             "orders.created",
             "orders.cancelled",
             "orders.completed",
             "orders.client.arrived",
-            "orders.sources"
+            "orders.sources",
+            "orders.client_state"
         ]
     },
     "catalog": {

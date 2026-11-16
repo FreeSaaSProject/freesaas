@@ -155,4 +155,10 @@ return [
     'orders.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
     'orders.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
     'orders.setup.choice.open' => 'Open settings',
+    'orders.portal.section' => 'Orders',
+    'orders.portal.home_card' => 'Your bookings and shop orders',
+    'orders.portal.empty' => 'No orders.',
+    'orders.portal.when' => 'When',
+    'orders.portal.status' => 'Status',
+    'orders.portal.sum' => 'Sum',
 ];

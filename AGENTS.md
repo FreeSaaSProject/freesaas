@@ -221,6 +221,9 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `banks` | Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL) → link `base_accounts`, sync statements into ДПС; soft `llm` classify; disableable |
 | `video` | Posts (N cameras), schedule gate, YOLO via edge worker, interactive train (person→class + coverage); soft `bots`/`video_label`; alpha — [`docs/agents/video.md`](docs/agents/video.md); edge host [`docs/agents/workers.md`](docs/agents/workers.md) |
 | `video_label` | YOLO labeling projects + workspace; requires `video`; alpha — [`docs/agents/video-label.md`](docs/agents/video-label.md) |
+| `client_portal` | Storefront client cabinet `/cabinet` + section EventBus + visibility settings; alpha — [`docs/agents/client_portal.md`](docs/agents/client_portal.md) |
+| `acquiring` | Multi-provider online payments (`base_acquiring_*`); soft `orders`/`client_mcp`; alpha — [`docs/agents/acquiring.md`](docs/agents/acquiring.md) |
+| `courses` | LMS programs + client/staff enrollments + protected media; soft portal/acquiring; alpha — [`docs/agents/courses.md`](docs/agents/courses.md) |
 
 Prefer extending these via hooks before forking page logic.
 

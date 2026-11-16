@@ -17,4 +17,10 @@ final class LaundryConfig
     {
         return max(1, (int)Config::get('laundry', 'laundry_account_id', 2));
     }
+
+    /** Auto-comment on linked ticket after ship / accept (needs comments module). */
+    public static function autoComment(): bool
+    {
+        return (int)Config::get('laundry', 'auto_comment', 1) === 1;
+    }
 }

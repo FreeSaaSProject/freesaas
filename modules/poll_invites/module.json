@@ -2,7 +2,7 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -74,14 +74,22 @@
                             "type": "string",
                             "description": "YYYY-MM-DD procedure day; omit=today; all=no day filter"
                         },
-                        "q": { "type": "string" },
-                        "id_poll": { "type": "integer" },
+                        "q": {
+                            "type": "string"
+                        },
+                        "id_poll": {
+                            "type": "integer"
+                        },
                         "progress": {
                             "type": "string",
                             "description": "open|done|expired|unviewed|unfilled"
                         },
-                        "id_operator": { "type": "integer" },
-                        "id_resp": { "type": "integer" }
+                        "id_operator": {
+                            "type": "integer"
+                        },
+                        "id_resp": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -99,17 +107,23 @@
                             "type": "string",
                             "description": "mark_viewed"
                         },
-                        "id": { "type": "integer" },
+                        "id": {
+                            "type": "integer"
+                        },
                         "ids": {
                             "type": "array",
-                            "items": { "type": "integer" }
+                            "items": {
+                                "type": "integer"
+                            }
                         },
                         "mark_all": {
                             "type": "string",
                             "description": "1 = mark all unviewed for current user"
                         }
                     },
-                    "required": ["action"]
+                    "required": [
+                        "action"
+                    ]
                 }
             },
             {
@@ -130,11 +144,19 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "id_proc": { "type": "integer" },
-                        "id_poll": { "type": "integer" },
-                        "ret": { "type": "string" }
+                        "id_proc": {
+                            "type": "integer"
+                        },
+                        "id_poll": {
+                            "type": "integer"
+                        },
+                        "ret": {
+                            "type": "string"
+                        }
                     },
-                    "required": ["id_proc"]
+                    "required": [
+                        "id_proc"
+                    ]
                 }
             },
             {
@@ -146,10 +168,17 @@
                 "description": "Follow-up questionnaire: new invite for the same respondent with previous answers prefilled and a new public link (/q/{code}); the old invite stays as history. Emits poll_invites.refilled.",
                 "parameters": {
                     "type": "object",
-                    "required": ["id"],
+                    "required": [
+                        "id"
+                    ],
                     "properties": {
-                        "id": {"type": "integer"},
-                        "expire_days": {"type": "integer", "description": "Default 14"}
+                        "id": {
+                            "type": "integer"
+                        },
+                        "expire_days": {
+                            "type": "integer",
+                            "description": "Default 14"
+                        }
                     }
                 }
             },
@@ -171,9 +200,13 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "id": { "type": "integer" }
+                        "id": {
+                            "type": "integer"
+                        }
                     },
-                    "required": ["id"]
+                    "required": [
+                        "id"
+                    ]
                 }
             }
         ]
@@ -198,7 +231,10 @@
             "core.notices.collect",
             "bi.datasets",
             "polls.settings.sections",
-            "polls.settings.save"
+            "polls.settings.save",
+            "client_portal.sections",
+            "client_portal.home",
+            "client_portal.render"
         ],
         "publish": [
             "poll_invites.created",

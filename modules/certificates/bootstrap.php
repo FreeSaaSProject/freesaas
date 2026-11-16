@@ -270,3 +270,58 @@ EventBus::on('sites.checkout.after', static function ($payload) {
     }
     return $payload;
 });
+
+
+EventBus::on('client_portal.sections', static function (array $payload): array {
+    $sections = is_array($payload['sections'] ?? null) ? $payload['sections'] : [];
+    $sections[] = [
+        'id' => 'certificates',
+        'module' => 'certificates',
+        'title' => t('certificates.portal.section'),
+        'weight' => 25,
+        'nav' => true,
+        'home_card' => true,
+    ];
+    $payload['sections'] = $sections;
+    return $payload;
+});
+
+EventBus::on('client_portal.home', static function (array $payload): array {
+    $cards = is_array($payload['cards'] ?? null) ? $payload['cards'] : [];
+    foreach ($cards as $i => $card) {
+        if (!is_array($card) || (string)($card['id'] ?? '') !== 'certificates') {
+            continue;
+        }
+        $cards[$i]['html'] = '<p class="muted">' . e(t('certificates.portal.home_card')) . '</p>';
+    }
+    $payload['cards'] = $cards;
+    return $payload;
+});
+
+EventBus::on('client_portal.render', static function (array $payload): array {
+    if ((string)($payload['section'] ?? '') !== 'certificates') {
+        return $payload;
+    }
+    $clientId = (int)($payload['client_id'] ?? 0);
+    $list = CertificatesRepository::list(['id_holder' => $clientId, 'limit' => 50, 'offset' => 0]);
+    $items = $list['items'] ?? [];
+    ob_start();
+    echo '<h2>' . e(t('certificates.portal.section')) . '</h2>';
+    if ($items === []) {
+        echo '<p class="muted">' . e(t('certificates.portal.empty')) . '</p>';
+    } else {
+        echo '<table class="table"><thead><tr><th>Code</th><th>' . e(t('certificates.field.balance')) . '</th><th></th></tr></thead><tbody>';
+        foreach ($items as $row) {
+            $left = (float)($row['face_value'] ?? 0) - (float)($row['used_amount'] ?? 0);
+            $exp = (int)($row['dt_use_expire'] ?? 0);
+            echo '<tr><td>' . e((string)($row['code'] ?? '')) . '</td><td>' . e(number_format($left, 2, '.', ' ')) . '</td><td>';
+            if ($exp > 0) {
+                echo e(date('Y-m-d', $exp));
+            }
+            echo '</td></tr>';
+        }
+        echo '</tbody></table>';
+    }
+    $payload['html'] = (string)ob_get_clean();
+    return $payload;
+});

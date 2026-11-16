@@ -133,6 +133,7 @@ final class Csrf
             '/amocrm/jobs/',
             '/core/jobs/',
             '/llm/api/',
+            '/acquiring/webhook/',
         ];
         foreach ($prefixes as $p) {
             // Exact directory root (/agent) or prefix with trailing slash (/agent/…).

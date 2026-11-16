@@ -1,0 +1,267 @@
+{
+    "id": "courses",
+    "name": "courses.module.name",
+    "description": "courses.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "runtime": "both",
+    "catalog": {
+        "categories": [
+            "site",
+            "team"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "journal"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=1.0.0",
+        "catalog": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "clients": ">=1.0.0",
+        "orders": ">=1.0.0",
+        "acquiring": ">=0.1.0",
+        "client_portal": ">=0.1.0"
+    },
+    "provides": [
+        "courses.programs",
+        "courses.enrollments"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "drop_owned"
+    },
+    "permissions": [
+        {
+            "id": "courses.view",
+            "label": "courses.perm.view"
+        },
+        {
+            "id": "courses.edit",
+            "label": "courses.perm.edit"
+        },
+        {
+            "id": "courses.enroll",
+            "label": "courses.perm.enroll"
+        },
+        {
+            "id": "courses.learn",
+            "label": "courses.perm.learn"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/courses",
+            "/courses/new",
+            "/courses/{id}/edit",
+            "/courses/{id}/lessons",
+            "/courses/enrollments",
+            "/courses/enrollments/grant",
+            "/courses/status",
+            "/courses/learn",
+            "/courses/learn/{programId}",
+            "/courses/learn/{programId}/lesson/{lessonId}",
+            "/courses/media/{assetId}",
+            "/courses/settings"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/courses.md",
+        "ops": [
+            {
+                "id": "courses.list",
+                "method": "GET",
+                "path": "/courses",
+                "permission": "courses.view",
+                "description": "List course programs"
+            },
+            {
+                "id": "courses.get",
+                "method": "GET",
+                "path": "/courses/{id}/edit",
+                "permission": "courses.view",
+                "description": "Get one program"
+            },
+            {
+                "id": "courses.create",
+                "method": "POST",
+                "path": "/courses/new",
+                "permission": "courses.edit",
+                "side_effect": "write",
+                "description": "Create program"
+            },
+            {
+                "id": "courses.update",
+                "method": "POST",
+                "path": "/courses/{id}/edit",
+                "permission": "courses.edit",
+                "side_effect": "write",
+                "description": "Update program"
+            },
+            {
+                "id": "courses.lessons",
+                "method": "GET",
+                "path": "/courses/{id}/lessons",
+                "permission": "courses.view",
+                "description": "List lessons for program"
+            },
+            {
+                "id": "courses.lessons.save",
+                "method": "POST",
+                "path": "/courses/{id}/lessons",
+                "permission": "courses.edit",
+                "side_effect": "write",
+                "description": "Create/update/delete lesson; action=save|delete"
+            },
+            {
+                "id": "courses.enrollments.list",
+                "method": "GET",
+                "path": "/courses/enrollments",
+                "permission": "courses.enroll",
+                "description": "List enrollments; filters subject_type, subject_id, program_id"
+            },
+            {
+                "id": "courses.enrollments.grant",
+                "method": "POST",
+                "path": "/courses/enrollments/grant",
+                "permission": "courses.enroll",
+                "side_effect": "write",
+                "description": "Grant enrollment subject_type client|staff"
+            },
+            {
+                "id": "courses.status",
+                "method": "GET",
+                "path": "/courses/status",
+                "permission": "courses.view",
+                "description": "Diagnose courses module"
+            },
+            {
+                "id": "courses.learn",
+                "method": "GET",
+                "path": "/courses/learn",
+                "permission": "courses.learn",
+                "description": "Staff learning home (own enrollments)"
+            },
+            {
+                "id": "courses.settings.get",
+                "method": "GET",
+                "path": "/courses/settings",
+                "permission": "courses.edit",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Courses storage settings"
+            },
+            {
+                "id": "courses.settings.save",
+                "method": "POST",
+                "path": "/courses/settings",
+                "permission": "courses.edit",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Save storage root / media TTL"
+            },
+            {
+                "id": "courses.learn.program",
+                "method": "GET",
+                "path": "/courses/learn/{programId}",
+                "permission": "courses.learn",
+                "description": "Staff learning: program lessons"
+            },
+            {
+                "id": "courses.learn.lesson",
+                "method": "GET",
+                "path": "/courses/learn/{programId}/lesson/{lessonId}",
+                "permission": "courses.learn",
+                "description": "Staff learning: one lesson"
+            },
+            {
+                "id": "courses.media",
+                "method": "GET",
+                "path": "/courses/media/{assetId}",
+                "permission": "public",
+                "assistant": false,
+                "description": "HMAC-signed media download (enrollment gated)"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "courses.menu.group",
+            "num": 10,
+            "path": "/courses",
+            "title": "courses.menu.list",
+            "kind": "crud"
+        },
+        {
+            "group": "courses.menu.group",
+            "num": 20,
+            "path": "/courses/enrollments",
+            "title": "courses.menu.enrollments",
+            "kind": "crud"
+        },
+        {
+            "group": "courses.menu.group",
+            "num": 30,
+            "path": "/courses/learn",
+            "title": "courses.menu.learn",
+            "kind": "work"
+        },
+        {
+            "group": "courses.menu.group",
+            "num": 90,
+            "path": "/courses/settings",
+            "title": "courses.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_course_programs",
+        "base_course_modules",
+        "base_course_lessons",
+        "base_course_assets",
+        "base_course_enrollments",
+        "base_course_progress",
+        "base_course_media_hits"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "acquiring.payment.succeeded",
+            "client_portal.sections",
+            "client_portal.home",
+            "client_portal.render"
+        ],
+        "publish": []
+    },
+    "bulkActions": [],
+    "setup": {
+        "steps": [
+            {
+                "id": "programs",
+                "title": "courses.setup.step.programs",
+                "description": "courses.setup.step.programs_help",
+                "href": "/courses",
+                "ask_user": "courses.setup.ask.programs",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "courses.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
+    }
+}

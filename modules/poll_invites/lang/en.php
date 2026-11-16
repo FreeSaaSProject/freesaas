@@ -180,4 +180,9 @@ return [
     'poll_invites.setup.step.config_help' => 'Open /polls/settings (superadmin). With poll_speech enabled the oral section lives there.',
     'poll_invites.setup.ask.config' => 'Open /polls/settings?',
     'poll_invites.setup.choice.open' => 'Open settings',
+    'poll_invites.portal.section' => 'Surveys',
+    'poll_invites.portal.home_card' => 'Open questionnaires',
+    'poll_invites.portal.empty' => 'No surveys.',
+    'poll_invites.portal.open' => 'Fill survey',
+    'poll_invites.portal.done' => 'completed',
 ];

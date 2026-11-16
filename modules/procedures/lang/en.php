@@ -161,4 +161,10 @@ return [
     'procedures.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
     'procedures.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
     'procedures.setup.choice.open' => 'Open settings',
+    'procedures.portal.section' => 'Visits',
+    'procedures.portal.home_card' => 'Paid procedures and specialists',
+    'procedures.portal.empty' => 'No visits yet.',
+    'procedures.portal.when' => 'When',
+    'procedures.portal.staff' => 'Specialist',
+    'procedures.portal.sum' => 'Sum',
 ];

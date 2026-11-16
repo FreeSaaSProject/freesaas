@@ -11,6 +11,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $ticketId = max(0, (int)($_POST['ticket_news_id'] ?? 0));
         $termsId = max(0, (int)($_POST['terms_account_id'] ?? 0));
         $laundryId = max(0, (int)($_POST['laundry_account_id'] ?? 0));
+        $autoComment = !empty($_POST['auto_comment']) ? 1 : 0;
         if ($termsId > 0 && $laundryId > 0 && $termsId === $laundryId) {
             throw new InvalidArgumentException(t('laundry.err.accounts_same'));
         }
@@ -30,6 +31,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         Config::set('laundry', 'ticket_news_id', (string)$ticketId);
         Config::set('laundry', 'terms_account_id', (string)$termsId);
         Config::set('laundry', 'laundry_account_id', (string)$laundryId);
+        Config::set('laundry', 'auto_comment', (string)$autoComment);
         $message = t('core.common.saved');
         if ($wantsJson) {
             AgentHttp::emit([
@@ -37,6 +39,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'ticket_news_id' => $ticketId,
                 'terms_account_id' => $termsId,
                 'laundry_account_id' => $laundryId,
+                'auto_comment' => $autoComment,
             ]);
             return;
         }
@@ -52,6 +55,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $ticketId = LaundryConfig::ticketNewsId();
 $termsId = LaundryConfig::termsAccountId();
 $laundryId = LaundryConfig::laundryAccountId();
+$autoComment = LaundryConfig::autoComment();
 $ticketTitle = '';
 if ($ticketId > 0 && Database::tableExists('base_news')) {
     $st = Database::pdo()->prepare('SELECT NAME FROM base_news WHERE ID = ? LIMIT 1');
@@ -66,6 +70,7 @@ if ($wantsJson) {
         'ticket_title' => $ticketTitle,
         'terms_account_id' => $termsId,
         'laundry_account_id' => $laundryId,
+        'auto_comment' => $autoComment ? 1 : 0,
         'accounts' => $accounts,
     ]);
     return;
@@ -83,5 +88,6 @@ View::render('settings', [
     'ticketTitle' => $ticketTitle,
     'termsId' => $termsId,
     'laundryId' => $laundryId,
+    'autoComment' => $autoComment,
     'accounts' => $accounts,
 ], 'layout', 'laundry');

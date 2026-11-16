@@ -144,4 +144,7 @@ return [
     'certificates.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
     'certificates.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
     'certificates.setup.choice.open' => 'Open module',
+    'certificates.portal.section' => 'Certificates',
+    'certificates.portal.home_card' => 'Your gift certificates and balances',
+    'certificates.portal.empty' => 'No certificates.',
 ];

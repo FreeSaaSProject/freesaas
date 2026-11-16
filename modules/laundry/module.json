@@ -2,12 +2,14 @@
     "id": "laundry",
     "name": "laundry.module.name",
     "description": "laundry.module.description",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
     },
-    "optionalRequires": [],
+    "optionalRequires": {
+        "comments": ">=1.0.0"
+    },
     "provides": [
         "laundry.accounts",
         "laundry.moves",

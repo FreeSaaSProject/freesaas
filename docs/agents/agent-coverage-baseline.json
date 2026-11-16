@@ -1,5 +1,17 @@
 {
     "modules": {
+        "acquiring": {
+            "ops": [
+                "acquiring.checkout",
+                "acquiring.payments.list",
+                "acquiring.settings.get",
+                "acquiring.settings.save",
+                "acquiring.status",
+                "acquiring.webhook"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
         "amocrm": {
             "ops": [
                 "amocrm.import",
@@ -522,6 +534,19 @@
             ],
             "uncovered_actions": []
         },
+        "client_portal": {
+            "ops": [
+                "client_portal.cabinet.home",
+                "client_portal.cabinet.section",
+                "client_portal.login",
+                "client_portal.logout",
+                "client_portal.settings.get",
+                "client_portal.settings.save",
+                "client_portal.status"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
         "clientics": {
             "ops": [
                 "clientics.import.run",
@@ -719,6 +744,27 @@
                 "unlock"
             ]
         },
+        "courses": {
+            "ops": [
+                "courses.create",
+                "courses.enrollments.grant",
+                "courses.enrollments.list",
+                "courses.get",
+                "courses.learn",
+                "courses.learn.lesson",
+                "courses.learn.program",
+                "courses.lessons",
+                "courses.lessons.save",
+                "courses.list",
+                "courses.media",
+                "courses.settings.get",
+                "courses.settings.save",
+                "courses.status",
+                "courses.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
         "crm": {
             "ops": [
                 "crm.companies.add_contact",
@@ -783,6 +829,7 @@
                 "docs.defs.sample",
                 "docs.defs.update",
                 "docs.get",
+                "docs.instance.confirm",
                 "docs.library",
                 "docs.library.import",
                 "docs.list",
@@ -961,6 +1008,14 @@
                 "deny",
                 "rotate"
             ]
+        },
+        "medcard_audio": {
+            "ops": [
+                "medcard_audio.settings",
+                "medcard_audio.settings.save"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
         },
         "norms": {
             "ops": [

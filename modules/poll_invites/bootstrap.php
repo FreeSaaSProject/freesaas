@@ -221,3 +221,68 @@ EventBus::on('polls.settings.save', static function ($payload) {
     PollInvitesConfig::saveFromPost($post);
     return $payload;
 });
+
+
+EventBus::on('client_portal.sections', static function (array $payload): array {
+    $sections = is_array($payload['sections'] ?? null) ? $payload['sections'] : [];
+    $sections[] = [
+        'id' => 'polls',
+        'module' => 'poll_invites',
+        'title' => t('poll_invites.portal.section'),
+        'weight' => 35,
+        'nav' => true,
+        'home_card' => true,
+    ];
+    $payload['sections'] = $sections;
+    return $payload;
+});
+
+EventBus::on('client_portal.home', static function (array $payload): array {
+    $cards = is_array($payload['cards'] ?? null) ? $payload['cards'] : [];
+    foreach ($cards as $i => $card) {
+        if (!is_array($card) || (string)($card['id'] ?? '') !== 'polls') {
+            continue;
+        }
+        $cards[$i]['html'] = '<p class="muted">' . e(t('poll_invites.portal.home_card')) . '</p>';
+    }
+    $payload['cards'] = $cards;
+    return $payload;
+});
+
+EventBus::on('client_portal.render', static function (array $payload): array {
+    if ((string)($payload['section'] ?? '') !== 'polls') {
+        return $payload;
+    }
+    $clientId = (int)($payload['client_id'] ?? 0);
+    $list = PollInvitesRepository::list(['q' => (string)$clientId, 'limit' => 50, 'offset' => 0]);
+    $items = [];
+    foreach (($list['items'] ?? []) as $row) {
+        if (is_array($row) && (int)($row['id_user'] ?? 0) === $clientId) {
+            $items[] = $row;
+        }
+    }
+    ob_start();
+    echo '<h2>' . e(t('poll_invites.portal.section')) . '</h2>';
+    if ($items === []) {
+        echo '<p class="muted">' . e(t('poll_invites.portal.empty')) . '</p>';
+    } else {
+        echo '<ul>';
+        foreach ($items as $row) {
+            $code = (string)($row['code'] ?? '');
+            $done = (int)($row['dt_completed'] ?? 0) > 0;
+            echo '<li>';
+            if ($code !== '' && !$done) {
+                echo '<a href="/q/' . rawurlencode($code) . '">' . e(t('poll_invites.portal.open')) . '</a>';
+            } else {
+                echo e($code !== '' ? $code : ('#' . (int)$row['id']));
+            }
+            if ($done) {
+                echo ' — ' . e(t('poll_invites.portal.done'));
+            }
+            echo '</li>';
+        }
+        echo '</ul>';
+    }
+    $payload['html'] = (string)ob_get_clean();
+    return $payload;
+});

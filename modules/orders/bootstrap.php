@@ -268,3 +268,54 @@ EventBus::on('calendar.day.stats', static function ($payload) {
     }
     return $payload;
 });
+
+
+EventBus::on('client_portal.sections', static function (array $payload): array {
+    $sections = is_array($payload['sections'] ?? null) ? $payload['sections'] : [];
+    $sections[] = [
+        'id' => 'orders',
+        'module' => 'orders',
+        'title' => t('orders.portal.section'),
+        'weight' => 15,
+        'nav' => true,
+        'home_card' => true,
+    ];
+    $payload['sections'] = $sections;
+    return $payload;
+});
+
+EventBus::on('client_portal.home', static function (array $payload): array {
+    $cards = is_array($payload['cards'] ?? null) ? $payload['cards'] : [];
+    foreach ($cards as $i => $card) {
+        if (!is_array($card) || (string)($card['id'] ?? '') !== 'orders') {
+            continue;
+        }
+        $cards[$i]['html'] = '<p class="muted">' . e(t('orders.portal.home_card')) . '</p>';
+    }
+    $payload['cards'] = $cards;
+    return $payload;
+});
+
+EventBus::on('client_portal.render', static function (array $payload): array {
+    if ((string)($payload['section'] ?? '') !== 'orders') {
+        return $payload;
+    }
+    $clientId = (int)($payload['client_id'] ?? 0);
+    $list = OrdersRepository::list(['id_user' => $clientId, 'limit' => 50, 'offset' => 0]);
+    $items = $list['items'] ?? [];
+    ob_start();
+    echo '<h2>' . e(t('orders.portal.section')) . '</h2>';
+    if ($items === []) {
+        echo '<p class="muted">' . e(t('orders.portal.empty')) . '</p>';
+    } else {
+        echo '<table class="table"><thead><tr><th>ID</th><th>' . e(t('orders.portal.when')) . '</th><th>' . e(t('orders.portal.status')) . '</th><th>' . e(t('orders.portal.sum')) . '</th></tr></thead><tbody>';
+        foreach ($items as $row) {
+            $state = OrdersRepository::clientState($row);
+            $when = (int)($row['dt_event'] ?? 0);
+            echo '<tr><td>' . (int)$row['id'] . '</td><td>' . ($when > 0 ? e(date('Y-m-d H:i', $when)) : '') . '</td><td>' . e((string)($state['state'] ?? $row['status'] ?? '')) . (!empty($state['paid']) ? ' · paid' : '') . '</td><td>' . e(number_format((float)($row['summ'] ?? 0), 2, '.', ' ')) . '</td></tr>';
+        }
+        echo '</tbody></table>';
+    }
+    $payload['html'] = (string)ob_get_clean();
+    return $payload;
+});

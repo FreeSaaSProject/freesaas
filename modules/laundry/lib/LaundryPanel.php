@@ -25,16 +25,18 @@ final class LaundryPanel
         $descr = trim((string)($post['descr'] ?? ''));
         $weight = (float)str_replace(',', '.', (string)($post['weight'] ?? '0'));
         if ($action === self::ACTION_SHIP) {
+            $qtyLines = self::typeQtyLines($post['qty'] ?? null);
             LaundryShipmentsRepository::createShipment(
                 LaundryConfig::termsAccountId(),
                 LaundryConfig::laundryAccountId(),
-                self::typeQtyLines($post['qty'] ?? null),
+                $qtyLines,
                 $descr,
                 $weight,
                 time(),
                 $userId,
                 $newsId
             );
+            LaundryComments::postShip($newsId, $userId, $qtyLines);
             return;
         }
         $lines = [];
@@ -42,6 +44,7 @@ final class LaundryPanel
         foreach ($ret as $lineId => $qty) {
             $lines[] = ['id_shipment_line' => (int)$lineId, 'qty' => (int)$qty];
         }
+        $extras = self::typeQtyLines($post['extra'] ?? null);
         LaundryShipmentsRepository::acceptReturn(
             $lines,
             $descr,
@@ -49,8 +52,9 @@ final class LaundryPanel
             time(),
             $userId,
             $newsId,
-            self::typeQtyLines($post['extra'] ?? null)
+            $extras
         );
+        LaundryComments::postAccept($newsId, $userId, $lines, $extras);
     }
 
     /**

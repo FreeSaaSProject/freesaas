@@ -2,7 +2,7 @@
     "id": "procedures",
     "name": "procedures.module.name",
     "description": "procedures.module.description",
-    "version": "1.0.24",
+    "version": "1.0.25",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -264,7 +264,10 @@
             "bi.datasets",
             "bi.recipes",
             "audio_pipeline.collect.after_admin",
-            "audio_reports.day_quality.part_metric"
+            "audio_reports.day_quality.part_metric",
+            "client_portal.sections",
+            "client_portal.home",
+            "client_portal.render"
         ],
         "publish": [
             "bots.send",

@@ -144,4 +144,7 @@ return [
     'certificates.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
     'certificates.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
     'certificates.setup.choice.open' => 'Открыть модуль',
+    'certificates.portal.section' => 'Сертификаты',
+    'certificates.portal.home_card' => 'Подарочные сертификаты и остатки',
+    'certificates.portal.empty' => 'Сертификатов нет.',
 ];

@@ -449,3 +449,54 @@ EventBus::on('bots.ready', static function ($payload) use ($registerProceduresBo
     $registerProceduresBots();
     return is_array($payload) ? $payload : [];
 });
+
+
+EventBus::on('client_portal.sections', static function (array $payload): array {
+    $sections = is_array($payload['sections'] ?? null) ? $payload['sections'] : [];
+    $sections[] = [
+        'id' => 'visits',
+        'module' => 'procedures',
+        'title' => t('procedures.portal.section'),
+        'weight' => 30,
+        'nav' => true,
+        'home_card' => true,
+    ];
+    $payload['sections'] = $sections;
+    return $payload;
+});
+
+EventBus::on('client_portal.home', static function (array $payload): array {
+    $cards = is_array($payload['cards'] ?? null) ? $payload['cards'] : [];
+    foreach ($cards as $i => $card) {
+        if (!is_array($card) || (string)($card['id'] ?? '') !== 'visits') {
+            continue;
+        }
+        $cards[$i]['html'] = '<p class="muted">' . e(t('procedures.portal.home_card')) . '</p>';
+    }
+    $payload['cards'] = $cards;
+    return $payload;
+});
+
+EventBus::on('client_portal.render', static function (array $payload): array {
+    if ((string)($payload['section'] ?? '') !== 'visits') {
+        return $payload;
+    }
+    $clientId = (int)($payload['client_id'] ?? 0);
+    $list = ProceduresRepository::list(['id_user' => $clientId, 'limit' => 50, 'offset' => 0]);
+    $items = $list['items'] ?? [];
+    ob_start();
+    echo '<h2>' . e(t('procedures.portal.section')) . '</h2>';
+    if ($items === []) {
+        echo '<p class="muted">' . e(t('procedures.portal.empty')) . '</p>';
+    } else {
+        echo '<table class="table"><thead><tr><th>ID</th><th>' . e(t('procedures.portal.when')) . '</th><th>' . e(t('procedures.portal.staff')) . '</th><th>' . e(t('procedures.portal.sum')) . '</th></tr></thead><tbody>';
+        foreach ($items as $row) {
+            $when = (int)($row['dtstart'] ?? $row['dt_start'] ?? $row['dt'] ?? 0);
+            $staff = (string)($row['operator_name'] ?? $row['admin_name'] ?? ('#' . (int)($row['id_operator'] ?? 0)));
+            echo '<tr><td>' . (int)$row['id'] . '</td><td>' . ($when > 0 ? e(date('Y-m-d H:i', $when)) : '') . '</td><td>' . e($staff) . '</td><td>' . e(number_format((float)($row['summ'] ?? 0), 2, '.', ' ')) . '</td></tr>';
+        }
+        echo '</tbody></table>';
+    }
+    $payload['html'] = (string)ob_get_clean();
+    return $payload;
+});

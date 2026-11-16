@@ -75,6 +75,7 @@ return [
     'bots.catalog.staff.writeoff' => '📦 Stock write-off',
     'bots.catalog.staff.appeals' => '📹 Appeals / absences',
     'bots.catalog.staff.procedure_notify' => '🔔 Procedure notifications',
+    'bots.catalog.staff.medcard_audio' => '🩺 Medcard from audio',
     'bots.catalog.client.profile' => 'My profile',
     'bots.catalog.client.booking' => 'Booking',
     'bots.catalog.client.orders' => 'Orders',
@@ -171,4 +172,8 @@ return [
     'bots.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
     'bots.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
     'bots.setup.choice.open' => 'Open settings',
+    'bots.portal.section' => 'Messengers',
+    'bots.portal.home_card' => 'Telegram / Max bindings',
+    'bots.portal.hint' => 'Link the client bot in the messenger to receive messages. Unlink is done by staff if needed.',
+    'bots.portal.empty' => 'No messenger linked yet.',
 ];

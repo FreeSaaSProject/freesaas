@@ -1,7 +1,46 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-15T11:20:42+00:00",
+    "generated_at": "2026-11-16T08:07:24+00:00",
     "modules": [
+        {
+            "id": "acquiring",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Online acquiring",
+                "ru": "Онлайн-эквайринг"
+            },
+            "description": {
+                "en": "Multi-provider online payments for storefront orders (own tables; EventBus paid flag).",
+                "ru": "Мульти-провайдерные онлайн-платежи за заказы витрины (свои таблицы; флаг оплаты через EventBus)."
+            },
+            "summary": {
+                "en": "Enable to take online card payments. Configure one or more providers under settings. Soft-deps: orders, client_mcp. Does not replace staff payments module.",
+                "ru": "Включите для приёма онлайн-оплат. Настройте одного или нескольких провайдеров. Soft-deps: orders, client_mcp. Не заменяет модуль staff payments."
+            },
+            "requires": {
+                "core": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "orders": ">=1.0.0",
+                "client_mcp": ">=0.1.0",
+                "ledger": ">=1.0.0"
+            },
+            "catalog": {
+                "categories": [
+                    "finance",
+                    "integrations"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "payments",
+                    "integration"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/acquiring.md"
+            }
+        },
         {
             "id": "amocrm",
             "version": "0.1.4",
@@ -578,7 +617,7 @@
         },
         {
             "id": "bonuses",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Client bonuses",
@@ -656,7 +695,7 @@
         },
         {
             "id": "bots",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -804,7 +843,7 @@
         },
         {
             "id": "certificates",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Certificates",
@@ -880,6 +919,43 @@
             },
             "agent": {
                 "docs": "docs/agents/client-mcp.md"
+            }
+        },
+        {
+            "id": "client_portal",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Client portal",
+                "ru": "Кабинет клиента"
+            },
+            "description": {
+                "en": "Storefront personal cabinet for clients: login, profile, and EventBus sections from other modules.",
+                "ru": "Личный кабинет на витрине: вход, профиль и секции из других модулей через EventBus."
+            },
+            "summary": {
+                "en": "Enable for a client login (/cabinet) on the storefront host. Soft-deps pull bonuses, certificates, courses, etc. when those modules are on. Configure which sections appear under Client portal settings.",
+                "ru": "Включите для входа клиента (/cabinet) на storefront-хосте. Секции бонусов, сертификатов, курсов и т.д. подхватываются, если соответствующие модули включены. Видимость секций — в настройках кабинета."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "sites": ">=1.0.0"
+            },
+            "catalog": {
+                "categories": [
+                    "site",
+                    "crm"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "settings"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/client_portal.md"
             }
         },
         {
@@ -1023,6 +1099,46 @@
             },
             "agent": {
                 "docs": "docs/agents/contracts.md"
+            }
+        },
+        {
+            "id": "courses",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Courses",
+                "ru": "Курсы"
+            },
+            "description": {
+                "en": "LMS programs, timed enrollments for clients and staff, protected lesson media.",
+                "ru": "Программы обучения, доступ с сроком для клиентов и сотрудников, защищённая выдача материалов."
+            },
+            "summary": {
+                "en": "Enable for online courses and internal staff training. Soft client_portal shows My courses. Soft acquiring enrolls on payment.",
+                "ru": "Включите для онлайн-курсов и внутреннего обучения. Soft client_portal — «Мои курсы». Soft acquiring — зачисление после оплаты."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "catalog": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "clients": ">=1.0.0",
+                "orders": ">=1.0.0",
+                "acquiring": ">=0.1.0",
+                "client_portal": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "site",
+                    "team"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "journal"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/courses.md"
             }
         },
         {
@@ -1266,7 +1382,7 @@
         },
         {
             "id": "laundry",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Laundry",
@@ -1283,7 +1399,9 @@
             "requires": {
                 "core": ">=1.0.0"
             },
-            "optionalRequires": [],
+            "optionalRequires": {
+                "comments": ">=1.0.0"
+            },
             "catalog": {
                 "categories": [
                     "warehouse"
@@ -1452,6 +1570,44 @@
             }
         },
         {
+            "id": "medcard_audio",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Medcard from audio",
+                "ru": "Медкарта по аудио"
+            },
+            "description": {
+                "en": "Staff bot: pick today’s visit, send a voice recording, ASR + LLM fill the visit sheet, then open the card to review and confirm.",
+                "ru": "Staff-бот: выбор сегодняшнего визита, голосовая запись → ASR + LLM заполняет лист приёма → ссылка на проверку и подтверждение в UI."
+            },
+            "summary": {
+                "en": "Needs docs, calendar, asr, llm; bots optional. Alpha — expect instability; copy config.example.ini → cfg/modules/medcard_audio.ini and enable the bot switch.",
+                "ru": "Нужны docs, calendar, asr, llm; bots опционально. Alpha — нестабильно; скопируйте config.example.ini → cfg/modules/medcard_audio.ini и включите кнопку бота."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "docs": ">=0.1.0",
+                "calendar": ">=1.0.0",
+                "asr": ">=1.0.0",
+                "llm": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "bots": ">=1.0.0"
+            },
+            "catalog": {
+                "categories": [
+                    "communications",
+                    "audio"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "llm",
+                    "settings"
+                ]
+            }
+        },
+        {
             "id": "norms",
             "version": "1.0.2",
             "type": "product",
@@ -1485,7 +1641,7 @@
         },
         {
             "id": "orders",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1562,7 +1718,7 @@
         },
         {
             "id": "poll_invites",
-            "version": "0.2.1",
+            "version": "0.2.2",
             "type": "product",
             "name": {
                 "en": "Poll invites",
@@ -1677,7 +1833,7 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.24",
+            "version": "1.0.25",
             "type": "product",
             "name": {
                 "en": "Treatments",

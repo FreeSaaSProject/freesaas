@@ -1,0 +1,169 @@
+{
+    "id": "client_portal",
+    "name": "client_portal.module.name",
+    "description": "client_portal.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "runtime": "both",
+    "catalog": {
+        "categories": [
+            "site",
+            "crm"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "settings"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=1.0.0",
+        "clients": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "sites": ">=1.0.0"
+    },
+    "provides": [
+        "client_portal.auth",
+        "client_portal.sections"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "drop_owned"
+    },
+    "permissions": [
+        {
+            "id": "client_portal.manage",
+            "label": "client_portal.perm.manage"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/client-portal/status",
+            "/client-portal/settings",
+            "/cabinet/login",
+            "/cabinet/logout",
+            "/cabinet",
+            "/cabinet/{section}"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/client_portal.md",
+        "ops": [
+            {
+                "id": "client_portal.status",
+                "method": "GET",
+                "path": "/client-portal/status",
+                "permission": "client_portal.manage",
+                "description": "Diagnose portal: cookie name, section registry, visibility settings"
+            },
+            {
+                "id": "client_portal.settings.get",
+                "method": "GET",
+                "path": "/client-portal/settings",
+                "permission": "client_portal.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Cabinet section visibility matrix"
+            },
+            {
+                "id": "client_portal.settings.save",
+                "method": "POST",
+                "path": "/client-portal/settings",
+                "permission": "client_portal.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Save section show/hide and weight overrides"
+            },
+            {
+                "id": "client_portal.cabinet.home",
+                "method": "GET",
+                "path": "/cabinet",
+                "permission": "public",
+                "assistant": false,
+                "description": "Client cabinet home (requires client portal session)"
+            },
+            {
+                "id": "client_portal.cabinet.section",
+                "method": "GET",
+                "path": "/cabinet/{section}",
+                "permission": "public",
+                "assistant": false,
+                "description": "Client cabinet section page"
+            },
+            {
+                "id": "client_portal.login",
+                "method": "POST",
+                "path": "/cabinet/login",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Client login (phone + password)"
+            },
+            {
+                "id": "client_portal.logout",
+                "method": "POST",
+                "path": "/cabinet/logout",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Client portal logout"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "clients.menu.group",
+            "num": 90,
+            "path": "/client-portal/settings",
+            "title": "client_portal.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_client_portal_sessions"
+    ],
+    "migrators": [],
+    "hooks": {
+        "publish": [
+            "client_portal.sections",
+            "client_portal.nav",
+            "client_portal.home",
+            "client_portal.render",
+            "client_portal.profile.save"
+        ],
+        "subscribe": [
+            "sites.diagnose",
+            "sites.llms_txt",
+            "sites.sitemap"
+        ]
+    },
+    "bulkActions": [],
+    "setup": {
+        "steps": [
+            {
+                "id": "visibility",
+                "title": "client_portal.setup.step.visibility",
+                "description": "client_portal.setup.step.visibility_help",
+                "href": "/client-portal/settings",
+                "ask_user": "client_portal.setup.ask.visibility",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "client_portal.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
+    }
+}

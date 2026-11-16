@@ -75,6 +75,7 @@ return [
     'bots.catalog.staff.writeoff' => '📦 Списание со склада',
     'bots.catalog.staff.appeals' => '📹 Заявки / отсутствия',
     'bots.catalog.staff.procedure_notify' => '🔔 Уведомления о процедурах',
+    'bots.catalog.staff.medcard_audio' => '🩺 Медкарта по аудио',
     'bots.catalog.client.profile' => 'Мой профиль',
     'bots.catalog.client.booking' => 'Запись',
     'bots.catalog.client.orders' => 'Заказы',
@@ -171,4 +172,8 @@ return [
     'bots.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
     'bots.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
     'bots.setup.choice.open' => 'Открыть настройки',
+    'bots.portal.section' => 'Мессенджеры',
+    'bots.portal.home_card' => 'Привязки Telegram / Max',
+    'bots.portal.hint' => 'Привяжите клиентского бота в мессенджере, чтобы получать сообщения. Отвязку при необходимости делает сотрудник.',
+    'bots.portal.empty' => 'Мессенджер ещё не привязан.',
 ];

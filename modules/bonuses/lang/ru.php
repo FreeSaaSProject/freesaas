@@ -78,4 +78,9 @@ return [
     'bonuses.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
     'bonuses.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
     'bonuses.setup.choice.open' => 'Открыть модуль',
+    'bonuses.portal.section' => 'Бонусы',
+    'bonuses.portal.balance' => 'Баланс: {n}',
+    'bonuses.portal.empty' => 'Операций по бонусам пока нет.',
+    'bonuses.portal.amount' => 'Сумма',
+    'bonuses.portal.note' => 'Комментарий',
 ];

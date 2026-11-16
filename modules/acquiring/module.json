@@ -1,0 +1,139 @@
+{
+    "id": "acquiring",
+    "name": "acquiring.module.name",
+    "description": "acquiring.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "runtime": "both",
+    "catalog": {
+        "categories": ["finance", "integrations"],
+        "maturity": "alpha",
+        "tags": ["payments", "integration"],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "orders": ">=1.0.0",
+        "client_mcp": ">=0.1.0",
+        "ledger": ">=1.0.0"
+    },
+    "provides": [
+        "acquiring.payments",
+        "acquiring.providers"
+    ],
+    "migrations": "migrations/",
+    "uninstall": { "strategy": "drop_owned" },
+    "permissions": [
+        { "id": "acquiring.view", "label": "acquiring.perm.view" },
+        { "id": "acquiring.manage", "label": "acquiring.perm.manage" }
+    ],
+    "routes": {
+        "pages": [
+            "/acquiring/status",
+            "/acquiring/settings",
+            "/acquiring/payments",
+            "/acquiring/checkout",
+            "/acquiring/webhook/{provider}"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/acquiring.md",
+        "ops": [
+            {
+                "id": "acquiring.status",
+                "method": "GET",
+                "path": "/acquiring/status",
+                "permission": "acquiring.view",
+                "description": "Diagnose providers, recent payments"
+            },
+            {
+                "id": "acquiring.settings.get",
+                "method": "GET",
+                "path": "/acquiring/settings",
+                "permission": "acquiring.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Provider credentials and enable flags"
+            },
+            {
+                "id": "acquiring.settings.save",
+                "method": "POST",
+                "path": "/acquiring/settings",
+                "permission": "acquiring.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Save acquiring provider settings"
+            },
+            {
+                "id": "acquiring.payments.list",
+                "method": "GET",
+                "path": "/acquiring/payments",
+                "permission": "acquiring.view",
+                "description": "List acquiring payments; filters: order_id, status, provider"
+            },
+            {
+                "id": "acquiring.checkout",
+                "method": "POST",
+                "path": "/acquiring/checkout",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Create payment intent for order_id (+ optional provider)"
+            },
+            {
+                "id": "acquiring.webhook",
+                "method": "POST",
+                "path": "/acquiring/webhook/{provider}",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Provider webhook receiver"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.finance",
+            "num": 48,
+            "path": "/acquiring/payments",
+            "title": "acquiring.menu.payments",
+            "kind": "crud"
+        },
+        {
+            "group": "core.menu.group.finance",
+            "num": 49,
+            "path": "/acquiring/settings",
+            "title": "acquiring.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_acquiring_payments",
+        "base_acquiring_webhook_log"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": ["client_mcp.payment", "orders.client_state"],
+        "publish": ["acquiring.payment.succeeded", "acquiring.payment.failed"]
+    },
+    "bulkActions": [],
+    "setup": {
+        "steps": [
+            {
+                "id": "provider",
+                "title": "acquiring.setup.step.provider",
+                "description": "acquiring.setup.step.provider_help",
+                "href": "/acquiring/settings",
+                "ask_user": "acquiring.setup.ask.provider",
+                "choices": [
+                    { "id": "open", "label": "acquiring.setup.choice.open", "recommended": true },
+                    { "id": "defer", "label": "core.modules.setup.choice.defer", "recommended": false }
+                ],
+                "agent_can": ["mark_done"]
+            }
+        ]
+    }
+}

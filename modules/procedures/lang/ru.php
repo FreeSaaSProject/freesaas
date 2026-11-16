@@ -161,4 +161,10 @@ return [
     'procedures.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
     'procedures.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
     'procedures.setup.choice.open' => 'Открыть настройки',
+    'procedures.portal.section' => 'Визиты',
+    'procedures.portal.home_card' => 'Оказанные процедуры и специалисты',
+    'procedures.portal.empty' => 'Визитов пока нет.',
+    'procedures.portal.when' => 'Когда',
+    'procedures.portal.staff' => 'Специалист',
+    'procedures.portal.sum' => 'Сумма',
 ];

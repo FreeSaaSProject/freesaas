@@ -155,4 +155,10 @@ return [
     'orders.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
     'orders.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
     'orders.setup.choice.open' => 'Открыть настройки',
+    'orders.portal.section' => 'Заказы',
+    'orders.portal.home_card' => 'Записи и заказы магазина',
+    'orders.portal.empty' => 'Заказов нет.',
+    'orders.portal.when' => 'Когда',
+    'orders.portal.status' => 'Статус',
+    'orders.portal.sum' => 'Сумма',
 ];

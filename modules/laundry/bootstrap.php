@@ -8,6 +8,7 @@ require_once __DIR__ . '/lib/LaundryMovesRepository.php';
 require_once __DIR__ . '/lib/LaundryShipmentsRepository.php';
 require_once __DIR__ . '/lib/LaundryInventory.php';
 require_once __DIR__ . '/lib/LaundryPanel.php';
+require_once __DIR__ . '/lib/LaundryComments.php';
 
 $pages = [
     '/laundry' => ['permission' => 'laundry.view', 'methods' => ['GET', 'POST'], 'file' => 'home.php'],

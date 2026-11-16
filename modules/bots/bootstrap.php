@@ -376,3 +376,60 @@ Health::register('bots.queue', 'bots', static function (): array {
 
 // Modules that boot before `bots` (e.g. assistant) wait on this to register BotPlugins.
 EventBus::emit('bots.ready', ['module' => 'bots']);
+
+
+EventBus::on('client_portal.sections', static function (array $payload): array {
+    $sections = is_array($payload['sections'] ?? null) ? $payload['sections'] : [];
+    $sections[] = [
+        'id' => 'messengers',
+        'module' => 'bots',
+        'title' => t('bots.portal.section'),
+        'weight' => 12,
+        'nav' => true,
+        'home_card' => true,
+    ];
+    $payload['sections'] = $sections;
+    return $payload;
+});
+
+EventBus::on('client_portal.home', static function (array $payload): array {
+    $cards = is_array($payload['cards'] ?? null) ? $payload['cards'] : [];
+    foreach ($cards as $i => $card) {
+        if (!is_array($card) || (string)($card['id'] ?? '') !== 'messengers') {
+            continue;
+        }
+        $cards[$i]['html'] = '<p class="muted">' . e(t('bots.portal.home_card')) . '</p>';
+    }
+    $payload['cards'] = $cards;
+    return $payload;
+});
+
+EventBus::on('client_portal.render', static function (array $payload): array {
+    if ((string)($payload['section'] ?? '') !== 'messengers') {
+        return $payload;
+    }
+    $clientId = (int)($payload['client_id'] ?? 0);
+    $row = null;
+    if (class_exists('BotLinksRepository', false) && BotLinksRepository::tableReady()) {
+        $row = BotLinksRepository::find(BotLinksRepository::SOURCE_CLIENT, $clientId);
+    }
+    ob_start();
+    echo '<h2>' . e(t('bots.portal.section')) . '</h2>';
+    echo '<p class="muted">' . e(t('bots.portal.hint')) . '</p>';
+    $tg = is_array($row) ? (string)($row['telegram_chat_id'] ?? '') : '';
+    $max = is_array($row) ? (string)($row['max_user_id'] ?? '') : '';
+    if ($tg === '' && $max === '') {
+        echo '<p class="muted">' . e(t('bots.portal.empty')) . '</p>';
+    } else {
+        echo '<ul>';
+        if ($tg !== '') {
+            echo '<li>Telegram: ' . e($tg) . '</li>';
+        }
+        if ($max !== '') {
+            echo '<li>Max: ' . e($max) . '</li>';
+        }
+        echo '</ul>';
+    }
+    $payload['html'] = (string)ob_get_clean();
+    return $payload;
+});

@@ -78,4 +78,9 @@ return [
     'bonuses.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
     'bonuses.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
     'bonuses.setup.choice.open' => 'Open module',
+    'bonuses.portal.section' => 'Bonuses',
+    'bonuses.portal.balance' => 'Balance: {n}',
+    'bonuses.portal.empty' => 'No bonus transactions yet.',
+    'bonuses.portal.amount' => 'Amount',
+    'bonuses.portal.note' => 'Note',
 ];

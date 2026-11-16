@@ -21,10 +21,12 @@ Permissions: `laundry.view`, `laundry.ship`, `laundry.accounts`, `laundry.edit`,
 | `ticket_news_id` | `78` | Ticket that embeds the laundry panel |
 | `terms_account_id` | `1` | Floor / terms account (after seed) |
 | `laundry_account_id` | `2` | Laundry account (after seed) |
+| `auto_comment` | `1` | Post a ticket comment after ship / accept / beyond-shipments (non-zero qty only; needs `comments`) |
 
 ## Dependencies
 
 - Requires: `core` >=1.0.0
+- Optional: `comments` (auto-comment on the linked ticket)
 
 ## Tables
 
@@ -62,7 +64,7 @@ Permissions: `laundry.view`, `laundry.ship`, `laundry.accounts`, `laundry.edit`,
 | `/laundry/types` | `laundry.edit` |
 | `/laundry/settings` | `laundry.edit` — linked ticket + default accounts |
 
-Ticket `/news/{ticket_news_id}` shows the laundry panel via `core.news_item.section` (ship/accept POST via `core.news_item.handle_post`). Comments on the ticket are chat only — not stock.
+Ticket `/news/{ticket_news_id}` shows the laundry panel via `core.news_item.section` (ship/accept POST via `core.news_item.handle_post`). With `auto_comment=1` and `comments` enabled, each ship/accept posts a short comment (e.g. «Сдала 128 простыней + 2 майки»); zeros are omitted. Comments are chat only — not stock.
 
 ## Agent JSON
 

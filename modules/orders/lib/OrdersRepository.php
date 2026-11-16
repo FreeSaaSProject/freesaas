@@ -1169,10 +1169,25 @@ final class OrdersRepository
         } elseif ($status === 'complete') {
             $state = 'completed';
         }
+        $paid = false;
+        $statePayload = EventBus::emit('orders.client_state', [
+            'order' => $order,
+            'paid' => false,
+            'state' => $state,
+            'cancellable' => $cancellable,
+        ]);
+        if (is_array($statePayload)) {
+            $paid = !empty($statePayload['paid']);
+            if (isset($statePayload['cancellable'])) {
+                $cancellable = !empty($statePayload['cancellable']);
+            }
+            if (isset($statePayload['state']) && is_string($statePayload['state']) && $statePayload['state'] !== '') {
+                $state = $statePayload['state'];
+            }
+        }
         return [
             'state' => $state,
-            // Online paid flag belongs to a future acquiring module (own tables / EventBus).
-            'paid' => false,
+            'paid' => $paid,
             'cancellable' => $cancellable,
         ];
     }

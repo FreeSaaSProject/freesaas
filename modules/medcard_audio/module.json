@@ -1,0 +1,137 @@
+{
+    "id": "medcard_audio",
+    "name": "medcard_audio.module.name",
+    "description": "medcard_audio.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=1.0.0",
+        "docs": ">=0.1.0",
+        "calendar": ">=1.0.0",
+        "asr": ">=1.0.0",
+        "llm": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "bots": ">=1.0.0"
+    },
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "medcard_audio.view",
+            "label": "medcard_audio.perm.view"
+        },
+        {
+            "id": "medcard_audio.edit",
+            "label": "medcard_audio.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/medcard-audio/settings"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "medcard_audio.settings",
+                "method": "GET",
+                "path": "/medcard-audio/settings",
+                "permission": "medcard_audio.edit",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Get medcard-from-audio bot settings (cfg/modules/medcard_audio.ini)"
+            },
+            {
+                "id": "medcard_audio.settings.save",
+                "method": "POST",
+                "path": "/medcard-audio/settings",
+                "permission": "medcard_audio.edit",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Patch-save medcard-from-audio settings; omit keys to keep current (checkbox-safe)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "bot_enabled": {
+                            "type": "string",
+                            "description": "1|0 staff bot cabinet button"
+                        },
+                        "fill_mode": {
+                            "type": "string",
+                            "description": "direct (whole-card audio_bot write) | propose (per-field proposals)"
+                        },
+                        "llm_profile": {
+                            "type": "string",
+                            "description": "Optional llm.ini profile id (empty = default ready profile)"
+                        },
+                        "max_tokens": {
+                            "type": "integer",
+                            "description": "LLM max_tokens (1000..16000)"
+                        },
+                        "confidence_default": {
+                            "type": "number",
+                            "description": "Default confidence 0..1 when model omits it"
+                        }
+                    }
+                }
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "docs.menu.group",
+            "num": 90,
+            "path": "/medcard-audio/settings",
+            "title": "medcard_audio.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [],
+    "hooks": {
+        "subscribe": [
+            "bots.ready",
+            "bots.voice.transcription_result"
+        ],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "communications",
+            "audio"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "llm",
+            "settings"
+        ],
+        "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "medcard_audio.setup.step.config",
+                "description": "medcard_audio.setup.step.config_help",
+                "href": "/medcard-audio/settings",
+                "ask_user": "medcard_audio.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "medcard_audio.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    },
+    "uninstall": {
+        "strategy": "leave_tables"
+    }
+}

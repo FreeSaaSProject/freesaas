@@ -261,6 +261,19 @@ $allowed = [
 
     // Respondent questionnaire by personal link (24-char random code; CSRF on POST)
     '/q/{code}' => ['methods' => ['GET', 'POST'], 'why' => 'poll invite public fill'],
+
+    // Client portal (storefront personal cabinet)
+    '/cabinet/login' => ['methods' => ['GET', 'POST'], 'why' => 'client portal login'],
+    '/cabinet/logout' => ['methods' => ['GET', 'POST'], 'why' => 'client portal logout'],
+    '/cabinet' => ['methods' => ['GET', 'POST'], 'why' => 'client portal home'],
+    '/cabinet/{section}' => ['methods' => ['GET', 'POST'], 'why' => 'client portal section'],
+
+    // Online acquiring (checkout + provider webhooks)
+    '/acquiring/checkout' => ['methods' => ['GET', 'POST'], 'why' => 'create/stub online payment'],
+    '/acquiring/webhook/{provider}' => ['methods' => ['POST'], 'why' => 'acquiring provider webhook'],
+
+    // Course media HMAC download (enrollment-gated in handler)
+    '/courses/media/{assetId}' => ['methods' => ['GET'], 'why' => 'signed course media proxy'],
 ];
 
 $failed = 0;
