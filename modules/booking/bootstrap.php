@@ -10,6 +10,18 @@ require_once __DIR__ . '/lib/BookingAvailability.php';
 require_once __DIR__ . '/lib/BookingValidate.php';
 require_once __DIR__ . '/lib/BookingLock.php';
 require_once __DIR__ . '/lib/BookingBook.php';
+require_once __DIR__ . '/lib/BookingClientBotPlugin.php';
+
+$registerBookingBots = static function (): void {
+    BookingClientBotPlugin::register();
+};
+if (ModuleManager::isEnabled('bots')) {
+    $registerBookingBots();
+}
+EventBus::on('bots.ready', static function ($payload) use ($registerBookingBots) {
+    $registerBookingBots();
+    return is_array($payload) ? $payload : [];
+});
 
 Assets::register('booking', [
     'css' => ['assets/css/booking.css'],

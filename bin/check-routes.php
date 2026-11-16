@@ -118,6 +118,8 @@ $allowed = [
     '/agent/bots/webhook/subscribe' => ['methods' => ['POST'], 'why' => 'agent_token bots subscribe'],
     '/agent/bots/link-code' => ['methods' => ['POST'], 'why' => 'agent_token bots link-code'],
     '/agent/bots/unlink' => ['methods' => ['POST'], 'why' => 'agent_token bots unlink'],
+    '/agent/client-portal/diagnose' => ['methods' => ['GET'], 'why' => 'agent_token client portal diagnose'],
+    '/agent/client-portal/password-reset' => ['methods' => ['POST'], 'why' => 'agent_token client portal password reset'],
     '/agent/audio_pipeline/day-diag' => ['methods' => ['GET'], 'why' => 'agent_token audio day diagnose'],
     '/agent/audio_pipeline/day-records' => ['methods' => ['GET'], 'why' => 'agent_token audio day records'],
     '/agent/audio_pipeline/record' => ['methods' => ['GET'], 'why' => 'agent_token audio record+transcription'],
@@ -265,6 +267,8 @@ $allowed = [
     // Client portal (storefront personal cabinet)
     '/cabinet/login' => ['methods' => ['GET', 'POST'], 'why' => 'client portal login'],
     '/cabinet/logout' => ['methods' => ['GET', 'POST'], 'why' => 'client portal logout'],
+    '/cabinet/forgot' => ['methods' => ['GET'], 'why' => 'client portal password forgot (open bots)'],
+    '/cabinet/reset' => ['methods' => ['GET', 'POST'], 'why' => 'client portal password reset'],
     '/cabinet' => ['methods' => ['GET', 'POST'], 'why' => 'client portal home'],
     '/cabinet/{section}' => ['methods' => ['GET', 'POST'], 'why' => 'client portal section'],
 

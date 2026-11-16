@@ -3,6 +3,12 @@ declare(strict_types=1);
 /** @var list<array{id:string,module:string,title:string,show:bool,weight:int}> $rows */
 ?>
 <h1><?= te('client_portal.settings.title') ?></h1>
+<p class="page-actions">
+  <a href="/client-portal/status"><?= te('client_portal.menu.status') ?></a>
+  <?php if (ModuleManager::isEnabled('bots') && Auth::can('bots.view')): ?>
+    · <a href="/bots/settings"><?= te('client_portal.status.link_bots_settings') ?></a>
+  <?php endif; ?>
+</p>
 <?php if ($rows === []): ?>
   <p class="muted"><?= te('client_portal.settings.empty') ?></p>
 <?php else: ?>

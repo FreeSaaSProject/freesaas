@@ -161,4 +161,6 @@ return [
     'orders.portal.when' => 'Когда',
     'orders.portal.status' => 'Статус',
     'orders.portal.sum' => 'Сумма',
+    'orders.bot.title' => '🛒 Ваши ближайшие заказы:',
+    'orders.bot.empty' => '🛒 Ближайших заказов нет.',
 ];

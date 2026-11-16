@@ -8,12 +8,29 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/ClientPortalConfig.php';
 require_once __DIR__ . '/lib/ClientPortalAuth.php';
+require_once __DIR__ . '/lib/ClientPortalNav.php';
 require_once __DIR__ . '/lib/ClientPortalSections.php';
 require_once __DIR__ . '/lib/ClientPortalView.php';
+require_once __DIR__ . '/lib/ClientPortalPasswordReset.php';
+require_once __DIR__ . '/lib/ClientPortalAgentOps.php';
+require_once __DIR__ . '/lib/ClientPasswordRestoreBotPlugin.php';
 
 Assets::register('client_portal', [
     'css' => ['client_portal.css'],
 ]);
+
+ClientPortalAgentOps::register();
+
+$registerClientPortalBots = static function (): void {
+    ClientPasswordRestoreBotPlugin::register();
+};
+if (ModuleManager::isEnabled('bots')) {
+    $registerClientPortalBots();
+}
+EventBus::on('bots.ready', static function ($payload) use ($registerClientPortalBots) {
+    $registerClientPortalBots();
+    return is_array($payload) ? $payload : [];
+});
 
 ModuleManager::registerMenuGroup('client_portal.menu.group', 42);
 
@@ -49,6 +66,8 @@ foreach ($adminPages as $path => $def) {
 $publicPages = [
     '/cabinet/login' => ['methods' => ['GET', 'POST'], 'file' => 'login.php'],
     '/cabinet/logout' => ['methods' => ['GET', 'POST'], 'file' => 'logout.php'],
+    '/cabinet/forgot' => ['methods' => ['GET'], 'file' => 'forgot.php'],
+    '/cabinet/reset' => ['methods' => ['GET', 'POST'], 'file' => 'reset.php'],
     '/cabinet' => ['methods' => ['GET', 'POST'], 'file' => 'cabinet.php'],
     '/cabinet/{section}' => ['methods' => ['GET', 'POST'], 'file' => 'cabinet_section.php'],
 ];
@@ -106,17 +125,26 @@ EventBus::on('client_portal.render', static function (array $payload): array {
     return $payload;
 });
 
+EventBus::on('sites.request', static function (array $payload): array {
+    $path = strtolower(rtrim((string)($payload['path'] ?? ''), '/') ?: '/');
+    if ($path === '/lk' || $path === '/login' || $path === '/account') {
+        ClientPortalAuth::ensureBag();
+        $to = ClientPortalAuth::check() ? '/cabinet' : '/cabinet/login';
+        header('Location: ' . $to, true, 302);
+        exit;
+    }
+    return $payload;
+});
+
 EventBus::on('sites.nav', static function (array $payload): array {
     $items = is_array($payload['items'] ?? null) ? $payload['items'] : [];
-    $current = (string)($payload['current'] ?? '');
-    $loggedIn = ClientPortalAuth::check();
-    $items[] = [
-        'label' => $loggedIn ? t('client_portal.nav.cabinet') : t('client_portal.nav.sign_in'),
-        'href' => $loggedIn ? '/cabinet' : '/cabinet/login',
-        'current' => $current === 'cabinet' || $current === 'cabinet_login',
-        'cabinet' => true,
-    ];
-    $payload['items'] = $items;
+    $payload['items'] = ClientPortalNav::mergeInto($items, (string)($payload['current'] ?? ''));
+    return $payload;
+});
+
+EventBus::on('sites.footer_pages', static function (array $payload): array {
+    $items = is_array($payload['items'] ?? null) ? $payload['items'] : [];
+    $payload['items'] = ClientPortalNav::mergeInto($items, '');
     return $payload;
 });
 

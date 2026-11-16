@@ -439,6 +439,7 @@
                 "bots.send.test",
                 "bots.settings.get",
                 "bots.settings.save",
+                "bots.settings.subscribe_webhook",
                 "bots.type.get"
             ],
             "uncovered_routes": [
@@ -538,8 +539,12 @@
             "ops": [
                 "client_portal.cabinet.home",
                 "client_portal.cabinet.section",
+                "client_portal.diagnose",
+                "client_portal.forgot",
                 "client_portal.login",
                 "client_portal.logout",
+                "client_portal.password_reset",
+                "client_portal.reset",
                 "client_portal.settings.get",
                 "client_portal.settings.save",
                 "client_portal.status"
@@ -1199,7 +1204,7 @@
                 "/cart",
                 "/cart/checkout",
                 "/llms.txt",
-                "/page/\u2026",
+                "/page/…",
                 "/promo/{code}",
                 "/robots.txt",
                 "/shop",

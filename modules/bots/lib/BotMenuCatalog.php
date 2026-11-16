@@ -165,8 +165,15 @@ final class BotMenuCatalog
             [
                 'id' => 'booking',
                 'label_key' => 'bots.catalog.client.booking',
-                'module' => 'calendar',
+                'module' => 'booking',
                 'aliases' => ['booking'],
+                'kind' => 'cabinet',
+            ],
+            [
+                'id' => 'visits',
+                'label_key' => 'bots.catalog.client.visits',
+                'module' => 'procedures',
+                'aliases' => ['visits'],
                 'kind' => 'cabinet',
             ],
             [
@@ -174,6 +181,13 @@ final class BotMenuCatalog
                 'label_key' => 'bots.catalog.client.orders',
                 'module' => 'orders',
                 'aliases' => ['orders'],
+                'kind' => 'cabinet',
+            ],
+            [
+                'id' => 'client_password_restore',
+                'label_key' => 'bots.catalog.client.password_restore',
+                'module' => 'client_portal',
+                'aliases' => ['client_password_restore'],
                 'kind' => 'cabinet',
             ],
             [

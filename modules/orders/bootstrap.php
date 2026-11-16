@@ -4,6 +4,18 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/OrdersRepository.php';
 require_once __DIR__ . '/lib/OrdersConfig.php';
 require_once __DIR__ . '/lib/OrdersMaxNotify.php';
+require_once __DIR__ . '/lib/OrdersClientBotPlugin.php';
+
+$registerOrdersBots = static function (): void {
+    OrdersClientBotPlugin::register();
+};
+if (ModuleManager::isEnabled('bots')) {
+    $registerOrdersBots();
+}
+EventBus::on('bots.ready', static function ($payload) use ($registerOrdersBots) {
+    $registerOrdersBots();
+    return is_array($payload) ? $payload : [];
+});
 
 Assets::register('orders', [
     'css' => ['assets/css/orders.css'],

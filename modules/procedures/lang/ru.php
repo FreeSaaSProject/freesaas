@@ -167,4 +167,6 @@ return [
     'procedures.portal.when' => 'Когда',
     'procedures.portal.staff' => 'Специалист',
     'procedures.portal.sum' => 'Сумма',
+    'procedures.bot.visits_title' => '🩺 Ваши визиты:',
+    'procedures.bot.visits_empty' => '🩺 Визитов пока нет.',
 ];

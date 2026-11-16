@@ -138,6 +138,30 @@ final class BotsConfig
             }
         }
         Config::set('bots', 'max_ssl_insecure', !empty($post['max_ssl_insecure']) ? '1' : '0');
+        if (array_key_exists('client_telegram_username', $post)) {
+            $u = ltrim(trim((string)$post['client_telegram_username']), '@');
+            $u = preg_replace('/[^a-zA-Z0-9_]/', '', $u) ?? '';
+            Config::set('bots', 'client_telegram_username', $u);
+        }
+        if (array_key_exists('client_max_bot_url', $post)) {
+            $url = trim((string)$post['client_max_bot_url']);
+            if ($url !== '' && !preg_match('#^https?://#i', $url)) {
+                $url = '';
+            }
+            Config::set('bots', 'client_max_bot_url', $url);
+        }
+    }
+
+    /** Public @username for client Telegram bot deep links (no @). */
+    public static function clientTelegramUsername(): string
+    {
+        return ltrim(trim((string)Config::get('bots', 'client_telegram_username', '')), '@');
+    }
+
+    /** Public Max bot URL for client deep links. */
+    public static function clientMaxBotUrl(): string
+    {
+        return trim((string)Config::get('bots', 'client_max_bot_url', ''));
     }
 
     public static function maskSecret(string $value): string

@@ -2,15 +2,18 @@
     "id": "bots",
     "name": "bots.module.name",
     "description": "bots.module.description",
-    "version": "1.0.4",
+    "version": "1.0.8",
     "type": "product",
+    "runtime": "both",
     "requires": {
         "core": ">=1.0.0"
     },
     "optionalRequires": {
         "clients": ">=1.0.0",
         "assistant_groups": ">=1.0.0",
-        "orders": ">=1.0.0"
+        "orders": ">=1.0.0",
+        "client_portal": ">=0.1.0",
+        "vacations": ">=1.0.0"
     },
     "provides": [
         "bots.transport"
@@ -71,6 +74,14 @@
                 "path": "/bots/settings",
                 "permission": "bots.manage",
                 "description": "Save cfg/modules/bots.ini channel tokens/secrets"
+            },
+            {
+                "id": "bots.settings.subscribe_webhook",
+                "method": "POST",
+                "path": "/bots/settings",
+                "permission": "bots.manage",
+                "side_effect": "write",
+                "description": "Re-subscribe Telegram/Max webhook; body action=subscribe_webhook, audience, platform. Telegram: drop_pending_updates + fixed IPv4 when A record exists"
             },
             {
                 "id": "bots.queue.list",

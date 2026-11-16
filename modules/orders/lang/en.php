@@ -161,4 +161,6 @@ return [
     'orders.portal.when' => 'When',
     'orders.portal.status' => 'Status',
     'orders.portal.sum' => 'Sum',
+    'orders.bot.title' => '🛒 Your upcoming orders:',
+    'orders.bot.empty' => '🛒 No upcoming orders.',
 ];

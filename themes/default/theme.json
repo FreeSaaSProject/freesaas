@@ -1,6 +1,6 @@
 {
   "id": "default",
   "name": "Default",
-  "version": "0.1.1",
-  "regions": ["header", "footer", "home", "shop", "product", "cart", "page", "promo", "error", "cabinet", "cabinet_login"]
+  "version": "0.1.2",
+  "regions": ["header", "footer", "home", "shop", "product", "cart", "page", "promo", "error", "cabinet", "cabinet_login", "cabinet_forgot", "cabinet_reset"]
 }

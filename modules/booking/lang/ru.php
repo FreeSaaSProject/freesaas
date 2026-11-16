@@ -83,4 +83,6 @@ return [
     'booking.setup.step.availability_help' => 'Нужны смены и типы процедур.',
     'booking.setup.ask.availability' => 'Нужны смены и типы процедур.',
     'booking.setup.choice.open' => 'Открыть запись',
+    'booking.bot.open' => "📅 Онлайн-запись\n\nОткройте запись на сайте:\n{url}",
+    'booking.bot.open_fallback' => '📅 Онлайн-запись пока недоступна (не задан публичный хост сайта).',
 ];

@@ -2,7 +2,7 @@
     "id": "client_portal",
     "name": "client_portal.module.name",
     "description": "client_portal.module.description",
-    "version": "0.1.1",
+    "version": "0.1.7",
     "type": "product",
     "runtime": "both",
     "catalog": {
@@ -21,7 +21,8 @@
         "clients": ">=1.0.0"
     },
     "optionalRequires": {
-        "sites": ">=1.0.0"
+        "sites": ">=1.0.0",
+        "bots": ">=1.0.6"
     },
     "provides": [
         "client_portal.auth",
@@ -43,8 +44,12 @@
             "/client-portal/settings",
             "/cabinet/login",
             "/cabinet/logout",
+            "/cabinet/forgot",
+            "/cabinet/reset",
             "/cabinet",
-            "/cabinet/{section}"
+            "/cabinet/{section}",
+            "/agent/client-portal/diagnose",
+            "/agent/client-portal/password-reset"
         ]
     },
     "agent": {
@@ -107,11 +112,50 @@
                 "assistant": false,
                 "side_effect": "write",
                 "description": "Client portal logout"
+            },
+            {
+                "id": "client_portal.forgot",
+                "method": "GET",
+                "path": "/cabinet/forgot",
+                "permission": "public",
+                "assistant": false,
+                "description": "Password restore: open client Telegram/Max bots (in-bot generate)"
+            },
+            {
+                "id": "client_portal.reset",
+                "method": "POST",
+                "path": "/cabinet/reset",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Consume password reset token and set new password"
+            },
+            {
+                "id": "client_portal.diagnose",
+                "method": "GET",
+                "path": "/agent/client-portal/diagnose",
+                "permission": "agent_token",
+                "description": "Password-reset readiness, recent resets, optional ?phone="
+            },
+            {
+                "id": "client_portal.password_reset",
+                "method": "POST",
+                "path": "/agent/client-portal/password-reset",
+                "permission": "agent_token",
+                "side_effect": "write",
+                "description": "Start password reset for phone; returns reset_url for staff debugging"
             }
         ]
     },
     "jobs": [],
     "menu": [
+        {
+            "group": "clients.menu.group",
+            "num": 88,
+            "path": "/client-portal/status",
+            "title": "client_portal.menu.status",
+            "kind": "work"
+        },
         {
             "group": "clients.menu.group",
             "num": 90,
@@ -122,7 +166,8 @@
     ],
     "configSchema": [],
     "tables": [
-        "base_client_portal_sessions"
+        "base_client_portal_sessions",
+        "base_client_portal_resets"
     ],
     "migrators": [],
     "hooks": {
@@ -131,10 +176,13 @@
             "client_portal.nav",
             "client_portal.home",
             "client_portal.render",
-            "client_portal.profile.save"
+            "client_portal.profile.save",
+            "client_portal.password_reset.channels",
+            "client_portal.password_reset.notify"
         ],
         "subscribe": [
             "sites.nav",
+            "sites.footer_pages",
             "sites.diagnose",
             "sites.llms_txt",
             "sites.sitemap"

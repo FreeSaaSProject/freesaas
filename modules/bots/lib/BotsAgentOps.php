@@ -18,7 +18,14 @@ final class BotsAgentOps
         ]);
         AgentOps::registerModuleOp('POST', '/agent/bots/settings', 'bots.settings.save', [self::class, 'settingsSave'], [
             'description' => 'Save bots.ini channels; empty secret auto-generates when token set',
-            'body' => ['staff_max_token', 'staff_max_webhook_secret', 'allow_unsigned_webhooks', 'max_ssl_insecure'],
+            'body' => [
+                'staff_max_token',
+                'staff_max_webhook_secret',
+                'client_telegram_username',
+                'client_max_bot_url',
+                'allow_unsigned_webhooks',
+                'max_ssl_insecure',
+            ],
         ]);
         AgentOps::registerModuleOp('POST', '/agent/bots/webhook/subscribe', 'bots.webhook.subscribe', [self::class, 'webhookSubscribe'], [
             'description' => 'Register Max/Telegram webhook with secret from ini (autogen if empty)',
@@ -55,14 +62,26 @@ final class BotsAgentOps
     /** @return array<string,mixed> */
     public static function settingsGet(): array
     {
-        return [
+        $out = [
             'ok' => true,
             'channels' => BotsConfig::listForUi(),
+            'client_telegram_username' => BotsConfig::clientTelegramUsername(),
+            'client_max_bot_url' => BotsConfig::clientMaxBotUrl(),
             'allow_unsigned_webhooks' => BotsConfig::allowUnsignedWebhooks(),
             'max_ssl_insecure' => BotsConfig::maxSslInsecure(),
             'missing_secrets' => BotsConfig::channelsMissingSecret(),
             'http' => 200,
         ];
+        // Live Telegram webhook probe (staff + client) — helps catch “outbound works, inbound dead”.
+        $out['telegram_webhooks'] = [
+            'staff' => BotClient::telegramGetWebhookInfo('staff'),
+            'client' => BotClient::telegramGetWebhookInfo('client'),
+        ];
+        $out['telegram_me'] = [
+            'staff' => BotClient::telegramGetMe('staff'),
+            'client' => BotClient::telegramGetMe('client'),
+        ];
+        return $out;
     }
 
     /** @return array<string,mixed> */

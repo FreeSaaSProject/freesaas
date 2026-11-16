@@ -2,6 +2,8 @@
 
 Product module `bots`: transport, outbound queue, staff/client webhooks, `BotPlugins` registry. Domain features live in owning modules (core, procedures, clients, …).
 
+**Runtime:** `both` (admin + storefront). Needed so storefront features (e.g. `client_portal` password reset) can read client-bot deep links and enqueue sends. Older installs that still have `runtime: admin` are upgraded when `client_portal` migration `003_ensure_bots_storefront_runtime` runs.
+
 ## Enable
 
 ```bash
@@ -48,6 +50,8 @@ curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
 
 php bin/freesaas.php bot subscribe --audience=staff --platform=max --format=json
 ```
+
+UI **Settings** (`/bots/settings`): per-channel **Re-subscribe webhook** + live Telegram status (`getWebhookInfo`: subscribed / delivery error / pending count). Telegram subscribe sets `drop_pending_updates` and, when DNS has an A record, `ip_address` (IPv4) so Telegram does not stick on a broken AAAA path.
 
 Also: `POST /agent/bots/link-code`, `POST /agent/bots/unlink` (HTTP twins of CLI below).
 
@@ -194,6 +198,10 @@ Column `PLATFORM` on `base_telegram_sends` (migration `007_sends_platform`). Cro
 | Procedure notify on create/update | `procedures` (`ProcedureBotNotify` → `bots.send`) |
 | Order Max-group notify | `orders` (`OrdersMaxNotify` → `bots.send` direct chat) |
 | `client_cabinet` | `clients` (`ClientBotPlugin`) |
+| `client_password_restore` | `client_portal` (`ClientPasswordRestoreBotPlugin`) — generate cabinet password in chat |
+| `booking` | `booking` (`BookingClientBotPlugin`) — deep link to storefront `/cart` |
+| `visits` | `procedures` (`VisitsClientBotPlugin`) — recent visits list |
+| `orders` | `orders` (`OrdersClientBotPlugin`) — upcoming orders list |
 
 Staff/client messenger fields: `bots` via EventBus — `core.user_edit.*`, `core.users.list`, `clients.edit.*`, `clients.view.profile`, `clients.list` (data in `base_bot_links`, not core/clients columns).
 

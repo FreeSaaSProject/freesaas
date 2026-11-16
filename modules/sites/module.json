@@ -281,6 +281,7 @@
             "sites.request",
             "sites.page.render",
             "sites.nav",
+            "sites.footer_pages",
             "sites.home",
             "sites.checkout.before",
             "sites.checkout.after",

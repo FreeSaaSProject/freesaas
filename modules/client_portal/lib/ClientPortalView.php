@@ -19,12 +19,20 @@ final class ClientPortalView
         $data['cabinet_nav'] = $data['cabinet_nav'] ?? [];
         $data['client'] = $data['client'] ?? ClientPortalAuth::client();
 
-        $themeView = $view === 'login' ? 'cabinet_login' : 'cabinet';
-        if ($view !== 'login' && $view !== 'cabinet') {
+        $authViews = ['login' => 'cabinet_login', 'forgot' => 'cabinet_forgot', 'reset' => 'cabinet_reset'];
+        if (isset($authViews[$view])) {
+            $themeView = $authViews[$view];
+            // Prefer dedicated theme auth view; else wrap module HTML in cabinet shell.
+            if (!self::themeViewExists($themeView)) {
+                $data['cabinet_body'] = self::captureModule($view, $data);
+                $themeView = 'cabinet';
+            }
+        } elseif ($view === 'cabinet') {
+            $themeView = 'cabinet';
+            $data['cabinet_body'] = (string)($data['cabinet_body'] ?? '');
+        } else {
             $data['cabinet_body'] = self::captureModule($view, $data);
             $themeView = 'cabinet';
-        } elseif ($view === 'cabinet') {
-            $data['cabinet_body'] = (string)($data['cabinet_body'] ?? '');
         }
 
         $useStorefront = class_exists('SiteTheme', false)
@@ -32,7 +40,9 @@ final class ClientPortalView
             && self::themeViewExists($themeView);
 
         if ($useStorefront) {
-            $navKey = $themeView === 'cabinet_login' ? 'cabinet_login' : 'cabinet';
+            $navKey = in_array($themeView, ['cabinet_login', 'cabinet_forgot', 'cabinet_reset'], true)
+                ? 'cabinet_login'
+                : 'cabinet';
             if (!isset($data['nav']) || !is_array($data['nav'])) {
                 $data['nav'] = SitesFront::nav($navKey);
             }
@@ -40,7 +50,7 @@ final class ClientPortalView
             return;
         }
 
-        View::render($view === 'login' ? 'login' : 'home', $data, 'layout_auth', 'client_portal');
+        View::render($view === 'login' ? 'login' : ($view === 'forgot' || $view === 'reset' ? $view : 'home'), $data, 'layout_auth', 'client_portal');
     }
 
     private static function themeViewExists(string $themeView): bool

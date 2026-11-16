@@ -24,8 +24,8 @@ declare(strict_types=1);
   <label><?= te('client_portal.profile.gender') ?>
     <select name="gender">
       <option value="">—</option>
-      <option value="1"<?= (string)($client['gender'] ?? '') === '1' ? ' selected' : '' ?>>1</option>
-      <option value="0"<?= (string)($client['gender'] ?? '') === '0' ? ' selected' : '' ?>>0</option>
+      <option value="0"<?= (string)($client['gender'] ?? '') === '0' ? ' selected' : '' ?>><?= te('clients.gender.f') ?></option>
+      <option value="1"<?= (string)($client['gender'] ?? '') === '1' ? ' selected' : '' ?>><?= te('clients.gender.m') ?></option>
     </select>
   </label>
   <label><?= te('client_portal.profile.password_new') ?>

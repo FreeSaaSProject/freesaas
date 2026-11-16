@@ -83,4 +83,6 @@ return [
     'booking.setup.step.availability_help' => 'Booking needs workweeks and procedure types.',
     'booking.setup.ask.availability' => 'Booking needs workweeks and procedure types.',
     'booking.setup.choice.open' => 'Open booking',
+    'booking.bot.open' => "📅 Online booking\n\nOpen booking on the website:\n{url}",
+    'booking.bot.open_fallback' => '📅 Online booking is unavailable (public site host is not set).',
 ];

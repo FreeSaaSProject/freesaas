@@ -678,7 +678,7 @@ final class BotClient
     /**
      * Register inbound webhook with the messenger (uses channel token + secret from ini).
      *
-     * @return array{ok:bool,error:string,platform:string,audience:string,url:string,data:?array}
+     * @return array{ok:bool,error:string,platform:string,audience:string,url:string,ip_address?:string,data:?array}
      */
     public static function subscribeWebhook(string $audience, string $platform, string $webhookUrl): array
     {
@@ -716,7 +716,14 @@ final class BotClient
                 'url' => $webhookUrl,
                 'secret_token' => $secret,
                 'allowed_updates' => json_encode(['message', 'callback_query'], JSON_UNESCAPED_UNICODE),
+                // Drop backlog after timeouts so Telegram retries delivery immediately.
+                'drop_pending_updates' => 'true',
             ];
+            // Prefer fixed IPv4: some hosts advertise broken/firewalled AAAA and Telegram times out.
+            $ipv4 = self::webhookIpv4FromUrl($webhookUrl);
+            if ($ipv4 !== '') {
+                $fields['ip_address'] = $ipv4;
+            }
             $res = self::tgRequest($cfg['token'], 'setWebhook', $fields);
             return [
                 'ok' => $res['ok'],
@@ -724,6 +731,7 @@ final class BotClient
                 'platform' => $platform,
                 'audience' => $audience,
                 'url' => $webhookUrl,
+                'ip_address' => $ipv4,
                 'data' => $res['data'],
             ];
         }
@@ -745,6 +753,73 @@ final class BotClient
         }
         $empty['error'] = 'unsupported platform';
         return $empty;
+    }
+
+    /** Resolve first A record for webhook host (empty if none). */
+    private static function webhookIpv4FromUrl(string $webhookUrl): string
+    {
+        $host = parse_url($webhookUrl, PHP_URL_HOST);
+        if (!is_string($host) || $host === '') {
+            return '';
+        }
+        $records = @dns_get_record($host, DNS_A);
+        if (!is_array($records)) {
+            return '';
+        }
+        foreach ($records as $row) {
+            $ip = trim((string)($row['ip'] ?? ''));
+            if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                return $ip;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Telegram getMe — used to discover public @username for deep links.
+     *
+     * @return array{ok:bool,username:string,error:string}
+     */
+    public static function telegramGetMe(string $audience = 'client'): array
+    {
+        $cfg = BotsConfig::channel($audience, 'telegram');
+        if ($cfg === null || $cfg['token'] === '') {
+            return ['ok' => false, 'username' => '', 'error' => 'token not configured'];
+        }
+        $res = self::tgRequest($cfg['token'], 'getMe', []);
+        if (!$res['ok']) {
+            return ['ok' => false, 'username' => '', 'error' => $res['error']];
+        }
+        $username = ltrim((string)($res['data']['result']['username'] ?? ''), '@');
+        return ['ok' => $username !== '', 'username' => $username, 'error' => $username === '' ? 'no username' : ''];
+    }
+
+    /**
+     * Telegram getWebhookInfo (no secrets in return).
+     *
+     * @return array{ok:bool,url:string,pending_update_count:int,last_error_message:string,error:string}
+     */
+    public static function telegramGetWebhookInfo(string $audience = 'client'): array
+    {
+        $empty = ['ok' => false, 'url' => '', 'pending_update_count' => 0, 'last_error_message' => '', 'error' => ''];
+        $cfg = BotsConfig::channel($audience, 'telegram');
+        if ($cfg === null || $cfg['token'] === '') {
+            $empty['error'] = 'token not configured';
+            return $empty;
+        }
+        $res = self::tgRequest($cfg['token'], 'getWebhookInfo', []);
+        if (!$res['ok']) {
+            $empty['error'] = $res['error'];
+            return $empty;
+        }
+        $info = is_array($res['data']['result'] ?? null) ? $res['data']['result'] : [];
+        return [
+            'ok' => true,
+            'url' => (string)($info['url'] ?? ''),
+            'pending_update_count' => (int)($info['pending_update_count'] ?? 0),
+            'last_error_message' => (string)($info['last_error_message'] ?? ''),
+            'error' => '',
+        ];
     }
 
     /**

@@ -243,7 +243,22 @@ final class SitesFront
                 'href' => (string)$page['href'],
             ];
         }
-        return $out;
+        $payload = EventBus::emit('sites.footer_pages', [
+            'items' => $out,
+            'host_id' => $hostId,
+        ]);
+        $items = is_array($payload['items'] ?? null) ? $payload['items'] : $out;
+        $norm = [];
+        foreach ($items as $it) {
+            if (!is_array($it) || empty($it['href']) || empty($it['label'])) {
+                continue;
+            }
+            $norm[] = [
+                'label' => (string)$it['label'],
+                'href' => (string)$it['href'],
+            ];
+        }
+        return $norm;
     }
 
     /** @return list<array{label:string,href?:string,current?:bool}> */

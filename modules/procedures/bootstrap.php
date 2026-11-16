@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/ProceduresEditAcl.php';
 require_once __DIR__ . '/lib/ProceduresDayLoad.php';
 require_once __DIR__ . '/lib/ProcedureBotNotify.php';
 require_once __DIR__ . '/lib/AssignedProceduresBotPlugin.php';
+require_once __DIR__ . '/lib/VisitsClientBotPlugin.php';
 require_once __DIR__ . '/lib/ProceduresAssistantPreview.php';
 require_once __DIR__ . '/lib/ProceduresAssignPreflight.php';
 require_once __DIR__ . '/lib/ProceduresBiContrib.php';
@@ -441,6 +442,7 @@ EventBus::on('calendar.day.stats', static function ($payload) {
 
 $registerProceduresBots = static function (): void {
     AssignedProceduresBotPlugin::register();
+    VisitsClientBotPlugin::register();
 };
 if (ModuleManager::isEnabled('bots')) {
     $registerProceduresBots();
