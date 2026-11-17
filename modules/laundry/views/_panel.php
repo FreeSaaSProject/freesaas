@@ -76,7 +76,8 @@ $formAction = $postUrl !== '' ? ' action="' . e($postUrl) . '"' : '';
 
   <details open>
     <summary><strong><?= te('laundry.accept.title') ?></strong></summary>
-    <form method="post"<?= $formAction ?> style="margin-top:0.75rem">
+    <form method="post"<?= $formAction ?> style="margin-top:0.75rem"
+          onsubmit="return window.laundryAcceptConfirm ? window.laundryAcceptConfirm(this) : true;">
       <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
       <input type="hidden" name="action" value="<?= e(LaundryPanel::ACTION_ACCEPT) ?>">
       <?php if ($open === []): ?>
@@ -104,21 +105,34 @@ $formAction = $postUrl !== '' ? ' action="' . e($postUrl) . '"' : '';
       <?php endforeach; ?>
       </tbody></table></div>
       <?php endif; ?>
-      <p style="margin:0.75rem 0 0.25rem"><strong><?= te('laundry.accept.extra') ?></strong></p>
-      <p class="muted" style="margin:0 0 0.5rem"><?= te('laundry.accept.extra_hint') ?></p>
-      <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:flex-end">
-        <?php foreach ($types as $t): ?>
-          <label style="min-width:7rem"><?= e((string)$t['name']) ?>
-            <input type="number" min="0" name="extra[<?= (int)$t['id'] ?>]" value="0" style="width:5rem">
-          </label>
-        <?php endforeach; ?>
-      </div>
+      <details style="margin:0.75rem 0">
+        <summary><strong><?= te('laundry.accept.extra') ?></strong></summary>
+        <p class="muted" style="margin:0.5rem 0"><?= te('laundry.accept.extra_hint') ?></p>
+        <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:flex-end">
+          <?php foreach ($types as $t): ?>
+            <label style="min-width:7rem"><?= e((string)$t['name']) ?>
+              <input type="number" min="0" name="extra[<?= (int)$t['id'] ?>]" value="0" style="width:5rem">
+            </label>
+          <?php endforeach; ?>
+        </div>
+      </details>
       <div class="page-actions" style="margin-top:0.75rem">
         <label><?= te('laundry.col.weight') ?> <input name="weight" value="0" style="width:5rem"></label>
         <label><?= te('laundry.col.descr') ?> <input name="descr" maxlength="255"></label>
         <button class="btn-primary" type="submit"><?= te('laundry.accept.submit') ?></button>
       </div>
     </form>
+    <script>
+    window.laundryAcceptConfirm = function (form) {
+      var inputs = form.querySelectorAll('input[name^="extra["]');
+      var hasExtra = false;
+      for (var i = 0; i < inputs.length; i++) {
+        if (parseInt(inputs[i].value, 10) > 0) { hasExtra = true; break; }
+      }
+      if (!hasExtra) return true;
+      return window.confirm(<?= tj('laundry.accept.extra_confirm') ?>);
+    };
+    </script>
   </details>
   <?php elseif ($canShip && !$started && $canEdit): ?>
     <p><a class="btn-primary" href="/laundry/inventory"><?= te('laundry.home.inventory') ?></a></p>

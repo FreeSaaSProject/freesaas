@@ -94,6 +94,7 @@ return [
     'laundry.home.ref_settings' => 'linked ticket, accounts, item types',
     'laundry.accept.extra' => 'Beyond shipments',
     'laundry.accept.extra_hint' => 'If more arrived than any open shipment holds (late items from earlier shortfalls), enter the surplus here — it is credited to terms.',
+    'laundry.accept.extra_confirm' => 'Are you sure you received linen BEYOND earlier shipments? This will re-inventory the linen account.',
     'laundry.move.extra_descr' => 'Beyond shipments (late arrival), return #{id}',
     'laundry.embed.title' => 'Laundry (ledger)',
     'laundry.embed.open_module' => 'Laundry module',
