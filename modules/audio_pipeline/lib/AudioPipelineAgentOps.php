@@ -226,6 +226,9 @@ final class AudioPipelineAgentOps
             ];
             if ($withTr) {
                 $tr = (string)($row['transcription'] ?? '');
+                if ($tr !== '' && class_exists('TranscriptGarbage', false)) {
+                    $tr = TranscriptGarbage::filterTranscription($tr)['text'];
+                }
                 if (mb_strlen($tr) > 2000) {
                     $tr = mb_substr($tr, 0, 2000) . '…';
                 }
@@ -308,12 +311,21 @@ final class AudioPipelineAgentOps
                 'quality' => (int)$row['quality'],
                 'filename' => (string)$row['filename'],
                 'key_types' => (string)($row['key_types'] ?? ''),
-                'transcription' => (string)($row['transcription'] ?? ''),
+                'transcription' => self::agentTranscription((string)($row['transcription'] ?? '')),
             ],
             'instances' => $instances,
             'instances_count' => count($instances),
             'http' => 200,
         ];
+    }
+
+    /** Trash-filtered Whisper text for agent/MCP consumers (same rules as UI). */
+    private static function agentTranscription(string $raw): string
+    {
+        if ($raw === '' || !class_exists('TranscriptGarbage', false)) {
+            return $raw;
+        }
+        return TranscriptGarbage::filterTranscription($raw)['text'];
     }
 
     /** @return array<string,mixed> */

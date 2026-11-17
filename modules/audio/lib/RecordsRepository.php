@@ -682,6 +682,14 @@ final class RecordsRepository
         }
         if (!$withTranscription) {
             unset($row['transcription']);
+            return $row;
+        }
+        // MCP/assistant get the same trash-filtered transcript as the UI (not raw ASR).
+        $raw = (string)($row['transcription'] ?? '');
+        if ($raw !== '' && class_exists('TranscriptGarbage', false)) {
+            $filtered = TranscriptGarbage::filterTranscription($raw);
+            $row['transcription'] = $filtered['text'];
+            $row['transcription_trash_dropped'] = $filtered['trash'];
         }
         return $row;
     }

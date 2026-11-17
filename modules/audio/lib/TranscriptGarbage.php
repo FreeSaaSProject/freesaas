@@ -66,6 +66,59 @@ final class TranscriptGarbage
     }
 
     /**
+     * Rebuild Whisper transcript without trash lines (same rules as UI highlighter).
+     * Drops dictionary trash, ASR loops, overlong/counting lines, and immediate repeats.
+     *
+     * @param list<string>|null $trashPhrases null = load enabled phrases from DB when available
+     * @return array{text:string,lines:int,trash:int}
+     */
+    public static function filterTranscription(string $transcription, ?array $trashPhrases = null): array
+    {
+        $src = (string)$transcription;
+        if ($src === '' || strpos($src, '[') === false) {
+            return ['text' => $src, 'lines' => 0, 'trash' => 0];
+        }
+        if ($trashPhrases === null) {
+            $trashPhrases = class_exists('RecordsRepository', false)
+                ? RecordsRepository::trashPhrases()
+                : [];
+        }
+        $parts = explode('[', $src);
+        array_shift($parts);
+        $kept = [];
+        $lines = 0;
+        $trash = 0;
+        $prevTexts = ['', '', ''];
+        foreach ($parts as $chunk) {
+            if (strpos($chunk, ']') === false) {
+                continue;
+            }
+            $pieces = explode(']', $chunk, 2);
+            $timeRaw = (string)($pieces[0] ?? '');
+            $text = rtrim((string)($pieces[1] ?? ''), "\r\n");
+            if ($text !== '' && ($text === $prevTexts[0] || $text === $prevTexts[1] || $text === $prevTexts[2])) {
+                $trash++;
+                continue;
+            }
+            if ($text !== '' && self::isTrashLine($text, $trashPhrases)) {
+                $trash++;
+                continue;
+            }
+            $lines++;
+            $kept[] = '[' . $timeRaw . ']' . $text;
+            $prevTexts[2] = $prevTexts[1];
+            $prevTexts[1] = $prevTexts[0];
+            $prevTexts[0] = $text;
+        }
+
+        return [
+            'text' => implode("\n", $kept),
+            'lines' => $lines,
+            'trash' => $trash,
+        ];
+    }
+
+    /**
      * True when a worker posted an error marker as if it were a transcript
      * (e.g. " failed to read audio data"). Real cabin output uses [MM:SS->MM:SS] lines.
      * Callers clear TRANSCRIPTION but still stamp DT_TRANSCRIBED so claim does not loop.

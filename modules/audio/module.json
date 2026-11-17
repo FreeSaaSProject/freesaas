@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "1.0.12",
+    "version": "1.0.13",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -68,7 +68,7 @@
                 "method": "GET",
                 "path": "/audio/{id}",
                 "permission": "audio.view",
-                "description": "One record; include_transcription=1 for full text; POST action=toggle_disabled (audio.edit)"
+                "description": "One record; include_transcription=1 for trash-filtered transcript (same as UI; drops base_records_trashes / ASR junk); POST action=toggle_disabled (audio.edit)"
             },
             {
                 "id": "audio.badges.list",

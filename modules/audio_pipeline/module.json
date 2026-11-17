@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "1.2.4",
+    "version": "1.2.5",
     "type": "product",
     "requires": {
         "core": ">=1.1.0",
@@ -62,7 +62,7 @@
                 "path": "/agent/audio_pipeline/day-records",
                 "permission": "public",
                 "assistant": false,
-                "description": "Agent-token: cabin records for admin+date; optional transcription=1"
+                "description": "Agent-token: cabin records for admin+date; optional transcription=1 (trash-filtered, same as UI)"
             },
             {
                 "id": "audio_pipeline.record_get",
@@ -70,7 +70,7 @@
                 "path": "/agent/audio_pipeline/record",
                 "permission": "public",
                 "assistant": false,
-                "description": "Agent-token: one record + transcription + instances; query id="
+                "description": "Agent-token: one record + trash-filtered transcription + instances; query id="
             },
             {
                 "id": "audio_pipeline.collections_list",
