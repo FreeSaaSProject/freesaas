@@ -156,19 +156,9 @@ a.audio-dict-name-badge:hover { filter: brightness(0.97); }
   overflow: auto;
 }
 
-.scripts-import-dialog .form-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.scripts-import-dialog .page-actions {
   justify-content: flex-end;
   margin: 0;
-}
-
-.page-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
 }
 
 .scripts-wizard-steps {

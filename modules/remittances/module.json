@@ -89,6 +89,7 @@
             "group": "core.menu.group.finance",
             "num": 55,
             "path": "/remittances",
+            "icon": "💱",
             "title": "remittances.menu.list",
             "kind": "settings"
         }

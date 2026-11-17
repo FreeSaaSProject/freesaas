@@ -40,7 +40,7 @@ Assets::register('egisz', [
     'js' => ['egisz.js'],
 ]);
 
-ModuleManager::registerMenuGroup('egisz.menu.group', 425, '/egisz/journal');
+ModuleManager::registerMenuGroup('egisz.menu.group', 425, '/egisz/journal', '🏥');
 
 $admin = [
     '/egisz/journal' => ['permission' => 'egisz.view', 'methods' => ['GET', 'POST'], 'file' => 'journal.php'],

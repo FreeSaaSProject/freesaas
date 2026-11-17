@@ -63,20 +63,72 @@
                 "description": "Create a poll tree node. Build a questionnaire: el_type=0 root (name = title, descr_site = intro) → el_type=1 questions (pid=root, num = order, descr_site = hint) → el_type=2 options (pid=question; next_qid = jump, ans_end_poll=1 = finish). QUESTION TYPES — pick per question and mix them, open answers matter: (1) OPEN TEXT = question with NO options (respondent types an answer) — use for 'why / describe / what else / examples'; (2) SINGLE choice = options, multy_opts=0; (3) MULTIPLE choice = options, multy_opts=1; (4) CHOICE + COMMENT = options + free_text=1 (text box under options). An option named 'Другое' / 'Свой вариант' / 'Other' always gets a text box. Good practice: add free_text=1 to most choice questions and end with an open question. Returns id.",
                 "parameters": {
                     "type": "object",
-                    "required": ["name", "el_type"],
+                    "required": [
+                        "name",
+                        "el_type"
+                    ],
                     "properties": {
-                        "name": {"type": "string"},
-                        "el_type": {"type": "integer", "enum": [0, 1, 2]},
-                        "pid": {"type": "integer", "description": "Parent id (root for question, question for option)"},
-                        "num": {"type": "integer"},
-                        "descr_site": {"type": "string", "description": "Text shown to respondents"},
-                        "descr_admin": {"type": "string"},
-                        "multy_opts": {"type": "integer", "enum": [0, 1]},
-                        "free_text": {"type": "integer", "enum": [0, 1], "description": "Question only: 1 = text box for an own answer under the options"},
-                        "req_text_len": {"type": "integer", "description": "Advanced: min text length for staff fill (0..255; >0 also shows the box)"},
-                        "next_qid": {"type": "integer"},
-                        "ans_end_poll": {"type": "integer", "enum": [0, 1]},
-                        "enabled": {"type": "integer", "enum": [0, 1]}
+                        "name": {
+                            "type": "string"
+                        },
+                        "el_type": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1,
+                                2
+                            ]
+                        },
+                        "pid": {
+                            "type": "integer",
+                            "description": "Parent id (root for question, question for option)"
+                        },
+                        "num": {
+                            "type": "integer"
+                        },
+                        "descr_site": {
+                            "type": "string",
+                            "description": "Text shown to respondents"
+                        },
+                        "descr_admin": {
+                            "type": "string"
+                        },
+                        "multy_opts": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ]
+                        },
+                        "free_text": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ],
+                            "description": "Question only: 1 = text box for an own answer under the options"
+                        },
+                        "req_text_len": {
+                            "type": "integer",
+                            "description": "Advanced: min text length for staff fill (0..255; >0 also shows the box)"
+                        },
+                        "next_qid": {
+                            "type": "integer"
+                        },
+                        "ans_end_poll": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ]
+                        },
+                        "enabled": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ]
+                        }
                     }
                 }
             },
@@ -97,8 +149,17 @@
                 "description": "Delete a poll node; action=delete",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
-                    "properties": {"action": {"type": "string", "enum": ["delete"]}}
+                    "required": [
+                        "action"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "delete"
+                            ]
+                        }
+                    }
                 }
             },
             {
@@ -124,6 +185,7 @@
             "group": "polls.menu.group",
             "num": 10,
             "path": "/polls",
+            "icon": "🗳️",
             "title": "polls.menu.list",
             "kind": "crud"
         },
@@ -131,6 +193,7 @@
             "group": "polls.menu.group",
             "num": 90,
             "path": "/polls/settings",
+            "icon": "⚙️",
             "title": "polls.menu.settings",
             "kind": "settings",
             "capability": "SUPERADMIN_ACCESS"

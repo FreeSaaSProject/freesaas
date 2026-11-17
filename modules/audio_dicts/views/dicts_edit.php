@@ -155,7 +155,7 @@ $keysHref = $id > 0 ? ('/audio/keys?' . http_build_query(['dict' => $id])) : '';
     <span class="muted small"><?= te('audio_dicts.dicts.review_hint') ?></span>
   </label>
 
-  <div class="form-actions">
+  <div class="page-actions">
     <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
     <a class="btn-secondary" href="<?= e($path) ?>"><?= te('core.common.cancel') ?></a>
   </div>

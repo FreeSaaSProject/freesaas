@@ -86,9 +86,16 @@
                 "description": "Session ping of Clientics API. Body: action=ping.",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
+                    "required": [
+                        "action"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["ping"]}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "ping"
+                            ]
+                        }
                     }
                 }
             },
@@ -101,9 +108,16 @@
                 "description": "Probe Restapi list modules (incl. MedicalCards/WaitingList candidates). Body: action=inventory.",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
+                    "required": [
+                        "action"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["inventory"]}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "inventory"
+                            ]
+                        }
                     }
                 }
             },
@@ -124,15 +138,37 @@
                 "description": "Pull/sync action: clients|appointments|users|services|waiting_list|inventory|outbox. Prefer dry_run=1 for pulls.",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
+                    "required": [
+                        "action"
+                    ],
                     "properties": {
                         "action": {
                             "type": "string",
-                            "enum": ["clients", "appointments", "users", "services", "waiting_list", "inventory", "outbox"]
+                            "enum": [
+                                "clients",
+                                "appointments",
+                                "users",
+                                "services",
+                                "waiting_list",
+                                "inventory",
+                                "outbox"
+                            ]
                         },
-                        "from": {"type": "string", "description": "YYYY-MM-DD (clients/appointments)"},
-                        "to": {"type": "string", "description": "YYYY-MM-DD"},
-                        "dry_run": {"type": "string", "enum": ["0", "1"]}
+                        "from": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD (clients/appointments)"
+                        },
+                        "to": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        },
+                        "dry_run": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        }
                     }
                 }
             },
@@ -154,18 +190,59 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "pull_enabled": {"type": "string", "enum": ["0", "1"]},
-                        "push_enabled": {"type": "string", "enum": ["0", "1"]},
-                        "appointment_sot": {"type": "string", "enum": ["clientics", "freesaas"]},
-                        "default_operator_id": {"type": "integer", "minimum": 0},
-                        "domain": {"type": "string"},
-                        "account_id": {"type": "string"},
-                        "user_id": {"type": "string"},
-                        "access_token": {"type": "string"},
-                        "timeout_sec": {"type": "integer", "minimum": 5, "maximum": 120},
-                        "page_limit": {"type": "integer", "minimum": 1, "maximum": 500},
-                        "worker_token": {"type": "string"},
-                        "webhook_token": {"type": "string"}
+                        "pull_enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "push_enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "appointment_sot": {
+                            "type": "string",
+                            "enum": [
+                                "clientics",
+                                "freesaas"
+                            ]
+                        },
+                        "default_operator_id": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "domain": {
+                            "type": "string"
+                        },
+                        "account_id": {
+                            "type": "string"
+                        },
+                        "user_id": {
+                            "type": "string"
+                        },
+                        "access_token": {
+                            "type": "string"
+                        },
+                        "timeout_sec": {
+                            "type": "integer",
+                            "minimum": 5,
+                            "maximum": 120
+                        },
+                        "page_limit": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 500
+                        },
+                        "worker_token": {
+                            "type": "string"
+                        },
+                        "webhook_token": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -238,6 +315,7 @@
             "group": "clientics.menu.group",
             "num": 10,
             "path": "/clientics",
+            "icon": "📡",
             "title": "clientics.menu.status",
             "kind": "work"
         },
@@ -245,6 +323,7 @@
             "group": "clientics.menu.group",
             "num": 20,
             "path": "/clientics/import",
+            "icon": "⬇️",
             "title": "clientics.menu.import",
             "kind": "work"
         },
@@ -252,6 +331,7 @@
             "group": "clientics.menu.group",
             "num": 90,
             "path": "/clientics/settings",
+            "icon": "⚙️",
             "title": "clientics.menu.settings",
             "kind": "settings"
         }

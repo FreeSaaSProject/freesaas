@@ -156,6 +156,7 @@
             "group": "audio.menu.group",
             "num": 2,
             "path": "/audio/calendar",
+            "icon": "📅",
             "title": "audio_reports.menu.calendar"
         },
         {
@@ -163,12 +164,14 @@
             "kind": "crud",
             "num": 3,
             "path": "/audio/collections",
+            "icon": "📚",
             "title": "audio_reports.menu.collections"
         },
         {
             "group": "audio.menu.group",
             "num": 4,
             "path": "/audio/summaries",
+            "icon": "📝",
             "title": "audio_reports.menu.summaries"
         }
     ],

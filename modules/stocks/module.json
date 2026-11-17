@@ -87,14 +87,16 @@
             "group": "core.menu.group.warehouse",
             "num": 1,
             "path": "/stocks/leftovers",
+            "icon": "📊",
             "title": "stocks.menu.leftovers"
         },
         {
             "group": "core.menu.group.warehouse",
+            "kind": "crud",
             "num": 2,
             "path": "/stocks",
-            "title": "stocks.menu.list",
-            "kind": "settings"
+            "icon": "🏬",
+            "title": "stocks.menu.list"
         }
     ],
     "configSchema": [],

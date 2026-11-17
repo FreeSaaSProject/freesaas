@@ -56,7 +56,7 @@ $f = is_array($form ?? null) ? $form : [];
     </label>
   </div>
 
-  <p class="form-actions">
+  <p class="page-actions">
     <button type="submit" class="btn"><?= te('audio_llm.field.create') ?></button>
     <a class="btn-secondary" href="/audio/llm-studies"><?= te('core.common.cancel') ?></a>
   </p>

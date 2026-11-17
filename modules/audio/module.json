@@ -168,7 +168,9 @@
                     "properties": {
                         "ids": {
                             "type": "array",
-                            "items": {"type": "integer"},
+                            "items": {
+                                "type": "integer"
+                            },
                             "description": "Record ids to mark reviewed (only still-pending ones are touched)"
                         },
                         "date": {
@@ -191,6 +193,7 @@
             "group": "audio.menu.group",
             "num": 1,
             "path": "/audio",
+            "icon": "🎙️",
             "title": "audio.menu.list"
         },
         {
@@ -198,6 +201,7 @@
             "kind": "crud",
             "num": 1,
             "path": "/audio/badges",
+            "icon": "🏷️",
             "title": "audio.menu.badges"
         },
         {
@@ -205,6 +209,7 @@
             "kind": "crud",
             "num": 2,
             "path": "/audio/assignments",
+            "icon": "📌",
             "title": "audio.menu.assignments"
         },
         {
@@ -212,6 +217,7 @@
             "kind": "settings",
             "num": 999,
             "path": "/audio/settings",
+            "icon": "⚙️",
             "title": "audio.menu.settings",
             "permission": "audio.view",
             "capability": "SUPERADMIN_ACCESS"

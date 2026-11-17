@@ -19,7 +19,7 @@ Assets::register('crm', [
     'js' => ['crm.js'],
 ]);
 
-ModuleManager::registerMenuGroup('crm.menu.group', 410, '/crm/deals');
+ModuleManager::registerMenuGroup('crm.menu.group', 410, '/crm/deals', '🤝');
 
 $pages = [
     '/crm' => ['permission' => 'crm.view', 'methods' => ['GET'], 'file' => 'home.php'],

@@ -116,6 +116,7 @@
             "group": "clients.menu.group",
             "num": 45,
             "path": "/certificates",
+            "icon": "🎫",
             "title": "certificates.menu.list",
             "kind": "crud"
         },
@@ -123,6 +124,7 @@
             "group": "clients.menu.group",
             "num": 46,
             "path": "/certificates/ledger",
+            "icon": "📒",
             "title": "certificates.menu.ledger",
             "kind": "crud"
         }

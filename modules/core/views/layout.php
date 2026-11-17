@@ -158,13 +158,19 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
 <?php
   $railPeek = false;
   $railGroupHome = false;
+  // Default on: missing pref key means show icons (plan: rail.icons).
+  $railIcons = true;
   if (Auth::check() && class_exists('UserPrefsRepository', false)) {
       $uid = Auth::userId();
       $railPeek = UserPrefsRepository::get($uid, 'rail.peek') === '1';
       $railGroupHome = UserPrefsRepository::get($uid, 'rail.group_home') === '1';
+      $railIconsPref = UserPrefsRepository::get($uid, 'rail.icons');
+      if ($railIconsPref !== null && $railIconsPref !== '') {
+          $railIcons = $railIconsPref === '1';
+      }
   }
 ?>
-<body class="app-shell<?= $gateBlocked ? ' is-layout-gate' : '' ?>" data-rail="ready" data-rail-peek="<?= $railPeek ? '1' : '0' ?>">
+<body class="app-shell<?= $gateBlocked ? ' is-layout-gate' : '' ?>" data-rail="ready" data-rail-peek="<?= $railPeek ? '1' : '0' ?>" data-rail-icons="<?= $railIcons ? '1' : '0' ?>">
   <header class="topbar" id="topbar">
     <button type="button" class="topbar-menu" id="nav-open" aria-label="<?= te('core.layout.open_menu') ?>" aria-controls="rail" aria-expanded="false">
       <span class="topbar-menu-icon" aria-hidden="true"></span>
@@ -221,6 +227,7 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
                 $railGroups[] = [
                     'key' => $groupKey,
                     'label' => $groupLabel,
+                    'icon' => ModuleManager::menuGroupIcon($groupKey),
                     'has_active' => false,
                     'items' => [],
                 ];
@@ -230,6 +237,8 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
                 'path' => (string)$item['path'],
                 'path_key' => $itemPath,
                 'title' => (string)$item['title'],
+                'kind' => (string)($item['kind'] ?? 'work'),
+                'icon' => (string)($item['icon'] ?? ''),
                 'matches' => $matches,
                 'active' => false,
             ];
@@ -309,11 +318,14 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
       ?>
         <div class="rail-group<?= $isOpen ? ' is-open' : '' ?>" data-group-key="<?= e($g['key']) ?>">
           <div class="rail-group-bar">
+            <?php
+              $groupIcon = $railIcons ? (string)($g['icon'] ?? '') : '';
+            ?>
             <?php if ($homeHref !== null): ?>
               <a class="rail-group-home<?= $homeActive ? ' is-active' : '' ?>"
                  href="<?= e($homeHref) ?>"
                  title="<?= e($g['label']) ?>">
-                <span class="rail-group-title"><?= e($g['label']) ?></span>
+                <span class="rail-group-title"><?php if ($groupIcon !== ''): ?><span class="rail-icon" aria-hidden="true"><?= e($groupIcon) ?></span><?php endif; ?><?= e((string)$g['label']) ?></span>
               </a>
               <button type="button"
                       class="rail-group-toggle"
@@ -326,15 +338,17 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
                       class="rail-group-toggle rail-group-toggle-full"
                       aria-expanded="<?= $isOpen ? 'true' : 'false' ?>"
                       aria-label="<?= te('core.layout.menu_group_toggle', ['group' => $g['label']]) ?>">
-                <span class="rail-group-title"><?= e($g['label']) ?></span>
+                <span class="rail-group-title"><?php if ($groupIcon !== ''): ?><span class="rail-icon" aria-hidden="true"><?= e($groupIcon) ?></span><?php endif; ?><?= e((string)$g['label']) ?></span>
                 <span class="rail-group-chevron" aria-hidden="true"></span>
               </button>
             <?php endif; ?>
           </div>
           <div class="rail-group-body">
-            <?php foreach ($g['items'] as $link): ?>
+            <?php foreach ($g['items'] as $link):
+                $linkIcon = $railIcons ? (string)($link['icon'] ?? '') : '';
+                ?>
               <a href="<?= e($link['path']) ?>"<?= $link['active'] ? ' class="is-active"' : '' ?> title="<?= e($link['title']) ?>">
-                <span class="rail-link-text"><?= e($link['title']) ?></span>
+                <span class="rail-link-text"><?php if ($linkIcon !== ''): ?><span class="rail-icon" aria-hidden="true"><?= e($linkIcon) ?></span><?php endif; ?><?= e((string)$link['title']) ?></span>
               </a>
             <?php endforeach; ?>
           </div>

@@ -153,6 +153,7 @@
             "num": 15,
             "kind": "work",
             "path": "/booking/new",
+            "icon": "🗓️",
             "title": "booking.menu.new",
             "permission": "booking.edit"
         }

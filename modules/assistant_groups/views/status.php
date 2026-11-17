@@ -50,7 +50,7 @@ $chats = is_array($diag['chats'] ?? null) ? $diag['chats'] : [];
   · ops=<?= e(implode(',', is_array($diag['group_ops'] ?? null) ? $diag['group_ops'] : [])) ?>
 </p>
 
-<div class="form-actions">
+<div class="page-actions">
   <a class="btn" href="/assistant-groups/status"><?= te('assistant_groups.status.refresh') ?></a>
   <a class="btn" href="/assistant-groups/settings"><?= te('assistant_groups.status.back') ?></a>
 </div>

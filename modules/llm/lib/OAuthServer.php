@@ -78,9 +78,15 @@ final class OAuthServer
 
     public static function publicBaseUrl(): string
     {
-        $configured = trim((string)Config::get('llm', 'public_base', ''));
+        // Same origin as ASR/webhooks: Settings → Public URL (app.base_url). Not app.public_host (storefront).
+        $configured = rtrim(trim((string)Config::get('app', 'base_url', '')), '/');
         if ($configured !== '') {
-            return rtrim($configured, '/');
+            return $configured;
+        }
+        // Legacy one-off key (prefer migrating to app.base_url via /settings).
+        $legacy = rtrim(trim((string)Config::get('llm', 'public_base', '')), '/');
+        if ($legacy !== '') {
+            return $legacy;
         }
         $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
             || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443)

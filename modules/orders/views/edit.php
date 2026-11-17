@@ -193,7 +193,7 @@ $canDeleteLine = $cartCount > 1;
     <textarea name="comment" rows="5"><?= e((string)($order['comment'] ?? '')) ?></textarea>
   </label>
 
-  <div class="form-actions">
+  <div class="page-actions">
     <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
     <a class="btn-secondary" href="/orders/<?= $oid ?>"><?= te('core.common.cancel') ?></a>
   </div>

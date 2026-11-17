@@ -68,6 +68,7 @@
             "kind": "crud",
             "num": 16,
             "path": "/audio/phrases",
+            "icon": "💬",
             "title": "audio_phrases.menu.list"
         }
     ],

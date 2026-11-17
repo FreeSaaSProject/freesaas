@@ -536,11 +536,36 @@ body.nav-open .nav-backdrop {
   color: var(--text);
 }
 .rail-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-weight: 700;
   line-height: 1.3;
+}
+.rail-link-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.rail-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  font-size: 0.95em;
+  line-height: 1;
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+body[data-rail-icons="0"] .rail-icon {
+  display: none;
 }
 .rail-group-chevron {
   flex-shrink: 0;
@@ -1081,14 +1106,37 @@ body.rail-collapsed .workspace .main.main-flush {
 
 .widget-feed-head {
   display: flex;
-  justify-content: flex-end;
-  margin: -0.15rem 0 0.55rem;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  margin: 0 0 0.55rem;
+}
+.widget-feed-title {
+  margin: 0;
+}
+.widget-feed-title a {
+  color: inherit;
+  text-decoration: none;
+}
+.widget-feed-title a:hover {
+  text-decoration: underline;
 }
 .widget-feed-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.45rem;
   font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.widget-feed .folder-list.compact {
+  margin: 0 0 0.45rem;
+}
+.widget-feed .folder-list.compact .folder-row {
+  padding: 0.2rem 0;
+}
+.widget-feed .folder-list.compact .folder-edit {
+  display: none;
 }
 .widget .feed-list.compact { gap: 0.4rem; }
 .widget .feed-item { padding: 0.55rem 0.65rem; }
@@ -1905,6 +1953,14 @@ a.pager-chip:hover {
   font-weight: 700;
   cursor: pointer;
 }
+.btn-danger:disabled,
+.btn-danger[disabled],
+.btn-danger[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+  pointer-events: none;
+}
 .form-wide { max-width: 44rem; }
 .field-block { display: grid; gap: 0.35rem; }
 .field-label { color: var(--muted); font-size: 0.9rem; }
@@ -2033,6 +2089,44 @@ a.pager-chip:hover {
 }
 .comment-body { line-height: 1.45; }
 .danger-zone { margin-top: 1.5rem; }
+/* EntityDelete: core.js moves button into .page-actions (right). Reason stays below. */
+.entity-delete {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.entity-delete-form {
+  display: inline-flex;
+  margin: 0;
+}
+.page-actions:has(> .entity-delete) {
+  flex-wrap: nowrap;
+}
+.page-actions > .entity-delete {
+  margin-left: auto;
+}
+.entity-delete-blocked {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  max-width: 44rem;
+}
+/* Before JS runs: align delete under the form to the right. */
+form.form-grid + .entity-delete,
+form.form-wide + .entity-delete,
+form.form + .entity-delete,
+form.form-grid + .entity-delete-flash + .entity-delete,
+form.form-wide + .entity-delete-flash + .entity-delete,
+form.form + .entity-delete-flash + .entity-delete {
+  margin-top: 0.75rem;
+  justify-content: flex-end;
+  width: 100%;
+}
+@media (max-width: 640px) {
+  .page-actions:has(> .entity-delete) {
+    flex-wrap: wrap;
+  }
+}
 .check {
   display: flex !important;
   flex-direction: row !important;
@@ -3254,8 +3348,7 @@ label.check.perm-diff {
 }
 /* Sticky Save/Cancel on long admin forms (document scroll). */
 form.form-grid .page-actions,
-form.form-grid .form-actions,
-form.form .form-actions,
+form.form .page-actions,
 .page-actions-sticky {
   position: sticky;
   bottom: 0;
@@ -3266,7 +3359,6 @@ form.form .form-actions,
   border-top: 1px solid var(--line);
 }
 dialog form .page-actions,
-dialog form .form-actions,
 .page-actions-static {
   position: static;
   z-index: auto;

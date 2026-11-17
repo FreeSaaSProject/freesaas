@@ -21,7 +21,7 @@ require_once __DIR__ . '/lib/BotsAgentOps.php';
 
 BotsAgentOps::register();
 
-ModuleManager::registerMenuGroup('bots.menu.group', 1100, '/bots/types/staff');
+ModuleManager::registerMenuGroup('bots.menu.group', 1100, '/bots/types/staff', '🤖');
 
 $pages = [
     '/bots/types/{audience}' => [

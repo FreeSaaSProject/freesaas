@@ -59,9 +59,17 @@ $hasPermCol = Database::columnExists('base_admin_statuses', 'PERMISSIONS');
     <?php endforeach; ?>
   <?php endforeach; ?>
 
-  <?php if ($hasPermCol && $permGroups): ?>
+  <?php if ($hasPermCol && $permGroups):
+    $editBase = $isNew ? '/statuses/new' : ('/statuses/' . $sid . '/edit');
+  ?>
   <h2 class="form-section-title"><?= te('core.status_edit.sec_perms') ?></h2>
   <p class="form-hint"><?= te('core.status_edit.perms_hint') ?></p>
+  <div class="perm-toolbar">
+    <a class="btn-ghost" href="<?= e($editBase) ?>?turnon=1"><?= te('core.user_edit.perms_all_on_btn') ?></a>
+    <a class="btn-ghost" href="<?= e($editBase) ?>?turnon=0"><?= te('core.user_edit.perms_all_off_btn') ?></a>
+    <button class="btn-ghost" type="button" id="perm-expand-all"><?= te('core.user_edit.perms_expand_all') ?></button>
+    <button class="btn-ghost" type="button" id="perm-collapse-all"><?= te('core.user_edit.perms_collapse_all') ?></button>
+  </div>
   <label><?= te('core.user_edit.perms_search') ?>
     <input type="search" id="perm-search" placeholder="<?= te('core.user_edit.perms_search') ?>" autocomplete="off">
   </label>
@@ -77,7 +85,7 @@ $hasPermCol = Database::columnExists('base_admin_statuses', 'PERMISSIONS');
       }
     }
     ?>
-    <details class="check-fieldset perm-group" data-perm-mod="<?= e((string)$modId) ?>" open>
+    <details class="check-fieldset perm-group" data-perm-mod="<?= e((string)$modId) ?>">
       <summary class="perm-group-summary">
         <span class="perm-group-name"><?= e(t((string)$group['name'])) ?></span>
         <span class="perm-group-count<?= $onCount > 0 ? ' is-on' : '' ?>"><?= (int)$onCount ?>/<?= (int)$totalKeys ?></span>
@@ -99,6 +107,18 @@ $hasPermCol = Database::columnExists('base_admin_statuses', 'PERMISSIONS');
   </div>
   <script>
   (function () {
+    function setPermGroupsOpen(open) {
+      var root = document.getElementById('perm-groups');
+      if (!root) return;
+      var nodes = root.querySelectorAll('details.perm-group');
+      for (var i = 0; i < nodes.length; i++) {
+        nodes[i].open = !!open;
+      }
+    }
+    var expandBtn = document.getElementById('perm-expand-all');
+    var collapseBtn = document.getElementById('perm-collapse-all');
+    if (expandBtn) expandBtn.addEventListener('click', function () { setPermGroupsOpen(true); });
+    if (collapseBtn) collapseBtn.addEventListener('click', function () { setPermGroupsOpen(false); });
     var input = document.getElementById('perm-search');
     var root = document.getElementById('perm-groups');
     if (!input || !root) return;
@@ -106,8 +126,8 @@ $hasPermCol = Database::columnExists('base_admin_statuses', 'PERMISSIONS');
       var q = (input.value || '').toLowerCase().trim();
       root.querySelectorAll('details.perm-group').forEach(function (d) {
         var mod = (d.getAttribute('data-perm-mod') || '').toLowerCase();
-        var name = (d.querySelector('.perm-group-name') || {}).textContent || '';
-        name = name.toLowerCase();
+        var nameEl = d.querySelector('.perm-group-name');
+        var name = nameEl ? (nameEl.textContent || '').toLowerCase() : '';
         var any = false;
         d.querySelectorAll('[data-perm-id]').forEach(function (lab) {
           var id = (lab.getAttribute('data-perm-id') || '').toLowerCase();

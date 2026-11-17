@@ -194,12 +194,14 @@
             "group": "core.menu.group.finance",
             "num": 40,
             "path": "/funds",
+            "icon": "💼",
             "title": "funds.menu.list"
         },
         {
             "group": "core.menu.group.finance",
             "num": 50,
             "path": "/fund-movements",
+            "icon": "🔁",
             "title": "funds.menu.movements"
         }
     ],

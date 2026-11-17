@@ -5,9 +5,52 @@ require_once __DIR__ . '/lib/PaymentsRepository.php';
 require_once __DIR__ . '/lib/PaymentMoveLinksRepository.php';
 require_once __DIR__ . '/lib/PaymentMoveAllocUi.php';
 require_once __DIR__ . '/lib/DayPayroll.php';
+require_once __DIR__ . '/lib/SalaryVisibility.php';
 require_once __DIR__ . '/lib/ShiftSalaryBotPlugin.php';
 require_once __DIR__ . '/lib/DayPayrollBotPlugin.php';
 require_once __DIR__ . '/lib/PaymentsAssistantPreview.php';
+
+// Invite to clear unread gate on calendar day footers (salary bits already gated via can_money).
+EventBus::on('calendar.day.stats', static function ($payload) {
+    if (!is_array($payload) || SalaryVisibility::canSeeSalary()) {
+        return $payload;
+    }
+    $hasMoneyCap = Auth::capability('SUPERADMIN_ACCESS') || Auth::capability('EVT_MONEY_DATA');
+    if (!$hasMoneyCap) {
+        return $payload;
+    }
+    $invite = SalaryVisibility::inviteHtml();
+    if ($invite === '') {
+        return $payload;
+    }
+    $days = is_array($payload['days'] ?? null) ? $payload['days'] : [];
+    $targetDate = '';
+    foreach ($days as $date => $day) {
+        if (!is_array($day) || !empty($day['is_future'])) {
+            continue;
+        }
+        if (!empty($day['is_today'])) {
+            $targetDate = (string)$date;
+            break;
+        }
+        if ($targetDate === '') {
+            $targetDate = (string)$date;
+        }
+    }
+    if ($targetDate !== '' && isset($days[$targetDate]) && is_array($days[$targetDate])) {
+        $day = $days[$targetDate];
+        $sections = is_array($day['sections'] ?? null) ? $day['sections'] : [];
+        array_unshift($sections, [
+            'id' => 'payments.salary_gate',
+            'module' => 'payments',
+            'order' => 1,
+            'html' => $invite,
+        ]);
+        $day['sections'] = $sections;
+        $payload['days'][$targetDate] = $day;
+    }
+    return $payload;
+});
 
 EventBus::on('assistant.write.preview', static function ($payload) {
     if (!is_array($payload)) {

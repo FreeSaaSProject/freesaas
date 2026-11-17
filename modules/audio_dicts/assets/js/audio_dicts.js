@@ -923,7 +923,7 @@
         '<p class="scripts-field-hint">' + esc(i18n.hideFromReportsHint || '') + '</p>' +
         '</div>' +
         (canEdit
-          ? '<div class="scripts-panel-section scripts-panel-actions form-actions">' +
+          ? '<div class="scripts-panel-section scripts-panel-actions page-actions">' +
             '<button type="button" class="btn-secondary" data-delete-part>' + esc(i18n.removeBlock) + '</button></div>'
           : '');
 

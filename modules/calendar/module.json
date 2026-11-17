@@ -296,12 +296,15 @@
             "group": "calendar.menu.group",
             "num": 1,
             "path": "/calendar",
+            "icon": "📅",
             "title": "calendar.menu.week"
         },
         {
             "group": "calendar.menu.group",
+            "kind": "settings",
             "num": 90,
             "path": "/calendar/settings",
+            "icon": "⚙️",
             "title": "calendar.menu.settings",
             "permission": "calendar.view",
             "capability": "SUPERADMIN_ACCESS"

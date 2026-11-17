@@ -216,6 +216,7 @@
             "group": "sites.menu.group",
             "num": 1,
             "path": "/sites/hosts",
+            "icon": "🌐",
             "title": "sites.menu.hosts",
             "kind": "settings"
         },
@@ -223,6 +224,7 @@
             "group": "sites.menu.group",
             "num": 5,
             "path": "/sites/seo",
+            "icon": "🔎",
             "title": "sites.menu.seo",
             "kind": "settings"
         },
@@ -230,6 +232,7 @@
             "group": "sites.menu.group",
             "num": 10,
             "path": "/sites/promopages",
+            "icon": "📣",
             "title": "sites.menu.promopages",
             "kind": "crud"
         },
@@ -237,6 +240,7 @@
             "group": "sites.menu.group",
             "num": 11,
             "path": "/sites/pages",
+            "icon": "📝",
             "title": "sites.menu.pages",
             "kind": "crud"
         },
@@ -244,6 +248,7 @@
             "group": "sites.menu.group",
             "num": 12,
             "path": "/sites/redirects",
+            "icon": "↪️",
             "title": "sites.menu.redirects",
             "kind": "crud"
         },
@@ -251,6 +256,7 @@
             "group": "sites.menu.group",
             "num": 85,
             "path": "/sites/status",
+            "icon": "📡",
             "title": "sites.menu.status",
             "kind": "settings"
         },
@@ -258,6 +264,7 @@
             "group": "sites.menu.group",
             "num": 90,
             "path": "/sites/settings",
+            "icon": "⚙️",
             "title": "sites.menu.settings",
             "kind": "settings"
         }

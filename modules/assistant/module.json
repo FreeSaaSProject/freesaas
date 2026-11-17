@@ -67,6 +67,22 @@
                 "side_effect": "write",
                 "assistant": false,
                 "description": "Rate an assistant reply; body: rating=good|bad, reasons[], comment, messages[] (context). Stored under var/assistant/feedback/"
+            },
+            {
+                "id": "assistant.prefs.get",
+                "method": "GET",
+                "path": "/assistant/prefs",
+                "side_effect": "read",
+                "assistant": false,
+                "description": "Personal FAB prefs (fab_off, hidden_paths). Superadmin+llm.manage also gets app_base_url, oauth_base, mcp_url (edit base_url on /settings)"
+            },
+            {
+                "id": "assistant.prefs.save",
+                "method": "POST",
+                "path": "/assistant/prefs",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Save FAB prefs (fab_off, unhide[]); OAuth issuer is app.base_url on /settings (not editable here)"
             }
         ]
     },
@@ -76,6 +92,7 @@
             "group": "llm.menu.group",
             "num": 10,
             "path": "/assistant",
+            "icon": "💬",
             "title": "assistant.menu.chat"
         },
         {
@@ -83,6 +100,7 @@
             "kind": "settings",
             "num": 15,
             "path": "/assistant/prefs",
+            "icon": "⚙️",
             "title": "assistant.menu.prefs"
         },
         {
@@ -90,6 +108,7 @@
             "kind": "settings",
             "num": 20,
             "path": "/assistant/eval",
+            "icon": "🧪",
             "title": "assistant.menu.eval",
             "capability": "SUPERADMIN_ACCESS"
         }

@@ -47,7 +47,7 @@ Assets::register('calendar', [
     'css' => ['calendar.css'],
     'js' => ['phone-ru.js', 'calendar.js'],
 ]);
-ModuleManager::registerMenuGroup('calendar.menu.group', 200, '/calendar');
+ModuleManager::registerMenuGroup('calendar.menu.group', 200, '/calendar', '📅');
 
 StatusesRepository::registerFieldGroup([
     'title' => 'calendar.statuses.group',

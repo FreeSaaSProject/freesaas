@@ -54,6 +54,7 @@
             "group": "core.menu.group.finance",
             "num": 60,
             "path": "/finance/balance",
+            "icon": "⚖️",
             "title": "finance.menu.balance"
         }
     ],

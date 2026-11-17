@@ -15,7 +15,7 @@ require_once __DIR__ . '/lib/AmocrmOutboxPusher.php';
 require_once __DIR__ . '/lib/AmocrmWebhookIngest.php';
 require_once __DIR__ . '/lib/AmocrmOutboxListener.php';
 
-ModuleManager::registerMenuGroup('amocrm.menu.group', 1235, '/amocrm');
+ModuleManager::registerMenuGroup('amocrm.menu.group', 1235, '/amocrm', '🔗');
 
 LongJob::register(AmocrmLongJob::TYPE_IMPORT, [
     'module' => 'amocrm',

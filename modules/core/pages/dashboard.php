@@ -19,6 +19,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             MenuOrder::resetDefaults($uid);
             UserPrefsRepository::delete($uid, 'rail.peek');
             UserPrefsRepository::delete($uid, 'rail.group_home');
+            UserPrefsRepository::delete($uid, 'rail.icons');
             $message = t('core.dashboard.reset_done');
         } else {
             $order = $_POST['order'] ?? [];
@@ -60,6 +61,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             MenuOrder::save($uid, array_map('strval', $menuOrder));
             UserPrefsRepository::set($uid, 'rail.peek', !empty($_POST['rail_peek']) ? '1' : '0');
             UserPrefsRepository::set($uid, 'rail.group_home', !empty($_POST['rail_group_home']) ? '1' : '0');
+            UserPrefsRepository::set($uid, 'rail.icons', !empty($_POST['rail_icons']) ? '1' : '0');
 
             $message = t('core.common.saved');
         }
@@ -72,6 +74,8 @@ $layout = DashboardWidgets::resolveLayout($uid, $catalog);
 $menuLayout = MenuOrder::layoutForSettings();
 $railPeek = UserPrefsRepository::get($uid, 'rail.peek') === '1';
 $railGroupHome = UserPrefsRepository::get($uid, 'rail.group_home') === '1';
+$railIconsPref = UserPrefsRepository::get($uid, 'rail.icons');
+$railIcons = $railIconsPref === null || $railIconsPref === '' || $railIconsPref === '1';
 
 View::render('dashboard', [
     'title' => t('core.dashboard.title'),
@@ -79,6 +83,7 @@ View::render('dashboard', [
     'menuLayout' => $menuLayout,
     'railPeek' => $railPeek,
     'railGroupHome' => $railGroupHome,
+    'railIcons' => $railIcons,
     'message' => $message,
     'error' => $error,
     'breadcrumbs' => Breadcrumbs::withHome([

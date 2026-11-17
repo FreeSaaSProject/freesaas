@@ -63,6 +63,7 @@
             "group": "core.menu.group.accounting",
             "num": 15,
             "path": "/procents",
+            "icon": "💹",
             "title": "procents.menu.list"
         }
     ],

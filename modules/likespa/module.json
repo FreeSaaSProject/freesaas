@@ -151,12 +151,14 @@
             "group": "likespa.menu.group",
             "num": 10,
             "path": "/likespa/term-scans",
+            "icon": "🎫",
             "title": "likespa.menu.term_scans"
         },
         {
             "group": "procedures.menu.group",
             "num": 15,
             "path": "/likespa/restores",
+            "icon": "♻️",
             "title": "likespa.menu.restores",
             "kind": "crud"
         },
@@ -164,6 +166,7 @@
             "group": "likespa.menu.group",
             "num": 20,
             "path": "/likespa/staff-debts",
+            "icon": "💸",
             "title": "likespa.menu.staff_debts",
             "when": "terminals"
         },
@@ -171,6 +174,7 @@
             "group": "likespa.menu.group",
             "num": 90,
             "path": "/likespa/settings",
+            "icon": "⚙️",
             "title": "likespa.menu.settings",
             "kind": "settings"
         }

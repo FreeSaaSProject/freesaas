@@ -32,7 +32,7 @@ EventBus::on('bots.ready', static function ($payload) use ($registerClientPortal
     return is_array($payload) ? $payload : [];
 });
 
-ModuleManager::registerMenuGroup('client_portal.menu.group', 42);
+ModuleManager::registerMenuGroup('client_portal.menu.group', 42, null, '🚪');
 
 $adminPages = [
     '/client-portal/status' => [

@@ -15,6 +15,9 @@ final class ModuleManager
     /** @var array<string, string> Default landing path per group key (optional 3rd arg of registerMenuGroup). */
     private static $menuGroupHomes = [];
 
+    /** @var array<string, string> Optional emoji/glyph for a rail group (4th arg of registerMenuGroup). */
+    private static $menuGroupIcons = [];
+
     public static function discover(): void
     {
         $root = base_path('modules');
@@ -739,10 +742,11 @@ final class ModuleManager
     /**
      * Register default rail position for a menu group key (module.json `menu[].group`).
      * Optional $homePath: click on the section title navigates there (must be a visible menu item).
+     * Optional $icon: short emoji/glyph for the section title (shown when rail.icons is on).
      * Call from the owning module's bootstrap.php. First registration wins (shared groups: core only).
      * Do not add product module keys to ModuleManager itself.
      */
-    public static function registerMenuGroup(string $groupKey, int $weight, ?string $homePath = null): void
+    public static function registerMenuGroup(string $groupKey, int $weight, ?string $homePath = null, ?string $icon = null): void
     {
         $groupKey = trim($groupKey);
         if ($groupKey === '') {
@@ -754,6 +758,10 @@ final class ModuleManager
         $home = $homePath !== null ? trim($homePath) : '';
         if ($home !== '' && !isset(self::$menuGroupHomes[$groupKey])) {
             self::$menuGroupHomes[$groupKey] = $home;
+        }
+        $glyph = $icon !== null ? self::normalizeMenuIcon($icon) : '';
+        if ($glyph !== '' && !isset(self::$menuGroupIcons[$groupKey])) {
+            self::$menuGroupIcons[$groupKey] = $glyph;
         }
     }
 
@@ -780,6 +788,44 @@ final class ModuleManager
     }
 
     /**
+     * Optional emoji/glyph for a menu group key, if registered.
+     */
+    public static function menuGroupIcon(string $groupKey): string
+    {
+        $groupKey = trim($groupKey);
+        if ($groupKey === '' || !isset(self::$menuGroupIcons[$groupKey])) {
+            return '';
+        }
+        return self::$menuGroupIcons[$groupKey];
+    }
+
+    /** Normalize menu[].icon / registerMenuGroup icon (short emoji/glyph). */
+    private static function normalizeMenuIcon(string $icon): string
+    {
+        $icon = trim($icon);
+        if ($icon === '') {
+            return '';
+        }
+        if (function_exists('mb_substr')) {
+            return mb_substr($icon, 0, 4, 'UTF-8');
+        }
+        return strlen($icon) > 16 ? substr($icon, 0, 16) : $icon;
+    }
+
+    /** Fallback icon when menu[].icon is empty (settings/prefs only). */
+    private static function fallbackMenuIcon(string $kind, string $pathOnly): string
+    {
+        if ($kind === 'settings' && (
+            $pathOnly === '/settings'
+            || preg_match('#/settings$#', $pathOnly)
+            || preg_match('#/prefs$#', $pathOnly)
+        )) {
+            return '⚙️';
+        }
+        return '';
+    }
+
+    /**
      * Menu item kind → rail order within a group: work, then rare CRUDs, then settings.
      *
      * @return array<string,int>
@@ -790,7 +836,8 @@ final class ModuleManager
     }
 
     /**
-     * Resolve menu[].kind (work|crud|settings). Paths ending in /settings default to settings.
+     * Resolve menu[].kind (work|crud|settings).
+     * Auto-settings: /settings, /…/settings, /…/prefs; or title key …menu.settings|prefs.
      */
     private static function resolveMenuKind(array $row, string $path): string
     {
@@ -801,14 +848,22 @@ final class ModuleManager
         }
         $pathOnly = parse_url($path, PHP_URL_PATH);
         $pathOnly = is_string($pathOnly) && $pathOnly !== '' ? $pathOnly : $path;
-        if (preg_match('#^/[^/]+/settings/?$#', $pathOnly)) {
+        $pathOnly = rtrim($pathOnly, '/') ?: '/';
+        if ($pathOnly === '/settings'
+            || preg_match('#^/[^/]+/settings$#', $pathOnly)
+            || preg_match('#^/[^/]+/prefs$#', $pathOnly)
+        ) {
+            return 'settings';
+        }
+        $titleKey = strtolower(trim((string)($row['title'] ?? '')));
+        if ($titleKey !== '' && preg_match('#\.(menu\.)?(settings|prefs)$#', $titleKey)) {
             return 'settings';
         }
         return 'work';
     }
 
     /**
-     * @return list<array{path:string,title:string,group:string,group_key:string,kind:string,num:int,module:string,permission?:string}>
+     * @return list<array{path:string,title:string,group:string,group_key:string,kind:string,num:int,module:string,icon:string,permission?:string}>
      */
     private static function collectMenuItems(): array
     {
@@ -849,14 +904,35 @@ final class ModuleManager
                     continue;
                 }
                 $groupKey = (string)($row['group'] ?? $id);
+                $kind = self::resolveMenuKind($row, $path);
+                $num = (int)($row['num'] ?? 100);
+                // Primary settings screens sink to the bottom of the settings band
+                // even when newer modules register mid-range nums.
+                $pathOnly = parse_url($path, PHP_URL_PATH);
+                $pathOnly = is_string($pathOnly) && $pathOnly !== '' ? $pathOnly : $path;
+                $pathOnly = rtrim($pathOnly, '/') ?: '/';
+                $isPrimarySettings = $kind === 'settings' && (
+                    $pathOnly === '/settings'
+                    || preg_match('#/settings$#', $pathOnly)
+                    || preg_match('#/prefs$#', $pathOnly)
+                );
+                if ($isPrimarySettings && $num < 9000) {
+                    // Exact /settings sinks below other …/settings items in the system group.
+                    $num += ($pathOnly === '/settings') ? 9900 : 9000;
+                }
+                $icon = self::normalizeMenuIcon((string)($row['icon'] ?? ''));
+                if ($icon === '') {
+                    $icon = self::fallbackMenuIcon($kind, $pathOnly);
+                }
                 $item = [
                     'path' => $path,
                     'title' => t((string)$row['title']),
                     'group' => t($groupKey),
                     'group_key' => $groupKey,
-                    'kind' => self::resolveMenuKind($row, $path),
-                    'num' => (int)($row['num'] ?? 100),
+                    'kind' => $kind,
+                    'num' => $num,
                     'module' => $id,
+                    'icon' => $icon,
                 ];
                 if ($permission !== null) {
                     $item['permission'] = $permission;

@@ -153,6 +153,7 @@
             "group": "clients.menu.group",
             "num": 88,
             "path": "/client-portal/status",
+            "icon": "📡",
             "title": "client_portal.menu.status",
             "kind": "work"
         },
@@ -160,6 +161,7 @@
             "group": "clients.menu.group",
             "num": 90,
             "path": "/client-portal/settings",
+            "icon": "⚙️",
             "title": "client_portal.menu.settings",
             "kind": "settings"
         }

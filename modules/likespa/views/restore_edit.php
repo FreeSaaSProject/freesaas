@@ -76,7 +76,7 @@ $fieldDisabled = $canEditFields ? '' : ' disabled';
   </fieldset>
   <?php endif; ?>
 
-  <div class="form-actions">
+  <div class="page-actions">
     <?php if ($canSubmit): ?>
       <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
     <?php endif; ?>

@@ -120,6 +120,7 @@
             "group": "polls.menu.group",
             "num": 90,
             "path": "/poll-speech/settings",
+            "icon": "⚙️",
             "title": "poll_speech.menu.settings",
             "kind": "settings"
         }

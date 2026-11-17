@@ -8,6 +8,7 @@ declare(strict_types=1);
  * @var int $adminFilter
  * @var int $badgeFilter
  * @var int $positionFilter
+ * @var bool $showScripts
  * @var array<int,string> $staffOptions
  * @var array<string,string> $badgeOptions
  * @var array<int,string> $positionOptions
@@ -35,6 +36,7 @@ declare(strict_types=1);
 $dowKeys = [1, 2, 3, 4, 5, 6, 7];
 $badgeFilter = (int)($badgeFilter ?? 0);
 $positionFilter = (int)($positionFilter ?? 0);
+$showScripts = !empty($showScripts);
 $badgeOptions = is_array($badgeOptions ?? null) ? $badgeOptions : [];
 $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
 $calendarScripts = is_array($calendarScripts ?? null) ? $calendarScripts : [];
@@ -114,6 +116,10 @@ if ($inboxCount > 0) {
           <option value="<?= (int)$pid ?>"<?= $positionFilter === (int)$pid ? ' selected' : '' ?>><?= e($plabel) ?></option>
         <?php endforeach; ?>
       </select>
+    </label>
+    <label class="ar-cal-scripts-toggle">
+      <input type="checkbox" name="scripts" value="1" data-filter-change<?= $showScripts ? ' checked' : '' ?>>
+      <?= te('audio_reports.calendar.show_scripts') ?>
     </label>
   </form>
 </nav>

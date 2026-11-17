@@ -141,7 +141,7 @@ $productIds = is_array($row['product_ids'] ?? null) ? $row['product_ids'] : [];
     </fieldset>
   <?php endif; ?>
 
-  <div class="form-actions">
+  <div class="page-actions">
     <button type="submit" class="btn btn-primary"><?= te('core.common.save') ?></button>
     <a class="btn" href="/certificates"><?= te('core.common.cancel') ?></a>
   </div>

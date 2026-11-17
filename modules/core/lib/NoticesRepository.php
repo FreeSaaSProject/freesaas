@@ -50,25 +50,7 @@ final class NoticesRepository
         if (Database::tableExists('base_views')) {
             $labels = [1 => t('core.notice.unread_short.1'), 2 => t('core.notice.unread_short.2'), 3 => t('core.notice.unread_short.3')];
             $titles = [1 => t('core.notice.unread_title.1'), 2 => t('core.notice.unread_title.2'), 3 => t('core.notice.unread_title.3')];
-            $acc = NewsRepository::accessWhereSql($userId, 'n');
-            $accSql = $acc['sql'] !== '' ? ' AND (' . $acc['sql'] . ')' : '';
-            // NOT IN (materialized id set) beats correlated NOT EXISTS when
-            // base_views only has weak/legacy TYPE_OBJ-prefix indexes.
-            $st = $pdo->prepare(
-                'SELECT n.TYPE AS t, COUNT(*) AS c FROM base_news n
-                 WHERE n.DISABLED = 0 AND n.HAS_CHILDREN = 0 AND n.TYPE IN (1,2,3)'
-                . $andExcl($excl, $denied)
-                . $accSql . '
-                   AND n.ID NOT IN (
-                     SELECT v.ID_OBJ FROM base_views v
-                     WHERE v.TYPE_OBJ = \'base_news\' AND v.ID_USER = ?
-                   )
-                 GROUP BY n.TYPE'
-            );
-            $st->execute(array_merge($acc['params'], [$userId]));
-            foreach ($st->fetchAll() ?: [] as $row) {
-                $t = (int)$row['t'];
-                $c = (int)$row['c'];
+            foreach (self::unreadCountsByType($userId) as $t => $c) {
                 if ($c < 1 || !isset($labels[$t])) {
                     continue;
                 }
@@ -163,5 +145,59 @@ final class NoticesRepository
         }
 
         return $out;
+    }
+
+    /**
+     * Unread accessible leaves by type (1/2/3). Same rules as notice chips.
+     *
+     * @return array<int,int> type => count
+     */
+    public static function unreadCountsByType(int $userId): array
+    {
+        if ($userId < 1 || !Database::tableExists('base_news') || !Database::tableExists('base_views')) {
+            return [];
+        }
+        $pdo = Database::pdo();
+        $excl = NewsRepository::sqlExcludeArchiveChildren('n');
+        $denied = NewsRepository::sqlExcludeInaccessibleFolders($userId, 'n');
+        $andExcl = '';
+        foreach ([$excl, $denied] as $cond) {
+            if ($cond !== '') {
+                $andExcl .= ' AND ' . $cond;
+            }
+        }
+        $acc = NewsRepository::accessWhereSql($userId, 'n');
+        $accSql = $acc['sql'] !== '' ? ' AND (' . $acc['sql'] . ')' : '';
+        $st = $pdo->prepare(
+            'SELECT n.TYPE AS t, COUNT(*) AS c FROM base_news n
+             WHERE n.DISABLED = 0 AND n.HAS_CHILDREN = 0 AND n.TYPE IN (1,2,3)'
+            . $andExcl
+            . $accSql . '
+               AND n.ID NOT IN (
+                 SELECT v.ID_OBJ FROM base_views v
+                 WHERE v.TYPE_OBJ = \'base_news\' AND v.ID_USER = ?
+               )
+             GROUP BY n.TYPE'
+        );
+        $st->execute(array_merge($acc['params'], [$userId]));
+        $out = [];
+        foreach ($st->fetchAll() ?: [] as $row) {
+            $t = (int)$row['t'];
+            $c = (int)$row['c'];
+            if ($t > 0 && $c > 0) {
+                $out[$t] = $c;
+            }
+        }
+        return $out;
+    }
+
+    /** Total unread accessible leaves (types 1–3). */
+    public static function countUnreadForUser(int $userId): int
+    {
+        $sum = 0;
+        foreach (self::unreadCountsByType($userId) as $c) {
+            $sum += (int)$c;
+        }
+        return $sum;
     }
 }

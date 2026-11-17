@@ -4,10 +4,18 @@ declare(strict_types=1);
 /** @var string $error */
 /** @var bool $fab_off */
 /** @var list<string> $hidden_paths */
+/** @var bool $can_see_oauth_base */
+/** @var string $app_base_url */
+/** @var string $oauth_base */
+/** @var string $mcp_url */
 $message = (string)($message ?? '');
 $error = (string)($error ?? '');
 $fab_off = !empty($fab_off);
 $hidden_paths = is_array($hidden_paths ?? null) ? $hidden_paths : [];
+$can_see_oauth_base = !empty($can_see_oauth_base);
+$app_base_url = (string)($app_base_url ?? '');
+$oauth_base = (string)($oauth_base ?? '');
+$mcp_url = (string)($mcp_url ?? '');
 ?>
 <section class="page-head">
   <p class="lede"><?= te('assistant.prefs.lede') ?></p>
@@ -45,6 +53,27 @@ $hidden_paths = is_array($hidden_paths ?? null) ? $hidden_paths : [];
       </ul>
     <?php endif; ?>
   </fieldset>
+
+  <?php if ($can_see_oauth_base): ?>
+  <fieldset>
+    <legend><?= te('assistant.prefs.sec.oauth') ?></legend>
+    <p class="muted"><?= te('assistant.prefs.base_url_hint') ?></p>
+    <p>
+      <a href="<?= e(NavContext::withReturn('/settings')) ?>"><?= te('assistant.prefs.base_url_link') ?></a>
+      <?php if ($app_base_url !== ''): ?>
+        — <code><?= e($app_base_url) ?></code>
+      <?php else: ?>
+        — <span class="muted"><?= te('assistant.prefs.base_url_empty') ?></span>
+      <?php endif; ?>
+    </p>
+    <?php if ($oauth_base !== ''): ?>
+      <p class="muted"><?= te('assistant.prefs.oauth_effective', ['base' => $oauth_base]) ?></p>
+    <?php endif; ?>
+    <?php if ($mcp_url !== ''): ?>
+      <p class="muted"><?= te('assistant.prefs.mcp_effective') ?> <code><?= e($mcp_url) ?></code></p>
+    <?php endif; ?>
+  </fieldset>
+  <?php endif; ?>
 
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>

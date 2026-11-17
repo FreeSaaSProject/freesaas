@@ -71,7 +71,7 @@ $phone = $phone ?? '';
       <?php endif; ?>
     </fieldset>
 
-    <div class="form-actions">
+    <div class="page-actions">
       <button type="submit" class="btn-primary"><?= te('booking.new.show_slots') ?></button>
       <a class="btn-secondary" href="/calendar/events/new?date=<?= e($date) ?><?= $operatorId > 0 ? '&staff=' . (int)$operatorId : '' ?><?= $ret !== '' ? '&ret=' . e(rawurlencode($ret)) : '' ?>"><?= te('booking.new.link_event') ?></a>
     </div>
@@ -143,7 +143,7 @@ $phone = $phone ?? '';
           <input type="text" name="comment" value="<?= e($comment) ?>">
         </label>
 
-        <div class="form-actions">
+        <div class="page-actions">
           <button type="submit" class="btn-primary"><?= te('booking.new.submit') ?></button>
         </div>
       </form>

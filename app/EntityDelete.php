@@ -2,8 +2,13 @@
 declare(strict_types=1);
 
 /**
- * Single-entity delete on edit screens (danger-zone).
+ * Single-entity delete on edit screens.
  * Reuses BulkActions registration (permission, run) and core.bulk.check_item blockers.
+ *
+ * Markup is a sibling after the edit </form> (own POST form — no nesting).
+ * assets/js/core.js pulls the button into that form's .page-actions (right side);
+ * a block reason, if any, stays below the action row.
+ * Prefer placing <?= EntityDelete::form(...) ?> immediately after the edit </form>.
  */
 final class EntityDelete
 {
@@ -43,20 +48,24 @@ final class EntityDelete
         if ($action === '') {
             $action = 'delete';
         }
-        $class = trim((string)($opts['class'] ?? 'danger-zone'));
-        if ($class === '') {
-            $class = 'danger-zone';
+        $class = trim((string)($opts['class'] ?? ''));
+        $classes = 'entity-delete';
+        if ($class !== '') {
+            $classes .= ' ' . $class;
         }
 
         $html = '';
         $postErr = self::consumeError();
         if ($postErr !== '') {
-            $html .= '<div class="flash flash-warn">' . e($postErr) . '</div>';
+            $html .= '<div class="flash flash-warn entity-delete-flash">' . e($postErr) . '</div>';
         }
-        $html .= '<div class="' . e($class) . '">';
+        // Button only in the actions row; block reason stays below the form (sibling).
+        $html .= '<div class="' . e($classes) . '" data-entity-delete="1">';
         if ($reason !== '') {
-            $html .= '<p class="muted entity-delete-blocked">' . e($reason) . '</p>';
-            $html .= '<button class="btn-danger" type="button" disabled>' . e($label) . '</button>';
+            $html .= '<button class="btn-danger" type="button" disabled'
+                . ' title="' . e($reason) . '"'
+                . ' aria-disabled="true">'
+                . e($label) . '</button>';
         } else {
             $html .= '<form method="post" class="entity-delete-form" onsubmit="return confirm(' . tj($confirmKey) . ');">';
             $html .= NavContext::hiddenField();
@@ -65,6 +74,9 @@ final class EntityDelete
             $html .= '</form>';
         }
         $html .= '</div>';
+        if ($reason !== '') {
+            $html .= '<p class="muted entity-delete-blocked" data-entity-delete-reason="1">' . e($reason) . '</p>';
+        }
         return $html;
     }
 

@@ -3,6 +3,23 @@ declare(strict_types=1);
 
 $wantsJson = AgentHttp::wantsJson();
 
+if (!SalaryVisibility::canSeeSalary()) {
+    if ($wantsJson) {
+        AgentHttp::error(t('payments.salary_gate.invite'), 403, [
+            'salary_blocked' => true,
+            'reasons' => SalaryVisibility::blockedReasons(),
+        ]);
+        return;
+    }
+    View::render('salary_blocked', [
+        'title' => t('payments.menu.list'),
+        'breadcrumbs' => Breadcrumbs::withHome([
+            ['label' => t('payments.menu.list'), 'current' => true],
+        ]),
+    ], 'layout', 'payments');
+    return;
+}
+
 $q = trim((string)($_GET['q'] ?? ''));
 $userId = (int)($_GET['user_id'] ?? 0);
 $accountRaw = $_GET['account'] ?? '';

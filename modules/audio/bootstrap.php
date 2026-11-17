@@ -23,7 +23,7 @@ Assets::register('audio', [
     'css' => ['audio.css'],
     'js' => ['audio.js'],
 ]);
-ModuleManager::registerMenuGroup('audio.menu.group', 500, '/audio/calendar');
+ModuleManager::registerMenuGroup('audio.menu.group', 500, '/audio/calendar', '🎙️');
 
 LongJob::register(AudioIngestLongJob::TYPE, [
     'module' => 'audio',

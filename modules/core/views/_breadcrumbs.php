@@ -13,7 +13,8 @@ $returnUrl = class_exists('NavContext', false) ? NavContext::returnUrl() : '';
       <?php
         $label = (string)($item['label'] ?? '');
         $href = isset($item['href']) ? (string)$item['href'] : '';
-        if ($href !== '' && class_exists('NavContext', false)) {
+        // no_up: keep the explicit href (e.g. Лента → /news) even when ret is a filtered list.
+        if ($href !== '' && empty($item['no_up']) && class_exists('NavContext', false)) {
             $href = NavContext::up($href);
         }
         $current = !empty($item['current']);

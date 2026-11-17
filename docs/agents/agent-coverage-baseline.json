@@ -55,13 +55,14 @@
                 "assistant.chat",
                 "assistant.clear",
                 "assistant.confirm",
-                "assistant.feedback"
+                "assistant.feedback",
+                "assistant.prefs.get",
+                "assistant.prefs.save"
             ],
             "uncovered_routes": [
                 "/assistant",
                 "/assistant/eval",
-                "/assistant/fab/hide",
-                "/assistant/prefs"
+                "/assistant/fab/hide"
             ],
             "uncovered_actions": [
                 "catalog",
@@ -1004,6 +1005,7 @@
             "ops": [
                 "llm.chat",
                 "llm.oauth.clients",
+                "llm.oauth.revoke_connection",
                 "llm.tokens.list",
                 "llm.tokens.save"
             ],

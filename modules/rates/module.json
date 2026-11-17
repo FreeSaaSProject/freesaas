@@ -107,6 +107,7 @@
             "group": "core.menu.group.accounting",
             "num": 10,
             "path": "/rates",
+            "icon": "📈",
             "title": "rates.menu.list"
         }
     ],

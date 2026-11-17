@@ -21,7 +21,7 @@ require_once __DIR__ . '/lib/ClienticsOutboxListener.php';
 require_once __DIR__ . '/lib/ClienticsWebhookIngest.php';
 require_once __DIR__ . '/lib/ClienticsLongJob.php';
 
-ModuleManager::registerMenuGroup('clientics.menu.group', 1250, '/clientics');
+ModuleManager::registerMenuGroup('clientics.menu.group', 1250, '/clientics', '🔗');
 
 LongJob::register(ClienticsLongJob::TYPE_IMPORT, [
     'module' => 'clientics',

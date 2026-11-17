@@ -316,18 +316,21 @@
             "group": "core.menu.group.finance",
             "num": 10,
             "path": "/accounts",
+            "icon": "🏦",
             "title": "ledger.menu.accounts"
         },
         {
             "group": "core.menu.group.finance",
             "num": 20,
             "path": "/account-move-types",
+            "icon": "📐",
             "title": "ledger.menu.move_types"
         },
         {
             "group": "core.menu.group.finance",
             "num": 30,
             "path": "/ledger/moves",
+            "icon": "↔️",
             "title": "ledger.menu.moves"
         }
     ],

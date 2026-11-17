@@ -103,7 +103,7 @@ $groupChats[] = ['chat_id' => '', 'title' => '', 'description' => ''];
         </div>
       <?php endforeach; ?>
     </div>
-    <div class="form-actions" style="margin:0.25rem 0 0.75rem">
+    <div class="page-actions" style="margin:0.25rem 0 0.75rem">
       <button type="submit" class="btn" name="action" value="fetch_titles"><?= te('assistant_groups.settings.fetch_all') ?></button>
       <span class="muted"><?= te('assistant_groups.settings.fetch_all_hint') ?></span>
     </div>
@@ -127,7 +127,7 @@ $groupChats[] = ['chat_id' => '', 'title' => '', 'description' => ''];
             <span class="muted">(<?= e((string)($d['source'] ?? '')) ?>)</span>
           </label>
         <?php endforeach; ?>
-        <div class="form-actions" style="margin-top:0.5rem">
+        <div class="page-actions" style="margin-top:0.5rem">
           <button type="submit" class="btn-primary" name="action" value="discover_add"><?= te('assistant_groups.settings.discovered_add') ?></button>
           <button type="submit" class="btn" name="action" value="discover_dismiss"><?= te('assistant_groups.settings.discovered_dismiss') ?></button>
         </div>
@@ -237,7 +237,7 @@ $groupChats[] = ['chat_id' => '', 'title' => '', 'description' => ''];
     </p>
   </fieldset>
 
-  <div class="form-actions">
+  <div class="page-actions">
     <button type="submit" class="btn-primary" name="action" value="save"><?= te('assistant_groups.settings.save') ?></button>
     <button type="submit" class="btn" name="action" value="subscribe"><?= te('assistant_groups.settings.subscribe') ?></button>
     <button type="submit" class="btn" name="action" value="unsubscribe"><?= te('assistant_groups.settings.unsubscribe') ?></button>

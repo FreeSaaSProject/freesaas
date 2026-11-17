@@ -74,6 +74,7 @@
             "kind": "settings",
             "num": 25,
             "path": "/assistant-groups/settings",
+            "icon": "⚙️",
             "title": "assistant_groups.menu.settings",
             "capability": "SUPERADMIN_ACCESS"
         },
@@ -82,6 +83,7 @@
             "kind": "settings",
             "num": 26,
             "path": "/assistant-groups/status",
+            "icon": "📡",
             "title": "assistant_groups.menu.status",
             "capability": "SUPERADMIN_ACCESS"
         }

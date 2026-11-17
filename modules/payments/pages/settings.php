@@ -12,15 +12,21 @@ $ledgerOn = ModuleManager::isEnabled('ledger') && class_exists('LedgerAccountsRe
 /**
  * @return array<string,mixed>
  */
-$buildSettings = static function () use ($procentsOn, $contractsOn): array {
+$pollInvitesOn = ModuleManager::isEnabled('poll_invites');
+
+$buildSettings = static function () use ($procentsOn, $contractsOn, $pollInvitesOn): array {
     $dp = DayPayroll::settings();
     $out = [
         'auto_procent_accrual' => (string)Config::get('payments', 'auto_procent_accrual', '1') === '1' ? '1' : '0',
         'day_pay_min_pay' => (int)$dp['min_pay'],
         'day_pay_payout_account_id' => (int)$dp['account_id'],
         'day_pay_issuer_status2' => (int)$dp['issuer_status2'],
+        'hide_salary_unread_news' => (string)Config::get('payments', 'hide_salary_unread_news', '0') === '1' ? '1' : '0',
+        'hide_salary_unread_reviews' => (string)Config::get('payments', 'hide_salary_unread_reviews', '0') === '1' ? '1' : '0',
+        'hide_salary_apply_superadmin' => (string)Config::get('payments', 'hide_salary_apply_superadmin', '0') === '1' ? '1' : '0',
         'procents_enabled' => $procentsOn,
         'contracts_enabled' => $contractsOn,
+        'poll_invites_enabled' => $pollInvitesOn,
     ];
     if ($contractsOn && class_exists('ContractsRepository', false)) {
         $out['deadline_penalty'] = ContractsRepository::deadlinePenaltyEnabled() ? '1' : '0';
@@ -44,6 +50,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         if ($contractsOn && array_key_exists('deadline_penalty', $_POST)) {
             Config::set('contracts', 'deadline_penalty', !empty($_POST['deadline_penalty']) ? '1' : '0');
+        }
+        if (array_key_exists('hide_salary_unread_news', $_POST)) {
+            Config::set('payments', 'hide_salary_unread_news', !empty($_POST['hide_salary_unread_news']) ? '1' : '0');
+        }
+        if (array_key_exists('hide_salary_unread_reviews', $_POST)) {
+            Config::set('payments', 'hide_salary_unread_reviews', !empty($_POST['hide_salary_unread_reviews']) ? '1' : '0');
+        }
+        if (array_key_exists('hide_salary_apply_superadmin', $_POST)) {
+            Config::set('payments', 'hide_salary_apply_superadmin', !empty($_POST['hide_salary_apply_superadmin']) ? '1' : '0');
         }
 
         $message = t('core.common.saved');
@@ -106,6 +121,7 @@ View::render('settings', [
     'settings' => $settings,
     'procentsOn' => $procentsOn,
     'contractsOn' => $contractsOn,
+    'pollInvitesOn' => $pollInvitesOn,
     'ledgerOn' => $ledgerOn,
     'statusOptions' => $statusOptions,
     'accountOptions' => $accountOptions,

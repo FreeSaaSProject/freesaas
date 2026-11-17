@@ -141,6 +141,7 @@
             "kind": "work",
             "num": 10,
             "path": "/bots/types/staff",
+            "icon": "🤖",
             "title": "bots.menu.type.staff",
             "permission": "bots.view",
             "capability": "SUPERADMIN_ACCESS"
@@ -150,6 +151,7 @@
             "kind": "crud",
             "num": 30,
             "path": "/bots/sends",
+            "icon": "📤",
             "title": "bots.menu.sends",
             "permission": "bots.view",
             "capability": "SUPERADMIN_ACCESS"
@@ -159,6 +161,7 @@
             "kind": "settings",
             "num": 40,
             "path": "/bots/settings",
+            "icon": "⚙️",
             "title": "bots.menu.settings",
             "permission": "bots.manage",
             "capability": "SUPERADMIN_ACCESS"

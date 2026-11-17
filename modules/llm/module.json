@@ -84,7 +84,15 @@
                 "path": "/llm/oauth",
                 "permission": "llm.manage",
                 "assistant": false,
-                "description": "List OAuth clients and MCP/OpenAPI endpoint URLs"
+                "description": "List OAuth clients, active staff connections, and MCP/OpenAPI endpoint URLs"
+            },
+            {
+                "id": "llm.oauth.revoke_connection",
+                "method": "POST",
+                "path": "/llm/oauth",
+                "permission": "llm.manage",
+                "assistant": false,
+                "description": "Revoke a staff OAuth connection; body: action=revoke_connection, id"
             }
         ]
     },
@@ -95,6 +103,7 @@
             "kind": "settings",
             "num": 40,
             "path": "/llm/tokens",
+            "icon": "🔑",
             "title": "llm.menu.tokens",
             "permission": "llm.manage",
             "capability": "SUPERADMIN_ACCESS"
@@ -104,6 +113,7 @@
             "kind": "settings",
             "num": 50,
             "path": "/llm/oauth",
+            "icon": "🔗",
             "title": "llm.menu.oauth",
             "permission": "llm.manage",
             "capability": "SUPERADMIN_ACCESS"

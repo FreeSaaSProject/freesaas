@@ -74,7 +74,7 @@ Requires `assistant` enabled for tools. UI: **LLM → OAuth / MCP** (`/llm/oauth
 6. Tool annotations include `readOnlyHint` / `destructiveHint`. `initialize` returns short `instructions` (≤512 chars).
 7. After code deploy: `php bin/freesaas.php migrate run --module=llm` (widens `CLIENT_ID` for CIMD URLs).
 
-Optional `public_base` in `cfg/modules/llm.ini` if Host auto-detect is wrong behind a proxy.
+OAuth/MCP issuer is `app.base_url` (System settings `/settings`). Not `app.public_host` (storefront). Legacy `llm.public_base` in `cfg/modules/llm.ini` is still read as a fallback — migrate to `app.base_url` and remove the duplicate. `GET /agent/llm/status` returns `app_base_url`, `oauth_base`, `mcp_url` (and legacy `public_base` if set).
 
 **Nginx + PHP-FPM:** pass the Authorization header into PHP or Bearer auth silently fails after a successful browser consent:
 

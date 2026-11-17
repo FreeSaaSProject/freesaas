@@ -14,7 +14,7 @@ declare(strict_types=1);
     <input type="checkbox" name="enabled" value="1"<?= ($isNew || !empty($row['enabled'])) ? ' checked' : '' ?>>
     <?= te('audio_dicts.col.enabled') ?>
   </label>
-  <div class="form-actions">
+  <div class="page-actions">
     <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
     <a href="<?= e($path) ?>"><?= te('core.common.cancel') ?></a>
   </div>

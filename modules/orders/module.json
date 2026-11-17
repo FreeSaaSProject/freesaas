@@ -236,6 +236,7 @@
             "num": 25,
             "kind": "work",
             "path": "/orders",
+            "icon": "🛒",
             "title": "orders.menu.list",
             "permission": "orders.view"
         }

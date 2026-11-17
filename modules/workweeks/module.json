@@ -244,6 +244,7 @@
             "group": "core.menu.group.team",
             "num": 3,
             "path": "/workweeks",
+            "icon": "📆",
             "title": "workweeks.menu.list"
         },
         {
@@ -251,6 +252,7 @@
             "num": 90,
             "kind": "settings",
             "path": "/workweeks/settings",
+            "icon": "⚙️",
             "title": "workweeks.menu.settings",
             "permission": "workweeks.view",
             "capability": "SUPERADMIN_ACCESS"

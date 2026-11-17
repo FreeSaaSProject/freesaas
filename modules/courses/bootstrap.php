@@ -10,7 +10,7 @@ require_once __DIR__ . '/lib/CourseMedia.php';
 require_once __DIR__ . '/lib/CourseEnrollService.php';
 
 Assets::register('courses', ['css' => ['courses.css']]);
-ModuleManager::registerMenuGroup('courses.menu.group', 38);
+ModuleManager::registerMenuGroup('courses.menu.group', 38, null, '📚');
 
 $admin = [
     '/courses' => ['permission' => 'courses.view', 'methods' => ['GET'], 'file' => 'list.php'],

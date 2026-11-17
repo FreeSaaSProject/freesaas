@@ -289,9 +289,13 @@ BulkActions::register('units', 'delete', [
 
 `list_id` совпадает с `ListQuery` (`units`, `procedures`, `procedure_types`, …). Действие видно только при прохождении `permission` / `capability`.
 
+### Ряд кнопок на экране
+
+Канон: **`page-actions`** (Save / Cancel / прочие CTA в одной flex-строке).
+
 ### Удаление на экране редактирования (`EntityDelete`)
 
-[`app/EntityDelete.php`](../app/EntityDelete.php) — красная кнопка danger-zone на edit, тот же `list_id`/`delete` runner и `core.bulk.check_item`, что у списка.
+[`app/EntityDelete.php`](../app/EntityDelete.php) — кнопка удаления на edit, тот же `list_id`/`delete` runner и `core.bulk.check_item`, что у списка. Разметку ставьте **сразу после** `</form>` редактирования (отдельный POST, без вложенной формы). `assets/js/core.js` переносит кнопку в последний `.page-actions` формы (справа); если удаление запрещено (`core.bulk.check_item`), кнопка `disabled`, причина — абзацем под рядом кнопок.
 
 ```php
 // page (до save):
@@ -300,8 +304,17 @@ if (!$isNew && EntityDelete::tryHandle('units', $id, '/units', [
 ])) {
     return;
 }
-// view (после save-form):
+// view:
+<form method="post" class="form-grid">
+  …
+  <div class="page-actions">
+    <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+    <a class="btn-secondary" href="/units"><?= te('core.common.cancel') ?></a>
+  </div>
+</form>
+<?php if (!$isNew): ?>
 <?= EntityDelete::form('units', $id) ?>
+<?php endif; ?>
 ```
 
 JSON/agent delete дополнительно блокируется флагом `app.agent_allow_delete` (UI: **/settings → Agent**; default off). Staff UI с правом `*.delete` не зависит от флага.

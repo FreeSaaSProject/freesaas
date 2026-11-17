@@ -59,9 +59,16 @@
                 "description": "POST action=ping — verify base_url + access_token",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
+                    "required": [
+                        "action"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["ping"]}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "ping"
+                            ]
+                        }
                     }
                 }
             },
@@ -74,15 +81,24 @@
                 "description": "Pull contact|company|lead. Prefer dry_run=1 first.",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
+                    "required": [
+                        "action"
+                    ],
                     "properties": {
                         "action": {
                             "type": "string",
-                            "enum": ["contact", "company", "lead"]
+                            "enum": [
+                                "contact",
+                                "company",
+                                "lead"
+                            ]
                         },
                         "dry_run": {
                             "type": "string",
-                            "enum": ["0", "1"],
+                            "enum": [
+                                "0",
+                                "1"
+                            ],
                             "description": "1 = count only (recommended first)"
                         }
                     }
@@ -114,14 +130,42 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "pull_enabled": {"type": "string", "enum": ["0", "1"]},
-                        "push_enabled": {"type": "string", "enum": ["0", "1"]},
-                        "base_url": {"type": "string", "description": "https://subdomain.amocrm.ru"},
-                        "access_token": {"type": "string", "description": "Blank keeps current"},
-                        "webhook_token": {"type": "string", "description": "Blank keeps current"},
-                        "worker_token": {"type": "string", "description": "Blank keeps current"},
-                        "timeout_sec": {"type": "integer"},
-                        "page_size": {"type": "integer"}
+                        "pull_enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "push_enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "base_url": {
+                            "type": "string",
+                            "description": "https://subdomain.amocrm.ru"
+                        },
+                        "access_token": {
+                            "type": "string",
+                            "description": "Blank keeps current"
+                        },
+                        "webhook_token": {
+                            "type": "string",
+                            "description": "Blank keeps current"
+                        },
+                        "worker_token": {
+                            "type": "string",
+                            "description": "Blank keeps current"
+                        },
+                        "timeout_sec": {
+                            "type": "integer"
+                        },
+                        "page_size": {
+                            "type": "integer"
+                        }
                     }
                 }
             }
@@ -137,6 +181,7 @@
             "group": "amocrm.menu.group",
             "num": 10,
             "path": "/amocrm",
+            "icon": "📡",
             "title": "amocrm.menu.status",
             "kind": "work"
         },
@@ -144,6 +189,7 @@
             "group": "amocrm.menu.group",
             "num": 20,
             "path": "/amocrm/import",
+            "icon": "⬇️",
             "title": "amocrm.menu.import",
             "kind": "work"
         },
@@ -151,6 +197,7 @@
             "group": "amocrm.menu.group",
             "num": 90,
             "path": "/amocrm/settings",
+            "icon": "⚙️",
             "title": "amocrm.menu.settings",
             "kind": "settings"
         }

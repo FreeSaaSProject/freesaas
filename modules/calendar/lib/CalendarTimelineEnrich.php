@@ -40,8 +40,9 @@ final class CalendarTimelineEnrich
             'days' => $days,
             'context' => [
                 'my_only' => !empty(Auth::statusFlags()['EVT_MY_ONLY']),
-                'can_money' => Auth::capability('SUPERADMIN_ACCESS')
-                    || Auth::capability('EVT_MONEY_DATA'),
+                'can_money' => (Auth::capability('SUPERADMIN_ACCESS')
+                    || Auth::capability('EVT_MONEY_DATA'))
+                    && (!class_exists('SalaryVisibility', false) || SalaryVisibility::canSeeSalary()),
                 'can_contact' => Auth::capability('SUPERADMIN_ACCESS')
                     || Auth::capability('EVT_CONTACT_DATA'),
                 'can_see_others' => Auth::capability('SUPERADMIN_ACCESS')

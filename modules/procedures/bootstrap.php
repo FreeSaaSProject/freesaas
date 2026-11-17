@@ -83,7 +83,7 @@ EventBus::on('assistant.write.preflight', static function ($payload) {
     return ProceduresAssignPreflight::onWritePreflight($payload);
 });
 
-ModuleManager::registerMenuGroup('procedures.menu.group', 300, '/procedures');
+ModuleManager::registerMenuGroup('procedures.menu.group', 300, '/procedures', '💆');
 
 $pages = [
     '/procedures' => ['permission' => 'procedures.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
@@ -293,7 +293,8 @@ EventBus::on('calendar.day.stats', static function ($payload) {
                 // Load % is for team balancing — visible without money capability.
                 $parts[] = $loadPct . '%';
             }
-            if (!$isEquipment && $p && ($canMoney || $isSuper)) {
+            // Salary bits follow can_money only (includes SalaryVisibility gate; no is_super bypass).
+            if (!$isEquipment && $p && $canMoney) {
                 // Oper: Ф30+Т140+А1316=1486 (sum when more than one element).
                 $bits = [];
                 $bitAmounts = [];
@@ -308,7 +309,7 @@ EventBus::on('calendar.day.stats', static function ($payload) {
                 if ((float)$p['salary_fix'] > 0) {
                     $pushBit('Ф', (float)$p['salary_fix']);
                 }
-                if ((float)$p['salary'] > 0 && ($canMoney || $isSuper)) {
+                if ((float)$p['salary'] > 0) {
                     $pushBit('', (float)$p['salary']);
                 }
                 if ((float)$p['salary_terminal'] > 0) {
@@ -420,7 +421,7 @@ EventBus::on('calendar.day.stats', static function ($payload) {
                     'promoCount' => (int)$stats['promo_count'],
                     'restored' => (float)$stats['restored'],
                     'salaryTotal' => $salaryTotal,
-                    'showSalary' => ($canMoney || $isSuper) && $salaryTotal > 0,
+                    'showSalary' => $canMoney && $salaryTotal > 0,
                 ], 'procedures'),
                 'data' => [
                     'revenue' => (float)$stats['revenue'],

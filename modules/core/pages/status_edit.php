@@ -84,6 +84,18 @@ $permGroups = class_exists(UsersRepository::class, false)
     : [];
 $statusPerms = StatusesRepository::decodePermissions($row['PERMISSIONS'] ?? null);
 
+$turnon = $_GET['turnon'] ?? null;
+if ($turnon === '1' || $turnon === '0') {
+    $val = $turnon === '1' ? 1 : 0;
+    foreach ($permGroups as $g) {
+        foreach ($g['keys'] as $key) {
+            $pid = is_array($key) ? (string)$key['id'] : (string)$key;
+            $statusPerms[$pid] = $val;
+        }
+    }
+    $message = $val ? t('core.user_edit.perms_all_on') : t('core.user_edit.perms_all_off');
+}
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,

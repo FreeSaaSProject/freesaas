@@ -15,7 +15,7 @@ LlmAgentOps::register();
 
 $llmHome = ModuleManager::isEnabled('assistant') ? '/assistant' : '/llm/tokens';
 // First rail section — Max is a base staff surface (ahead of Desktop).
-ModuleManager::registerMenuGroup('llm.menu.group', 50, $llmHome);
+ModuleManager::registerMenuGroup('llm.menu.group', 50, $llmHome, '✨');
 
 $pages = [
     '/llm/tokens' => [

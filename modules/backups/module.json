@@ -194,6 +194,7 @@
             "group": "core.menu.group.system",
             "num": 40,
             "path": "/backups",
+            "icon": "💾",
             "title": "backups.menu.list",
             "kind": "settings"
         },
@@ -201,6 +202,7 @@
             "group": "core.menu.group.system",
             "num": 41,
             "path": "/backups/settings",
+            "icon": "⚙️",
             "title": "backups.menu.settings",
             "kind": "settings"
         }

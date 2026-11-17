@@ -348,6 +348,7 @@
             "group": "terminals.menu.group",
             "num": 10,
             "path": "/terminals",
+            "icon": "📟",
             "title": "terminals.menu.list",
             "kind": "crud"
         },
@@ -355,6 +356,7 @@
             "group": "terminals.menu.group",
             "num": 20,
             "path": "/terminals/bracelets",
+            "icon": "⌚",
             "title": "terminals.menu.bracelets",
             "kind": "crud"
         },
@@ -362,6 +364,7 @@
             "group": "terminals.menu.group",
             "num": 30,
             "path": "/terminals/termloads",
+            "icon": "📶",
             "title": "terminals.menu.termloads",
             "kind": "work"
         },
@@ -369,6 +372,7 @@
             "group": "terminals.menu.group",
             "num": 40,
             "path": "/terminals/fullstats",
+            "icon": "📉",
             "title": "terminals.menu.fullstats",
             "kind": "work"
         },
@@ -376,6 +380,7 @@
             "group": "terminals.menu.group",
             "num": 50,
             "path": "/terminals/1c",
+            "icon": "1️⃣",
             "title": "terminals.menu.onec",
             "kind": "work"
         },
@@ -383,6 +388,7 @@
             "group": "terminals.menu.group",
             "num": 90,
             "path": "/terminals/settings",
+            "icon": "⚙️",
             "title": "terminals.menu.settings",
             "kind": "settings"
         }

@@ -43,6 +43,7 @@
         {
             "title": "gcal.menu.settings",
             "path": "/gcal/settings",
+            "icon": "⚙️",
             "group": "core.menu.group.system",
             "kind": "settings",
             "capability": "SUPERADMIN_ACCESS",

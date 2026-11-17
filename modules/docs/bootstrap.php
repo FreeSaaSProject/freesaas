@@ -21,7 +21,7 @@ Assets::register('docs', [
     'css' => ['docs.css'],
     'js' => ['docs.js'],
 ]);
-ModuleManager::registerMenuGroup('docs.menu.group', 420, '/documents');
+ModuleManager::registerMenuGroup('docs.menu.group', 420, '/documents', '📄');
 
 $pages = [
     '/documents' => ['permission' => 'docs.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],

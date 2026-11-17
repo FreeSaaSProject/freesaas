@@ -89,7 +89,6 @@
             "/db",
             "/db/schema/longjob",
             "/users",
-
             "/users/new",
             "/users/{id}",
             "/users/{id}/edit",
@@ -315,9 +314,13 @@
                 "description": "Activate wizard UI. Prefer platform GET /agent/modules/{id}/activate for JSON snapshot (enable/grant/setup.steps with recommended choices).",
                 "parameters": {
                     "type": "object",
-                    "required": ["id"],
+                    "required": [
+                        "id"
+                    ],
                     "properties": {
-                        "id": {"type": "string"}
+                        "id": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -1005,12 +1008,14 @@
             "group": "core.menu.group.desktop",
             "num": 1,
             "path": "/",
+            "icon": "🏠",
             "title": "core.menu.home"
         },
         {
             "group": "core.menu.group.desktop",
             "num": 2,
             "path": "/news?type=2",
+            "icon": "📰",
             "title": "core.menu.news"
         },
         {
@@ -1018,6 +1023,7 @@
             "kind": "crud",
             "num": 3,
             "path": "/news-statuses",
+            "icon": "🏷️",
             "title": "core.menu.news_statuses"
         },
         {
@@ -1025,6 +1031,7 @@
             "kind": "settings",
             "num": 99,
             "path": "/ops/access-extend",
+            "icon": "🔓",
             "title": "core.menu.access_extend",
             "capability": "SUPERADMIN_ACCESS"
         },
@@ -1032,6 +1039,7 @@
             "group": "core.menu.group.team",
             "num": 1,
             "path": "/users",
+            "icon": "👥",
             "title": "core.menu.users"
         },
         {
@@ -1039,18 +1047,22 @@
             "kind": "crud",
             "num": 2,
             "path": "/statuses",
+            "icon": "🪪",
             "title": "core.menu.statuses"
         },
         {
             "group": "core.menu.group.system",
+            "kind": "settings",
             "num": 1,
             "path": "/settings",
+            "icon": "⚙️",
             "title": "core.menu.settings"
         },
         {
             "group": "core.menu.group.system",
             "num": 2,
             "path": "/modules",
+            "icon": "🧩",
             "title": "core.menu.modules"
         },
         {
@@ -1058,6 +1070,7 @@
             "kind": "settings",
             "num": 3,
             "path": "/db",
+            "icon": "🗄️",
             "title": "core.menu.db"
         },
         {
@@ -1065,6 +1078,7 @@
             "kind": "settings",
             "num": 4,
             "path": "/cron",
+            "icon": "⏱️",
             "title": "core.menu.cron"
         },
         {
@@ -1072,6 +1086,7 @@
             "kind": "settings",
             "num": 5,
             "path": "/edge-hosts",
+            "icon": "🖥️",
             "title": "core.menu.edge_hosts"
         }
     ],

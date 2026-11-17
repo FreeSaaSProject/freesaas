@@ -50,7 +50,7 @@ declare(strict_types=1);
            <?= $isNew ? 'required' : '' ?>
            placeholder="<?= $isNew ? '' : e(TinvestAccountsRepository::maskToken((string)$row['token'])) ?>">
   </label>
-  <div class="form-actions">
+  <div class="page-actions">
     <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
   </div>
 </form>

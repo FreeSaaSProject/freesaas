@@ -29,6 +29,7 @@ return [
     'audio_reports.calendar.badge_all' => 'Все бейджи',
     'audio_reports.calendar.position' => 'Должность',
     'audio_reports.calendar.position_all' => 'Все должности',
+    'audio_reports.calendar.show_scripts' => 'Скрипты',
     'audio_reports.calendar.whole_year' => 'Весь год',
     'audio_reports.calendar.apply' => 'Показать',
     'audio_reports.calendar.col_staff' => 'Сотрудник',

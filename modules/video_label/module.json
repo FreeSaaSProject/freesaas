@@ -220,6 +220,7 @@
             "group": "video.menu.group",
             "num": 10,
             "path": "/video-label",
+            "icon": "🏷️",
             "title": "video_label.menu.projects",
             "kind": "work"
         }

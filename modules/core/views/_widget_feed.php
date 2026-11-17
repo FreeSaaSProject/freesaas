@@ -2,9 +2,11 @@
 declare(strict_types=1);
 /** @var int $type */
 /** @var string $label */
+/** @var string $listHref */
 /** @var string|null $add */
 /** @var int|null $addType */
 /** @var list<array> $items */
+/** @var list<array> $folders */
 /** @var array $statuses */
 /** @var array<int,int> $commentCounts */
 /** @var array<int,int> $viewerCounts */
@@ -12,9 +14,11 @@ declare(strict_types=1);
 /** @var array<int,string> $feedChips */
 $type = (int)($type ?? 0);
 $label = (string)($label ?? '');
+$listHref = (string)($listHref ?? ('/news?type=' . $type));
 $add = $add ?? null;
 $addType = isset($addType) ? (int)$addType : null;
 $items = $items ?? [];
+$folders = is_array($folders ?? null) ? $folders : [];
 $statuses = $statuses ?? [];
 $commentCounts = $commentCounts ?? [];
 $viewerCounts = $viewerCounts ?? [];
@@ -22,13 +26,34 @@ $checklistProgress = $checklistProgress ?? [];
 $feedChips = $feedChips ?? [];
 ?>
 <div class="widget-feed-head">
-  <div class="widget-feed-actions">
-    <a href="/news?type=<?= $type ?>"><?= te('core.home.read') ?></a>
-    <?php if ($add !== null && $add !== '' && $addType): ?>
+  <h2 class="widget-feed-title">
+    <a href="<?= e($listHref) ?>"><?= e($label) ?></a>
+  </h2>
+  <?php if ($add !== null && $add !== '' && $addType): ?>
+    <div class="widget-feed-actions">
       <a href="/news/new?type=<?= $addType ?>"><?= e((string)$add) ?></a>
-    <?php endif; ?>
-  </div>
+    </div>
+  <?php endif; ?>
 </div>
+<?php if ($folders): ?>
+  <div class="folder-list compact">
+    <?php foreach ($folders as $f): ?>
+      <?php
+        $fid = (int)$f['ID'];
+        $isArchive = !empty($f['IGNORE_FOLDER']);
+      ?>
+      <div class="folder-row<?= $isArchive ? ' is-archive' : '' ?>">
+        <a class="folder-open" href="/news?type=<?= (int)$f['TYPE'] ?>&amp;pid=<?= $fid ?>">
+          <span class="folder-icon" aria-hidden="true">▸</span>
+          <span class="folder-name"><?= e((string)$f['NAME']) ?></span>
+          <?php if ($isArchive): ?>
+            <span class="folder-archive-badge"><?= te('core.news.folder_archive_badge') ?></span>
+          <?php endif; ?>
+        </a>
+      </div>
+    <?php endforeach; ?>
+  </div>
+<?php endif; ?>
 <div class="feed-list compact">
   <?php foreach ($items as $n): ?>
     <?php
@@ -71,7 +96,7 @@ $feedChips = $feedChips ?? [];
       <?php endif; ?>
     </article>
   <?php endforeach; ?>
-  <?php if (!$items): ?>
+  <?php if (!$items && !$folders): ?>
     <div class="muted"><?= te('core.common.empty') ?></div>
   <?php endif; ?>
 </div>

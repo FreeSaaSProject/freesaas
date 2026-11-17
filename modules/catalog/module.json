@@ -144,6 +144,7 @@
             "group": "core.menu.group.dictionaries",
             "num": 1,
             "path": "/catalog",
+            "icon": "📦",
             "title": "catalog.menu.browse"
         },
         {
@@ -151,6 +152,7 @@
             "num": 2,
             "kind": "settings",
             "path": "/catalog/prices/print",
+            "icon": "🖨️",
             "title": "catalog.menu.prices"
         }
     ],

@@ -72,6 +72,7 @@
             "group": "core.menu.group.dictionaries",
             "num": 4,
             "path": "/cabinets",
+            "icon": "🚪",
             "title": "cabinets.menu.list"
         }
     ],

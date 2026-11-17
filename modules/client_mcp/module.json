@@ -61,6 +61,7 @@
             "num": 88,
             "kind": "settings",
             "path": "/client-mcp/settings",
+            "icon": "⚙️",
             "title": "client_mcp.menu.settings",
             "capability": "SUPERADMIN_ACCESS"
         }

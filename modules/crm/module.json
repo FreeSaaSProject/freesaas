@@ -102,20 +102,51 @@
                 "description": "Create company. client_ids=comma ids; primary_client_id; cf[field_id]=value",
                 "parameters": {
                     "type": "object",
-                    "required": ["name"],
+                    "required": [
+                        "name"
+                    ],
                     "properties": {
-                        "name": {"type": "string"},
-                        "inn": {"type": "string"},
-                        "kpp": {"type": "string"},
-                        "phone": {"type": "string"},
-                        "email": {"type": "string"},
-                        "website": {"type": "string"},
-                        "address": {"type": "string"},
-                        "notes": {"type": "string"},
-                        "enabled": {"type": "string", "enum": ["0", "1"]},
-                        "responsible_user_id": {"type": "integer"},
-                        "client_ids": {"type": "string", "description": "Comma-separated base_clients ids"},
-                        "primary_client_id": {"type": "integer"}
+                        "name": {
+                            "type": "string"
+                        },
+                        "inn": {
+                            "type": "string"
+                        },
+                        "kpp": {
+                            "type": "string"
+                        },
+                        "phone": {
+                            "type": "string"
+                        },
+                        "email": {
+                            "type": "string"
+                        },
+                        "website": {
+                            "type": "string"
+                        },
+                        "address": {
+                            "type": "string"
+                        },
+                        "notes": {
+                            "type": "string"
+                        },
+                        "enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "responsible_user_id": {
+                            "type": "integer"
+                        },
+                        "client_ids": {
+                            "type": "string",
+                            "description": "Comma-separated base_clients ids"
+                        },
+                        "primary_client_id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -136,19 +167,57 @@
                 "description": "Link a contact to the company with a role; action=add_contact. Pass client_id, or any channel: tel, mail, telegram, max, whatsapp, channels[] (+name) — an existing client is matched by phone, then by any channel, then by email; otherwise created (needs clients.edit; a phone is not required). First contact becomes primary.",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
+                    "required": [
+                        "action"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["add_contact"]},
-                        "client_id": {"type": "integer"},
-                        "tel": {"type": "string", "description": "Optional — any one channel is enough"},
-                        "telegram": {"type": "string", "description": "@username or t.me link"},
-                        "max": {"type": "string"},
-                        "whatsapp": {"type": "string"},
-                        "channels": {"type": "array", "description": "[{type: phone|telegram|max|whatsapp|email|vk|instagram|other, value, label}]", "items": {"type": "object"}},
-                        "name": {"type": "string"},
-                        "mail": {"type": "string"},
-                        "role": {"type": "string", "description": "Free text, e.g. decision maker / contact person"},
-                        "is_primary": {"type": "string", "enum": ["0", "1"]}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "add_contact"
+                            ]
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        },
+                        "tel": {
+                            "type": "string",
+                            "description": "Optional — any one channel is enough"
+                        },
+                        "telegram": {
+                            "type": "string",
+                            "description": "@username or t.me link"
+                        },
+                        "max": {
+                            "type": "string"
+                        },
+                        "whatsapp": {
+                            "type": "string"
+                        },
+                        "channels": {
+                            "type": "array",
+                            "description": "[{type: phone|telegram|max|whatsapp|email|vk|instagram|other, value, label}]",
+                            "items": {
+                                "type": "object"
+                            }
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "mail": {
+                            "type": "string"
+                        },
+                        "role": {
+                            "type": "string",
+                            "description": "Free text, e.g. decision maker / contact person"
+                        },
+                        "is_primary": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        }
                     }
                 }
             },
@@ -161,10 +230,20 @@
                 "description": "Unlink contact from company; action=remove_contact&client_id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "client_id"],
+                    "required": [
+                        "action",
+                        "client_id"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["remove_contact"]},
-                        "client_id": {"type": "integer"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "remove_contact"
+                            ]
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -177,11 +256,24 @@
                 "description": "Set role of a linked contact; action=set_contact_role&client_id=&role=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "client_id", "role"],
+                    "required": [
+                        "action",
+                        "client_id",
+                        "role"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["set_contact_role"]},
-                        "client_id": {"type": "integer"},
-                        "role": {"type": "string"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "set_contact_role"
+                            ]
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        },
+                        "role": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -194,10 +286,20 @@
                 "description": "Make a linked contact primary; action=set_primary_contact&client_id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "client_id"],
+                    "required": [
+                        "action",
+                        "client_id"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["set_primary_contact"]},
-                        "client_id": {"type": "integer"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "set_primary_contact"
+                            ]
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -210,8 +312,17 @@
                 "description": "Delete company; POST action=delete",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
-                    "properties": {"action": {"type": "string", "enum": ["delete"]}}
+                    "required": [
+                        "action"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "delete"
+                            ]
+                        }
+                    }
                 }
             },
             {
@@ -223,10 +334,20 @@
                 "description": "Add note on company; action=add_note&body=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "body"],
+                    "required": [
+                        "action",
+                        "body"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["add_note"]},
-                        "body": {"type": "string"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "add_note"
+                            ]
+                        },
+                        "body": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -240,13 +361,32 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "view": {"type": "string", "enum": ["list", "kanban"]},
-                        "q": {"type": "string"},
-                        "pipeline_id": {"type": "integer"},
-                        "stage_id": {"type": "integer"},
-                        "company_id": {"type": "integer"},
-                        "client_id": {"type": "integer"},
-                        "responsible": {"type": "string", "description": "me or staff user id"}
+                        "view": {
+                            "type": "string",
+                            "enum": [
+                                "list",
+                                "kanban"
+                            ]
+                        },
+                        "q": {
+                            "type": "string"
+                        },
+                        "pipeline_id": {
+                            "type": "integer"
+                        },
+                        "stage_id": {
+                            "type": "integer"
+                        },
+                        "company_id": {
+                            "type": "integer"
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        },
+                        "responsible": {
+                            "type": "string",
+                            "description": "me or staff user id"
+                        }
                     }
                 }
             },
@@ -267,14 +407,36 @@
                 "description": "Create a core ticket (meeting / task; TYPE=2, status 1, syncs to Google Calendar via gcal) linked to the deal; action=add_ticket. users_resp defaults to the deal responsible, curator to the caller. Needs core.news. Comments, status and assignee changes then go through core.news.* ops on /news/{ticket_id}.",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "name", "deadline"],
+                    "required": [
+                        "action",
+                        "name",
+                        "deadline"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["add_ticket"]},
-                        "name": {"type": "string"},
-                        "deadline": {"type": "string", "description": "YYYY-MM-DD"},
-                        "users_resp": {"type": "string", "description": "Comma-separated staff user ids"},
-                        "curator_id": {"type": "integer"},
-                        "body": {"type": "string", "description": "Plain text description"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "add_ticket"
+                            ]
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "deadline": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        },
+                        "users_resp": {
+                            "type": "string",
+                            "description": "Comma-separated staff user ids"
+                        },
+                        "curator_id": {
+                            "type": "integer"
+                        },
+                        "body": {
+                            "type": "string",
+                            "description": "Plain text description"
+                        }
                     }
                 }
             },
@@ -287,10 +449,20 @@
                 "description": "Link an existing ticket (TYPE=2) to the deal; action=link_ticket&ticket_id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "ticket_id"],
+                    "required": [
+                        "action",
+                        "ticket_id"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["link_ticket"]},
-                        "ticket_id": {"type": "integer"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "link_ticket"
+                            ]
+                        },
+                        "ticket_id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -303,14 +475,35 @@
                 "description": "Send a questionnaire to a deal contact: creates a personal poll invite with a public link /q/{code} (no login; returns url to send to the respondent); action=send_poll. client_id defaults to the primary contact (must be on the deal). text = personal intro ({client.name}, {company.name}, {deal.title}, {manager.name} placeholders). skip_qids hides questions for this respondent. Moves B2B deals to QUESTIONNAIRE_SENT; completion moves to QUESTIONNAIRE_DONE. Needs poll_invites.edit.",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "poll_id"],
+                    "required": [
+                        "action",
+                        "poll_id"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["send_poll"]},
-                        "poll_id": {"type": "integer", "description": "Root poll id (polls.list)"},
-                        "client_id": {"type": "integer"},
-                        "text": {"type": "string"},
-                        "expire_days": {"type": "integer", "description": "Default 14"},
-                        "skip_qids": {"type": "string", "description": "Comma-separated question ids to hide"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "send_poll"
+                            ]
+                        },
+                        "poll_id": {
+                            "type": "integer",
+                            "description": "Root poll id (polls.list)"
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        },
+                        "text": {
+                            "type": "string"
+                        },
+                        "expire_days": {
+                            "type": "integer",
+                            "description": "Default 14"
+                        },
+                        "skip_qids": {
+                            "type": "string",
+                            "description": "Comma-separated question ids to hide"
+                        }
                     }
                 }
             },
@@ -323,11 +516,23 @@
                 "description": "Follow-up questionnaire for a linked invite: new invite + new link with previous answers prefilled (history kept); action=refill_poll&invite_id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "invite_id"],
+                    "required": [
+                        "action",
+                        "invite_id"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["refill_poll"]},
-                        "invite_id": {"type": "integer"},
-                        "expire_days": {"type": "integer"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "refill_poll"
+                            ]
+                        },
+                        "invite_id": {
+                            "type": "integer"
+                        },
+                        "expire_days": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -340,10 +545,20 @@
                 "description": "Unlink a poll invite from the deal (invite stays); action=unlink_poll&invite_id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "invite_id"],
+                    "required": [
+                        "action",
+                        "invite_id"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["unlink_poll"]},
-                        "invite_id": {"type": "integer"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "unlink_poll"
+                            ]
+                        },
+                        "invite_id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -356,10 +571,20 @@
                 "description": "Unlink a ticket from the deal (ticket itself stays); action=unlink_ticket&ticket_id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "ticket_id"],
+                    "required": [
+                        "action",
+                        "ticket_id"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["unlink_ticket"]},
-                        "ticket_id": {"type": "integer"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "unlink_ticket"
+                            ]
+                        },
+                        "ticket_id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -372,20 +597,63 @@
                 "description": "Link a contact to the deal; action=add_contact. client_id, or any channel: tel, mail, telegram, max, whatsapp, channels[] (+name) — matched by phone / channel / email, else created (needs clients.edit; phone optional). link_company=1 also links to the deal company with role.",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
+                    "required": [
+                        "action"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["add_contact"]},
-                        "client_id": {"type": "integer"},
-                        "tel": {"type": "string", "description": "Optional — any one channel is enough"},
-                        "telegram": {"type": "string", "description": "@username or t.me link"},
-                        "max": {"type": "string"},
-                        "whatsapp": {"type": "string"},
-                        "channels": {"type": "array", "description": "[{type: phone|telegram|max|whatsapp|email|vk|instagram|other, value, label}]", "items": {"type": "object"}},
-                        "name": {"type": "string"},
-                        "mail": {"type": "string"},
-                        "role": {"type": "string"},
-                        "link_company": {"type": "string", "enum": ["0", "1"]},
-                        "is_primary": {"type": "string", "enum": ["0", "1"]}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "add_contact"
+                            ]
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        },
+                        "tel": {
+                            "type": "string",
+                            "description": "Optional — any one channel is enough"
+                        },
+                        "telegram": {
+                            "type": "string",
+                            "description": "@username or t.me link"
+                        },
+                        "max": {
+                            "type": "string"
+                        },
+                        "whatsapp": {
+                            "type": "string"
+                        },
+                        "channels": {
+                            "type": "array",
+                            "description": "[{type: phone|telegram|max|whatsapp|email|vk|instagram|other, value, label}]",
+                            "items": {
+                                "type": "object"
+                            }
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "mail": {
+                            "type": "string"
+                        },
+                        "role": {
+                            "type": "string"
+                        },
+                        "link_company": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "is_primary": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        }
                     }
                 }
             },
@@ -398,10 +666,20 @@
                 "description": "Unlink contact from deal; action=remove_contact&client_id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "client_id"],
+                    "required": [
+                        "action",
+                        "client_id"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["remove_contact"]},
-                        "client_id": {"type": "integer"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "remove_contact"
+                            ]
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -414,10 +692,20 @@
                 "description": "Make a contact primary on the deal (links it if missing); action=set_primary_contact&client_id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "client_id"],
+                    "required": [
+                        "action",
+                        "client_id"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["set_primary_contact"]},
-                        "client_id": {"type": "integer"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "set_primary_contact"
+                            ]
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -439,25 +727,64 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "company_id": {"type": "integer"},
-                        "company_name": {"type": "string"},
-                        "company_inn": {"type": "string"},
-                        "company_phone": {"type": "string"},
-                        "client_id": {"type": "integer"},
-                        "contact_name": {"type": "string"},
-                        "contact_tel": {"type": "string"},
-                        "contact_mail": {"type": "string"},
-                        "contact_telegram": {"type": "string"},
-                        "contact_max": {"type": "string"},
-                        "contact_whatsapp": {"type": "string"},
-                        "contact_role": {"type": "string"},
-                        "title": {"type": "string", "description": "Defaults to company name"},
-                        "pipeline_id": {"type": "integer"},
-                        "stage_id": {"type": "integer"},
-                        "amount": {"type": "number"},
-                        "source": {"type": "string"},
-                        "responsible_user_id": {"type": "integer"},
-                        "notes": {"type": "string"}
+                        "company_id": {
+                            "type": "integer"
+                        },
+                        "company_name": {
+                            "type": "string"
+                        },
+                        "company_inn": {
+                            "type": "string"
+                        },
+                        "company_phone": {
+                            "type": "string"
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        },
+                        "contact_name": {
+                            "type": "string"
+                        },
+                        "contact_tel": {
+                            "type": "string"
+                        },
+                        "contact_mail": {
+                            "type": "string"
+                        },
+                        "contact_telegram": {
+                            "type": "string"
+                        },
+                        "contact_max": {
+                            "type": "string"
+                        },
+                        "contact_whatsapp": {
+                            "type": "string"
+                        },
+                        "contact_role": {
+                            "type": "string"
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Defaults to company name"
+                        },
+                        "pipeline_id": {
+                            "type": "integer"
+                        },
+                        "stage_id": {
+                            "type": "integer"
+                        },
+                        "amount": {
+                            "type": "number"
+                        },
+                        "source": {
+                            "type": "string"
+                        },
+                        "responsible_user_id": {
+                            "type": "integer"
+                        },
+                        "notes": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -486,19 +813,45 @@
                 "description": "Create deal. Prefer crm.deals.new_form first for pipeline_id/stage_id.",
                 "parameters": {
                     "type": "object",
-                    "required": ["title", "pipeline_id"],
+                    "required": [
+                        "title",
+                        "pipeline_id"
+                    ],
                     "properties": {
-                        "title": {"type": "string"},
-                        "pipeline_id": {"type": "integer"},
-                        "stage_id": {"type": "integer", "description": "Defaults to first stage of pipeline"},
-                        "company_id": {"type": "integer"},
-                        "amount": {"type": "number"},
-                        "currency": {"type": "string"},
-                        "source": {"type": "string"},
-                        "notes": {"type": "string"},
-                        "responsible_user_id": {"type": "integer"},
-                        "client_ids": {"type": "string"},
-                        "primary_client_id": {"type": "integer"}
+                        "title": {
+                            "type": "string"
+                        },
+                        "pipeline_id": {
+                            "type": "integer"
+                        },
+                        "stage_id": {
+                            "type": "integer",
+                            "description": "Defaults to first stage of pipeline"
+                        },
+                        "company_id": {
+                            "type": "integer"
+                        },
+                        "amount": {
+                            "type": "number"
+                        },
+                        "currency": {
+                            "type": "string"
+                        },
+                        "source": {
+                            "type": "string"
+                        },
+                        "notes": {
+                            "type": "string"
+                        },
+                        "responsible_user_id": {
+                            "type": "integer"
+                        },
+                        "client_ids": {
+                            "type": "string"
+                        },
+                        "primary_client_id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -519,10 +872,20 @@
                 "description": "Move deal stage; action=move_stage&stage_id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "stage_id"],
+                    "required": [
+                        "action",
+                        "stage_id"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["move_stage"]},
-                        "stage_id": {"type": "integer"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "move_stage"
+                            ]
+                        },
+                        "stage_id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -535,10 +898,20 @@
                 "description": "Add note on deal; action=add_note&body=",
                 "parameters": {
                     "type": "object",
-                    "required": ["action", "body"],
+                    "required": [
+                        "action",
+                        "body"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["add_note"]},
-                        "body": {"type": "string"}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "add_note"
+                            ]
+                        },
+                        "body": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -551,8 +924,17 @@
                 "description": "Delete deal; POST action=delete",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
-                    "properties": {"action": {"type": "string", "enum": ["delete"]}}
+                    "required": [
+                        "action"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "delete"
+                            ]
+                        }
+                    }
                 }
             },
             {
@@ -572,12 +954,30 @@
                 "description": "Create pipeline",
                 "parameters": {
                     "type": "object",
-                    "required": ["name"],
+                    "required": [
+                        "name"
+                    ],
                     "properties": {
-                        "name": {"type": "string"},
-                        "kind": {"type": "string", "enum": ["lead", "sale"]},
-                        "enabled": {"type": "string", "enum": ["0", "1"]},
-                        "sort_order": {"type": "integer"}
+                        "name": {
+                            "type": "string"
+                        },
+                        "kind": {
+                            "type": "string",
+                            "enum": [
+                                "lead",
+                                "sale"
+                            ]
+                        },
+                        "enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "sort_order": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -598,14 +998,39 @@
                 "description": "Create stage in pipeline",
                 "parameters": {
                     "type": "object",
-                    "required": ["pipeline_id", "name", "code"],
+                    "required": [
+                        "pipeline_id",
+                        "name",
+                        "code"
+                    ],
                     "properties": {
-                        "pipeline_id": {"type": "integer"},
-                        "name": {"type": "string"},
-                        "code": {"type": "string"},
-                        "semantic": {"type": "string", "enum": ["P", "S", "F"]},
-                        "sort_order": {"type": "integer"},
-                        "enabled": {"type": "string", "enum": ["0", "1"]}
+                        "pipeline_id": {
+                            "type": "integer"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "code": {
+                            "type": "string"
+                        },
+                        "semantic": {
+                            "type": "string",
+                            "enum": [
+                                "P",
+                                "S",
+                                "F"
+                            ]
+                        },
+                        "sort_order": {
+                            "type": "integer"
+                        },
+                        "enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        }
                     }
                 }
             },
@@ -634,15 +1059,49 @@
                 "description": "Create custom field (entity=company|deal|contact)",
                 "parameters": {
                     "type": "object",
-                    "required": ["entity", "code", "name"],
+                    "required": [
+                        "entity",
+                        "code",
+                        "name"
+                    ],
                     "properties": {
-                        "entity": {"type": "string", "enum": ["company", "deal", "contact"]},
-                        "code": {"type": "string"},
-                        "name": {"type": "string"},
-                        "field_type": {"type": "string", "enum": ["string", "text", "number", "bool", "enum"]},
-                        "enums_json": {"type": "string"},
-                        "sort_order": {"type": "integer"},
-                        "enabled": {"type": "string", "enum": ["0", "1"]}
+                        "entity": {
+                            "type": "string",
+                            "enum": [
+                                "company",
+                                "deal",
+                                "contact"
+                            ]
+                        },
+                        "code": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "field_type": {
+                            "type": "string",
+                            "enum": [
+                                "string",
+                                "text",
+                                "number",
+                                "bool",
+                                "enum"
+                            ]
+                        },
+                        "enums_json": {
+                            "type": "string"
+                        },
+                        "sort_order": {
+                            "type": "integer"
+                        },
+                        "enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        }
                     }
                 }
             },
@@ -663,8 +1122,17 @@
                 "description": "Delete custom field; action=delete",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
-                    "properties": {"action": {"type": "string", "enum": ["delete"]}}
+                    "required": [
+                        "action"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "delete"
+                            ]
+                        }
+                    }
                 }
             }
         ]
@@ -675,6 +1143,7 @@
             "group": "crm.menu.group",
             "num": 10,
             "path": "/crm/deals",
+            "icon": "🤝",
             "title": "crm.menu.deals",
             "kind": "work"
         },
@@ -682,6 +1151,7 @@
             "group": "crm.menu.group",
             "num": 20,
             "path": "/crm/companies",
+            "icon": "🏢",
             "title": "crm.menu.companies",
             "kind": "work"
         },
@@ -689,6 +1159,7 @@
             "group": "crm.menu.group",
             "num": 80,
             "path": "/crm/pipelines",
+            "icon": "🔀",
             "title": "crm.menu.pipelines",
             "kind": "settings"
         },
@@ -696,6 +1167,7 @@
             "group": "crm.menu.group",
             "num": 90,
             "path": "/crm/fields",
+            "icon": "🧾",
             "title": "crm.menu.fields",
             "kind": "settings"
         }

@@ -22,7 +22,7 @@ Assets::register('video_label', [
 if (ModuleManager::isEnabled('video')) {
     // menu items use video.menu.group from video module
 } else {
-    ModuleManager::registerMenuGroup('video_label.menu.group', 521, '/video-label');
+    ModuleManager::registerMenuGroup('video_label.menu.group', 521, '/video-label', '🏷️');
 }
 
 $group = ModuleManager::isEnabled('video') ? 'video.menu.group' : 'video_label.menu.group';

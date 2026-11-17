@@ -73,6 +73,7 @@
             "group": "core.menu.group.warehouse",
             "num": 6,
             "path": "/norms",
+            "icon": "🧪",
             "title": "norms.menu.list"
         }
     ],

@@ -6,7 +6,7 @@ Product module `assistant`: conversational agent that calls product `agent.ops` 
 
 **Floating FAB:** one letter (first of the persona name) bottom-right on admin pages (not on `/assistant/*`). Opens a drawer that shares `AssistantDialog` history with the full chat and bot. Each FAB message sends `mode=page` + `page_context` JSON; the harness shrinks tools to the current module + `core.help.*` and appends the screen JSON to the system prompt. When the catalog is truncated, virtual meta-tools `assistant.tools.modules` → `list` → `unlock` let the model browse the full permitted catalog and unlock other modules mid-turn (still `Auth::can` — not a permission bypass).
 
-**Personal prefs** (`/assistant/prefs`, every signed-in staff user): hide FAB everywhere (`assistant.fab_off`) or per path (`assistant.fab_hidden_paths`) via `base_user_prefs`. From the drawer: **Hide on this page** → `POST /assistant/fab/hide`. Full `/assistant` stays reachable by URL.
+**Personal prefs** (`/assistant/prefs`, every signed-in staff user): hide FAB everywhere (`assistant.fab_off`) or per path (`assistant.fab_hidden_paths`) via `base_user_prefs`. From the drawer: **Hide on this page** → `POST /assistant/fab/hide`. Full `/assistant` stays reachable by URL. Superadmin with `llm.manage` sees the OAuth/MCP issuer (`app.base_url`) and a link to System settings `/settings` to edit it (not `app.public_host`).
 
 ## Enable
 
@@ -37,7 +37,7 @@ Opt out of the assistant tool list with `"assistant": false` on an op (used for 
 - `POST /assistant/chat` — JSON `{ "message":"…" }` or `messages[]`; FAB adds `mode:"page"` + `page_context` (path/module/title/breadcrumbs/…)
 - `POST /assistant/confirm` — `{ "token":"…", "action":"confirm"|"cancel" }`
 - `POST /assistant/feedback` — rate a reply `{ rating:"good"|"bad", reasons:[], comment, messages:[{role,content}] }`; stored as JSONL under `var/assistant/feedback/YYYY-MM.jsonl`
-- `GET`/`POST` `/assistant/prefs` — personal FAB prefs (all staff)
+- `GET`/`POST` `/assistant/prefs` — personal FAB prefs (all staff); JSON ops `assistant.prefs.get` / `assistant.prefs.save`; superadmin+`llm.manage` also gets `app_base_url` / `oauth_base` / `mcp_url` (edit `app.base_url` on `/settings`)
 - `POST /assistant/fab/hide` — `{ "path":"/…" }` hide FAB on that path for the current user
 - `GET`/`POST` `/assistant/eval` — **SUPERADMIN** hybrid eval (deterministic + live LLM); JSON on `Accept: application/json`
 - Persona name: **Settings** (`/settings`) → Assistant name (SUPERADMIN / `core.settings`)

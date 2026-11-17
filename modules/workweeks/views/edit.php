@@ -61,7 +61,7 @@ $shiftWindows = WorkweeksRepository::shiftWindows();
   <?php else: ?>
     <input type="hidden" name="id_table" value="0">
   <?php endif; ?>
-  <div class="form-actions">
+  <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
     <a class="btn-secondary" href="<?= e(NavContext::up('/workweeks')) ?>"><?= te('core.common.cancel') ?></a>
   </div>

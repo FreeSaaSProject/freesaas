@@ -192,6 +192,7 @@
             "group": "courses.menu.group",
             "num": 10,
             "path": "/courses",
+            "icon": "📚",
             "title": "courses.menu.list",
             "kind": "crud"
         },
@@ -199,6 +200,7 @@
             "group": "courses.menu.group",
             "num": 20,
             "path": "/courses/enrollments",
+            "icon": "🧑‍🎓",
             "title": "courses.menu.enrollments",
             "kind": "crud"
         },
@@ -206,6 +208,7 @@
             "group": "courses.menu.group",
             "num": 30,
             "path": "/courses/learn",
+            "icon": "📖",
             "title": "courses.menu.learn",
             "kind": "work"
         },
@@ -213,6 +216,7 @@
             "group": "courses.menu.group",
             "num": 90,
             "path": "/courses/settings",
+            "icon": "⚙️",
             "title": "courses.menu.settings",
             "kind": "settings"
         }

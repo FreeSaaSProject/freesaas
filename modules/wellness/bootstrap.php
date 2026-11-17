@@ -40,7 +40,7 @@ EventBus::on('assistant.system.hints', static function ($payload) {
     return $payload;
 });
 
-ModuleManager::registerMenuGroup('wellness.menu.group', 650, '/wellness');
+ModuleManager::registerMenuGroup('wellness.menu.group', 650, '/wellness', '🌿');
 
 $pages = [
     '/wellness' => ['permission' => 'wellness.view', 'methods' => ['GET', 'POST'], 'file' => 'food_diary.php'],

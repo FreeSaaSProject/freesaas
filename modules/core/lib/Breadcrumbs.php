@@ -189,6 +189,13 @@ final class Breadcrumbs
             return $items;
         }
 
+        // Intentional plain leaf (e.g. «Непрочитанные» filter) — do not force a link.
+        if (!empty($items[$leaf]['plain'])) {
+            unset($items[$leaf]['href']);
+            $items[$leaf]['current'] = true;
+            return array_values($items);
+        }
+
         $rootPath = $match['path'];
         if (self::isCleanListRequest($rootPath)) {
             unset($items[$leaf]['href']);

@@ -1010,6 +1010,7 @@
             "num": 10,
             "kind": "work",
             "path": "/wellness",
+            "icon": "🥗",
             "title": "wellness.menu.food_diary"
         },
         {
@@ -1017,6 +1018,7 @@
             "num": 15,
             "kind": "work",
             "path": "/wellness/calendar",
+            "icon": "📅",
             "title": "wellness.menu.calendar"
         },
         {
@@ -1024,6 +1026,7 @@
             "num": 30,
             "kind": "work",
             "path": "/wellness/workouts",
+            "icon": "🏃",
             "title": "wellness.menu.workouts"
         },
         {
@@ -1031,6 +1034,7 @@
             "num": 40,
             "kind": "work",
             "path": "/wellness/weight",
+            "icon": "⚖️",
             "title": "wellness.menu.weight"
         },
         {
@@ -1038,6 +1042,7 @@
             "num": 50,
             "kind": "work",
             "path": "/wellness/health-diary",
+            "icon": "📓",
             "title": "wellness.menu.health_diary"
         },
         {
@@ -1045,6 +1050,7 @@
             "num": 60,
             "kind": "work",
             "path": "/wellness/doctor-rx",
+            "icon": "💊",
             "title": "wellness.menu.doctor_rx"
         },
         {
@@ -1052,6 +1058,7 @@
             "num": 70,
             "kind": "crud",
             "path": "/wellness/foods",
+            "icon": "🍎",
             "title": "wellness.menu.foods"
         },
         {
@@ -1059,6 +1066,7 @@
             "num": 80,
             "kind": "crud",
             "path": "/wellness/targets",
+            "icon": "🎯",
             "title": "wellness.menu.targets"
         },
         {
@@ -1066,6 +1074,7 @@
             "num": 90,
             "kind": "crud",
             "path": "/wellness/medicines",
+            "icon": "💉",
             "title": "wellness.menu.medicines"
         },
         {
@@ -1073,6 +1082,7 @@
             "num": 100,
             "kind": "crud",
             "path": "/wellness/symptoms",
+            "icon": "🤒",
             "title": "wellness.menu.symptoms"
         }
     ],

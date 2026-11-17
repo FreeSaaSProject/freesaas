@@ -92,6 +92,16 @@ final class ShiftSalaryBotPlugin
             return;
         }
 
+        if (!SalaryVisibility::canSeeSalary($uid)) {
+            $reasons = SalaryVisibility::blockedReasons($uid);
+            $lines = [t('payments.salary_gate.invite')];
+            foreach ($reasons as $r) {
+                $lines[] = (string)($r['label'] ?? '');
+            }
+            BotClient::replyUi($ctx, implode("\n", array_filter($lines)), self::kbMenu());
+            return;
+        }
+
         if (!DayPayroll::isDailyPayStaff($uid)) {
             BotClient::replyUi($ctx, t('payments.bot.salary.assist_only'), self::kbMenu());
             return;

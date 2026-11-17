@@ -11,7 +11,7 @@ require_once __DIR__ . '/lib/YclientsClientsImporter.php';
 require_once __DIR__ . '/lib/YclientsStaffImporter.php';
 require_once __DIR__ . '/lib/YclientsLongJob.php';
 
-ModuleManager::registerMenuGroup('yclients.menu.group', 1225, '/yclients');
+ModuleManager::registerMenuGroup('yclients.menu.group', 1225, '/yclients', '🔗');
 
 LongJob::register(YclientsLongJob::TYPE_IMPORT, [
     'module' => 'yclients',

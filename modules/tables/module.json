@@ -74,6 +74,7 @@
             "group": "core.menu.group.dictionaries",
             "num": 6,
             "path": "/tables",
+            "icon": "🪑",
             "title": "tables.menu.list"
         }
     ],

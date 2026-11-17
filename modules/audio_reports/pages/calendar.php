@@ -93,6 +93,7 @@ $month = max(0, min(12, $monthParam));
 $adminFilter = max(0, (int)($_GET['admin'] ?? 0));
 $badgeFilter = max(0, (int)($_GET['badge'] ?? 0));
 $positionFilter = max(0, (int)($_GET['position'] ?? 0));
+$showScripts = !empty($_GET['scripts']);
 
 // Non-super: peers of the same audio position only (SHOW_ADMINISTRATOR_DATA ignored).
 // Demo stands: open calendar for the guest viewer (not on a cabin position).
@@ -419,27 +420,29 @@ foreach ($periodMonths as $period) {
             $dayY = (int)($dayParts[0] ?? $y);
             $dayM = (int)($dayParts[1] ?? $m);
             $dayD = (int)($dayParts[2] ?? 0);
-            foreach ($calendarScripts as $sc) {
-                $cell = $scriptsAgg['by_admin_day'][$aid][$sc['id']][$date] ?? null;
-                if (!$cell || (int)$cell['starts'] < 1) {
-                    continue;
+            if ($showScripts) {
+                foreach ($calendarScripts as $sc) {
+                    $cell = $scriptsAgg['by_admin_day'][$aid][$sc['id']][$date] ?? null;
+                    if (!$cell || (int)$cell['starts'] < 1) {
+                        continue;
+                    }
+                    $scriptBits[] = [
+                        'id' => $sc['id'],
+                        'name' => $sc['name'],
+                        'short' => $sc['short'],
+                        'starts' => (int)$cell['starts'],
+                        'finishes' => (int)$cell['finishes'],
+                        'score' => (int)$cell['score'],
+                        'label' => CalendarAggregates::formatScriptCell($cell, $sc['short']),
+                        'href' => $collectionsHref([
+                            'year' => $dayY,
+                            'month' => $dayM,
+                            'day' => $dayD,
+                            'admin' => $aid,
+                            'script' => (int)$sc['id'],
+                        ]),
+                    ];
                 }
-                $scriptBits[] = [
-                    'id' => $sc['id'],
-                    'name' => $sc['name'],
-                    'short' => $sc['short'],
-                    'starts' => (int)$cell['starts'],
-                    'finishes' => (int)$cell['finishes'],
-                    'score' => (int)$cell['score'],
-                    'label' => CalendarAggregates::formatScriptCell($cell, $sc['short']),
-                    'href' => $collectionsHref([
-                        'year' => $dayY,
-                        'month' => $dayM,
-                        'day' => $dayD,
-                        'admin' => $aid,
-                        'script' => (int)$sc['id'],
-                    ]),
-                ];
             }
 
             if (!isset($monthAdminTot[$aid])) {
@@ -864,7 +867,7 @@ if ($month > 0 && $nextMonth > 12) {
     $nextMonth = 0;
 }
 
-$qs = static function (int $y, int $mo, int $adm, int $badge = 0, int $position = 0): string {
+$qs = static function (int $y, int $mo, int $adm, int $badge = 0, int $position = 0) use ($showScripts): string {
     $q = ['year' => $y, 'month' => $mo];
     if ($adm > 0) {
         $q['admin'] = $adm;
@@ -874,6 +877,9 @@ $qs = static function (int $y, int $mo, int $adm, int $badge = 0, int $position 
     }
     if ($position > 0) {
         $q['position'] = $position;
+    }
+    if ($showScripts) {
+        $q['scripts'] = 1;
     }
     return '/audio/calendar?' . http_build_query($q);
 };
@@ -934,10 +940,12 @@ View::render('calendar', [
     'adminFilter' => $adminFilter,
     'badgeFilter' => $badgeFilter,
     'positionFilter' => $positionFilter,
+    'showScripts' => $showScripts,
     'staffOptions' => $staffOptions,
     'badgeOptions' => $badgeOptions,
     'positionOptions' => $positionNames,
     'trackingDicts' => $trackingDicts,
+    // Summary tables always keep script columns; day-cell chips are gated via $scriptBits / showScripts.
     'calendarScripts' => $calendarScripts,
     'months' => $months,
     'prevHref' => $qs($prevYear, $month > 0 ? $prevMonth : 0, $adminFilter, $badgeFilter, $positionFilter),

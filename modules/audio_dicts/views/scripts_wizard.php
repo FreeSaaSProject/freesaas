@@ -115,7 +115,7 @@ $i18n = [
       <div id="wizard-preview" class="scripts-flow scripts-flow--preview"></div>
     </section>
 
-    <div class="scripts-wizard-nav form-actions">
+    <div class="scripts-wizard-nav page-actions">
       <button type="button" class="btn-secondary" id="wizard-back" hidden><?= te('audio_dicts.scripts.wizard.back') ?></button>
       <button type="button" class="btn-primary" id="wizard-next"><?= te('audio_dicts.scripts.wizard.next') ?></button>
       <button type="submit" class="btn-primary" id="wizard-save" hidden><?= te('core.common.save') ?></button>

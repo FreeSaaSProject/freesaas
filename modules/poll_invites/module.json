@@ -217,6 +217,7 @@
             "group": "polls.menu.group",
             "num": 20,
             "path": "/poll-invites",
+            "icon": "✉️",
             "title": "poll_invites.menu.list",
             "kind": "crud"
         }

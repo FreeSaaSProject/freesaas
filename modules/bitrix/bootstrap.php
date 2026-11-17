@@ -16,7 +16,7 @@ require_once __DIR__ . '/lib/BitrixWebhookApply.php';
 require_once __DIR__ . '/lib/BitrixWebhookIngest.php';
 require_once __DIR__ . '/lib/BitrixOutboxListener.php';
 
-ModuleManager::registerMenuGroup('bitrix.menu.group', 1230, '/bitrix');
+ModuleManager::registerMenuGroup('bitrix.menu.group', 1230, '/bitrix', '🔗');
 
 LongJob::register(BitrixLongJob::TYPE_IMPORT, [
     'module' => 'bitrix',

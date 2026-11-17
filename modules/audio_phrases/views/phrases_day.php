@@ -59,7 +59,7 @@ $dictSelectHtml = static function () use ($dictOptions): string {
 </form>
 
 <?php if ($canEdit): ?>
-<form method="post" class="form-actions">
+<form method="post" class="page-actions">
   <?= Csrf::field() ?>
   <input type="hidden" name="rebuild" value="1">
   <button type="submit" class="btn-primary"><?= te('audio_phrases.action.rebuild') ?></button>

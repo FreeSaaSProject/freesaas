@@ -6,9 +6,15 @@
     "type": "product",
     "runtime": "both",
     "catalog": {
-        "categories": ["finance", "integrations"],
+        "categories": [
+            "finance",
+            "integrations"
+        ],
         "maturity": "alpha",
-        "tags": ["payments", "integration"],
+        "tags": [
+            "payments",
+            "integration"
+        ],
         "screenshots": []
     },
     "requires": {
@@ -24,10 +30,18 @@
         "acquiring.providers"
     ],
     "migrations": "migrations/",
-    "uninstall": { "strategy": "drop_owned" },
+    "uninstall": {
+        "strategy": "drop_owned"
+    },
     "permissions": [
-        { "id": "acquiring.view", "label": "acquiring.perm.view" },
-        { "id": "acquiring.manage", "label": "acquiring.perm.manage" }
+        {
+            "id": "acquiring.view",
+            "label": "acquiring.perm.view"
+        },
+        {
+            "id": "acquiring.manage",
+            "label": "acquiring.perm.manage"
+        }
     ],
     "routes": {
         "pages": [
@@ -98,6 +112,7 @@
             "group": "core.menu.group.finance",
             "num": 48,
             "path": "/acquiring/payments",
+            "icon": "💳",
             "title": "acquiring.menu.payments",
             "kind": "crud"
         },
@@ -105,6 +120,7 @@
             "group": "core.menu.group.finance",
             "num": 49,
             "path": "/acquiring/settings",
+            "icon": "⚙️",
             "title": "acquiring.menu.settings",
             "kind": "settings"
         }
@@ -116,8 +132,14 @@
     ],
     "migrators": [],
     "hooks": {
-        "subscribe": ["client_mcp.payment", "orders.client_state"],
-        "publish": ["acquiring.payment.succeeded", "acquiring.payment.failed"]
+        "subscribe": [
+            "client_mcp.payment",
+            "orders.client_state"
+        ],
+        "publish": [
+            "acquiring.payment.succeeded",
+            "acquiring.payment.failed"
+        ]
     },
     "bulkActions": [],
     "setup": {
@@ -129,10 +151,20 @@
                 "href": "/acquiring/settings",
                 "ask_user": "acquiring.setup.ask.provider",
                 "choices": [
-                    { "id": "open", "label": "acquiring.setup.choice.open", "recommended": true },
-                    { "id": "defer", "label": "core.modules.setup.choice.defer", "recommended": false }
+                    {
+                        "id": "open",
+                        "label": "acquiring.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
                 ],
-                "agent_can": ["mark_done"]
+                "agent_can": [
+                    "mark_done"
+                ]
             }
         ]
     }

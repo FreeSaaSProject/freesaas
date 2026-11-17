@@ -44,7 +44,7 @@ Assets::register('video', [
     'js' => ['assets/js/video.js'],
 ]);
 
-ModuleManager::registerMenuGroup('video.menu.group', 520, '/video');
+ModuleManager::registerMenuGroup('video.menu.group', 520, '/video', '📹');
 
 $staffPages = [
     '/video' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'dashboard.php'],

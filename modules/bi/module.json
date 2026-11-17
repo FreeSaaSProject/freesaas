@@ -349,6 +349,7 @@
             "group": "bi.menu.group",
             "num": 1,
             "path": "/bi",
+            "icon": "📊",
             "title": "bi.menu.list"
         },
         {
@@ -356,6 +357,7 @@
             "kind": "settings",
             "num": 2,
             "path": "/bi/shares",
+            "icon": "🔗",
             "title": "bi.menu.shares"
         }
     ],

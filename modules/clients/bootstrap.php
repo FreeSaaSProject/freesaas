@@ -15,7 +15,7 @@ EventBus::on('assistant.write.preview', static function ($payload) {
     return ClientsAssistantPreview::onWritePreview($payload);
 });
 
-ModuleManager::registerMenuGroup('clients.menu.group', 400, '/clients');
+ModuleManager::registerMenuGroup('clients.menu.group', 400, '/clients', '👤');
 
 StatusesRepository::registerFieldGroup([
     'title' => 'clients.statuses.group',

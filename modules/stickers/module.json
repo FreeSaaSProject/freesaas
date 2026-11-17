@@ -304,18 +304,21 @@
             "group": "core.menu.group.warehouse",
             "num": 2,
             "path": "/stickers/receipts",
+            "icon": "📥",
             "title": "stickers.menu.receipts"
         },
         {
             "group": "core.menu.group.warehouse",
             "num": 3,
             "path": "/stickers/ins",
+            "icon": "➕",
             "title": "stickers.menu.ins"
         },
         {
             "group": "core.menu.group.warehouse",
             "num": 6,
             "path": "/stickers/ins/print",
+            "icon": "🖨️",
             "title": "stickers.menu.print",
             "kind": "work"
         },
@@ -323,18 +326,21 @@
             "group": "core.menu.group.warehouse",
             "num": 4,
             "path": "/stickers/writeoffs",
+            "icon": "🗑️",
             "title": "stickers.menu.writeoffs"
         },
         {
             "group": "core.menu.group.warehouse",
             "num": 5,
             "path": "/stickers/outs",
+            "icon": "📤",
             "title": "stickers.menu.outs"
         },
         {
             "group": "core.menu.group.warehouse",
             "num": 90,
             "path": "/stickers/status",
+            "icon": "📡",
             "title": "stickers.menu.status",
             "kind": "settings"
         },
@@ -342,6 +348,7 @@
             "group": "core.menu.group.warehouse",
             "num": 91,
             "path": "/stickers/settings",
+            "icon": "⚙️",
             "title": "stickers.menu.settings",
             "kind": "settings"
         }

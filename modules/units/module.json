@@ -80,6 +80,7 @@
             "group": "core.menu.group.dictionaries",
             "num": 2,
             "path": "/units",
+            "icon": "📏",
             "title": "units.menu.list"
         }
     ],

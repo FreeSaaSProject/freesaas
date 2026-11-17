@@ -263,4 +263,56 @@ final class OAuthTokensRepository
         $st->execute([time(), $clientId, $userId]);
         return $st->rowCount();
     }
+
+    public static function revokeById(int $id): bool
+    {
+        if (!self::tokensReady() || $id < 1) {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_oauth_tokens SET REVOKED_AT = ? WHERE ID = ? AND REVOKED_AT = 0'
+        );
+        $st->execute([time(), $id]);
+        return $st->rowCount() > 0;
+    }
+
+    /**
+     * Active staff authorizations (refresh still valid). One row per token grant.
+     *
+     * @return list<array{
+     *   id:int,client_id:string,client_name:string,user_id:int,scope:string,
+     *   access_expires_at:int,refresh_expires_at:int,created_at:int
+     * }>
+     */
+    public static function listActiveConnections(): array
+    {
+        if (!self::tokensReady()) {
+            return [];
+        }
+        $now = time();
+        $st = Database::pdo()->prepare(
+            'SELECT t.ID, t.CLIENT_ID, t.USER_ID, t.SCOPE,
+                    t.ACCESS_EXPIRES_AT, t.REFRESH_EXPIRES_AT, t.CREATED_AT,
+                    c.NAME AS CLIENT_NAME
+             FROM base_oauth_tokens t
+             LEFT JOIN base_oauth_clients c ON c.CLIENT_ID = t.CLIENT_ID
+             WHERE t.REVOKED_AT = 0 AND t.REFRESH_EXPIRES_AT > ?
+             ORDER BY t.CREATED_AT DESC, t.ID DESC'
+        );
+        $st->execute([$now]);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $out[] = [
+                'id' => (int)($row['ID'] ?? 0),
+                'client_id' => (string)($row['CLIENT_ID'] ?? ''),
+                'client_name' => (string)($row['CLIENT_NAME'] ?? ''),
+                'user_id' => (int)($row['USER_ID'] ?? 0),
+                'scope' => (string)($row['SCOPE'] ?? ''),
+                'access_expires_at' => (int)($row['ACCESS_EXPIRES_AT'] ?? 0),
+                'refresh_expires_at' => (int)($row['REFRESH_EXPIRES_AT'] ?? 0),
+                'created_at' => (int)($row['CREATED_AT'] ?? 0),
+            ];
+        }
+        return $out;
+    }
 }

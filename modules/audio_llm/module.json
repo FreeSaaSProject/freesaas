@@ -100,6 +100,7 @@
             "group": "audio.menu.group",
             "num": 15,
             "path": "/audio/llm-studies",
+            "icon": "🧠",
             "title": "audio_llm.menu.studies"
         }
     ],

@@ -299,7 +299,7 @@ if ($importWarnings !== []): ?>
         <div id="canvas-panel-body" class="scripts-canvas-panel-body" hidden></div>
       </aside>
 
-      <div class="scripts-canvas-footer form-actions">
+      <div class="scripts-canvas-footer page-actions">
         <?php if ($canEdit): ?>
           <?php if (!empty($versioning['ready'])): ?>
           <button type="button" class="btn-primary" id="scripts-save-open"><?= te('core.common.save') ?></button>
@@ -362,7 +362,7 @@ if ($importWarnings !== []): ?>
         <p class="muted small"><?= te('audio_dicts.scripts.versions.save_into_existing_hint') ?></p>
         <?php endif; ?>
       </fieldset>
-      <div class="form-actions">
+      <div class="page-actions">
         <button type="submit" class="btn-primary" value="confirm" id="scripts-save-confirm"><?= te('core.common.save') ?></button>
         <button type="submit" class="btn-secondary" value="cancel"><?= te('core.common.cancel') ?></button>
       </div>

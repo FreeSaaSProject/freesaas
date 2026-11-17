@@ -1426,6 +1426,94 @@
   });
 })();
 
+// EntityDelete: pull [data-entity-delete] into the preceding edit form's action row
+// (.page-actions — Save/Cancel left, Delete right). Own POST form.
+(function () {
+  function previousElement(el) {
+    var n = el ? el.previousElementSibling : null;
+    while (n && n.classList && (
+      n.classList.contains('flash') || n.classList.contains('entity-delete-flash')
+    )) {
+      n = n.previousElementSibling;
+    }
+    return n;
+  }
+
+  function ensureFormId(form) {
+    if (form.id) return form.id;
+    var id = 'edit-form-' + Math.random().toString(36).slice(2, 10);
+    form.id = id;
+    return id;
+  }
+
+  function bindSubmitToForm(node, formId) {
+    if (!node || node.nodeType !== 1) return;
+    if (node.tagName === 'BUTTON' || node.tagName === 'INPUT') {
+      var type = (node.getAttribute('type') || (node.tagName === 'BUTTON' ? 'submit' : '')).toLowerCase();
+      if ((type === 'submit' || type === 'image') && !node.getAttribute('form')) {
+        node.setAttribute('form', formId);
+      }
+    }
+    var kids = node.children;
+    if (!kids) return;
+    for (var i = 0; i < kids.length; i++) {
+      bindSubmitToForm(kids[i], formId);
+    }
+  }
+
+  function findActionRow(editForm) {
+    var list = editForm.querySelectorAll('.page-actions');
+    return list.length ? list[list.length - 1] : null;
+  }
+
+  function placeEntityDelete(zone) {
+    if (!zone || zone.getAttribute('data-entity-delete-placed') === '1') return;
+    var editForm = previousElement(zone);
+    if (!editForm || editForm.tagName !== 'FORM') return;
+    var actions = findActionRow(editForm);
+    if (!actions) return;
+    var formId = ensureFormId(editForm);
+    var bar = document.createElement('div');
+    // Keep sticky/modifiers from the source row; ensure canonical page-actions.
+    var cls = (actions.className || 'page-actions').trim();
+    if (!/\bpage-actions\b/.test(cls)) {
+      cls += ' page-actions';
+    }
+    bar.className = cls.replace(/\s+/g, ' ').trim();
+    while (actions.firstChild) {
+      var child = actions.firstChild;
+      bindSubmitToForm(child, formId);
+      bar.appendChild(child);
+    }
+    // Capture reason before moving the button node (it is a sibling after the zone).
+    var reason = zone.nextElementSibling;
+    if (!(reason && reason.getAttribute && reason.getAttribute('data-entity-delete-reason') === '1')) {
+      reason = null;
+    }
+    actions.parentNode.removeChild(actions);
+    bar.appendChild(zone);
+    zone.setAttribute('data-entity-delete-placed', '1');
+    var parent = editForm.parentNode;
+    if (!parent) return;
+    // Order: edit form → actions bar (Save/Cancel + Delete) → optional block reason.
+    if (reason) {
+      parent.insertBefore(bar, reason);
+    } else {
+      parent.insertBefore(bar, editForm.nextSibling);
+    }
+  }
+
+  function run() {
+    document.querySelectorAll('[data-entity-delete="1"]').forEach(placeEntityDelete);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
+  }
+})();
+
 // Money fields: type=text + inputmode=decimal so mobile keyboards can type ","
 // (type=number often rejects locale commas). Replace "," → "." as the user types.
 (function () {

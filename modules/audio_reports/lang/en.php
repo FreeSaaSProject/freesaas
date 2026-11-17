@@ -29,6 +29,7 @@ return [
     'audio_reports.calendar.badge_all' => 'All badges',
     'audio_reports.calendar.position' => 'Position',
     'audio_reports.calendar.position_all' => 'All positions',
+    'audio_reports.calendar.show_scripts' => 'Scripts',
     'audio_reports.calendar.whole_year' => 'Whole year',
     'audio_reports.calendar.apply' => 'Show',
     'audio_reports.calendar.col_staff' => 'Staff',

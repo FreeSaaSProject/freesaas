@@ -38,7 +38,7 @@ $row = is_array($row ?? null) ? $row : [];
   <label class="check"><input type="checkbox" name="enabled" value="1"<?= !empty($row['enabled']) ? ' checked' : '' ?>> <?= te('llm.tokens.enabled') ?></label>
   <label class="check"><input type="checkbox" name="set_default" value="1"<?= !empty($row['is_default']) ? ' checked' : '' ?>> <?= te('llm.tokens.set_default') ?></label>
 
-  <p class="form-actions">
+  <p class="page-actions">
     <button type="submit" class="btn"><?= te('llm.tokens.save') ?></button>
     <a class="btn btn-ghost" href="<?= e(NavContext::withReturn('/llm/tokens')) ?>"><?= te('core.common.cancel') ?></a>
   </p>

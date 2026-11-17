@@ -73,7 +73,7 @@ $activationMode = (string)($settings['activation_mode'] ?? StickerActivation::MO
     <?php endif; ?>
   </fieldset>
 
-  <div class="form-actions">
+  <div class="page-actions">
     <button type="submit" class="btn-primary"><?= te('stickers.settings.save') ?></button>
     <a class="btn" href="/stickers/status"><?= te('stickers.menu.status') ?></a>
   </div>

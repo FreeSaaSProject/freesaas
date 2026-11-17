@@ -233,6 +233,7 @@
             "group": "procedures.menu.group",
             "num": 1,
             "path": "/procedures",
+            "icon": "💆",
             "title": "procedures.menu.list"
         },
         {
@@ -240,6 +241,7 @@
             "kind": "crud",
             "num": 1,
             "path": "/procedure-types",
+            "icon": "📋",
             "title": "procedures.menu.types"
         }
     ],

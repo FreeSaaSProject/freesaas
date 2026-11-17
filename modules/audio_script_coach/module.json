@@ -85,6 +85,7 @@
             "kind": "crud",
             "num": 17,
             "path": "/audio/script-coach",
+            "icon": "🎓",
             "title": "audio_script_coach.menu.list"
         }
     ],

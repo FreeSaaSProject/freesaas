@@ -5,6 +5,7 @@ declare(strict_types=1);
 /** @var array<string,mixed> $settings */
 /** @var bool $procentsOn */
 /** @var bool $contractsOn */
+/** @var bool $pollInvitesOn */
 /** @var bool $ledgerOn */
 /** @var array<int,string> $statusOptions */
 /** @var array<int,string> $accountOptions */
@@ -13,6 +14,10 @@ $minPay = (int)($settings['day_pay_min_pay'] ?? 3000);
 $accountId = (int)($settings['day_pay_payout_account_id'] ?? 0);
 $issuerStatus2 = (int)($settings['day_pay_issuer_status2'] ?? 17);
 $deadlinePenalty = (string)($settings['deadline_penalty'] ?? '1') === '1';
+$hideNews = (string)($settings['hide_salary_unread_news'] ?? '0') === '1';
+$hideReviews = (string)($settings['hide_salary_unread_reviews'] ?? '0') === '1';
+$hideSuper = (string)($settings['hide_salary_apply_superadmin'] ?? '0') === '1';
+$pollInvitesOn = !empty($pollInvitesOn);
 ?>
 <section class="page-head">
   <p class="lede"><?= te('payments.settings.lede') ?></p>
@@ -72,6 +77,33 @@ $deadlinePenalty = (string)($settings['deadline_penalty'] ?? '1') === '1';
       </select>
     </label>
     <p class="muted"><?= te('payments.settings.day_pay_issuer_status2_hint') ?></p>
+  </fieldset>
+
+  <fieldset class="form-fieldset">
+    <legend><?= te('payments.settings.sec.salary_gate') ?></legend>
+    <p class="muted"><?= te('payments.settings.salary_gate_intro') ?></p>
+    <label class="logo-remove">
+      <input type="hidden" name="hide_salary_unread_news" value="0">
+      <input type="checkbox" name="hide_salary_unread_news" value="1"<?= $hideNews ? ' checked' : '' ?>>
+      <?= te('payments.settings.hide_salary_unread_news') ?>
+    </label>
+    <p class="muted"><?= te('payments.settings.hide_salary_unread_news_hint') ?></p>
+    <label class="logo-remove">
+      <input type="hidden" name="hide_salary_unread_reviews" value="0">
+      <input type="checkbox" name="hide_salary_unread_reviews" value="1"<?= $hideReviews ? ' checked' : '' ?>>
+      <?= te('payments.settings.hide_salary_unread_reviews') ?>
+    </label>
+    <?php if (!$pollInvitesOn): ?>
+      <p class="muted"><?= te('payments.settings.poll_invites_off') ?></p>
+    <?php else: ?>
+      <p class="muted"><?= te('payments.settings.hide_salary_unread_reviews_hint') ?></p>
+    <?php endif; ?>
+    <label class="logo-remove">
+      <input type="hidden" name="hide_salary_apply_superadmin" value="0">
+      <input type="checkbox" name="hide_salary_apply_superadmin" value="1"<?= $hideSuper ? ' checked' : '' ?>>
+      <?= te('payments.settings.hide_salary_apply_superadmin') ?>
+    </label>
+    <p class="muted"><?= te('payments.settings.hide_salary_apply_superadmin_hint') ?></p>
   </fieldset>
 
   <?php if ($contractsOn): ?>

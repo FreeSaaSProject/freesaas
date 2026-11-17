@@ -119,7 +119,7 @@ return [
     'stickers.bot.writeoff.again' => 'Списать ещё',
     'stickers.menu.print' => 'Печать стикеров',
     'stickers.menu.status' => 'QR / склад (диагностика)',
-    'stickers.menu.settings' => 'Склад: настройки',
+    'stickers.menu.settings' => 'Настройки склада',
     'stickers.settings.title' => 'Настройки склада (стикеры / QR)',
     'stickers.settings.lede' => 'Режим активации стикеров, общая сессия admin/public для QR-сканера и анонимная печать на складском ПК.',
     'stickers.settings.sec.activation' => 'Активация стикеров',

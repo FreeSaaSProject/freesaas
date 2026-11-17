@@ -58,14 +58,14 @@
                 "method": "GET",
                 "path": "/payments/settings",
                 "permission": "",
-                "description": "Payroll settings: auto_procent_accrual, day_pay_*, soft contracts deadline_penalty; SUPERADMIN_ACCESS"
+                "description": "Payroll settings: auto_procent_accrual, day_pay_*, hide_salary_unread_news|reviews|apply_superadmin, soft contracts deadline_penalty; SUPERADMIN_ACCESS"
             },
             {
                 "id": "payments.settings.update",
                 "method": "POST",
                 "path": "/payments/settings",
                 "permission": "",
-                "description": "Save payroll settings (payments.ini day_pay_* / auto_procent; contracts.ini deadline_penalty when contracts on); SUPERADMIN_ACCESS"
+                "description": "Save payroll settings (payments.ini day_pay_* / auto_procent / hide_salary_*; contracts.ini deadline_penalty when contracts on); SUPERADMIN_ACCESS"
             },
             {
                 "id": "payments.get_edit",
@@ -111,6 +111,7 @@
             "num": 20,
             "kind": "work",
             "path": "/payments",
+            "icon": "💵",
             "title": "payments.menu.list"
         },
         {
@@ -118,6 +119,7 @@
             "num": 90,
             "kind": "settings",
             "path": "/payments/settings",
+            "icon": "⚙️",
             "title": "payments.menu.settings"
         }
     ],

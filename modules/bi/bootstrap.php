@@ -54,7 +54,7 @@ Assets::register('bi', [
     'js' => ['bi.js'],
 ]);
 
-ModuleManager::registerMenuGroup('bi.menu.group', 600);
+ModuleManager::registerMenuGroup('bi.menu.group', 600, null, '📊');
 
 // /bi /bi/run /bi/work: any logged-in staff (shared reports); manage tools stay bi.manage.
 $pages = [

@@ -99,43 +99,57 @@ if (!empty($lq['show_all'])) {
 }
 
 if ($type >= 1 && $type <= 4) {
-    $rootLabel = t('core.news.tab.' . $type);
+    $typeLabel = t('core.news.tab.' . $type);
 } elseif ($type === 0) {
-    $rootLabel = t('core.news.type_all');
+    $typeLabel = t('core.news.type_all');
 } else {
-    $rootLabel = t('core.news.tab.2');
-}
-if ($unread) {
-    $rootLabel = t('core.news.filter_unread_heading', ['type' => $rootLabel]);
-} elseif ($unsigned) {
-    $rootLabel = t('core.news.filter_unsigned_heading', ['type' => $rootLabel]);
-} elseif ($overdue) {
-    $rootLabel = t('core.news.filter_overdue_heading', ['type' => $rootLabel]);
+    $typeLabel = t('core.news.tab.2');
 }
 
-$typeQs = array_filter([
+// Type crumb keeps status/q but never flat filters (unread/unsigned/overdue).
+$typeCrumbQs = array_filter([
     'type' => $type,
     'status' => $overdue ? '' : ($status >= 0 ? $status : ''),
     'q' => $q,
-    'unread' => $unread ? 1 : '',
-    'unsigned' => $unsigned ? 1 : '',
-    'overdue' => $overdue ? 1 : '',
 ], static function ($v) {
     return $v !== '' && $v !== null;
 });
-$typeHref = '/news?' . http_build_query($typeQs);
+$typeHref = '/news?' . http_build_query($typeCrumbQs);
+$flatFilter = $unread || $unsigned || $overdue;
+$atTypeRoot = $pid <= 0 && !$flatFilter;
 
 $breadcrumbs = [
     [
         'label' => t('core.menu.news'),
-        'href' => $typeHref,
+        'href' => '/news',
+        'no_up' => true,
     ],
     [
-        'label' => $rootLabel,
-        'href' => $pid > 0 ? $typeHref : null,
-        'current' => $pid <= 0,
+        'label' => $typeLabel,
+        'href' => ($pid > 0 || $flatFilter) ? $typeHref : null,
+        'current' => $atTypeRoot,
+        'no_up' => true,
     ],
 ];
+if ($unread) {
+    $breadcrumbs[] = [
+        'label' => t('core.news.filter_unread_crumb'),
+        'current' => true,
+        'plain' => true,
+    ];
+} elseif ($unsigned) {
+    $breadcrumbs[] = [
+        'label' => t('core.news.filter_unsigned_crumb'),
+        'current' => true,
+        'plain' => true,
+    ];
+} elseif ($overdue) {
+    $breadcrumbs[] = [
+        'label' => t('core.news.filter_overdue_crumb'),
+        'current' => true,
+        'plain' => true,
+    ];
+}
 foreach ($crumbsRaw as $c) {
     $cid = (int)$c['ID'];
     $isCurrent = $cid === $pid;

@@ -295,7 +295,10 @@
                         },
                         "html": {
                             "type": "integer",
-                            "enum": [0, 1],
+                            "enum": [
+                                0,
+                                1
+                            ],
                             "description": "1 = include full print HTML in JSON (large)"
                         }
                     }
@@ -370,7 +373,10 @@
                         },
                         "enabled": {
                             "type": "integer",
-                            "enum": [0, 1],
+                            "enum": [
+                                0,
+                                1
+                            ],
                             "description": "Omit in JSON to keep current (default on for new)"
                         },
                         "fill": {
@@ -378,7 +384,10 @@
                             "description": "Map of fillable field_id → default phrase (from fillable[].id). Empty string clears."
                         }
                     },
-                    "required": ["def", "fill"],
+                    "required": [
+                        "def",
+                        "fill"
+                    ],
                     "additionalProperties": true
                 }
             },
@@ -398,6 +407,7 @@
             "group": "docs.menu.group",
             "num": 1,
             "path": "/documents",
+            "icon": "📄",
             "title": "docs.menu.list",
             "permission": "docs.view"
         },
@@ -405,6 +415,7 @@
             "group": "docs.menu.group",
             "num": 20,
             "path": "/documents/defs",
+            "icon": "📑",
             "title": "docs.menu.defs",
             "permission": "docs.manage",
             "kind": "crud"
@@ -413,14 +424,17 @@
             "group": "docs.menu.group",
             "num": 25,
             "path": "/documents/fill-templates",
+            "icon": "✍️",
             "title": "docs.menu.fill_templates",
             "permission": "docs.medical",
             "kind": "work"
         },
         {
             "group": "docs.menu.group",
+            "kind": "settings",
             "num": 90,
             "path": "/documents/settings",
+            "icon": "⚙️",
             "title": "docs.menu.settings",
             "permission": "docs.view",
             "capability": "SUPERADMIN_ACCESS"

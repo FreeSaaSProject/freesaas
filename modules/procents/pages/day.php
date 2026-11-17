@@ -3,6 +3,25 @@ declare(strict_types=1);
 
 $wantsJson = AgentHttp::wantsJson();
 
+if (class_exists('SalaryVisibility', false) && !SalaryVisibility::canSeeSalary()) {
+    if ($wantsJson) {
+        AgentHttp::error(t('payments.salary_gate.invite'), 403, [
+            'salary_blocked' => true,
+            'reasons' => SalaryVisibility::blockedReasons(),
+        ]);
+        return;
+    }
+    View::render('salary_blocked', [
+        'title' => t('procents.menu.list'),
+        'breadcrumbs' => Breadcrumbs::withHome([
+            ['label' => t('procents.menu.list'), 'href' => '/procents'],
+            ['label' => t('payments.salary_gate.lede'), 'current' => true],
+        ]),
+        'gateHtml' => SalaryVisibility::inviteHtml(),
+    ], 'layout', 'procents');
+    return;
+}
+
 $canSeeOthers = ProcentsRepository::canSeeOthers();
 $operatorId = (int)($_GET['operator_id'] ?? 0);
 if (!$canSeeOthers) {

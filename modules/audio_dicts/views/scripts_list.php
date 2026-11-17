@@ -60,7 +60,7 @@ $q = (string)($q ?? '');
     </label>
     <p class="flash error scripts-import-name-err" id="scripts-import-name-err" hidden></p>
     <div class="scripts-import-preview muted" id="scripts-import-preview"></div>
-    <div class="form-actions">
+    <div class="page-actions">
       <button type="button" class="btn-secondary" id="scripts-import-cancel"><?= te('core.common.cancel') ?></button>
       <button type="button" class="btn-primary" id="scripts-import-ok"><?= te('audio_dicts.scripts.btn_upload') ?></button>
     </div>

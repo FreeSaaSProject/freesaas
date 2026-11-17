@@ -6,9 +6,15 @@
     "type": "product",
     "runtime": "admin",
     "catalog": {
-        "categories": ["integrations", "wellness"],
+        "categories": [
+            "integrations",
+            "wellness"
+        ],
         "maturity": "alpha",
-        "tags": ["integration", "journal"],
+        "tags": [
+            "integration",
+            "journal"
+        ],
         "screenshots": []
     },
     "requires": {
@@ -26,11 +32,22 @@
         "egisz.n3"
     ],
     "migrations": "migrations/",
-    "uninstall": { "strategy": "drop_owned" },
+    "uninstall": {
+        "strategy": "drop_owned"
+    },
     "permissions": [
-        { "id": "egisz.view", "label": "egisz.perm.view" },
-        { "id": "egisz.manage", "label": "egisz.perm.manage" },
-        { "id": "egisz.build", "label": "egisz.perm.build" }
+        {
+            "id": "egisz.view",
+            "label": "egisz.perm.view"
+        },
+        {
+            "id": "egisz.manage",
+            "label": "egisz.perm.manage"
+        },
+        {
+            "id": "egisz.build",
+            "label": "egisz.perm.build"
+        }
     ],
     "routes": {
         "pages": [
@@ -153,6 +170,7 @@
             "group": "egisz.menu.group",
             "num": 1,
             "path": "/egisz/journal",
+            "icon": "📓",
             "title": "egisz.menu.journal",
             "kind": "crud"
         },
@@ -160,6 +178,7 @@
             "group": "egisz.menu.group",
             "num": 10,
             "path": "/egisz/status",
+            "icon": "📡",
             "title": "egisz.menu.status",
             "kind": "work"
         },
@@ -167,6 +186,7 @@
             "group": "egisz.menu.group",
             "num": 90,
             "path": "/egisz/settings",
+            "icon": "⚙️",
             "title": "egisz.menu.settings",
             "kind": "settings"
         }
@@ -204,10 +224,20 @@
                 "href": "/egisz/settings",
                 "ask_user": "egisz.setup.ask.org",
                 "choices": [
-                    { "id": "open", "label": "egisz.setup.choice.open", "recommended": true },
-                    { "id": "defer", "label": "core.modules.setup.choice.defer", "recommended": false }
+                    {
+                        "id": "open",
+                        "label": "egisz.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
                 ],
-                "agent_can": ["mark_done"]
+                "agent_can": [
+                    "mark_done"
+                ]
             },
             {
                 "id": "operator",
@@ -216,10 +246,20 @@
                 "href": "/egisz/settings",
                 "ask_user": "egisz.setup.ask.operator",
                 "choices": [
-                    { "id": "open", "label": "egisz.setup.choice.open", "recommended": true },
-                    { "id": "defer", "label": "core.modules.setup.choice.defer", "recommended": false }
+                    {
+                        "id": "open",
+                        "label": "egisz.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
                 ],
-                "agent_can": ["mark_done"]
+                "agent_can": [
+                    "mark_done"
+                ]
             }
         ]
     }

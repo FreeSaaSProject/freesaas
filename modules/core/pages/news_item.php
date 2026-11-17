@@ -264,11 +264,13 @@ $typeHref = '/news?type=' . (int)$row['TYPE'];
 $breadcrumbs = [
     [
         'label' => t('core.menu.news'),
-        'href' => $typeHref,
+        'href' => '/news',
+        'no_up' => true,
     ],
     [
         'label' => $typeLabel,
         'href' => $typeHref,
+        'no_up' => true,
     ],
 ];
 foreach ($crumbsRaw as $c) {

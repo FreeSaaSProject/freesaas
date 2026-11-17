@@ -283,6 +283,7 @@
             "group": "yclients.menu.group",
             "num": 10,
             "path": "/yclients",
+            "icon": "📡",
             "title": "yclients.menu.status",
             "kind": "work"
         },
@@ -290,6 +291,7 @@
             "group": "yclients.menu.group",
             "num": 20,
             "path": "/yclients/import",
+            "icon": "⬇️",
             "title": "yclients.menu.import",
             "kind": "work"
         },
@@ -297,6 +299,7 @@
             "group": "yclients.menu.group",
             "num": 90,
             "path": "/yclients/settings",
+            "icon": "⚙️",
             "title": "yclients.menu.settings",
             "kind": "settings"
         }

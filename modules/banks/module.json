@@ -425,6 +425,7 @@
             "num": 25,
             "title": "banks.menu.list",
             "path": "/banks",
+            "icon": "🏛️",
             "permission": "banks.view",
             "kind": "work"
         }

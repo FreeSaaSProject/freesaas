@@ -83,6 +83,7 @@
             "group": "docs.menu.group",
             "num": 90,
             "path": "/medcard-audio/settings",
+            "icon": "⚙️",
             "title": "medcard_audio.menu.settings",
             "kind": "settings"
         }

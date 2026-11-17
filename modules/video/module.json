@@ -406,6 +406,7 @@
             "group": "video.menu.group",
             "num": 1,
             "path": "/video",
+            "icon": "📹",
             "title": "video.menu.dashboard",
             "kind": "work"
         },
@@ -413,6 +414,7 @@
             "group": "video.menu.group",
             "num": 2,
             "path": "/video/posts",
+            "icon": "🎬",
             "title": "video.menu.posts",
             "kind": "work"
         },
@@ -420,6 +422,7 @@
             "group": "video.menu.group",
             "num": 3,
             "path": "/video/cameras",
+            "icon": "📷",
             "title": "video.menu.cameras",
             "kind": "crud"
         },
@@ -427,6 +430,7 @@
             "group": "video.menu.group",
             "num": 4,
             "path": "/video/alerts",
+            "icon": "🚨",
             "title": "video.menu.alerts",
             "kind": "work"
         },
@@ -434,6 +438,7 @@
             "group": "video.menu.group",
             "num": 5,
             "path": "/video/models",
+            "icon": "🧬",
             "title": "video.menu.models",
             "kind": "crud"
         },
@@ -441,6 +446,7 @@
             "group": "video.menu.group",
             "num": 6,
             "path": "/video/train",
+            "icon": "🏋️",
             "title": "video.menu.train",
             "kind": "work"
         },
@@ -448,6 +454,7 @@
             "group": "video.menu.group",
             "num": 90,
             "path": "/video/settings",
+            "icon": "⚙️",
             "title": "video.menu.settings",
             "kind": "settings"
         }

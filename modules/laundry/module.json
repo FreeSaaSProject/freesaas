@@ -101,12 +101,14 @@
             "group": "core.menu.group.warehouse",
             "num": 8,
             "path": "/laundry",
+            "icon": "🧺",
             "title": "laundry.menu.home"
         },
         {
             "group": "core.menu.group.warehouse",
             "num": 9,
             "path": "/laundry/settings",
+            "icon": "⚙️",
             "title": "laundry.menu.settings",
             "kind": "settings"
         }

@@ -122,12 +122,14 @@
             "group": "core.menu.group.team",
             "num": 4,
             "path": "/vacations",
+            "icon": "🏖️",
             "title": "vacations.menu.list"
         },
         {
             "group": "core.menu.group.team",
             "num": 5,
             "path": "/vacations/settings",
+            "icon": "⚙️",
             "title": "vacations.menu.settings",
             "kind": "settings"
         }

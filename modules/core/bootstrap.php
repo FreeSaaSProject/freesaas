@@ -95,13 +95,14 @@ EventBus::on('bi.datasets', [CoreBiContrib::class, 'onDatasets']);
 
 // Shared rail groups (core.menu.group.*) — product modules register their own keys.
 // Default order (×100): desktop → … → warehouse → dictionaries → site → team → settings last.
-ModuleManager::registerMenuGroup('core.menu.group.desktop', 100, '/');
-ModuleManager::registerMenuGroup('core.menu.group.accounting', 700, '/payments');
-ModuleManager::registerMenuGroup('core.menu.group.finance', 800, '/ledger/moves');
-ModuleManager::registerMenuGroup('core.menu.group.warehouse', 1350);
-ModuleManager::registerMenuGroup('core.menu.group.dictionaries', 1400, '/catalog');
-ModuleManager::registerMenuGroup('core.menu.group.team', 1475, '/users');
-ModuleManager::registerMenuGroup('core.menu.group.system', 1500, '/updates');
+ModuleManager::registerMenuGroup('core.menu.group.desktop', 100, '/', '🏠');
+ModuleManager::registerMenuGroup('core.menu.group.accounting', 700, '/payments', '💵');
+ModuleManager::registerMenuGroup('core.menu.group.finance', 800, '/ledger/moves', '💰');
+ModuleManager::registerMenuGroup('core.menu.group.warehouse', 1350, null, '📦');
+ModuleManager::registerMenuGroup('core.menu.group.dictionaries', 1400, '/catalog', '📚');
+ModuleManager::registerMenuGroup('core.menu.group.team', 1475, '/users', '👥');
+// Keep the system «Settings» rail section last even if product modules use high weights.
+ModuleManager::registerMenuGroup('core.menu.group.system', 9900, '/updates', '⚙️');
 
 $pages = [
     '/login' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 'login.php'],
@@ -468,11 +469,30 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
             if (class_exists('StageTiming', false)) {
                 StageTiming::mark('Home: feed type ' . $tid);
             }
-            $result = NewsRepository::list([
-                'type' => $tid,
-                'limit' => $limit,
-                'user_id' => $uid,
-            ]);
+            $showingUnread = false;
+            $folders = [];
+            $result = ['items' => []];
+            // Types 1–3: prefer unread leaves when any exist; else root items + folders.
+            if ($tid >= 1 && $tid <= 3) {
+                $unreadResult = NewsRepository::list([
+                    'type' => $tid,
+                    'unread' => true,
+                    'limit' => $limit,
+                    'user_id' => $uid,
+                ]);
+                if (!empty($unreadResult['items'])) {
+                    $result = $unreadResult;
+                    $showingUnread = true;
+                }
+            }
+            if (!$showingUnread) {
+                $result = NewsRepository::list([
+                    'type' => $tid,
+                    'limit' => $limit,
+                    'user_id' => $uid,
+                ]);
+                $folders = is_array($result['folders'] ?? null) ? $result['folders'] : [];
+            }
             $ids = [];
             foreach ($result['items'] as $n) {
                 $ids[] = (int)$n['ID'];
@@ -484,12 +504,15 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
             $feedChips = is_array($feedChipsPayload) && is_array($feedChipsPayload['chips'] ?? null)
                 ? $feedChipsPayload['chips']
                 : [];
+            $listHref = '/news?type=' . $tid . ($showingUnread ? '&unread=1' : '');
             $html = View::capture('_widget_feed', [
                 'type' => $tid,
                 'label' => (string)$tab['label'],
+                'listHref' => $listHref,
                 'add' => $tab['add'] ?? null,
                 'addType' => $tab['addType'] ?? null,
                 'items' => $result['items'],
+                'folders' => $folders,
                 'statuses' => $statuses,
                 'commentCounts' => NewsRepository::commentCounts($ids),
                 'viewerCounts' => NewsRepository::viewerCounts($ids),
@@ -500,7 +523,8 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
             ], 'core');
             $widgets[] = [
                 'id' => $wid,
-                'title' => (string)$tab['label'],
+                // Title rendered inside _widget_feed as a link (avoid duplicate <h2>).
+                'title' => '',
                 'html' => $html,
                 'tone' => 'neutral',
                 // Rendered in .widgets-feeds band — side-by-side when width allows.

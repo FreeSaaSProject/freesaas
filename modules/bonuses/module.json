@@ -92,6 +92,7 @@
             "group": "clients.menu.group",
             "num": 40,
             "path": "/bonuses",
+            "icon": "🎁",
             "title": "bonuses.menu.list",
             "kind": "crud"
         }

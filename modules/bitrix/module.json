@@ -59,9 +59,16 @@
                 "description": "POST action=ping — verify REST webhook URL",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
+                    "required": [
+                        "action"
+                    ],
                     "properties": {
-                        "action": {"type": "string", "enum": ["ping"]}
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "ping"
+                            ]
+                        }
                     }
                 }
             },
@@ -74,15 +81,25 @@
                 "description": "Pull contact|company|deal|lead. Prefer dry_run=1 first.",
                 "parameters": {
                     "type": "object",
-                    "required": ["action"],
+                    "required": [
+                        "action"
+                    ],
                     "properties": {
                         "action": {
                             "type": "string",
-                            "enum": ["contact", "company", "deal", "lead"]
+                            "enum": [
+                                "contact",
+                                "company",
+                                "deal",
+                                "lead"
+                            ]
                         },
                         "dry_run": {
                             "type": "string",
-                            "enum": ["0", "1"],
+                            "enum": [
+                                "0",
+                                "1"
+                            ],
                             "description": "1 = count only (recommended first)"
                         }
                     }
@@ -114,14 +131,41 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "pull_enabled": {"type": "string", "enum": ["0", "1"]},
-                        "push_enabled": {"type": "string", "enum": ["0", "1"]},
-                        "portal": {"type": "string"},
-                        "rest_url": {"type": "string", "description": "Incoming webhook REST base ending with /"},
-                        "webhook_token": {"type": "string", "description": "Blank keeps current"},
-                        "worker_token": {"type": "string", "description": "Blank keeps current"},
-                        "timeout_sec": {"type": "integer"},
-                        "page_size": {"type": "integer"}
+                        "pull_enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "push_enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "portal": {
+                            "type": "string"
+                        },
+                        "rest_url": {
+                            "type": "string",
+                            "description": "Incoming webhook REST base ending with /"
+                        },
+                        "webhook_token": {
+                            "type": "string",
+                            "description": "Blank keeps current"
+                        },
+                        "worker_token": {
+                            "type": "string",
+                            "description": "Blank keeps current"
+                        },
+                        "timeout_sec": {
+                            "type": "integer"
+                        },
+                        "page_size": {
+                            "type": "integer"
+                        }
                     }
                 }
             }
@@ -137,6 +181,7 @@
             "group": "bitrix.menu.group",
             "num": 10,
             "path": "/bitrix",
+            "icon": "📡",
             "title": "bitrix.menu.status",
             "kind": "work"
         },
@@ -144,6 +189,7 @@
             "group": "bitrix.menu.group",
             "num": 20,
             "path": "/bitrix/import",
+            "icon": "⬇️",
             "title": "bitrix.menu.import",
             "kind": "work"
         },
@@ -151,6 +197,7 @@
             "group": "bitrix.menu.group",
             "num": 90,
             "path": "/bitrix/settings",
+            "icon": "⚙️",
             "title": "bitrix.menu.settings",
             "kind": "settings"
         }

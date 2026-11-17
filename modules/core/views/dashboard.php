@@ -77,6 +77,12 @@ $railGroupHome = !empty($railGroupHome);
   </label>
   <p class="muted dashboard-hint"><?= te('core.dashboard.rail_group_home_hint') ?></p>
 
+  <label class="dashboard-rail-peek">
+    <input type="checkbox" name="rail_icons" value="1"<?= !empty($railIcons) ? ' checked' : '' ?>>
+    <span><?= te('core.dashboard.rail_icons') ?></span>
+  </label>
+  <p class="muted dashboard-hint"><?= te('core.dashboard.rail_icons_hint') ?></p>
+
   <?php if (!$menuLayout): ?>
     <div class="flash flash-warn"><?= te('core.dashboard.no_menu') ?></div>
   <?php else: ?>
@@ -94,7 +100,7 @@ $railGroupHome = !empty($railGroupHome);
   </ul>
   <?php endif; ?>
 
-  <div class="form-actions">
+  <div class="page-actions">
     <button class="btn-primary" type="submit" name="save" value="1"><?= te('core.common.save') ?></button>
     <button class="btn-secondary" type="submit" name="reset_defaults" value="1"
             onclick="return confirm(<?= tj('core.dashboard.reset_confirm') ?>)"><?= te('core.dashboard.reset') ?></button>

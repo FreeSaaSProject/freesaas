@@ -45,7 +45,7 @@ Route params: `Router::param('id')`. Redirect: `redirect('/path')`. Escape outpu
 | UI translation strings | `modules/<id>/lang/{ru,en}.php` or `app/lang/` for shared chrome; keys like `core.layout.logout` |
 | New product feature | New or existing `modules/<id>/` |
 | HTTP endpoint | `ModuleManager::registerRoute` in that module’s `bootstrap.php` + `pages/` |
-| HTML for a page | `modules/<id>/views/` + `View::render($name, $data, 'layout', $moduleId)` |
+| HTML for a page | `modules/<id>/views/` + `View::render($name, $data, 'layout', $moduleId)`. Action row: **`page-actions`**. Edit delete: `EntityDelete::form` after `</form>` — see GUIDE. |
 | SQL / domain logic | `modules/<id>/lib/*Repository.php` |
 | Schema change | `modules/<id>/migrations/NNN_description.php` returning `function (PDO $pdo): void` |
 | One-time data seed/import | `modules/<id>/migrators/<id>.php` + entry in `module.json` `migrators` |

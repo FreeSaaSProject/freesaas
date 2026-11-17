@@ -30,7 +30,8 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP). Alters `base
 
 - `/payments` — staff settlements.
 - `/payments/transfer/new` — staff-to-staff transfer (oper transfer / "peremeshchenie"): debit `ACCOUNT=0` + `ID_USER_TO`, credit paired-move DESCR template (legacy twin-leg marker around `#{descr}#` — see payments transfer). Requires `payments.edit` and `CAN_SEE_SUM_OTHERS`. Delete either leg removes both.
-- `/payments/settings` — payroll settings (superadmin): auto commission accrual, daily payroll (`day_pay_*` in `payments.ini`), soft contracts `deadline_penalty`.
+- `/payments/settings` — payroll settings (superadmin): auto commission accrual, daily payroll (`day_pay_*` in `payments.ini`), salary hide gates (`hide_salary_unread_news`, `hide_salary_unread_reviews`, `hide_salary_apply_superadmin`), soft contracts `deadline_penalty`.
+- Salary hide (oper-style): when enabled, unread feed items and/or unviewed poll reviews block salary amounts in the calendar day footer, `/payments`, `/procents`, and the shift-salary bot until the viewer clears them. Superadmin is exempt unless `hide_salary_apply_superadmin=1`. Helper: `SalaryVisibility`.
 - Role edit: flag **Daily payroll** (`PAY_DAILY`) on `base_admin_statuses`.
 - Contract pay CTA when contracts enabled; auto-DPS when ledger on.
 

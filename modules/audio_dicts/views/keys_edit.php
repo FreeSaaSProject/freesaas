@@ -128,7 +128,7 @@ $relLabels = [
     <span class="muted small" id="key-force-hint"><?= te('audio_dicts.keys.force_hint') ?></span>
   </label>
 
-  <div class="form-actions">
+  <div class="page-actions">
     <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
     <a class="btn-secondary" href="<?= e($path) ?>"><?= te('core.common.cancel') ?></a>
   </div>

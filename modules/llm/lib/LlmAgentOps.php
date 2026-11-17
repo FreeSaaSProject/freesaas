@@ -7,7 +7,7 @@ final class LlmAgentOps
     public static function register(): void
     {
         AgentOps::registerModuleOp('GET', '/agent/llm/status', 'llm.status', [self::class, 'status'], [
-            'description' => 'Diagnose LLM: ready profile, oauth tables, public_base',
+            'description' => 'Diagnose LLM: ready profile, oauth tables, app.base_url / oauth_base / mcp_url',
         ]);
         AgentOps::registerModuleOp('GET', '/agent/llm/tokens', 'llm.tokens.list', [self::class, 'tokensList'], [
             'description' => 'List LLM profiles (api_key masked)',
@@ -62,13 +62,23 @@ final class LlmAgentOps
             ];
         }
 
+        $appBaseUrl = rtrim(trim((string)Config::get('app', 'base_url', '')), '/');
+        $legacyPublicBase = rtrim(trim((string)Config::get('llm', 'public_base', '')), '/');
+        $effectiveBase = class_exists('OAuthServer', false)
+            ? OAuthServer::publicBaseUrl()
+            : ($appBaseUrl !== '' ? $appBaseUrl : $legacyPublicBase);
+
         return [
             'ok' => LlmConfig::hasReadyProfile(),
             'has_ready_profile' => LlmConfig::hasReadyProfile(),
             'profiles' => array_values(LlmConfig::listForUi()),
             'default_profile' => LlmConfig::load()['default_profile'],
             'oauth_tables_ready' => $oauthReady,
-            'public_base' => trim((string)Config::get('llm', 'public_base', '')),
+            'app_base_url' => $appBaseUrl,
+            // Legacy key kept for diagnose only; prefer app.base_url via /settings.
+            'public_base' => $legacyPublicBase,
+            'oauth_base' => $effectiveBase,
+            'mcp_url' => class_exists('OAuthServer', false) ? OAuthServer::mcpUrl() : '',
             'issues' => $issues,
             'http' => 200,
         ];

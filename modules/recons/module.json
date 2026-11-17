@@ -109,6 +109,7 @@
             "group": "core.menu.group.finance",
             "num": 32,
             "path": "/recons/day",
+            "icon": "✅",
             "title": "recons.menu.day"
         }
     ],
