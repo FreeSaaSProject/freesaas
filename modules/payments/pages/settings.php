@@ -7,6 +7,7 @@ $error = '';
 
 $procentsOn = ModuleManager::isEnabled('procents');
 $contractsOn = ModuleManager::isEnabled('contracts');
+$audioContractsOn = ModuleManager::isEnabled('staff_reports') || ModuleManager::isEnabled('audio_llm');
 $ledgerOn = ModuleManager::isEnabled('ledger') && class_exists('LedgerAccountsRepository', false);
 
 /**
@@ -14,7 +15,7 @@ $ledgerOn = ModuleManager::isEnabled('ledger') && class_exists('LedgerAccountsRe
  */
 $pollInvitesOn = ModuleManager::isEnabled('poll_invites');
 
-$buildSettings = static function () use ($procentsOn, $contractsOn, $pollInvitesOn): array {
+$buildSettings = static function () use ($procentsOn, $contractsOn, $audioContractsOn, $pollInvitesOn): array {
     $dp = DayPayroll::settings();
     $out = [
         'auto_procent_accrual' => (string)Config::get('payments', 'auto_procent_accrual', '1') === '1' ? '1' : '0',
@@ -24,8 +25,11 @@ $buildSettings = static function () use ($procentsOn, $contractsOn, $pollInvites
         'hide_salary_unread_news' => (string)Config::get('payments', 'hide_salary_unread_news', '0') === '1' ? '1' : '0',
         'hide_salary_unread_reviews' => (string)Config::get('payments', 'hide_salary_unread_reviews', '0') === '1' ? '1' : '0',
         'hide_salary_apply_superadmin' => (string)Config::get('payments', 'hide_salary_apply_superadmin', '0') === '1' ? '1' : '0',
+        'auto_pay_on_work_accept' => PaymentsRepository::autoPayOnWorkAccept() ? '1' : '0',
+        'auto_pay_on_audio_contract' => PaymentsRepository::autoPayOnAudioContract() ? '1' : '0',
         'procents_enabled' => $procentsOn,
         'contracts_enabled' => $contractsOn,
+        'audio_contracts_enabled' => $audioContractsOn,
         'poll_invites_enabled' => $pollInvitesOn,
     ];
     if ($contractsOn && class_exists('ContractsRepository', false)) {
@@ -50,6 +54,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         if ($contractsOn && array_key_exists('deadline_penalty', $_POST)) {
             Config::set('contracts', 'deadline_penalty', !empty($_POST['deadline_penalty']) ? '1' : '0');
+        }
+        if ($contractsOn && array_key_exists('auto_pay_on_work_accept', $_POST)) {
+            Config::set('payments', 'auto_pay_on_work_accept', !empty($_POST['auto_pay_on_work_accept']) ? '1' : '0');
+        }
+        if (($contractsOn || $audioContractsOn) && array_key_exists('auto_pay_on_audio_contract', $_POST)) {
+            Config::set('payments', 'auto_pay_on_audio_contract', !empty($_POST['auto_pay_on_audio_contract']) ? '1' : '0');
         }
         if (array_key_exists('hide_salary_unread_news', $_POST)) {
             Config::set('payments', 'hide_salary_unread_news', !empty($_POST['hide_salary_unread_news']) ? '1' : '0');
@@ -121,6 +131,7 @@ View::render('settings', [
     'settings' => $settings,
     'procentsOn' => $procentsOn,
     'contractsOn' => $contractsOn,
+    'audioContractsOn' => $audioContractsOn,
     'pollInvitesOn' => $pollInvitesOn,
     'ledgerOn' => $ledgerOn,
     'statusOptions' => $statusOptions,

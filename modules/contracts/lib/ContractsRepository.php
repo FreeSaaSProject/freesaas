@@ -302,6 +302,16 @@ final class ContractsRepository
         }
         $st = Database::pdo()->prepare('UPDATE base_comments SET DT_WORK_ACCEPT = ? WHERE ID = ?');
         $st->execute([time(), $commentId]);
+
+        if (ModuleManager::isEnabled('payments')
+            && class_exists('PaymentsRepository', false)
+            && PaymentsRepository::autoPayOnWorkAccept()) {
+            try {
+                PaymentsRepository::createFromContractComment($commentId);
+            } catch (Throwable $e) {
+                error_log('[contracts] auto_pay_on_work_accept comment=' . $commentId . ' ' . $e->getMessage());
+            }
+        }
     }
 
     public static function refuse(int $commentId, int $uid): void

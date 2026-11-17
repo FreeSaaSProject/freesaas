@@ -357,6 +357,18 @@ final class PaymentsRepository
         return (bool)$st->fetchColumn();
     }
 
+    /** cfg/modules/payments.ini → auto_pay_on_work_accept (default off). */
+    public static function autoPayOnWorkAccept(): bool
+    {
+        return (int)Config::get('payments', 'auto_pay_on_work_accept', 0) === 1;
+    }
+
+    /** cfg/modules/payments.ini → auto_pay_on_audio_contract (default off). */
+    public static function autoPayOnAudioContract(): bool
+    {
+        return (int)Config::get('payments', 'auto_pay_on_audio_contract', 0) === 1;
+    }
+
     /**
      * Prefill from contract offer comment (oper edit_payment id_comment).
      * Applies deadline overrun penalty to SUM like legacy.
@@ -374,6 +386,191 @@ final class PaymentsRepository
         $st->execute([$commentId]);
         $c = $st->fetch(PDO::FETCH_ASSOC);
         if (!$c || (int)($c['DT_WORK_ACCEPT'] ?? 0) < 1) {
+            return null;
+        }
+        return self::prefillPayloadFromCommentRow($c);
+    }
+
+    /**
+     * Create settlement from an offer comment (idempotent create-only).
+     * Soft no-op if payments tables missing. Does not change an existing payment.
+     *
+     * @param array{ensure_work_accept?:bool} $opts
+     * @return int|null payment id (existing or new), null if skipped
+     */
+    public static function createFromContractComment(int $commentId, array $opts = []): ?int
+    {
+        return self::settleFromContractComment($commentId, $opts, false);
+    }
+
+    /**
+     * Sync settlement with offer comment (audio re-®):
+     * create if missing, update sum/dir/descr if changed, delete if payout is 0, leave alone if same.
+     *
+     * @param array{ensure_work_accept?:bool} $opts
+     * @return int|null payment id, or null when none / deleted / skipped
+     */
+    public static function syncFromContractComment(int $commentId, array $opts = []): ?int
+    {
+        return self::settleFromContractComment($commentId, $opts, true);
+    }
+
+    /**
+     * @param array{ensure_work_accept?:bool} $opts
+     */
+    private static function settleFromContractComment(int $commentId, array $opts, bool $sync): ?int
+    {
+        if ($commentId < 1 || !Database::tableExists('base_comments') || !Database::tableExists('base_payments')) {
+            return null;
+        }
+        $existingId = self::linkedPaymentIdForComment($commentId);
+        if ($existingId > 0 && !$sync) {
+            return $existingId;
+        }
+
+        if (!empty($opts['ensure_work_accept'])) {
+            $stWa = Database::pdo()->prepare(
+                'UPDATE base_comments SET DT_WORK_ACCEPT = ? WHERE ID = ? AND (DT_WORK_ACCEPT = 0 OR DT_WORK_ACCEPT IS NULL)'
+            );
+            $stWa->execute([time(), $commentId]);
+        }
+
+        $st = Database::pdo()->prepare(
+            'SELECT ID, ID_USER, ID_OBJECT, PRICE_OFFER, DT_OFFER_ACCEPT, DT_DEADLINE, DT_WORK_ACCEPT, ID_PAYMENT, DT_FAIL
+             FROM base_comments WHERE ID = ? LIMIT 1'
+        );
+        $st->execute([$commentId]);
+        $c = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$c) {
+            return null;
+        }
+        if ((int)($c['DT_FAIL'] ?? 0) > 0) {
+            return $sync && $existingId > 0 ? $existingId : null;
+        }
+
+        $priceOffer = (float)($c['PRICE_OFFER'] ?? 0);
+        if ($sync && $priceOffer == 0.0) {
+            if ($existingId > 0) {
+                self::forceDeleteLinkedToComment($commentId);
+            }
+            return null;
+        }
+
+        if ((int)($c['DT_WORK_ACCEPT'] ?? 0) < 1) {
+            return null;
+        }
+        $prefill = self::prefillPayloadFromCommentRow($c);
+        if ($prefill === null) {
+            return null;
+        }
+        $rawSum = (float)$prefill['sum'];
+        if ($rawSum == 0.0) {
+            if ($sync && $existingId > 0) {
+                self::forceDeleteLinkedToComment($commentId);
+            }
+            return null;
+        }
+        $direction = $rawSum > 0 ? 1 : -1;
+        $sum = abs($rawSum);
+        $userId = (int)$prefill['user_id'];
+        $descr = (string)$prefill['descr'];
+        if ($userId < 1) {
+            return null;
+        }
+
+        if ($existingId > 0) {
+            $row = self::find($existingId);
+            if ($row === null) {
+                if (Database::columnExists('base_comments', 'ID_PAYMENT')) {
+                    Database::pdo()->prepare(
+                        'UPDATE base_comments SET ID_PAYMENT = 0 WHERE ID = ?'
+                    )->execute([$commentId]);
+                }
+                $existingId = 0;
+            } else {
+                $sameDir = (int)$row['direction'] === $direction;
+                $sameSum = abs((float)$row['sum'] - $sum) < 0.005;
+                $sameUser = (int)$row['user_id'] === $userId;
+                $sameDescr = (string)$row['descr'] === $descr;
+                if ($sameDir && $sameSum && $sameUser && $sameDescr) {
+                    return $existingId;
+                }
+                $row['user_id'] = $userId;
+                $row['direction'] = $direction;
+                $row['sum'] = $sum;
+                $row['descr'] = $descr;
+                $row['comment_id'] = $commentId;
+                $row['account'] = 0;
+                self::update($existingId, $row);
+                return $existingId;
+            }
+        }
+
+        $now = time();
+        $signed = Auth::userId();
+        if ($signed < 1) {
+            $signed = 0;
+        }
+
+        return self::create([
+            'user_id' => $userId,
+            'dt' => $now,
+            'descr' => $descr,
+            'direction' => $direction,
+            'sum' => $sum,
+            'account' => 0,
+            'dt_create' => $now,
+            'user_signed' => $signed,
+            'comment_id' => $commentId,
+            'is_partner' => 0,
+            'admin_inworked' => 0,
+            'dt_admin_inworked' => 0,
+            'admin_signed' => 0,
+            'dt_admin_signed' => 0,
+            'accept_user' => 0,
+            'dt_accept' => 0,
+            'movement_linked' => 0,
+        ]);
+    }
+
+    /** Linked payment id via ID_COMMENT or comment.ID_PAYMENT (0 if none / stale). */
+    private static function linkedPaymentIdForComment(int $commentId): int
+    {
+        if ($commentId < 1) {
+            return 0;
+        }
+        $payIdByComment = [];
+        if (Database::columnExists('base_comments', 'ID_PAYMENT')) {
+            $stPid = Database::pdo()->prepare('SELECT ID_PAYMENT FROM base_comments WHERE ID = ? LIMIT 1');
+            $stPid->execute([$commentId]);
+            $existingPid = (int)$stPid->fetchColumn();
+            if ($existingPid > 0) {
+                $payIdByComment[$commentId] = $existingPid;
+            }
+        }
+        $existing = self::sumsByCommentIds([$commentId], $payIdByComment);
+        $id = (int)($existing[$commentId]['payment_id'] ?? 0);
+        if ($id > 0) {
+            return $id;
+        }
+        // Stale comment.ID_PAYMENT (row gone) — clear so bind can attach a new one.
+        if ($payIdByComment !== [] && Database::columnExists('base_comments', 'ID_PAYMENT')) {
+            Database::pdo()->prepare(
+                'UPDATE base_comments SET ID_PAYMENT = 0 WHERE ID = ?'
+            )->execute([$commentId]);
+        }
+
+        return 0;
+    }
+
+    /**
+     * @param array<string,mixed> $c base_comments row
+     * @return array<string,mixed>|null
+     */
+    private static function prefillPayloadFromCommentRow(array $c): ?array
+    {
+        $commentId = (int)($c['ID'] ?? 0);
+        if ($commentId < 1) {
             return null;
         }
         $price = (float)($c['PRICE_OFFER'] ?? 0);

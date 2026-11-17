@@ -5,6 +5,7 @@ declare(strict_types=1);
 /** @var array<string,mixed> $settings */
 /** @var bool $procentsOn */
 /** @var bool $contractsOn */
+/** @var bool $audioContractsOn */
 /** @var bool $pollInvitesOn */
 /** @var bool $ledgerOn */
 /** @var array<int,string> $statusOptions */
@@ -14,10 +15,13 @@ $minPay = (int)($settings['day_pay_min_pay'] ?? 3000);
 $accountId = (int)($settings['day_pay_payout_account_id'] ?? 0);
 $issuerStatus2 = (int)($settings['day_pay_issuer_status2'] ?? 17);
 $deadlinePenalty = (string)($settings['deadline_penalty'] ?? '1') === '1';
+$autoPayWork = (string)($settings['auto_pay_on_work_accept'] ?? '0') === '1';
+$autoPayAudio = (string)($settings['auto_pay_on_audio_contract'] ?? '0') === '1';
 $hideNews = (string)($settings['hide_salary_unread_news'] ?? '0') === '1';
 $hideReviews = (string)($settings['hide_salary_unread_reviews'] ?? '0') === '1';
 $hideSuper = (string)($settings['hide_salary_apply_superadmin'] ?? '0') === '1';
 $pollInvitesOn = !empty($pollInvitesOn);
+$audioContractsOn = !empty($audioContractsOn);
 ?>
 <section class="page-head">
   <p class="lede"><?= te('payments.settings.lede') ?></p>
@@ -106,15 +110,34 @@ $pollInvitesOn = !empty($pollInvitesOn);
     <p class="muted"><?= te('payments.settings.hide_salary_apply_superadmin_hint') ?></p>
   </fieldset>
 
-  <?php if ($contractsOn): ?>
+  <?php if ($contractsOn || $audioContractsOn): ?>
   <fieldset class="form-fieldset">
-    <legend><?= te('contracts.settings.deadline_penalty') ?></legend>
-    <p class="muted"><?= te('contracts.settings.deadline_penalty_hint') ?></p>
-    <label class="logo-remove">
-      <input type="hidden" name="deadline_penalty" value="0">
-      <input type="checkbox" name="deadline_penalty" value="1"<?= $deadlinePenalty ? ' checked' : '' ?>>
-      <?= te('contracts.settings.deadline_penalty_label') ?>
-    </label>
+    <legend><?= te('payments.settings.sec.contracts') ?></legend>
+    <?php if ($contractsOn): ?>
+      <p class="muted"><?= te('contracts.settings.deadline_penalty_hint') ?></p>
+      <label class="logo-remove">
+        <input type="hidden" name="deadline_penalty" value="0">
+        <input type="checkbox" name="deadline_penalty" value="1"<?= $deadlinePenalty ? ' checked' : '' ?>>
+        <?= te('contracts.settings.deadline_penalty_label') ?>
+      </label>
+      <label class="logo-remove">
+        <input type="hidden" name="auto_pay_on_work_accept" value="0">
+        <input type="checkbox" name="auto_pay_on_work_accept" value="1"<?= $autoPayWork ? ' checked' : '' ?>>
+        <?= te('payments.settings.auto_pay_on_work_accept') ?>
+      </label>
+      <p class="muted"><?= te('payments.settings.auto_pay_on_work_accept_hint') ?></p>
+    <?php endif; ?>
+    <?php if ($contractsOn || $audioContractsOn): ?>
+      <label class="logo-remove">
+        <input type="hidden" name="auto_pay_on_audio_contract" value="0">
+        <input type="checkbox" name="auto_pay_on_audio_contract" value="1"<?= $autoPayAudio ? ' checked' : '' ?>>
+        <?= te('payments.settings.auto_pay_on_audio_contract') ?>
+      </label>
+      <p class="muted"><?= te('payments.settings.auto_pay_on_audio_contract_hint') ?></p>
+      <?php if (!$audioContractsOn): ?>
+        <p class="muted"><?= te('payments.settings.auto_pay_audio_modules_off') ?></p>
+      <?php endif; ?>
+    <?php endif; ?>
   </fieldset>
   <?php endif; ?>
 

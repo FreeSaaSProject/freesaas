@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-17T10:06:50+00:00",
+    "generated_at": "2026-11-17T10:24:31+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -274,7 +274,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.14",
+            "version": "0.1.17",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -298,7 +298,8 @@
                 "staff_reports": ">=1.0.0",
                 "comments": ">=1.0.0",
                 "procedures": ">=1.0.0",
-                "contracts": ">=1.0.0"
+                "contracts": ">=1.0.0",
+                "payments": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -1072,7 +1073,7 @@
         },
         {
             "id": "contracts",
-            "version": "1.0.8",
+            "version": "1.0.9",
             "type": "product",
             "name": {
                 "en": "Contracts",
@@ -1726,7 +1727,7 @@
         },
         {
             "id": "payments",
-            "version": "1.0.12",
+            "version": "1.0.15",
             "type": "product",
             "name": {
                 "en": "Settlements",
@@ -1749,7 +1750,10 @@
                 "procents": ">=1.0.0",
                 "procedures": ">=1.0.0",
                 "contracts": ">=1.0.0",
-                "assistant": ">=1.0.0"
+                "assistant": ">=1.0.0",
+                "poll_invites": ">=1.0.0",
+                "staff_reports": ">=1.0.0",
+                "audio_llm": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -2106,7 +2110,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "1.0.5",
+            "version": "1.0.7",
             "type": "product",
             "name": {
                 "en": "Staff reports",

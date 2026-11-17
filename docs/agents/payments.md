@@ -30,7 +30,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP). Alters `base
 
 - `/payments` — staff settlements.
 - `/payments/transfer/new` — staff-to-staff transfer (oper transfer / "peremeshchenie"): debit `ACCOUNT=0` + `ID_USER_TO`, credit paired-move DESCR template (legacy twin-leg marker around `#{descr}#` — see payments transfer). Requires `payments.edit` and `CAN_SEE_SUM_OTHERS`. Delete either leg removes both.
-- `/payments/settings` — payroll settings (superadmin): auto commission accrual, daily payroll (`day_pay_*` in `payments.ini`), salary hide gates (`hide_salary_unread_news`, `hide_salary_unread_reviews`, `hide_salary_apply_superadmin`), soft contracts `deadline_penalty`.
+- `/payments/settings` — payroll settings (superadmin): auto commission accrual, daily payroll (`day_pay_*` in `payments.ini`), salary hide gates (`hide_salary_unread_news`, `hide_salary_unread_reviews`, `hide_salary_apply_superadmin`), soft contracts `deadline_penalty` + `auto_pay_on_work_accept` / `auto_pay_on_audio_contract`.
 - Salary hide (oper-style): when enabled, unread feed items and/or unviewed poll reviews block salary amounts in the calendar day footer, `/payments`, `/procents`, and the shift-salary bot until the viewer clears them. Superadmin is exempt unless `hide_salary_apply_superadmin=1`. Helper: `SalaryVisibility`.
 - Role edit: flag **Daily payroll** (`PAY_DAILY`) on `base_admin_statuses`.
 - Contract pay CTA when contracts enabled; auto-DPS when ledger on.
@@ -74,4 +74,5 @@ curl -sS -b jar.txt 'https://example/payments/settings?format=json'
 - Links to ledger moves via `/payments/move-links/{moveId}`.
 - Soft from `procents`: when `auto_procent_accrual=1` and one monthly staff is selected, upserts `% {MONTH_RU} {YYYY}` (payroll fund / FOT). Toggle on `/payments/settings`.
 - Soft from `contracts`: `deadline_penalty` edited here (writes `cfg/modules/contracts.ini`). Legacy `/contracts/settings` redirects here.
+- `auto_pay_on_work_accept=1`: after contract accept work, `PaymentsRepository::createFromContractComment` (ACCOUNT=0, deadline penalty; create-only if missing). `auto_pay_on_audio_contract=1`: staff_reports / cyclic LLM use `syncFromContractComment` (create if missing, update sum/dir if offer changed, delete if offer cleared, leave alone if same). Both default off.
 - Staff transfers stay on `ACCOUNT=0` (no DPS). Monthly «Internal» subtotal still counts all `ACCOUNT=0` write-offs, not only transfers.

@@ -248,9 +248,31 @@ final class CyclicDayRunner
         $existingId = self::findCommentByMarkers($ticketId, [$marker, $markerLegacy]);
         if ($existingId > 0) {
             CommentsRepository::updateFields($existingId, $contractText, $extra);
+            // Sync: create / update sum / delete if amount 0; leave alone when unchanged.
+            self::tryAutoPay($existingId);
             return $existingId;
         }
-        return CommentsRepository::add($ticketId, $employeeId, $contractText, $extra);
+        $created = CommentsRepository::add($ticketId, $employeeId, $contractText, $extra);
+        if ($created > 0) {
+            self::tryAutoPay($created);
+        }
+        return $created;
+    }
+
+    /** Soft: sync settlement when payments.auto_pay_on_audio_contract is on. */
+    private static function tryAutoPay(int $commentId): void
+    {
+        if ($commentId < 1
+            || !ModuleManager::isEnabled('payments')
+            || !class_exists('PaymentsRepository', false)
+            || !PaymentsRepository::autoPayOnAudioContract()) {
+            return;
+        }
+        try {
+            PaymentsRepository::syncFromContractComment($commentId, ['ensure_work_accept' => true]);
+        } catch (Throwable $e) {
+            error_log('[audio_llm] auto_pay_on_audio_contract comment=' . $commentId . ' ' . $e->getMessage());
+        }
     }
 
     /**

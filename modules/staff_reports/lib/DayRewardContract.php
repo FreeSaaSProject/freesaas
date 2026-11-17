@@ -7,9 +7,8 @@ declare(strict_types=1);
  *
  * Re-® rules:
  * - same eligible sum → leave contract alone (report-only update);
- * - sum changed, no settlement → update PRICE_OFFER in place (keep work accept);
- * - sum changed + settlement with different sum → delete settlement, disable old
- *   offer, create a fresh contract (work accept required again).
+ * - sum changed → update PRICE_OFFER in place (keep work accept);
+ * - linked settlement: sync in place (update sum / delete if reward cleared); never stack duplicates.
  */
 final class DayRewardContract
 {
@@ -44,7 +43,7 @@ final class DayRewardContract
 
     /**
      * @return array{comment_id:int,action:string,sum_changed:bool,payment_deleted:list<int>}
-     *         action: created|updated|disabled|recreated|unchanged|none|skipped
+     *         action: created|updated|disabled|unchanged|none|skipped
      */
     public static function sync(
         int $ticketId,
@@ -119,43 +118,7 @@ final class DayRewardContract
             ];
         }
 
-        $payment = self::linkedPayment($existingId);
-        $paymentSum = $payment !== null ? (int)round((float)$payment['sum']) : null;
-        $hasPayment = $payment !== null && (int)$payment['payment_id'] > 0;
-
-        // Sum changed + settlement with a different amount → tear down and recreate.
-        if ($sumChanged && $hasPayment && $paymentSum !== null && $paymentSum !== $newSum) {
-            $deleted = self::deleteLinkedPayments($existingId);
-            if ($existingId > 0) {
-                CommentsRepository::setDisabled($existingId, true);
-                if (Database::columnExists('base_comments', 'ID_PAYMENT')) {
-                    Database::pdo()->prepare(
-                        'UPDATE base_comments SET ID_PAYMENT = 0, DT_WORK_ACCEPT = 0 WHERE ID = ?'
-                    )->execute([$existingId]);
-                } else {
-                    Database::pdo()->prepare(
-                        'UPDATE base_comments SET DT_WORK_ACCEPT = 0 WHERE ID = ?'
-                    )->execute([$existingId]);
-                }
-            }
-            $created = self::createOffer(
-                $ticketId,
-                $employeeId,
-                $reportCommentId,
-                $dayText,
-                $newSum,
-                $workingDays
-            );
-
-            return [
-                'comment_id' => $created,
-                'action' => $created > 0 ? 'recreated' : 'skipped',
-                'sum_changed' => true,
-                'payment_deleted' => $deleted,
-            ];
-        }
-
-        // No settlement (or payment already matches new sum) → create or update in place.
+        // Sum changed → update offer in place; sync linked settlement (create/update, no recreate).
         if ($existingId > 0 && $oldRow) {
             $deadline = self::addWorkingDays($workingDays);
             $text = StaffReportTicketText::contractBody($dayText);
@@ -172,6 +135,7 @@ final class DayRewardContract
             }
             // Keep DT_OFFER_ACCEPT / DT_WORK_ACCEPT when updating in place.
             CommentsRepository::updateFields($existingId, $text, $extra);
+            self::tryAutoPay($existingId);
 
             return [
                 'comment_id' => $existingId,
@@ -189,6 +153,7 @@ final class DayRewardContract
             $newSum,
             $workingDays
         );
+        self::tryAutoPay($created);
 
         return [
             'comment_id' => $created,
@@ -198,27 +163,20 @@ final class DayRewardContract
         ];
     }
 
-    /**
-     * @return array{payment_id:int,sum:float}|null
-     */
-    private static function linkedPayment(int $commentId): ?array
+    /** Soft: sync settlement when payments.auto_pay_on_audio_contract is on. */
+    private static function tryAutoPay(int $commentId): void
     {
-        if ($commentId < 1 || !class_exists('PaymentsRepository', false)
-            || !ModuleManager::isEnabled('payments')) {
-            return null;
+        if ($commentId < 1
+            || !ModuleManager::isEnabled('payments')
+            || !class_exists('PaymentsRepository', false)
+            || !PaymentsRepository::autoPayOnAudioContract()) {
+            return;
         }
-        $payIdByComment = [];
-        if (Database::columnExists('base_comments', 'ID_PAYMENT')) {
-            $st = Database::pdo()->prepare('SELECT ID_PAYMENT FROM base_comments WHERE ID = ? LIMIT 1');
-            $st->execute([$commentId]);
-            $pid = (int)$st->fetchColumn();
-            if ($pid > 0) {
-                $payIdByComment[$commentId] = $pid;
-            }
+        try {
+            PaymentsRepository::syncFromContractComment($commentId, ['ensure_work_accept' => true]);
+        } catch (Throwable $e) {
+            error_log('[staff_reports] auto_pay_on_audio_contract comment=' . $commentId . ' ' . $e->getMessage());
         }
-        $map = PaymentsRepository::sumsByCommentIds([$commentId], $payIdByComment);
-
-        return $map[$commentId] ?? null;
     }
 
     /**

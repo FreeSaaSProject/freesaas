@@ -2,7 +2,7 @@
     "id": "payments",
     "name": "payments.module.name",
     "description": "payments.module.description",
-    "version": "1.0.12",
+    "version": "1.0.15",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -13,7 +13,10 @@
         "procents": ">=1.0.0",
         "procedures": ">=1.0.0",
         "contracts": ">=1.0.0",
-        "assistant": ">=1.0.0"
+        "assistant": ">=1.0.0",
+        "poll_invites": ">=1.0.0",
+        "staff_reports": ">=1.0.0",
+        "audio_llm": ">=0.1.0"
     },
     "provides": [
         "payments.list"
@@ -58,14 +61,14 @@
                 "method": "GET",
                 "path": "/payments/settings",
                 "permission": "",
-                "description": "Payroll settings: auto_procent_accrual, day_pay_*, hide_salary_unread_news|reviews|apply_superadmin, soft contracts deadline_penalty; SUPERADMIN_ACCESS"
+                "description": "Payroll settings: auto_procent_accrual, day_pay_*, hide_salary_*, auto_pay_on_work_accept|audio_contract, soft contracts deadline_penalty; SUPERADMIN_ACCESS"
             },
             {
                 "id": "payments.settings.update",
                 "method": "POST",
                 "path": "/payments/settings",
                 "permission": "",
-                "description": "Save payroll settings (payments.ini day_pay_* / auto_procent / hide_salary_*; contracts.ini deadline_penalty when contracts on); SUPERADMIN_ACCESS"
+                "description": "Save payroll settings (payments.ini day_pay_* / auto_procent / hide_salary_* / auto_pay_*; contracts.ini deadline_penalty when contracts on); SUPERADMIN_ACCESS"
             },
             {
                 "id": "payments.get_edit",
@@ -123,7 +126,18 @@
             "title": "payments.menu.settings"
         }
     ],
-    "configSchema": [],
+    "configSchema": {
+        "payments": {
+            "auto_pay_on_work_accept": {
+                "type": "boolean",
+                "default": false
+            },
+            "auto_pay_on_audio_contract": {
+                "type": "boolean",
+                "default": false
+            }
+        }
+    },
     "tables": [
         "base_payments",
         "base_payment_move_links"
