@@ -93,6 +93,7 @@ final class LaundryPanel
         $postUrl = (string)($opts['post_url'] ?? '');
         $showModuleLink = !empty($opts['show_module_link']);
         $panelError = (string)($opts['error'] ?? '');
+        Assets::need('laundry');
         ob_start();
         require base_path('modules/laundry/views/_panel.php');
         return (string)ob_get_clean();

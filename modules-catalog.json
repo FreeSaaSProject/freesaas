@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-17T10:02:58+00:00",
+    "generated_at": "2026-11-17T10:06:50+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -1425,7 +1425,7 @@
         },
         {
             "id": "laundry",
-            "version": "1.0.5",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "Laundry",

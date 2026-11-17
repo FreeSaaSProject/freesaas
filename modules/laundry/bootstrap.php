@@ -10,6 +10,10 @@ require_once __DIR__ . '/lib/LaundryInventory.php';
 require_once __DIR__ . '/lib/LaundryPanel.php';
 require_once __DIR__ . '/lib/LaundryComments.php';
 
+Assets::register('laundry', [
+    'js' => ['laundry.js'],
+]);
+
 $pages = [
     '/laundry' => ['permission' => 'laundry.view', 'methods' => ['GET', 'POST'], 'file' => 'home.php'],
     '/laundry/moves' => ['permission' => 'laundry.view', 'methods' => ['GET'], 'file' => 'moves_list.php'],
@@ -77,6 +81,7 @@ EventBus::on('core.news_item.section', static function ($payload) {
     if (!Auth::can('laundry.view')) {
         return $payload;
     }
+    Assets::need('laundry');
     $payload['html'] = ($payload['html'] ?? '') . LaundryPanel::render(['show_module_link' => true]);
     return $payload;
 });

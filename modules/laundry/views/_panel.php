@@ -77,7 +77,8 @@ $formAction = $postUrl !== '' ? ' action="' . e($postUrl) . '"' : '';
   <details open>
     <summary><strong><?= te('laundry.accept.title') ?></strong></summary>
     <form method="post"<?= $formAction ?> style="margin-top:0.75rem"
-          onsubmit="return window.laundryAcceptConfirm ? window.laundryAcceptConfirm(this) : true;">
+          data-laundry-accept="1"
+          data-extra-confirm="<?= e(t('laundry.accept.extra_confirm')) ?>">
       <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
       <input type="hidden" name="action" value="<?= e(LaundryPanel::ACTION_ACCEPT) ?>">
       <?php if ($open === []): ?>
@@ -122,17 +123,6 @@ $formAction = $postUrl !== '' ? ' action="' . e($postUrl) . '"' : '';
         <button class="btn-primary" type="submit"><?= te('laundry.accept.submit') ?></button>
       </div>
     </form>
-    <script>
-    window.laundryAcceptConfirm = function (form) {
-      var inputs = form.querySelectorAll('input[name^="extra["]');
-      var hasExtra = false;
-      for (var i = 0; i < inputs.length; i++) {
-        if (parseInt(inputs[i].value, 10) > 0) { hasExtra = true; break; }
-      }
-      if (!hasExtra) return true;
-      return window.confirm(<?= tj('laundry.accept.extra_confirm') ?>);
-    };
-    </script>
   </details>
   <?php elseif ($canShip && !$started && $canEdit): ?>
     <p><a class="btn-primary" href="/laundry/inventory"><?= te('laundry.home.inventory') ?></a></p>

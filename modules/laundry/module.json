@@ -2,7 +2,7 @@
     "id": "laundry",
     "name": "laundry.module.name",
     "description": "laundry.module.description",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
