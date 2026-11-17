@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-17T08:55:21+00:00",
+    "generated_at": "2026-11-17T09:53:17+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -1764,7 +1764,7 @@
         },
         {
             "id": "poll_invites",
-            "version": "0.2.2",
+            "version": "0.2.3",
             "type": "product",
             "name": {
                 "en": "Poll invites",

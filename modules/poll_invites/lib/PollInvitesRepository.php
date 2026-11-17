@@ -85,13 +85,22 @@ final class PollInvitesRepository
                 $params[] = $op;
             }
         } else {
-            if ($op > 0) {
+            // progress=unviewed is scoped by responsibility (RESP_USERS / proc staff),
+            // same as countUnviewedForUser — do NOT also require ID_OPERATOR_LINKED
+            // (executor may differ from linked fill operator; badge would show empty list).
+            if ($progress !== 'unviewed') {
+                if ($op > 0) {
+                    $where[] = 'i.ID_OPERATOR_LINKED = ?';
+                    $params[] = $op;
+                } elseif (!Auth::capability('SUPERADMIN_ACCESS')) {
+                    // Non-super: only invites linked to self (unassigned = director only).
+                    $where[] = 'i.ID_OPERATOR_LINKED = ?';
+                    $params[] = $uidScope;
+                }
+            } elseif ($op > 0) {
+                // Optional further narrow on unviewed (super filter UI).
                 $where[] = 'i.ID_OPERATOR_LINKED = ?';
                 $params[] = $op;
-            } elseif (!Auth::capability('SUPERADMIN_ACCESS')) {
-                // Non-super: only invites linked to self (unassigned = director only).
-                $where[] = 'i.ID_OPERATOR_LINKED = ?';
-                $params[] = $uidScope;
             }
             if ($progress === 'done') {
                 $where[] = 'i.DT_COMPLETED > 0';

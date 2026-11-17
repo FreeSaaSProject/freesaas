@@ -202,7 +202,7 @@ if ($urlNext !== '') {
     <input type="hidden" name="action" value="mark_viewed">
     <input type="hidden" name="mark_all" value="1">
     <input type="hidden" name="ret" value="<?= e($retPath) ?>">
-    <button type="submit" class="btn-secondary"><?= te('poll_invites.unviewed.mark_all', ['n' => $unviewedTotal]) ?></button>
+    <button type="submit" class="btn-primary poll-invites-mark-all-btn"><?= te('poll_invites.unviewed.mark_all', ['n' => $unviewedTotal]) ?></button>
   </form>
 <?php endif; ?>
 

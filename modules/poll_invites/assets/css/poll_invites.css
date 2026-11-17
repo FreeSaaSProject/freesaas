@@ -131,13 +131,19 @@
   display: inline-block;
   margin-right: 0.35rem;
 }
-.poll-invites-inline-mark .btn-small,
-.poll-invites-mark-all .btn-secondary {
+.poll-invites-inline-mark .btn-small {
   font-size: 0.8rem;
   padding: 0.2rem 0.55rem;
 }
 .poll-invites-mark-all {
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.9rem;
+}
+.poll-invites-mark-all-btn {
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.55rem 1.1rem;
+  letter-spacing: 0.01em;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 /* Public respondent page /q/{code} (layout_auth). */
