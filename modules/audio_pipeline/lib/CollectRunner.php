@@ -435,7 +435,7 @@ final class CollectRunner
     {
         if ($winStart > 0 && $winEnd >= $winStart) {
             $st = Database::pdo()->prepare(
-                'SELECT ID, DT_START, DT_END, ID_KEY, ID_RECORD
+                'SELECT ID, DT_START, DT_END, ID_KEY, ID_RECORD, STRING_NUM
                  FROM base_records_instances
                  WHERE ID_ADMIN = ? AND DT_START >= ? AND DT_START <= ?
                  ORDER BY DT_START ASC, ID ASC'
@@ -443,7 +443,7 @@ final class CollectRunner
             $st->execute([$adminId, $winStart, $winEnd]);
         } else {
             $st = Database::pdo()->prepare(
-                'SELECT ID, DT_START, DT_END, ID_KEY, ID_RECORD
+                'SELECT ID, DT_START, DT_END, ID_KEY, ID_RECORD, STRING_NUM
                  FROM base_records_instances
                  WHERE ID_ADMIN = ?
                  ORDER BY DT_START ASC, ID ASC'
@@ -455,6 +455,9 @@ final class CollectRunner
             return ['collections' => 0, 'offers' => 0];
         }
 
+        // Soft: audio_diarize — skip script credit when cue speaker is another matched staff.
+        $speakerByRecLine = self::matchedSpeakerByRecordLine($instances);
+
         // Root ID_POSITION: empty/0 = all roles; else only matching staff (incl. ID_AUDIO_POSITION peers).
         $allowedScripts = self::scriptIdsAllowedForAdmin($adminId, $scripts['roots'] ?? []);
 
@@ -464,6 +467,9 @@ final class CollectRunner
         $offersTotal = 0;
 
         foreach ($instances as $inst) {
+            if (self::skipInstanceForScripts($inst, $adminId, $speakerByRecLine)) {
+                continue;
+            }
             $keyId = (int)$inst['ID_KEY'];
             $dtStart = (int)$inst['DT_START'];
             $dtEnd = (int)$inst['DT_END'] > 0 ? (int)$inst['DT_END'] : $dtStart;
@@ -1045,5 +1051,87 @@ final class CollectRunner
         // Stem still writes OFFERS from type KPI; we leave record OFFERS alone here
         // to avoid double-counting until types are retired. No-op for now.
         unset($adminId, $winStart, $winEnd, $offers);
+    }
+
+    /**
+     * Soft couple to audio_diarize: skip script credit when another matched staff spoke the cue.
+     * Keys/instances stay; only collection building skips the hit.
+     */
+    private static function scriptsIgnoreOtherSpeakersActive(): bool
+    {
+        if (!ModuleManager::isEnabled('audio_diarize')) {
+            return false;
+        }
+        if (class_exists('DiarizeSettings', false)) {
+            return DiarizeSettings::scriptsIgnoreOtherSpeakers();
+        }
+        return (string)Config::get('audio_diarize', 'scripts_ignore_other_speakers', '1') !== '0';
+    }
+
+    /**
+     * @param list<array<string,mixed>> $instances
+     * @return array<int,array<int,int>> recordId => [stringNum => matchedAdminId]
+     */
+    private static function matchedSpeakerByRecordLine(array $instances): array
+    {
+        if (!self::scriptsIgnoreOtherSpeakersActive()) {
+            return [];
+        }
+        if (
+            !Database::tableExists('base_records_cue_speakers')
+            || !Database::tableExists('base_records_speakers')
+        ) {
+            return [];
+        }
+        $recordIds = [];
+        foreach ($instances as $inst) {
+            $rid = (int)($inst['ID_RECORD'] ?? 0);
+            if ($rid > 0) {
+                $recordIds[$rid] = $rid;
+            }
+        }
+        if ($recordIds === []) {
+            return [];
+        }
+        $idList = array_values($recordIds);
+        $ph = implode(',', array_fill(0, count($idList), '?'));
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            "SELECT c.ID_RECORD, c.STRING_NUM, s.MATCHED_ADMIN_ID
+             FROM base_records_cue_speakers c
+             INNER JOIN base_records_speakers s
+               ON s.ID_RECORD = c.ID_RECORD AND s.LOCAL_ID = c.LOCAL_ID
+             WHERE c.ID_RECORD IN ($ph) AND s.MATCHED_ADMIN_ID > 0"
+        );
+        $st->execute($idList);
+        /** @var array<int,array<int,int>> $out */
+        $out = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $rid = (int)$row['ID_RECORD'];
+            $line = (int)$row['STRING_NUM'];
+            $admin = (int)$row['MATCHED_ADMIN_ID'];
+            if ($rid > 0 && $line > 0 && $admin > 0) {
+                $out[$rid][$line] = $admin;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string,mixed> $inst
+     * @param array<int,array<int,int>> $speakerByRecLine
+     */
+    private static function skipInstanceForScripts(array $inst, int $adminId, array $speakerByRecLine): bool
+    {
+        if ($speakerByRecLine === [] || $adminId < 1) {
+            return false;
+        }
+        $rid = (int)($inst['ID_RECORD'] ?? 0);
+        $line = (int)($inst['STRING_NUM'] ?? 0);
+        if ($rid < 1 || $line < 1 || !isset($speakerByRecLine[$rid][$line])) {
+            return false;
+        }
+        $matched = (int)$speakerByRecLine[$rid][$line];
+        return $matched > 0 && $matched !== $adminId;
     }
 }

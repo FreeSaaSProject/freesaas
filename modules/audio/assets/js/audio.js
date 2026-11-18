@@ -101,8 +101,29 @@
     root.setAttribute('data-seek-bound', '1');
     root.addEventListener('click', function (ev) {
       if (document.querySelector('.add-key-popover') || getSelectedText() !== '') return;
-      var line = ev.target.closest('.transcript-line');
+      var line = ev.target.closest('.transcript-line[data-time-start]');
       if (!line || !root.contains(line)) return;
+
+      // Shift+click: contiguous cue span → one voice sample (first→last, VAD gaps ok).
+      if (ev.shiftKey && labels().voiceEnrollment) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        var lines = cueLines(root);
+        var idx = lines.indexOf(line);
+        if (idx < 0) return;
+        var anchor = parseInt(root.getAttribute('data-voice-anchor') || '-1', 10);
+        if (isNaN(anchor) || anchor < 0 || anchor >= lines.length) {
+          anchor = idx;
+        }
+        root.setAttribute('data-voice-anchor', String(anchor));
+        var span = rangeFromCueSpan(lines, anchor, idx);
+        if (!span) return;
+        markVoicePick(root, span.fromIdx, span.toIdx);
+        showAddPopover(root, span.text || '…', span);
+        return;
+      }
+
+      root.setAttribute('data-voice-anchor', String(cueLines(root).indexOf(line)));
       var start = parseInt(line.getAttribute('data-time-start') || '', 10);
       if (isNaN(start)) return;
       var card = line.closest('tr') || root.closest('tr');
@@ -162,52 +183,277 @@
     return { dicts: parseJsonEl('audio-key-dicts') || {}, adminId: aid, recordId: rid };
   }
 
-  function showAddPopover(kolonkaEl, text) {
+  function formatCueTime(sec) {
+    var n = Math.max(0, Math.floor(Number(sec) || 0));
+    var m = Math.floor(n / 60);
+    var s = n % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function cueLines(kolonkaEl) {
+    if (!kolonkaEl) return [];
+    return Array.prototype.slice.call(
+      kolonkaEl.querySelectorAll('.transcript-line[data-time-start]')
+    );
+  }
+
+  function lineTimeBounds(line) {
+    if (!line) return null;
+    var a = parseFloat(line.getAttribute('data-time-start') || '');
+    var b = parseFloat(line.getAttribute('data-time-end') || '');
+    if (isNaN(a)) return null;
+    if (isNaN(b) || b <= a) b = a + 1;
+    return { t0: a, t1: b };
+  }
+
+  /** One sample from first→last selected cue (contiguous DOM span), including gaps between VAD cuts. */
+  function rangeFromCueSpan(lines, fromIdx, toIdx) {
+    if (!lines || lines.length < 1) return null;
+    var a = Math.min(fromIdx, toIdx);
+    var b = Math.max(fromIdx, toIdx);
+    if (a < 0 || b >= lines.length) return null;
+    var first = lineTimeBounds(lines[a]);
+    var last = lineTimeBounds(lines[b]);
+    if (!first || !last || last.t1 <= first.t0) return null;
+    var texts = [];
+    for (var i = a; i <= b; i++) {
+      var t = String((lines[i].querySelector('.transcript-text') || lines[i]).textContent || '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (t) texts.push(t);
+    }
+    return {
+      t0: first.t0,
+      t1: last.t1,
+      fromIdx: a,
+      toIdx: b,
+      text: texts.join(' '),
+      lines: lines.slice(a, b + 1),
+    };
+  }
+
+  function markVoicePick(kolonkaEl, fromIdx, toIdx) {
+    if (!kolonkaEl) return;
+    var lines = cueLines(kolonkaEl);
+    var a = Math.min(fromIdx, toIdx);
+    var b = Math.max(fromIdx, toIdx);
+    lines.forEach(function (line, i) {
+      if (i >= a && i <= b) line.classList.add('is-voice-pick');
+      else line.classList.remove('is-voice-pick');
+    });
+  }
+
+  function clearVoicePick(scope) {
+    (scope || document).querySelectorAll('.transcript-line.is-voice-pick').forEach(function (el) {
+      el.classList.remove('is-voice-pick');
+    });
+  }
+
+  function selectionTimeRange(kolonkaEl, range) {
+    var sel = window.getSelection && window.getSelection();
+    if (!range) {
+      if (!sel || sel.rangeCount < 1 || !kolonkaEl) return null;
+      range = sel.getRangeAt(0);
+    }
+    if (!range || !kolonkaEl || range.collapsed) return null;
+
+    function lineOf(node) {
+      if (!node) return null;
+      var el = node.nodeType === 1 ? node : node.parentElement;
+      if (!el || !el.closest) return null;
+      return el.closest('.transcript-line[data-time-start]');
+    }
+
+    var lines = cueLines(kolonkaEl);
+    var hitIdx = [];
+    lines.forEach(function (line, i) {
+      var hit = false;
+      try {
+        hit = range.intersectsNode(line);
+      } catch (e) {
+        hit = false;
+      }
+      if (!hit && (line.contains(range.startContainer) || line.contains(range.endContainer))) {
+        hit = true;
+      }
+      if (hit) hitIdx.push(i);
+    });
+    if (hitIdx.length < 1) {
+      var s = lines.indexOf(lineOf(range.startContainer));
+      var e = lines.indexOf(lineOf(range.endContainer));
+      if (s >= 0) hitIdx.push(s);
+      if (e >= 0 && e !== s) hitIdx.push(e);
+    }
+    if (hitIdx.length < 1) return null;
+    // Contiguous span: first hit → last hit in DOM order (covers VAD-split speech).
+    return rangeFromCueSpan(lines, hitIdx[0], hitIdx[hitIdx.length - 1]);
+  }
+
+  var popoverCloseTimer = null;
+
+  function clearAddPopovers(scope) {
+    if (popoverCloseTimer) {
+      clearTimeout(popoverCloseTimer);
+      popoverCloseTimer = null;
+    }
+    (scope || document).querySelectorAll('.add-key-popover').forEach(function (el) {
+      el.remove();
+    });
+    clearVoicePick(scope);
+  }
+
+  function showAddPopover(kolonkaEl, text, timeRange) {
     text = String(text || '').trim();
-    if (!text) return;
+    if (!text || !kolonkaEl) return;
     var resolved = contextForKolonka(kolonkaEl);
     var dicts = resolved.dicts;
     var adminId = resolved.adminId || 0;
     var recordId = resolved.recordId || 0;
-    if (!dicts || !Object.keys(dicts).length) return;
+    var hasDicts = dicts && Object.keys(dicts).length > 0;
+    // Voice sample: module audio_diarize + record; staff picker can override badge wearer.
+    var L0 = labels();
+    var canVoice = !!L0.voiceEnrollment && recordId > 0;
+    if (!hasDicts && !canVoice) return;
 
-    var existing = kolonkaEl.querySelector('.add-key-popover');
-    if (existing) existing.remove();
+    if (!timeRange) timeRange = selectionTimeRange(kolonkaEl);
+
+    clearAddPopovers(kolonkaEl);
 
     var pop = document.createElement('div');
     pop.className = 'add-key-popover';
-    pop.innerHTML =
-      '<div class="add-key-row"><span class="add-key-lbl"></span><input type="text" class="add-key-input" /></div>' +
-      '<div class="add-key-row"><span class="add-key-lbl" data-lbl="dict"></span><select class="add-key-dict"></select></div>' +
+    var html = '';
+    if (hasDicts) {
+      html +=
+        '<div class="add-key-row"><span class="add-key-lbl"></span><input type="text" class="add-key-input" /></div>' +
+        '<div class="add-key-row"><span class="add-key-lbl" data-lbl="dict"></span><select class="add-key-dict"></select></div>';
+    }
+    html +=
       '<div class="add-key-row add-key-actions">' +
-      '<button type="button" class="add-key-btn" data-act="key"></button>' +
-      '<button type="button" class="add-key-btn add-key-btn--soft" data-act="key-noreparse"></button>' +
-      '<button type="button" class="add-key-btn-trash" data-act="trash"></button>' +
+      (hasDicts
+        ? '<button type="button" class="add-key-btn" data-act="key"></button>' +
+          '<button type="button" class="add-key-btn add-key-btn--soft" data-act="key-noreparse"></button>' +
+          '<button type="button" class="add-key-btn-trash" data-act="trash"></button>'
+        : '') +
+      (canVoice ? '<button type="button" class="add-key-btn" data-act="voice"></button>' : '') +
+      (canVoice && timeRange ? '<span class="add-key-voice-range muted" data-voice-range></span>' : '') +
       '<button type="button" class="add-key-cancel"></button>' +
       '<span class="add-key-status"></span></div>' +
+      (canVoice
+        ? '<div class="add-key-row add-key-voice-staff" data-voice-staff-row hidden>' +
+          '<span class="add-key-lbl" data-lbl="voice-staff"></span>' +
+          '<select class="add-key-voice-admin" data-voice-admin></select></div>' +
+          '<div class="add-key-voice-meta muted small" data-voice-meta></div>'
+        : '') +
       '<div class="add-key-warnings" hidden></div>';
+    pop.innerHTML = html;
+
+    // Clicks inside the popover must not bubble to transcript mouseup/seek.
+    pop.addEventListener('mouseup', function (ev) { ev.stopPropagation(); });
+    pop.addEventListener('mousedown', function (ev) { ev.stopPropagation(); });
+    pop.addEventListener('click', function (ev) { ev.stopPropagation(); });
 
     var L = labels();
-    pop.querySelector('.add-key-lbl').textContent = L.key || 'Key';
-    var dictLbl = pop.querySelector('[data-lbl="dict"]');
-    if (dictLbl) dictLbl.textContent = L.dict || 'Dict';
-    pop.querySelector('[data-act="key"]').textContent = L.addKey || 'Add key';
-    var noReBtn = pop.querySelector('[data-act="key-noreparse"]');
-    if (noReBtn) {
-      noReBtn.textContent = L.addKeyNoReparse || 'Key without Re-®';
-      noReBtn.title = L.addKeyNoReparseHint || '';
+    if (hasDicts) {
+      pop.querySelector('.add-key-lbl').textContent = L.key || 'Key';
+      var dictLbl = pop.querySelector('[data-lbl="dict"]');
+      if (dictLbl) dictLbl.textContent = L.dict || 'Dict';
+      pop.querySelector('[data-act="key"]').textContent = L.addKey || 'Add key';
+      var noReBtn = pop.querySelector('[data-act="key-noreparse"]');
+      if (noReBtn) {
+        noReBtn.textContent = L.addKeyNoReparse || 'Key without Re-®';
+        noReBtn.title = L.addKeyNoReparseHint || '';
+      }
+      pop.querySelector('[data-act="trash"]').textContent = L.addTrash || 'Add trash';
+      pop.querySelector('.add-key-input').value = text;
     }
-    pop.querySelector('[data-act="trash"]').textContent = L.addTrash || 'Add trash';
+    var voiceBtn = pop.querySelector('[data-act="voice"]');
+    var rangeEl = pop.querySelector('[data-voice-range]');
+    var metaEl = pop.querySelector('[data-voice-meta]');
+    var voiceAdminSel = pop.querySelector('[data-voice-admin]');
+    var voiceStaffRow = pop.querySelector('[data-voice-staff-row]');
+    var voiceStaffLbl = pop.querySelector('[data-lbl="voice-staff"]');
+    if (voiceStaffLbl) voiceStaffLbl.textContent = L.voiceStaff || 'Staff';
+    var voiceMin = parseFloat(L.voiceMinSec != null ? L.voiceMinSec : 3);
+    var voiceMax = parseFloat(L.voiceMaxSec != null ? L.voiceMaxSec : 120);
+    if (isNaN(voiceMin) || voiceMin < 1) voiceMin = 3;
+    if (isNaN(voiceMax) || voiceMax < voiceMin) voiceMax = 120;
+    var rangeLabel = '';
+    var voiceDur = 0;
+    var voiceAllowed = false;
+    var selectedVoiceAdmin = 0;
+    function currentVoiceAdmin() {
+      if (voiceAdminSel && voiceAdminSel.value) {
+        return parseInt(voiceAdminSel.value, 10) || 0;
+      }
+      return selectedVoiceAdmin || 0;
+    }
+    function setVoiceStaffVisible(on) {
+      if (voiceStaffRow) {
+        if (on) voiceStaffRow.removeAttribute('hidden');
+        else voiceStaffRow.setAttribute('hidden', '');
+      }
+    }
+    if (timeRange) {
+      rangeLabel = formatCueTime(timeRange.t0) + '–' + formatCueTime(timeRange.t1);
+      voiceDur = Math.max(0, timeRange.t1 - timeRange.t0);
+    }
+    function setVoiceMeta(msg) {
+      if (metaEl) metaEl.textContent = msg || '';
+    }
+    function setVoiceEnabled(on, reason) {
+      voiceAllowed = !!on;
+      if (!voiceBtn) return;
+      voiceBtn.disabled = !on;
+      voiceBtn.title = reason || '';
+    }
+    if (voiceBtn) {
+      voiceBtn.textContent = L.voiceSample || 'Voice sample';
+      if (!timeRange) {
+        setVoiceEnabled(false, L.voiceNeedTimes || '');
+        setVoiceMeta(L.voiceNeedTimes || '');
+      } else if (voiceDur < voiceMin) {
+        setVoiceEnabled(false, (L.voiceDurShort || '')
+          .replace('{sec}', voiceDur.toFixed(1))
+          .replace('{min}', String(voiceMin)));
+        setVoiceMeta(voiceBtn.title);
+      } else if (voiceDur > voiceMax) {
+        setVoiceEnabled(false, (L.voiceDurLong || '')
+          .replace('{sec}', voiceDur.toFixed(1))
+          .replace('{max}', String(voiceMax)));
+        setVoiceMeta(voiceBtn.title);
+      } else {
+        // Duration OK — disable until duplicate check returns.
+        setVoiceEnabled(false, L.voiceChecking || '…');
+        setVoiceMeta((L.voiceChecking || '…') + ' ' + voiceDur.toFixed(1) + 's');
+      }
+    }
+    if (rangeEl && rangeLabel) {
+      var cueCount =
+        timeRange && timeRange.fromIdx != null && timeRange.toIdx != null
+          ? timeRange.toIdx - timeRange.fromIdx + 1
+          : 1;
+      rangeEl.textContent = (L.voiceRange || '{t0}–{t1}')
+        .replace('{t0}', formatCueTime(timeRange.t0))
+        .replace('{t1}', formatCueTime(timeRange.t1));
+      rangeEl.title =
+        rangeLabel +
+        ' (' +
+        voiceDur.toFixed(1) +
+        's' +
+        (cueCount > 1 ? ', ×' + cueCount : '') +
+        ')' +
+        (cueCount > 1 && L.voiceHintSpan ? ' — ' + L.voiceHintSpan : '');
+    }
     pop.querySelector('.add-key-cancel').textContent = L.cancel || 'Cancel';
-    pop.querySelector('.add-key-input').value = text;
-
     var dictSel = pop.querySelector('.add-key-dict');
-    Object.keys(dicts).forEach(function (id) {
-      var o = document.createElement('option');
-      o.value = id;
-      o.textContent = dicts[id];
-      dictSel.appendChild(o);
-    });
+    if (dictSel && hasDicts) {
+      Object.keys(dicts).forEach(function (id) {
+        var o = document.createElement('option');
+        o.value = id;
+        o.textContent = dicts[id];
+        dictSel.appendChild(o);
+      });
+    }
 
     function escapeHtml(s) {
       return String(s)
@@ -383,9 +629,10 @@
           status.textContent = data.message || (L.done || 'OK');
           // Without Re-®: keep the list open so several keys can be added, then bulk Re-®.
           if (data.reparse_skipped) {
-            setTimeout(function () {
-              if (window.getSelection) window.getSelection().removeAllRanges();
-              pop.remove();
+            if (popoverCloseTimer) clearTimeout(popoverCloseTimer);
+            popoverCloseTimer = setTimeout(function () {
+              popoverCloseTimer = null;
+              if (pop.parentNode) pop.remove();
             }, 500);
             return;
           }
@@ -400,30 +647,242 @@
         });
     }
 
-    pop.querySelector('[data-act="key"]').addEventListener('click', function () { postAction('add_key', false, false); });
-    if (noReBtn) {
-      noReBtn.addEventListener('click', function () { postAction('add_key', false, true); });
+    var keyBtn = pop.querySelector('[data-act="key"]');
+    if (keyBtn) {
+      keyBtn.addEventListener('click', function () { postAction('add_key', false, false); });
     }
-    pop.querySelector('[data-act="trash"]').addEventListener('click', function () { postAction('add_trash'); });
-    pop.querySelector('.add-key-cancel').addEventListener('click', function () {
+    var noReBtn2 = pop.querySelector('[data-act="key-noreparse"]');
+    if (noReBtn2) {
+      noReBtn2.addEventListener('click', function () { postAction('add_key', false, true); });
+    }
+    var trashBtn = pop.querySelector('[data-act="trash"]');
+    if (trashBtn) {
+      trashBtn.addEventListener('click', function () { postAction('add_trash'); });
+    }
+    if (voiceBtn && timeRange && voiceDur >= voiceMin && voiceDur <= voiceMax) {
+      function runVoiceCheck() {
+        var aid = currentVoiceAdmin();
+        if (aid < 1) {
+          setVoiceEnabled(false, L.voiceNoStaff || L.voiceStaff || '');
+          setVoiceMeta(L.voiceNoStaff || L.voiceStaff || '');
+          return;
+        }
+        setVoiceEnabled(false, L.voiceChecking || '…');
+        setVoiceMeta((L.voiceChecking || '…') + ' ' + voiceDur.toFixed(1) + 's');
+        var checkBody = new URLSearchParams();
+        checkBody.set('check', '1');
+        checkBody.set('record_id', String(recordId));
+        checkBody.set('admin_id', String(aid));
+        checkBody.set('t0', String(timeRange.t0));
+        checkBody.set('t1', String(timeRange.t1));
+        fetch('/audio/api/voice-sample', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          body: checkBody,
+          credentials: 'same-origin',
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!pop.parentNode) return;
+            if (data && data.success) {
+              var okMsg = (L.voiceDurOk || '{sec}s')
+                .replace('{sec}', voiceDur.toFixed(1));
+              setVoiceEnabled(true, okMsg);
+              setVoiceMeta(okMsg);
+              return;
+            }
+            var reason = (data && data.error) || (L.voiceDuplicate || L.error || 'Error');
+            setVoiceEnabled(false, reason);
+            setVoiceMeta(reason);
+          })
+          .catch(function () {
+            if (!pop.parentNode) return;
+            setVoiceEnabled(false, L.network || 'Network error');
+            setVoiceMeta(L.network || 'Network error');
+          });
+      }
+
+      if (voiceAdminSel) {
+        setVoiceStaffVisible(false);
+        fetch('/audio/api/voice-sample?staff_list=1&record_id=' + encodeURIComponent(String(recordId)), {
+          credentials: 'same-origin',
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!pop.parentNode || !voiceAdminSel) return;
+            var staff = (data && data.staff) || [];
+            voiceAdminSel.innerHTML = '';
+            if (!staff.length) {
+              selectedVoiceAdmin = 0;
+              setVoiceStaffVisible(false);
+              setVoiceEnabled(false, L.voiceNoStaff || L.voiceStaff || '');
+              setVoiceMeta(L.voiceNoStaff || L.voiceStaff || '');
+              return;
+            }
+            staff.forEach(function (s) {
+              var o = document.createElement('option');
+              o.value = String(s.id || 0);
+              o.textContent = s.name || ('#' + s.id);
+              if (s.default) o.selected = true;
+              voiceAdminSel.appendChild(o);
+            });
+            if (!voiceAdminSel.value && staff[0]) {
+              voiceAdminSel.value = String(staff[0].id || 0);
+            }
+            selectedVoiceAdmin = currentVoiceAdmin();
+            setVoiceStaffVisible(true);
+            runVoiceCheck();
+          })
+          .catch(function () {
+            if (!pop.parentNode) return;
+            selectedVoiceAdmin = 0;
+            setVoiceStaffVisible(false);
+            setVoiceEnabled(false, L.network || 'Network error');
+            setVoiceMeta(L.network || 'Network error');
+          });
+        voiceAdminSel.addEventListener('change', function () {
+          selectedVoiceAdmin = currentVoiceAdmin();
+          runVoiceCheck();
+        });
+      } else {
+        runVoiceCheck();
+      }
+
+      voiceBtn.addEventListener('click', function (ev) {
+        if (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+        }
+        if (!voiceAllowed || voiceBtn.disabled) return;
+        var aid = currentVoiceAdmin();
+        if (aid < 1) return;
+        var status = pop.querySelector('.add-key-status');
+        var warn = pop.querySelector('.add-key-warnings');
+        status.textContent = '…';
+        warn.hidden = true;
+        setVoiceEnabled(false, '');
+        var body = new URLSearchParams();
+        body.set('record_id', String(recordId));
+        body.set('admin_id', String(aid));
+        body.set('t0', String(timeRange.t0));
+        body.set('t1', String(timeRange.t1));
+        fetch('/audio/api/voice-sample', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          body: body,
+          credentials: 'same-origin',
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data || !data.success) {
+              warn.hidden = false;
+              warn.textContent = (data && data.error) || (L.error || 'Error');
+              status.textContent = '';
+              setVoiceEnabled(false, warn.textContent);
+              setVoiceMeta(warn.textContent);
+              return;
+            }
+            status.textContent = data.message || (L.done || 'OK');
+            if (metaEl && data.manual_count != null) {
+              var rec = data.recommended || 8;
+              var n = data.manual_count;
+              if (n > rec) {
+                metaEl.textContent = (L.voiceProgressExtra || L.voiceProgress || '')
+                  .replace('{n}', String(n))
+                  .replace('{rec}', String(rec))
+                  .replace('{remain}', '0');
+              } else {
+                metaEl.textContent = (L.voiceProgress || '')
+                  .replace('{n}', String(n))
+                  .replace('{rec}', String(rec))
+                  .replace('{remain}', String(data.remaining != null ? data.remaining : ''));
+              }
+            }
+            if (popoverCloseTimer) clearTimeout(popoverCloseTimer);
+            popoverCloseTimer = setTimeout(function () {
+              popoverCloseTimer = null;
+              if (pop.parentNode) pop.remove();
+            }, 700);
+          })
+          .catch(function () {
+            warn.hidden = false;
+            warn.textContent = L.network || 'Network error';
+            status.textContent = '';
+            setVoiceEnabled(false, warn.textContent);
+          });
+      });
+    }
+    pop.querySelector('.add-key-cancel').addEventListener('click', function (ev) {
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
       if (window.getSelection) window.getSelection().removeAllRanges();
-      pop.remove();
+      clearAddPopovers(kolonkaEl);
     });
 
-    kolonkaEl.appendChild(pop);
-    if (window.getSelection) window.getSelection().removeAllRanges();
+    // Place near the last selected cue when possible, else at the end of the block.
+    var anchorLine = null;
+    if (timeRange) {
+      var cand = kolonkaEl.querySelectorAll('.transcript-line[data-time-start]');
+      cand.forEach(function (line) {
+        var a = parseFloat(line.getAttribute('data-time-start') || '');
+        var b = parseFloat(line.getAttribute('data-time-end') || '');
+        if (isNaN(a)) return;
+        if (isNaN(b) || b <= a) b = a + 1;
+        if (a < timeRange.t1 && b > timeRange.t0) anchorLine = line;
+      });
+    }
+    if (anchorLine && anchorLine.parentNode) {
+      if (anchorLine.nextSibling) {
+        anchorLine.parentNode.insertBefore(pop, anchorLine.nextSibling);
+      } else {
+        anchorLine.parentNode.appendChild(pop);
+      }
+    } else {
+      kolonkaEl.appendChild(pop);
+    }
+    // Clear selection on next tick so this mouseup/click sequence stays stable.
+    setTimeout(function () {
+      if (window.getSelection) window.getSelection().removeAllRanges();
+    }, 0);
   }
 
   function bindSelectionAdd(root) {
     if (!root || root.getAttribute('data-select-bound') === '1') return;
     root.setAttribute('data-select-bound', '1');
-    root.addEventListener('mouseup', function () {
-      showAddPopover(root, getSelectedText());
+    root.addEventListener('mouseup', function (ev) {
+      if (ev.button != null && ev.button !== 0) return;
+      if (ev.shiftKey) return; // handled by click → contiguous cue span
+      if (ev.target && ev.target.closest && ev.target.closest('.add-key-popover')) return;
+      var sel = window.getSelection && window.getSelection();
+      if (!sel || sel.rangeCount < 1 || sel.isCollapsed) return;
+      var text = String(sel.toString() || '').trim();
+      if (!text) return;
+      var range = null;
+      try {
+        range = sel.getRangeAt(0).cloneRange();
+      } catch (e) {
+        range = null;
+      }
+      var timeRange = selectionTimeRange(root, range);
+      if (timeRange && timeRange.fromIdx != null && timeRange.toIdx != null) {
+        markVoicePick(root, timeRange.fromIdx, timeRange.toIdx);
+        if (timeRange.text) text = timeRange.text;
+      }
+      showAddPopover(root, text, timeRange);
     });
-    root.addEventListener('touchend', function () {
+    root.addEventListener('touchend', function (ev) {
+      if (ev.target && ev.target.closest && ev.target.closest('.add-key-popover')) return;
       setTimeout(function () {
         var t = getSelectedText();
-        if (t) showAddPopover(root, t);
+        if (!t) return;
+        var timeRange = selectionTimeRange(root);
+        if (timeRange && timeRange.fromIdx != null && timeRange.toIdx != null) {
+          markVoicePick(root, timeRange.fromIdx, timeRange.toIdx);
+          if (timeRange.text) t = timeRange.text;
+        }
+        showAddPopover(root, t, timeRange);
       }, 150);
     });
   }
@@ -564,6 +1023,93 @@
     slots.forEach(function (slot) { io.observe(slot); });
   }
 
+  /** Bulk «Send to diarization» → LongJobPanel (clear speakers, wait for edge worker). */
+  function initDiarizeBulk() {
+    var boot = document.getElementById('audio-diarize-boot');
+    var overlay = document.getElementById('audio-diarize-overlay');
+    if (!boot || !overlay) return;
+
+    var tries = 0;
+    function start() {
+      if (!window.LongJobPanel) {
+        if (++tries < 80) setTimeout(start, 50);
+        return;
+      }
+      if (boot.getAttribute('data-bound') === '1') return;
+      boot.setAttribute('data-bound', '1');
+
+      var i18n = {};
+      try {
+        i18n = JSON.parse(boot.getAttribute('data-i18n') || '{}') || {};
+      } catch (e) {
+        i18n = {};
+      }
+      var csrf = boot.getAttribute('data-csrf')
+        || (window.freesaasCsrfToken ? window.freesaasCsrfToken() : '');
+      var day = boot.getAttribute('data-day') || '';
+      var busy = false;
+      var panel = LongJobPanel.mount({
+        root: overlay,
+        startUrl: '/audio/diarize/longjob',
+        tickUrl: '/audio/diarize/longjob',
+        cancelUrl: '/audio/diarize/longjob',
+        dualBars: false,
+        showBytes: false,
+        reloadOnOk: true,
+        csrf: csrf,
+        i18n: {
+          starting: i18n.starting || '…',
+          badJson: i18n.badJson || '',
+          doneTitle: i18n.doneTitle || 'OK',
+          errorTitle: i18n.errorTitle || 'Error',
+          cancelledTitle: i18n.cancelledTitle || '',
+          ok: i18n.ok || 'OK',
+        },
+        onFinish: function () { busy = false; },
+      });
+      if (!panel) return;
+
+      document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form || !form.getAttribute || form.getAttribute('data-bulk-form') === null) return;
+        var actionSel = form.querySelector('[data-bulk-action]');
+        if (!actionSel || String(actionSel.value || '') !== 'queue_diarize') return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (busy) {
+          window.alert(i18n.busy || 'Busy');
+          return;
+        }
+        var confirmMsg = i18n.confirm || '';
+        var opt = actionSel.options[actionSel.selectedIndex];
+        if (opt && opt.getAttribute('data-confirm')) {
+          confirmMsg = opt.getAttribute('data-confirm') || confirmMsg;
+        }
+        if (confirmMsg && !window.confirm(confirmMsg)) return;
+
+        var ids = Array.prototype.slice.call(form.querySelectorAll('[data-bulk-id]'))
+          .filter(function (c) { return c.checked && !c.disabled; })
+          .map(function (c) { return parseInt(c.value, 10) || 0; })
+          .filter(function (id) { return id > 0; });
+        if (!ids.length && !day) {
+          window.alert(i18n.empty || 'Empty');
+          return;
+        }
+        busy = true;
+        var fd = new FormData();
+        if (ids.length) fd.set('ids_csv', ids.join(','));
+        if (day) fd.set('day', day);
+        fd.set('ret', '/audio');
+        panel.runFormData(fd, {}).then(function () {
+          busy = false;
+        }, function () {
+          busy = false;
+        });
+      }, true);
+    }
+    start();
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     bindSeek(document.getElementById('audio-transcript'));
     bindPlayerShells(document);
@@ -572,5 +1118,6 @@
       if (kolonka) bindCardTranscript(card, kolonka);
     });
     bindLazyTranscripts();
+    initDiarizeBulk();
   });
 })();

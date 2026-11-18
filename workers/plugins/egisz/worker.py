@@ -286,13 +286,13 @@ def loop_forever() -> None:
                 write_status(activity=make_activity("idle", "no job"))
                 time.sleep(idle)
             if backoff:
-                backoff.reset()
+                backoff.success()
         except Exception as e:  # noqa: BLE001
             log.exception("loop error")
             write_status(activity=make_activity("error", str(e)[:200]), ok=False)
             delay = 10.0
             if backoff and is_backoff_exception and is_backoff_exception(e):
-                delay = float(backoff.next_delay())
+                delay = float(backoff.fail(str(e)))
             time.sleep(delay)
 
 
@@ -302,7 +302,8 @@ def main() -> int:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     ap = argparse.ArgumentParser(description="FreeSaaS egisz N3 worker")
-    ap.add_argument("--config", default=str(DEFAULT_CONFIG))
+    # Host supervisor always passes `-c` (see workers/core/supervisor.py).
+    ap.add_argument("-c", "--config", default=str(DEFAULT_CONFIG))
     ap.add_argument("--once", action="store_true", help="claim+run at most one job then exit")
     ap.add_argument("--hello", action="store_true", help="hello only")
     ap.add_argument("--vpn-up", action="store_true")

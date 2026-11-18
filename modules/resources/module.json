@@ -1,0 +1,130 @@
+{
+    "id": "resources",
+    "name": "resources.module.name",
+    "description": "resources.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "catalog": ">=1.0.0",
+        "booking": ">=1.0.0",
+        "calendar": ">=1.0.0",
+        "orders": ">=1.0.0",
+        "procedures": ">=1.0.0"
+    },
+    "provides": [
+        "resources.list",
+        "resources.booking"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "resources.view",
+            "label": "resources.perm.view"
+        },
+        {
+            "id": "resources.edit",
+            "label": "resources.perm.edit"
+        },
+        {
+            "id": "resources.delete",
+            "label": "resources.perm.delete"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/resources",
+            "/resources/new",
+            "/resources/{id}/edit"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/resources.md",
+        "ops": [
+            {
+                "id": "resources.list",
+                "method": "GET",
+                "path": "/resources",
+                "permission": "resources.view",
+                "description": "List bookable resources; filter: q"
+            },
+            {
+                "id": "resources.get",
+                "method": "GET",
+                "path": "/resources/{id}/edit",
+                "permission": "resources.edit",
+                "description": "One resource edit payload"
+            },
+            {
+                "id": "resources.create",
+                "method": "POST",
+                "path": "/resources/new",
+                "permission": "resources.edit",
+                "description": "Create resource; fields: name, notes, qty, enabled"
+            },
+            {
+                "id": "resources.update",
+                "method": "POST",
+                "path": "/resources/{id}/edit",
+                "permission": "resources.edit",
+                "description": "Update resource"
+            },
+            {
+                "id": "resources.delete",
+                "method": "POST",
+                "path": "/resources/{id}/edit",
+                "permission": "resources.delete",
+                "side_effect": "write",
+                "description": "Delete resource; POST action=delete (clears product links and allocations)"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.dictionaries",
+            "num": 7,
+            "kind": "crud",
+            "path": "/resources",
+            "icon": "🧰",
+            "title": "resources.menu.list"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_resources",
+        "base_product_resources",
+        "base_resource_allocations"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "catalog.product_edit.sections",
+            "catalog.product_edit.save",
+            "booking.book.after",
+            "orders.cancelled",
+            "orders.completed"
+        ],
+        "publish": []
+    },
+    "bulkActions": [
+        {
+            "list_id": "resources",
+            "action": "delete"
+        }
+    ],
+    "catalog": {
+        "categories": [
+            "dictionaries",
+            "booking"
+        ],
+        "maturity": "alpha",
+        "tags": [],
+        "screenshots": []
+    },
+    "setup": {
+        "steps": []
+    }
+}

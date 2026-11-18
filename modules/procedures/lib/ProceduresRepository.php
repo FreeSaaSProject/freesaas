@@ -583,7 +583,13 @@ final class ProceduresRepository
             'UPDATE base_procedures SET ' . implode(', ', $sets) . ' WHERE ID_EVENT_PARENT = ?'
         );
         $st->execute($params);
-        return $st->rowCount();
+        $done = $st->rowCount();
+        if ($done > 0 && class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+            foreach (self::listByEventParent($eventId) as $row) {
+                ResourceBooking::syncProcedure($row);
+            }
+        }
+        return $done;
     }
 
     /**
@@ -677,6 +683,9 @@ final class ProceduresRepository
         if (class_exists('ProcedureBotNotify', false)) {
             ProcedureBotNotify::onSaved($newId, $data, 'new');
         }
+        if (class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+            ResourceBooking::syncProcedure(array_merge($data, ['id' => $newId]));
+        }
         return $newId;
     }
 
@@ -719,6 +728,9 @@ final class ProceduresRepository
         if (class_exists('ProcedureBotNotify', false)) {
             ProcedureBotNotify::onSaved($id, $data, 'update');
         }
+        if (class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+            ResourceBooking::syncProcedure(array_merge($data, ['id' => $id]));
+        }
     }
 
     /**
@@ -736,7 +748,14 @@ final class ProceduresRepository
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $st = Database::pdo()->prepare("DELETE FROM base_procedures WHERE ID IN ($placeholders)");
         $st->execute($ids);
-        return $st->rowCount();
+        $done = $st->rowCount();
+        if ($done > 0 && class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+            ResourceAllocationsRepository::releaseMany(
+                ResourceAllocationsRepository::SOURCE_PROCEDURE,
+                $ids
+            );
+        }
+        return $done;
     }
 
     /**

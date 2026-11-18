@@ -1,0 +1,8 @@
+configs/local.json
+logs/
+var/
+models/*.onnx
+models/*.pt
+__pycache__/
+*.pyc
+.DS_Store

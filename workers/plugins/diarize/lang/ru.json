@@ -1,0 +1,20 @@
+{
+  "activity.idle_boot": "старт",
+  "activity.claim": "опрос FreeSaaS",
+  "activity.claim_embed": "опрос embed-сэмплов",
+  "activity.claim_diarize": "опрос диаризации",
+  "activity.idle_no_files": "нет файлов",
+  "activity.idle_sleep": "следующий опрос через {sec}с",
+  "activity.push_wait": "ждём задания от FreeSaaS",
+  "activity.embed": "embed сэмпла #{id}",
+  "activity.diarize": "диаризация {name}",
+  "activity.upload": "отправка спикеров {name}",
+  "activity.upload_embed": "отправка embed #{id}",
+  "activity.diarize_off": "диаризация выключена на сервере",
+  "activity.wait_profiles": "ждём готовые voice-профили",
+  "activity.error_backoff": "пауза после ошибки",
+  "log.token_missing": "worker_token пуст — FreeSaaS вернёт 401/503",
+  "log.no_files_wait": "Нет заданий. Ждём {sec}с…",
+  "log.got_file": "Файл: {name}",
+  "log.done": "Спикеры сохранены для {name}: {n} спикеров, dominant={dom}"
+}

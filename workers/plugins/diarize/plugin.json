@@ -1,0 +1,41 @@
+{
+  "id": "diarize",
+  "title": "Diarize (WeSpeaker)",
+  "version": "0.2.0",
+  "entrypoint": "worker.py",
+  "requirements": "requirements.txt",
+  "status_file": "logs/status.json",
+  "depends_binaries": ["ffmpeg"],
+  "models": [
+    {
+      "id": "voxceleb_CAM++_LM",
+      "path": "models/voxceleb_CAM++_LM.onnx",
+      "url": "https://huggingface.co/Wespeaker/wespeaker-voxceleb-campplus-LM/resolve/main/voxceleb_CAM%2B%2B_LM.onnx?download=true",
+      "optional": false,
+      "comment": "WeSpeaker CAM++-LM ONNX 512-d (VoxCeleb). Default embedder; use model.backend=onnx."
+    },
+    {
+      "id": "voxceleb_resnet34_LM",
+      "path": "models/voxceleb_resnet34_LM.onnx",
+      "url": "https://huggingface.co/Wespeaker/wespeaker-resnet34-LM/resolve/main/voxceleb_resnet34_LM.onnx?download=true",
+      "optional": true,
+      "comment": "Legacy WeSpeaker ResNet34-LM ONNX 256-d (kept for A/B)."
+    },
+    {
+      "id": "voxceleb_resnet34_LM_mlx",
+      "path": "models/mlx/weights.npz",
+      "url": "https://huggingface.co/Landon41/wespeaker-voxceleb-resnet34-LM-mlx/resolve/main/weights.npz?download=true",
+      "optional": true,
+      "comment": "MLX Metal weights for ResNet34 only. CAM++ has no MLX port yet — use onnx."
+    }
+  ],
+  "widgets": ["stats", "loop"],
+  "actions": [],
+  "service": "diarize",
+  "local_api_port": 18472,
+  "capabilities": ["jobs", "results", "source_url"],
+  "billing_units": ["audio_sec"],
+  "remote_actions": [],
+  "log_sources": {},
+  "comment": "WeSpeaker diarize/embed. Push (default): FreeSaaS → gateway /v1/diarize/*. Pull claim only if modes.pull=true."
+}

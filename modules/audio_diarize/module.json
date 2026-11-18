@@ -1,0 +1,185 @@
+{
+    "id": "audio_diarize",
+    "name": "audio_diarize.module.name",
+    "description": "audio_diarize.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=1.1.0",
+        "audio": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "audio_pipeline": ">=1.0.0",
+        "workweeks": ">=1.0.0",
+        "asr": ">=1.0.0"
+    },
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "audio_diarize.view",
+            "label": "audio_diarize.perm.view"
+        },
+        {
+            "id": "audio_diarize.edit",
+            "label": "audio_diarize.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/audio/voice-profiles",
+            "/audio/voice-profiles/longjob",
+            "/audio/voice-profiles/{id}/samples",
+            "/audio/diarize/longjob",
+            "/audio/api/voice-sample",
+            "/audio-diarize/settings",
+            "/audio/asr/diarize-claim",
+            "/audio/asr/diarize-result",
+            "/audio/asr/diarize-status",
+            "/audio/asr/embed-sample-claim",
+            "/audio/asr/embed-sample-result"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/audio_pipeline.md",
+        "ops": [
+            {
+                "id": "audio_diarize.voice_profiles.list",
+                "method": "GET",
+                "path": "/audio/voice-profiles",
+                "permission": "audio_diarize.view",
+                "description": "Staff (last 40d or with samples) + sample progress; POST action=delete_profile (edit)"
+            },
+            {
+                "id": "audio_diarize.voice_profiles.longjob",
+                "method": "POST",
+                "path": "/audio/voice-profiles/longjob",
+                "permission": "audio_diarize.edit",
+                "assistant": false,
+                "description": "LongJob voice embed+build: action=job_start|job_tick|job_cancel; admin_id optional (0=all pending)"
+            },
+            {
+                "id": "audio_diarize.voice_profiles.samples",
+                "method": "GET",
+                "path": "/audio/voice-profiles/{id}/samples",
+                "permission": "audio_diarize.view",
+                "description": "Manual voice samples for one staff; POST action=delete_sample; process via longjob"
+            },
+            {
+                "id": "audio_diarize.api.voice_sample",
+                "method": "POST",
+                "path": "/audio/api/voice-sample",
+                "permission": "audio_diarize.edit",
+                "assistant": false,
+                "description": "Add manual enrollment clip: record_id, admin_id, t0, t1; check=1 dry-run; staff_list=1&record_id for picker"
+            },
+            {
+                "id": "audio_diarize.diarize.longjob",
+                "method": "POST",
+                "path": "/audio/diarize/longjob",
+                "permission": "audio_diarize.edit",
+                "assistant": false,
+                "description": "LongJob queue diarize: action=job_start|job_tick|job_cancel; ids_csv and/or day=YYYY-MM-DD, optional admin_id"
+            },
+            {
+                "id": "audio_diarize.settings",
+                "method": "GET",
+                "path": "/audio-diarize/settings",
+                "permission": "SUPERADMIN_ACCESS",
+                "description": "Diarize settings (requires_profiles); POST to save"
+            },
+            {
+                "id": "audio_diarize.asr.diarize_claim",
+                "method": "GET",
+                "path": "/audio/asr/diarize-claim",
+                "permission": "public",
+                "assistant": false,
+                "description": "Diarize worker: claim next transcribed record missing speakers (X-Audio-Token)"
+            },
+            {
+                "id": "audio_diarize.asr.diarize_status",
+                "method": "GET",
+                "path": "/audio/asr/diarize-status",
+                "permission": "public",
+                "assistant": false,
+                "description": "Worker: profiles_ready / requires_profiles gate for diarize"
+            },
+            {
+                "id": "audio_diarize.asr.diarize_result",
+                "method": "POST",
+                "path": "/audio/asr/diarize-result",
+                "permission": "public",
+                "assistant": false,
+                "description": "Diarize worker: post speakers/segments/cue_speakers for file_name"
+            },
+            {
+                "id": "audio_diarize.asr.embed_sample_claim",
+                "method": "GET",
+                "path": "/audio/asr/embed-sample-claim",
+                "permission": "public",
+                "assistant": false,
+                "description": "Worker: claim pending manual voice sample for WeSpeaker embed"
+            },
+            {
+                "id": "audio_diarize.asr.embed_sample_result",
+                "method": "POST",
+                "path": "/audio/asr/embed-sample-result",
+                "permission": "public",
+                "assistant": false,
+                "description": "Worker: POST sample_id + embedding JSON; optional build_profile=1"
+            }
+        ]
+    },
+    "menu": [
+        {
+            "path": "/audio/voice-profiles",
+            "icon": "🗣️",
+            "title": "audio_diarize.menu.voice_profiles",
+            "group": "audio.menu.group",
+            "permission": "audio_diarize.view",
+            "num": 45,
+            "kind": "work"
+        },
+        {
+            "path": "/audio-diarize/settings",
+            "icon": "⚙️",
+            "title": "audio_diarize.menu.settings",
+            "group": "audio.menu.group",
+            "capability": "SUPERADMIN_ACCESS",
+            "num": 90,
+            "kind": "settings"
+        }
+    ],
+    "bulkActions": [
+        {
+            "list_id": "audio_records",
+            "action": "queue_diarize"
+        }
+    ],
+    "tables": [
+        "base_records_speakers",
+        "base_records_speaker_segments",
+        "base_records_cue_speakers",
+        "base_records_speaker_profiles",
+        "base_records_speaker_samples",
+        "base_diarize_leases",
+        "base_diarize_requests"
+    ],
+    "hooks": {
+        "subscribe": [
+            "core.edge_host.deleted",
+            "core.user_edit.sections"
+        ],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "audio"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    },
+    "setup": {
+        "steps": []
+    }
+}

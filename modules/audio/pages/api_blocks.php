@@ -33,6 +33,13 @@ if (!$ids) {
 
 require_once base_path('modules/audio/lib/RecordsRepository.php');
 require_once base_path('modules/audio/lib/TranscriptHighlighter.php');
+if (
+    ModuleManager::isEnabled('audio_diarize')
+    && is_file(base_path('modules/audio_diarize/lib/SpeakerService.php'))
+) {
+    require_once base_path('modules/audio_diarize/lib/SpeakerEmbedding.php');
+    require_once base_path('modules/audio_diarize/lib/SpeakerService.php');
+}
 
 $rows = RecordsRepository::findByIds($ids);
 $instances = RecordsRepository::instancesForRecords(array_keys($rows));
@@ -41,6 +48,14 @@ foreach ($instances as $inst) {
     $byRec[(int)$inst['id_record']][] = $inst;
 }
 $trash = RecordsRepository::trashPhrases();
+$speakerOptsById = [];
+if (class_exists('SpeakerService', false)) {
+    $assume = [];
+    foreach ($ids as $rid) {
+        $assume[$rid] = (int)($rows[$rid]['id_admin'] ?? $rows[$rid]['ID_ADMIN'] ?? 0);
+    }
+    $speakerOptsById = SpeakerService::highlightOptsForRecords($ids, $assume);
+}
 $candidates = [];
 $blocks = [];
 
@@ -61,7 +76,8 @@ foreach ($ids as $rid) {
         (string)($row['transcription'] ?? ''),
         $byRec[$rid] ?? [],
         $trash,
-        $search
+        $search,
+        $speakerOptsById[$rid] ?? []
     );
     foreach ($rendered['trash_candidates'] ?? [] as $cand) {
         $candidates[$cand] = $cand;

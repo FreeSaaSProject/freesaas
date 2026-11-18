@@ -9,7 +9,8 @@ Related product docs: [video.md](video.md), [video-label.md](video-label.md), [a
 | Plugin | Role | Typical OS (MVP) |
 |--------|------|------------------|
 | `video` | YOLO cameras | Mac |
-| `whisper` | Cabin ASR claim/result/stem | Mac |
+| `whisper` | Cabin ASR claim/result/stem (+ optional post-ASR diarize) | Mac |
+| `diarize` | WeSpeaker ONNX speakers / voiceprint enrich (standalone or via whisper) | Mac |
 | `audioloader` | Badge USB → MP3 → FTP inbox → ingest GET | Windows |
 | `freesaas` | Local FreeSaaS supervise + standby-sync + doctor/update (opt-in) | Mac / Windows PC |
 | `llm` | stub — leave disabled | — |
@@ -26,7 +27,8 @@ workers/
   core/                      # supervisor, dashboard, install, CLI, autostart
   plugins/
     video/                   # YOLO + ffmpeg + optional camera VPN
-    whisper/                 # claim → whisper.cpp → result → stem
+    whisper/                 # claim → whisper.cpp → result → stem (+ optional diarize)
+    diarize/                 # WeSpeaker ONNX speakers / voiceprint (Mac)
     audioloader/             # badge USB → FTP → GET /audio/jobs/ingest
     freesaas/                # PC local stack + standby orchestrator (opt-in)
     llm/                     # stub only — do not enable yet
@@ -199,7 +201,7 @@ Dashboard: `http://127.0.0.1:8766/` (localhost only).
 | Top bar | locale (RU/EN), ASR language (if whisper), host CPU/RAM, Start/Stop all |
 | Plugins table | running, **CPU%**, **RSS MB**, **activity.phase + detail**, **stale** if no status heartbeat past idle+90s |
 | Live log | tail of `workers/var/log/<plugin>.log` (stdout/stderr of supervised process) |
-| Plugin widgets | video: VPN / cameras / jobs; whisper: server health / pending / ASR |
+| Plugin widgets | video: VPN / cameras / jobs; whisper: server health / pending / ASR + requested/processed; diarize: mode + requested/processed |
 
 Idle whisper: between claims the client sleeps `loop.sleep_seconds_idle` (default 180) with **heartbeat** every ~15s (`activity` countdown). A multi-minute gap in the log after “waiting Ns” is normal. Stem uses `analytics.stem_timeout_sec` (default **90**, not 600) so a dead host fails fast; inference uses `whisper.inference_timeout_sec` (default 1800).
 

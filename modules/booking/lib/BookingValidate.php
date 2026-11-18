@@ -270,6 +270,11 @@ final class BookingValidate
                 throw new InvalidArgumentException(self::describeBusyConflict((string)$key, $ev));
             }
         }
+
+        if (class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+            $ex = ResourceBooking::excludeFrom(null, $excludeProcedureId, null);
+            ResourceBooking::assertWindow([$productId], $dtStart, $dtEnd, $ex !== [] ? $ex : null);
+        }
     }
 
     /**

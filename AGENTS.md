@@ -176,6 +176,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `suppliers` | Suppliers (`base_suppliers`) |
 | `cabinets` | Rooms (`base_cabinets`); used by stocks `ID_CABINET` and staff `skin` |
 | `tables` | Massage tables (`base_tables`); optional — without it `ID_TABLE` defaults to `1` |
+| `resources` | Shared bookable capacity (`base_resources*`); bind on catalog products; booking/calendar/procedures respect qty; alpha — [`docs/agents/resources.md`](docs/agents/resources.md) |
 | `workweeks` | Day shifts (`base_workweeks`); menu under Team; embedded in calendar day |
 | `catalog` | Categories, products, product relations; stock qty in `stocks`/`stickers` |
 | `stocks` | Warehouses (`base_stocks`) + leftovers report |
@@ -204,6 +205,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `audio` | Cabin records + badges + FileStorage; soft `workweeks`; badge USB loader = workers plugin `audioloader` ([`docs/agents/audioloader.md`](docs/agents/audioloader.md)) |
 | `audio_dicts` | Dicts/keys/scripts/trash for recognition; requires `audio` |
 | `audio_pipeline` | Cabin ingest/ASR/stem/collect jobs; requires `asr` + `audio` + `audio_dicts`; edge host [`docs/agents/workers.md`](docs/agents/workers.md) |
+| `audio_diarize` | Cabin speaker diarization + voice profiles (WeSpeaker on edge); soft `audio_pipeline`; beta — same worker URLs `/audio/asr/diarize-*` |
 | `audio_reports` | Records calendar + summary reports; requires `audio` + `audio_dicts` + `workweeks` |
 | `llm` | OpenAI-compatible LLM client + token profiles UI (`cfg/modules/llm.ini`); shared by studies/bots/agents |
 | `bots` | Telegram/Max transport + `base_telegram_sends` queue + `base_bot_links` identities + webhooks; domain adapters via `BotPlugins` / `bots.send` |

@@ -62,6 +62,7 @@ Occupancy for slots merges:
 - `base_events` (calendar)
 - `base_procedures` (journal)
 - `base_orders` in `OrdersRepository::NEW_STATUSES`
+- When `resources` is enabled: product→resource requirements vs `base_resource_allocations` (shared capacity across staff) — see [`resources.md`](resources.md)
 
 Workday hours: `cfg/modules/calendar.ini` `[calendar]` `hour_start` / `hour_end` / `minute_start` / `minute_end` (UI `/calendar/settings`).
 

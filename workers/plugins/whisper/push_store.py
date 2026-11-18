@@ -84,6 +84,8 @@ class PushStore:
 			cols = {str(r["name"]) for r in self._conn.execute("PRAGMA table_info(jobs)").fetchall()}
 			if "source_url" not in cols:
 				self._conn.execute("ALTER TABLE jobs ADD COLUMN source_url TEXT NOT NULL DEFAULT ''")
+			if "speakers_json" not in cols:
+				self._conn.execute("ALTER TABLE jobs ADD COLUMN speakers_json TEXT NOT NULL DEFAULT ''")
 			self._conn.execute("DROP TABLE IF EXISTS nonces")
 			self._conn.commit()
 		try:
@@ -188,13 +190,25 @@ class PushStore:
 		job["attempts"] = int(job.get("attempts") or 0) + 1
 		return job
 
-	def finish(self, job_id: str, result: str, playtime: Optional[float], volume: Optional[float]) -> None:
+	def finish(
+		self,
+		job_id: str,
+		result: str,
+		playtime: Optional[float],
+		volume: Optional[float],
+		speakers: Optional[Dict[str, Any]] = None,
+	) -> None:
+		import json
+
 		now = time.time()
+		speakers_json = ""
+		if isinstance(speakers, dict) and speakers:
+			speakers_json = json.dumps(speakers, ensure_ascii=False)
 		with self._lock:
 			self._conn.execute(
-				"UPDATE jobs SET state=?, result=?, playtime=?, volume=?, error=NULL, updated_at=?, done_at=?"
+				"UPDATE jobs SET state=?, result=?, playtime=?, volume=?, speakers_json=?, error=NULL, updated_at=?, done_at=?"
 				" WHERE job_id=?",
-				(STATE_DONE, result, playtime, volume, now, now, job_id),
+				(STATE_DONE, result, playtime, volume, speakers_json, now, now, job_id),
 			)
 			self._conn.commit()
 
@@ -229,14 +243,32 @@ class PushStore:
 			self._conn.commit()
 
 	def results(self, limit: int = 50) -> List[Dict[str, Any]]:
+		import json
+
 		limit = max(1, min(200, int(limit)))
 		with self._lock:
 			rows = self._conn.execute(
-				"SELECT job_id, file_name, state, result, playtime, volume, error, attempts, done_at"
+				"SELECT job_id, file_name, state, result, playtime, volume, speakers_json, error, attempts, done_at"
 				" FROM jobs WHERE state IN (?, ?) ORDER BY done_at ASC LIMIT ?",
 				(STATE_DONE, STATE_FAILED, limit),
 			).fetchall()
-		return [dict(r) for r in rows]
+		out: List[Dict[str, Any]] = []
+		for r in rows:
+			item = dict(r)
+			raw = str(item.pop("speakers_json", "") or "")
+			if raw:
+				try:
+					parsed = json.loads(raw)
+					if isinstance(parsed, dict):
+						item["speakers"] = parsed.get("speakers") or []
+						item["segments"] = parsed.get("segments") or []
+						item["cue_speakers"] = parsed.get("cue_speakers") or []
+						item["dominant_speaker"] = parsed.get("dominant_speaker") or ""
+						item["speakers_payload"] = parsed
+				except Exception:
+					pass
+			out.append(item)
+		return out
 
 	def ack(self, job_ids: List[str]) -> int:
 		ids = [j for j in job_ids if valid_job_id(j)]

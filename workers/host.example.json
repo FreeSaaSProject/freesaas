@@ -1,5 +1,5 @@
 {
-  "enabled_plugins": ["video", "whisper"],
+  "enabled_plugins": ["video", "whisper", "diarize"],
   "locale": "ru",
   "dashboard": {
     "host": "127.0.0.1",
@@ -58,5 +58,5 @@
     ],
     "comment": "Inbound push from FreeSaaS (needs a public/static IP + port forward). Runs inside the dashboard process (autostart on). Scopes: owner = everything; <service>.jobs (e.g. asr.jobs) = jobs API of one service only. allowed_ips = FreeSaaS outbound IP(s)."
   },
-  "comment": "Copy to host.local.json. Edge host for Mac and Windows. Plugins: video, whisper (ASR), audioloader (badge USB→FTP→ingest), freesaas (opt-in PC standby/orchestrator — not enabled by default). Enable audioloader on the Windows PC that receives badges. Set locale (ru|en). ASR language: plugins/whisper/configs/local.json → whisper.form_params.language. Ops alerts: notify (Max/Telegram) — off by default."
+  "comment": "Copy to host.local.json. Edge host for Mac and Windows. Plugins: video, whisper (ASR), diarize (WeSpeaker speakers/voiceprint; also hooked from whisper post-ASR), audioloader (badge USB→FTP→ingest), freesaas (opt-in PC standby/orchestrator — not enabled by default). Enable audioloader on the Windows PC that receives badges. Set locale (ru|en). ASR language: plugins/whisper/configs/local.json → whisper.form_params.language. Ops alerts: notify (Max/Telegram) — off by default."
 }

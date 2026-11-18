@@ -244,12 +244,26 @@ final class AsrPushDispatcher
                 }
                 $pt = $row['playtime'] ?? null;
                 $vol = $row['volume'] ?? null;
+                $speakersPayload = null;
+                if (class_exists('SpeakerService', false)) {
+                    if (isset($row['speakers_payload']) && is_array($row['speakers_payload'])) {
+                        $speakersPayload = $row['speakers_payload'];
+                    } elseif (isset($row['speakers']) && is_array($row['speakers'])) {
+                        $speakersPayload = [
+                            'speakers' => $row['speakers'],
+                            'segments' => is_array($row['segments'] ?? null) ? $row['segments'] : [],
+                            'cue_speakers' => is_array($row['cue_speakers'] ?? null) ? $row['cue_speakers'] : [],
+                            'dominant_speaker' => (string)($row['dominant_speaker'] ?? ''),
+                        ];
+                    }
+                }
                 try {
                     $out = AsrService::saveResult(
                         $fileName,
                         (string)($row['result'] ?? ''),
                         is_numeric($pt) ? (string)(int)round((float)$pt) : null,
-                        is_numeric($vol) ? (string)$vol : null
+                        is_numeric($vol) ? (string)$vol : null,
+                        $speakersPayload
                     );
                 } catch (Throwable $e) {
                     error_log('[asr_push] save ' . $fileName . ': ' . $e->getMessage());

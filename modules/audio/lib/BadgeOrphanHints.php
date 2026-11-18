@@ -19,7 +19,9 @@ final class BadgeOrphanHints
      *     assignment_sec:int,
      *     assigned_count:int,
      *     assigned_playtime:int,
-     *     windows:list<array{from:int,to:int}>
+     *     windows:list<array{from:int,to:int}>,
+     *     voice_hits?:int,
+     *     voice_confidence?:float
      *   }>
      * }|null
      */
@@ -95,6 +97,21 @@ final class BadgeOrphanHints
             $byAdmin[$op]['assigned_playtime'] = (int)($row['play'] ?? 0);
         }
 
+        // Voiceprint hits from diarization (soft signal + weight boost).
+        if (class_exists('SpeakerService', false)) {
+            foreach (SpeakerService::orphanVoiceCandidates($badgeCode, $fromTs, $toTs) as $voice) {
+                $op = (int)($voice['admin_id'] ?? 0);
+                if ($op < 1) {
+                    continue;
+                }
+                if (!isset($byAdmin[$op])) {
+                    $byAdmin[$op] = self::emptyCandidate($op);
+                }
+                $byAdmin[$op]['voice_hits'] = (int)($voice['hits'] ?? 0);
+                $byAdmin[$op]['voice_confidence'] = (float)($voice['confidence'] ?? 0);
+            }
+        }
+
         if ($byAdmin === []) {
             return [
                 'badge' => $badgeCode,
@@ -106,10 +123,13 @@ final class BadgeOrphanHints
         }
 
         foreach ($byAdmin as &$c) {
-            // Prefer assignment coverage; assigned peers are a secondary signal.
+            // Prefer assignment coverage; assigned peers are a secondary signal; voice is tertiary.
+            $voiceBoost = (int)floor(((float)($c['voice_confidence'] ?? 0)) * 200)
+                + ((int)($c['voice_hits'] ?? 0) * 80);
             $c['weight'] = ($c['assignment_sec'] * 2)
                 + ($c['assigned_count'] * 120)
-                + (int)floor($c['assigned_playtime'] / 30);
+                + (int)floor($c['assigned_playtime'] / 30)
+                + $voiceBoost;
         }
         unset($c);
 
@@ -187,7 +207,7 @@ final class BadgeOrphanHints
         return ctype_digit($badgeCode) ? (int)$badgeCode : $badgeCode;
     }
 
-    /** @return array{admin_id:int,weight:int,assignment_sec:int,assigned_count:int,assigned_playtime:int,windows:list<array{from:int,to:int}>} */
+    /** @return array{admin_id:int,weight:int,assignment_sec:int,assigned_count:int,assigned_playtime:int,windows:list<array{from:int,to:int}>,voice_hits:int,voice_confidence:float} */
     private static function emptyCandidate(int $adminId): array
     {
         return [
@@ -197,6 +217,8 @@ final class BadgeOrphanHints
             'assigned_count' => 0,
             'assigned_playtime' => 0,
             'windows' => [],
+            'voice_hits' => 0,
+            'voice_confidence' => 0.0,
         ];
     }
 }

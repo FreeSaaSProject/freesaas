@@ -62,6 +62,8 @@
   "activity.phase.claim": "claim",
   "activity.phase.download": "download",
   "activity.phase.transcribe": "transcribe",
+  "activity.phase.embed": "embed",
+  "activity.phase.diarize": "diarize",
   "activity.phase.infer": "infer",
   "activity.phase.train": "train",
   "activity.phase.upload": "upload",

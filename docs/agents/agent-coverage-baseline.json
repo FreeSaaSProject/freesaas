@@ -119,6 +119,23 @@
                 "worker_token_generate"
             ]
         },
+        "audio_diarize": {
+            "ops": [
+                "audio_diarize.api.voice_sample",
+                "audio_diarize.asr.diarize_claim",
+                "audio_diarize.asr.diarize_result",
+                "audio_diarize.asr.diarize_status",
+                "audio_diarize.asr.embed_sample_claim",
+                "audio_diarize.asr.embed_sample_result",
+                "audio_diarize.diarize.longjob",
+                "audio_diarize.settings",
+                "audio_diarize.voice_profiles.list",
+                "audio_diarize.voice_profiles.longjob",
+                "audio_diarize.voice_profiles.samples"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
         "audio_dicts": {
             "ops": [
                 "audio_dicts.agent.dict_get",
@@ -1198,6 +1215,17 @@
                 "remittances.list",
                 "remittances.move_action",
                 "remittances.save"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "resources": {
+            "ops": [
+                "resources.create",
+                "resources.delete",
+                "resources.get",
+                "resources.list",
+                "resources.update"
             ],
             "uncovered_routes": [],
             "uncovered_actions": []

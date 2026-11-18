@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "1.2.5",
+    "version": "1.3.9",
     "type": "product",
     "requires": {
         "core": ">=1.1.0",
@@ -11,7 +11,9 @@
         "audio_dicts": ">=1.0.0"
     },
     "optionalRequires": {
-        "procedures": ">=1.0.0"
+        "procedures": ">=1.0.0",
+        "workweeks": ">=1.0.0",
+        "audio_diarize": ">=0.1.0"
     },
     "migrations": "migrations/",
     "permissions": [
@@ -163,7 +165,7 @@
                 "path": "/audio/asr/result",
                 "permission": "audio_pipeline.view",
                 "assistant": false,
-                "description": "Whisper worker: post ASR result for file_name"
+                "description": "Whisper worker: post ASR result for file_name; optional speakers/segments/cue_speakers JSON fields"
             },
             {
                 "id": "audio_pipeline.asr.chunk_claim",
@@ -246,6 +248,8 @@
     "hooks": {
         "subscribe": [
             "core.edge_host.deleted",
+            "core.edge_hosts.sections",
+            "core.edge_hosts.save",
             "asr.voice.enqueued",
             "audio_dicts.changed",
             "audio.settings.sections",

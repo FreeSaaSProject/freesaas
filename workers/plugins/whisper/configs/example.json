@@ -35,6 +35,10 @@
       "temperature_inc": "0.0"
     }
   },
+  "diarize": {
+    "enabled": true,
+    "comment": "Post-ASR WeSpeaker diarization via workers/plugins/diarize (same Mac). Set false to skip."
+  },
   "garbage_detection": {
     "min_letters": 15,
     "cjk_ratio": 0.12,

@@ -6,6 +6,13 @@ $wantsJson = AgentHttp::wantsJson();
 require_once base_path('modules/audio/lib/RecordsRepository.php');
 require_once base_path('modules/audio/lib/RecordsReviewsRepository.php');
 require_once base_path('modules/audio/lib/TranscriptHighlighter.php');
+if (
+    ModuleManager::isEnabled('audio_diarize')
+    && is_file(base_path('modules/audio_diarize/lib/SpeakerService.php'))
+) {
+    require_once base_path('modules/audio_diarize/lib/SpeakerEmbedding.php');
+    require_once base_path('modules/audio_diarize/lib/SpeakerService.php');
+}
 
 $todayY = (int)date('Y');
 $todayM = (int)date('n');
@@ -233,10 +240,24 @@ if ($preload && $result['items']) {
         $byRec[(int)$inst['id_record']][] = $inst;
     }
     $trash = RecordsRepository::trashPhrases();
+    $speakerOptsById = [];
+    if (class_exists('SpeakerService', false)) {
+        $assume = [];
+        foreach ($ids as $rid) {
+            $assume[$rid] = (int)($rows[$rid]['id_admin'] ?? $rows[$rid]['ID_ADMIN'] ?? 0);
+        }
+        $speakerOptsById = SpeakerService::highlightOptsForRecords($ids, $assume);
+    }
     $candidates = [];
     foreach ($ids as $rid) {
         $src = (string)(($rows[$rid]['transcription'] ?? ''));
-        $rendered = TranscriptHighlighter::render($src, $byRec[$rid] ?? [], $trash, $search);
+        $rendered = TranscriptHighlighter::render(
+            $src,
+            $byRec[$rid] ?? [],
+            $trash,
+            $search,
+            $speakerOptsById[$rid] ?? []
+        );
         $transcriptById[$rid] = $rendered;
         foreach ($rendered['trash_candidates'] ?? [] as $cand) {
             $candidates[$cand] = $cand;

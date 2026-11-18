@@ -140,6 +140,31 @@ EdgeHosts::registerService('asr', [
     'max_inflight' => 20,
 ]);
 
+EventBus::on('core.edge_hosts.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!isset($payload['sections']) || !is_array($payload['sections'])) {
+        $payload['sections'] = [];
+    }
+    $payload['sections'][] = [
+        'id' => 'audio_dispatch',
+        'weight' => 10,
+        'html' => AsrDispatchSettings::edgeHostsSectionHtml(),
+    ];
+    return $payload;
+});
+
+EventBus::on('core.edge_hosts.save', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    $warnings = is_array($payload['warnings'] ?? null) ? $payload['warnings'] : [];
+    $payload['warnings'] = AsrDispatchSettings::saveFromEdgeHosts($post, $warnings);
+    return $payload;
+});
+
 EventBus::on('core.edge_host.deleted', static function ($payload) {
     $id = is_array($payload) ? (int)($payload['id'] ?? 0) : 0;
     if ($id > 0 && AsrLease::available()) {
@@ -153,19 +178,19 @@ EventBus::on('asr.voice.enqueued', static function ($payload) {
     return $payload;
 });
 
-// Push ASR channel: FreeSaaS calls edge hosts (status → results+ack → dispatch).
+// Push ASR: FreeSaaS calls edge hosts. Diarize push lives in audio_diarize.
 // Runs even with push off so already finished results still get collected and acked.
 Cron::register('audio_pipeline.asr_push', [
     'module' => 'audio_pipeline',
     'label' => 'audio_pipeline.cron.asr_push',
     'every' => AsrLease::pushEveryMin(),
     'handler' => static function (): array {
-        $out = AsrPushDispatcher::syncAll();
+        $asr = AsrPushDispatcher::syncAll();
         return [
-            'ok' => $out['ok'],
-            'processed' => $out['saved'] + $out['sent'] + $out['voice'],
+            'ok' => !empty($asr['ok']),
+            'processed' => (int)($asr['saved'] ?? 0) + (int)($asr['sent'] ?? 0) + (int)($asr['voice'] ?? 0),
             'skipped' => 0,
-            'message' => $out['message'],
+            'message' => (string)($asr['message'] ?? ''),
         ];
     },
 ]);

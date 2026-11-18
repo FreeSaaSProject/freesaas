@@ -55,6 +55,12 @@ $candidates = is_array($hints['candidates'] ?? null) ? $hints['candidates'] : []
                   'time' => sprintf('%d:%02d', intdiv($play, 3600), intdiv($play % 3600, 60)),
               ]);
           }
+          if ((int)($c['voice_hits'] ?? 0) > 0) {
+              $bits[] = t('audio.orphan_hints.reason_voice', [
+                  'pct' => (int)round(((float)($c['voice_confidence'] ?? 0)) * 100),
+                  'hits' => (int)$c['voice_hits'],
+              ]);
+          }
           ?>
         <li class="audio-orphan-hints-item">
           <span class="audio-orphan-hints-who"><?= UsersRepository::badgeHtml($aid, false, true) ?></span>

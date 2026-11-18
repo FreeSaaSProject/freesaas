@@ -141,6 +141,11 @@ final class BookingSlots
     /**
      * @param list<array{id:int,time_sec:int,time_net:int,type_id:int}> $products
      * @param array<int,array<string,array{DTSTART:int,DTEND:int,ID_GOOD?:int}>> $usedTimes
+     * @param array{
+     *   exclude_order_id?:int|null,
+     *   exclude_procedure_id?:int|list<int>|null,
+     *   exclude_event_id?:int|null
+     * } $opts
      * @return array{
      *   result:bool,
      *   timeSlots:array<int,int>,
@@ -159,7 +164,8 @@ final class BookingSlots
         int $rangeEnd,
         int $workHourEnd = 22,
         int $workMinuteEnd = 0,
-        ?int $intervalSec = null
+        ?int $intervalSec = null,
+        array $opts = []
     ): array {
         $empty = [
             'result' => false,
@@ -313,6 +319,30 @@ final class BookingSlots
                 if ($limitsFound >= $procLimits) {
                     unset($timeSlots[$timeSlot]);
                 }
+            }
+        }
+
+        // Shared resources (equipment / capacity) — soft dep on resources module.
+        if (
+            $timeSlots !== []
+            && class_exists('ResourceBooking', false)
+            && ResourceBooking::ready()
+        ) {
+            $productIds = [];
+            foreach ($products as $p) {
+                $pid = (int)($p['id'] ?? 0);
+                if ($pid > 0) {
+                    $productIds[] = $pid;
+                }
+            }
+            $reqs = ResourceBooking::requirementsForProducts($productIds);
+            if ($reqs !== []) {
+                $ex = ResourceBooking::excludeFrom(
+                    isset($opts['exclude_order_id']) ? (int)$opts['exclude_order_id'] : null,
+                    $opts['exclude_procedure_id'] ?? null,
+                    isset($opts['exclude_event_id']) ? (int)$opts['exclude_event_id'] : null
+                );
+                $timeSlots = ResourceBooking::filterSlots($timeSlots, $totalTime, $reqs, $ex !== [] ? $ex : null);
             }
         }
 

@@ -42,12 +42,17 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_records_coverage_profiles` | audio_pipeline | Per-status / per-staff coverage overrides |
 | `base_asr_leases` | audio_pipeline | One active ASR lease per record across pull + push channels |
 | `base_asr_push_workers` | audio_pipeline | Legacy push ASR workers; copied into `base_edge_hosts` (not read anymore) |
+| `base_records_speakers`, `base_records_speaker_segments`, `base_records_cue_speakers` | audio_diarize | Per-record diarization (local speaker ids, embeddings, cue map) |
+| `base_records_speaker_profiles` | audio_diarize | Staff voiceprint centroids (WeSpeaker embeddings) for match / orphan bind |
+| `base_records_speaker_samples` | audio_diarize | Manual (and later diarize) enrollment clips → embed → profile build |
+| `base_diarize_leases`, `base_diarize_requests` | audio_diarize | Edge diarize/embed leases + explicit file-diarize queue |
 | `base_records_llm_studies`, `base_records_llm_study_results` | audio_llm | LLM studies over transcripts + cyclic templates |
 | `base_script_coach_runs`, `base_script_coach_artifacts`, `base_script_coach_proposals` | audio_script_coach | Day investigation jobs + LLM dict enrichment proposals |
 | `base_records_phrases`, `base_records_phrase_days` | audio_phrases | Top N-gram harvest (coach is soft successor for script enrichment) |
 | `base_events` / `base_event_items` | calendar | Visit/block shell + planned basket |
 | `base_event_bonus` | bonuses | Bonus intent per calendar visit |
 | `base_cabinets` | cabinets | Rooms; staff `skin`; stocks `ID_CABINET` |
+| `base_resources` / `base_product_resources` / `base_resource_allocations` | resources | Shared bookable capacity; product requirements; order/event/procedure occupancy |
 | `base_workweeks` | workweeks | Shifts |
 | `base_procent_history` | rates | Specialist pay rates |
 | `base_procedures*` | procedures | Types + journal + `base_procedure_restores` schema; restore UI/settlement in likespa |

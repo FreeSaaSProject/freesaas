@@ -229,6 +229,11 @@ $allowed = [
     '/audio/asr/result' => ['methods' => ['GET', 'POST'], 'why' => 'audio ASR result'],
     '/audio/asr/chunk-claim' => ['methods' => ['GET', 'POST'], 'why' => 'audio ASR chunk claim'],
     '/audio/asr/chunk-result' => ['methods' => ['GET', 'POST'], 'why' => 'audio ASR chunk result'],
+    '/audio/asr/diarize-claim' => ['methods' => ['GET', 'POST'], 'why' => 'audio diarize claim'],
+    '/audio/asr/diarize-status' => ['methods' => ['GET', 'POST'], 'why' => 'audio diarize readiness'],
+    '/audio/asr/embed-sample-claim' => ['methods' => ['GET', 'POST'], 'why' => 'voice sample embed claim'],
+    '/audio/asr/embed-sample-result' => ['methods' => ['GET', 'POST'], 'why' => 'voice sample embed result'],
+    '/audio/asr/diarize-result' => ['methods' => ['GET', 'POST'], 'why' => 'audio diarize result'],
 
     // Video Mac worker (X-Video-Token)
     '/video/worker/hello' => ['methods' => ['GET', 'POST'], 'why' => 'video worker heartbeat'],

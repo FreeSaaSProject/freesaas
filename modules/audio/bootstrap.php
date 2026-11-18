@@ -16,7 +16,6 @@ require_once __DIR__ . '/lib/TranscriptHighlighter.php';
 require_once __DIR__ . '/lib/AudioBiContrib.php';
 require_once __DIR__ . '/lib/AudioIngestLongJob.php';
 
-
 EventBus::on('bi.datasets', [AudioBiContrib::class, 'onDatasets']);
 
 Assets::register('audio', [

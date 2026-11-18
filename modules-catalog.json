@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-17T10:24:31+00:00",
+    "generated_at": "2026-11-18T11:20:28+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -198,7 +198,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.13",
+            "version": "1.0.25",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -220,6 +220,7 @@
                 "clients": ">=1.0.0",
                 "audio_dicts": ">=1.0.0",
                 "audio_pipeline": ">=1.0.0",
+                "audio_diarize": ">=0.1.0",
                 "audio_llm": ">=0.1.0",
                 "audio_reports": ">=1.0.0",
                 "bots": ">=1.0.0",
@@ -234,6 +235,42 @@
             },
             "agent": {
                 "docs": "docs/agents/audio.md"
+            }
+        },
+        {
+            "id": "audio_diarize",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Diarization",
+                "ru": "Диаризация"
+            },
+            "description": {
+                "en": "Cabin speaker labels (WeSpeaker CAM++ on the edge) and voice-profile enrollment.",
+                "ru": "Разметка спикеров на кабинных записях (WeSpeaker CAM++ на edge) и enrollment голосовых профилей."
+            },
+            "summary": {
+                "en": "Enable when you need edge diarize and manual voice samples. Without it, ASR/ingest/stem keep working as before.",
+                "ru": "Включайте, когда нужен edge diarize и ручные голосовые сэмплы. Без модуля ASR/ingest/stem работают как раньше."
+            },
+            "requires": {
+                "core": ">=1.1.0",
+                "audio": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "audio_pipeline": ">=1.0.0",
+                "workweeks": ">=1.0.0",
+                "asr": ">=1.0.0"
+            },
+            "catalog": {
+                "categories": [
+                    "audio"
+                ],
+                "maturity": "beta",
+                "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/audio_pipeline.md"
             }
         },
         {
@@ -352,7 +389,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.2.5",
+            "version": "1.3.9",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -373,7 +410,9 @@
                 "audio_dicts": ">=1.0.0"
             },
             "optionalRequires": {
-                "procedures": ">=1.0.0"
+                "procedures": ">=1.0.0",
+                "workweeks": ">=1.0.0",
+                "audio_diarize": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -654,7 +693,7 @@
         },
         {
             "id": "booking",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -678,7 +717,8 @@
             "optionalRequires": {
                 "orders": ">=1.0.0",
                 "procedures": ">=1.0.0",
-                "rates": ">=1.0.0"
+                "rates": ">=1.0.0",
+                "resources": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -1042,7 +1082,7 @@
         },
         {
             "id": "comments",
-            "version": "1.0.8",
+            "version": "1.0.9",
             "type": "product",
             "name": {
                 "en": "Comments",
@@ -2067,6 +2107,44 @@
             },
             "agent": {
                 "docs": "docs/agents/remittances.md"
+            }
+        },
+        {
+            "id": "resources",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Resources",
+                "ru": "Ресурсы"
+            },
+            "description": {
+                "en": "Shared bookable resources (equipment, rooms capacity) that limit concurrent services across staff.",
+                "ru": "Общие ресурсы записи (оборудование, ёмкости кабинетов), ограничивающие одновременные услуги между сотрудниками."
+            },
+            "summary": {
+                "en": "Enable when services need shared equipment or capacity (laser, table pool). Bind resources on catalog products; booking/calendar respect qty. Alpha — expect to diagnose slot conflicts.",
+                "ru": "Включайте, когда услугам нужно общее оборудование или ёмкость (лазер, пул кушеток). Привязка на товарах каталога; booking/календарь учитывают qty. Alpha — готовьтесь диагностировать конфликты слотов."
+            },
+            "requires": {
+                "core": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "catalog": ">=1.0.0",
+                "booking": ">=1.0.0",
+                "calendar": ">=1.0.0",
+                "orders": ">=1.0.0",
+                "procedures": ">=1.0.0"
+            },
+            "catalog": {
+                "categories": [
+                    "dictionaries",
+                    "booking"
+                ],
+                "maturity": "alpha",
+                "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/resources.md"
             }
         },
         {

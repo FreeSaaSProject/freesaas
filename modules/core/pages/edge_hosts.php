@@ -30,6 +30,13 @@ if ($ready && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             EdgeHosts::setPlugin($id, $svc, !empty($s['enabled']), (int)($s['max_inflight'] ?? 0));
         }
     }
+    $savePayload = EventBus::emit('core.edge_hosts.save', [
+        'post' => $_POST,
+        'warnings' => $warnings,
+    ]);
+    if (is_array($savePayload) && is_array($savePayload['warnings'] ?? null)) {
+        $warnings = $savePayload['warnings'];
+    }
 
     $once = $warnings !== [] ? ['kind' => 'warn', 'text' => implode(' ', $warnings)] : ['kind' => 'ok', 'text' => t('core.edge_hosts.saved')];
     [$verb, $rawId] = array_pad(explode(':', (string)($_POST['edge_action'] ?? ''), 2), 2, '0');
@@ -90,6 +97,19 @@ if ($ready && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $once = $_SESSION[$onceKey] ?? null;
 unset($_SESSION[$onceKey]);
 
+$sectionsPayload = EventBus::emit('core.edge_hosts.sections', ['sections' => []]);
+$extraSections = [];
+if (is_array($sectionsPayload) && is_array($sectionsPayload['sections'] ?? null)) {
+    foreach ($sectionsPayload['sections'] as $sec) {
+        if (is_array($sec) && (string)($sec['html'] ?? '') !== '') {
+            $extraSections[] = $sec;
+        }
+    }
+    usort($extraSections, static function (array $a, array $b): int {
+        return ((int)($a['weight'] ?? 100)) <=> ((int)($b['weight'] ?? 100));
+    });
+}
+
 View::render('edge_hosts', [
     'title' => t('core.menu.edge_hosts'),
     'breadcrumbs' => Breadcrumbs::withHome([
@@ -100,4 +120,5 @@ View::render('edge_hosts', [
     'services' => $services,
     'once' => is_array($once) ? $once : null,
     'notify' => EdgeHostsNotify::formValues(),
+    'extra_sections' => $extraSections,
 ], 'layout', 'core');

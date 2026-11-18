@@ -1,0 +1,20 @@
+{
+  "activity.idle_boot": "boot",
+  "activity.claim": "polling FreeSaaS",
+  "activity.claim_embed": "polling embed samples",
+  "activity.claim_diarize": "polling diarize",
+  "activity.idle_no_files": "no files",
+  "activity.idle_sleep": "next poll in {sec}s",
+  "activity.push_wait": "waiting for FreeSaaS jobs",
+  "activity.embed": "embed sample #{id}",
+  "activity.diarize": "diarize {name}",
+  "activity.upload": "upload speakers {name}",
+  "activity.upload_embed": "upload embed #{id}",
+  "activity.diarize_off": "diarize disabled on server",
+  "activity.wait_profiles": "waiting for ready voice profiles",
+  "activity.error_backoff": "backoff after error",
+  "log.token_missing": "worker_token empty — FreeSaaS will return 401/503",
+  "log.no_files_wait": "No jobs. Waiting {sec}s…",
+  "log.got_file": "Got file: {name}",
+  "log.done": "Speakers saved for {name}: {n} speakers, dominant={dom}"
+}

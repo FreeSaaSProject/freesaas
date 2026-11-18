@@ -8,9 +8,11 @@ declare(strict_types=1);
 /** @var list<array<string,mixed>> $instances */
 /** @var array<int,array{name:string,color:string,bg:string}> $dictMeta */
 /** @var list<array{dict_id:int,diversity:int,instances:int}> $keyDicts */
+/** @var list<array<string,mixed>> $speakers */
 $dictMeta = is_array($dictMeta ?? null) ? $dictMeta : [];
 $keyDicts = is_array($keyDicts ?? null) ? $keyDicts : [];
 $instances = is_array($instances ?? null) ? $instances : [];
+$speakers = is_array($speakers ?? null) ? $speakers : [];
 $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'lines' => 0, 'trash' => 0, 'keys' => 0];
 ?>
 <?php if ($flash !== ''): ?><p class="flash"><?= e($flash) ?></p><?php endif; ?>
@@ -58,6 +60,31 @@ $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'line
     <section>
       <h2><?= te('audio.view.playback') ?></h2>
       <audio id="audio-player" controls preload="none" src="<?= e($playUrl) ?>" style="width:100%;max-width:40rem"></audio>
+    </section>
+    <?php endif; ?>
+
+    <?php if ($speakers !== []): ?>
+    <section class="audio-speakers" aria-label="<?= te('audio.view.speakers') ?>">
+      <h2><?= te('audio.view.speakers') ?></h2>
+      <ul class="audio-speakers-list">
+        <?php foreach ($speakers as $sp): ?>
+          <?php
+            $role = (string)($sp['role'] ?? 'unknown');
+            $lid = (string)($sp['local_id'] ?? '');
+            $cls = $role === 'staff' ? 'is-staff' : ($role === 'other' ? 'is-other' : '');
+          ?>
+          <li class="<?= e($cls) ?>">
+            <code><?= e($lid) ?></code>
+            <span class="muted"><?= e($role) ?></span>
+            <?php if (!empty($sp['is_dominant'])): ?><strong>·</strong><?php endif; ?>
+            <?= (int)round((float)($sp['talk_sec'] ?? 0)) ?>s
+            <?php if ((int)($sp['matched_admin_id'] ?? 0) > 0): ?>
+              · <?= UsersRepository::badgeHtml((int)$sp['matched_admin_id']) ?>
+              (<?= (int)round(((float)($sp['confidence'] ?? 0)) * 100) ?>%)
+            <?php endif; ?>
+          </li>
+        <?php endforeach; ?>
+      </ul>
     </section>
     <?php endif; ?>
 

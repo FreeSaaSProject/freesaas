@@ -137,7 +137,12 @@ final class BookingAvailability
                 $dayEnd,
                 $opWhEnd,
                 $opWmEnd,
-                $intervalSec
+                $intervalSec,
+                [
+                    'exclude_order_id' => $excludeOrderId,
+                    'exclude_procedure_id' => $excludeProcedureId,
+                    'exclude_event_id' => isset($opts['exclude_event_id']) ? (int)$opts['exclude_event_id'] : null,
+                ]
             );
             $slots = array_values($check['timeSlots']);
             sort($slots);

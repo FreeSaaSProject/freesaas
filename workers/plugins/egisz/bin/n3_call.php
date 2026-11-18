@@ -313,34 +313,83 @@ if ($type === 'add_patient') {
     } else {
         $out = ['ok' => false, 'error' => (string)($res['error'] ?? 'AddPatient failed'), 'raw' => $res['raw'] ?? null];
     }
+} elseif ($type === 'get_version') {
+    $svc = strtolower((string)($in['service'] ?? 'pix'));
+    $url = $svc === 'emk' ? $emkUrl : $pixUrl;
+    $err = '';
+    $client = soap_client($url, $err);
+    if ($client === null) {
+        $out = ['ok' => false, 'error' => $svc . ': ' . $err];
+    } else {
+        $res = soap_try($client, ['GetVersion'], ['guid' => $guid]);
+        $out = !empty($res['ok'])
+            ? ['ok' => true, 'result' => $res['result'] ?? null, 'raw' => $res['raw'] ?? null]
+            : ['ok' => false, 'error' => (string)($res['error'] ?? 'GetVersion failed'), 'raw' => $res['raw'] ?? null];
+    }
 } elseif ($type === 'add_case') {
+    // Demo WSDL: AddCase{ guid, caseDto: CaseAmb } — idLPU lives inside CaseBase.IdLpu.
     $packet = is_array($in['packet'] ?? null) ? $in['packet'] : [];
     $update = !empty($in['update']);
+    $nsCase = 'http://schemas.datacontract.org/2004/07/N3.EMK.Dto.Case';
+    $nsMedDoc = 'http://schemas.datacontract.org/2004/07/N3.EMK.Dto.MedRec.MedDoc';
     $dto = build_case_dto($packet);
-    $params = [
-        'guid' => $guid,
-        'idLPU' => $idLpu,
-        'case' => $dto,
-    ];
+    $dto['IdLpu'] = $idLpu;
+    $dto['IdPatientMis'] = (string)($packet['id_patient_mis'] ?? $dto['IdPatientMis'] ?? '');
+    // Prefer ambulatory CaseAmb; attach MedDocument via SoapVar when XML present.
+    $caseAmb = $dto;
+    $caseAmb['IdCaseType'] = (int)($packet['case_type'] ?? 1);
+    $caseAmb['IsActive'] = true;
+    if (!empty($dto['MedRecords']) && is_array($dto['MedRecords'])) {
+        $meds = [];
+        foreach ($dto['MedRecords'] as $mr) {
+            if (!is_array($mr)) {
+                continue;
+            }
+            // WSDL uses dotted element names MedDocumentDto.DocumentAttachment.
+            // Data is xs:base64Binary — pass raw XML bytes (SoapClient base64-encodes).
+            $xmlB64 = is_array($mr['Document'] ?? null) ? (string)($mr['Document']['Data'] ?? '') : '';
+            $xmlRaw = $xmlB64 !== '' ? (base64_decode($xmlB64, true) ?: $xmlB64) : '';
+            $att = new stdClass();
+            $att->Data = $xmlRaw;
+            $att->MimeType = 'text/xml';
+            $docSign = (string)($mr['DoctorSign'] ?? '');
+            $orgSign = (string)($mr['OrganizationSign'] ?? '');
+            if ($docSign !== '') {
+                $ps = new stdClass();
+                $ps->Sign = base64_decode($docSign, true) ?: $docSign;
+                $ps->Doctor = $dto['Doctor'] ?? null;
+                $signs = new stdClass();
+                $signs->{'MedDocumentDto.PersonalSign'} = $ps;
+                $att->PersonalSigns = $signs;
+            }
+            if ($orgSign !== '') {
+                $att->OrganizationSign = base64_decode($orgSign, true) ?: $orgSign;
+            }
+            $atts = new stdClass();
+            $atts->{'MedDocumentDto.DocumentAttachment'} = $att;
+            $medDoc = [
+                'CreationDate' => $mr['CreationDate'] ?? date('c'),
+                'Header' => 'SEMD',
+                'IdDocumentMis' => $mr['IdDocumentMis'] ?? '',
+                // Regional dict 1.2.643.2.69.1.1.1.195 — demo stand accepts 7.
+                'IdMedDocumentType' => 7,
+                'Attachments' => $atts,
+                'Author' => $dto['Doctor'] ?? null,
+            ];
+            $meds[] = new SoapVar($medDoc, SOAP_ENC_OBJECT, 'MedDocument', $nsMedDoc);
+        }
+        if ($meds !== []) {
+            $caseAmb['MedRecords'] = ['MedRecord' => count($meds) === 1 ? $meds[0] : $meds];
+        }
+    }
+    $caseDto = new SoapVar($caseAmb, SOAP_ENC_OBJECT, 'CaseAmb', $nsCase);
     $err = '';
     $emk = soap_client($emkUrl, $err);
     if ($emk === null) {
         $out = ['ok' => false, 'error' => 'emk: ' . $err];
     } else {
-        // WSDL method names are PascalCase; param wrapper names vary — try case / Case.
-        $methods = $update ? ['UpdateCase'] : ['AddCase', 'CreateCase'];
-        $attempts = [
-            $params,
-            ['guid' => $guid, 'idLPU' => $idLpu, 'Case' => $dto],
-            ['guid' => $guid, 'idLPU' => $idLpu, 'caseDto' => $dto],
-        ];
-        $res = ['ok' => false, 'error' => 'AddCase failed'];
-        foreach ($attempts as $p) {
-            $res = soap_try($emk, $methods, $p);
-            if (!empty($res['ok'])) {
-                break;
-            }
-        }
+        $methods = $update ? ['UpdateCase'] : ['AddCase'];
+        $res = soap_try($emk, $methods, ['guid' => $guid, 'caseDto' => $caseDto]);
         if (!empty($res['ok'])) {
             $out = [
                 'ok' => true,

@@ -62,6 +62,8 @@
   "activity.phase.claim": "опрос",
   "activity.phase.download": "скачивание",
   "activity.phase.transcribe": "распознавание",
+  "activity.phase.embed": "embed",
+  "activity.phase.diarize": "диаризация",
   "activity.phase.infer": "инференс",
   "activity.phase.train": "обучение",
   "activity.phase.upload": "загрузка",

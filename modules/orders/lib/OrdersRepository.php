@@ -415,6 +415,13 @@ final class OrdersRepository
         }
         $params[] = $id;
         $st->execute($params);
+
+        if (class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+            $fresh = self::find($id);
+            if (is_array($fresh)) {
+                ResourceBooking::syncOrder($fresh);
+            }
+        }
     }
 
     /**

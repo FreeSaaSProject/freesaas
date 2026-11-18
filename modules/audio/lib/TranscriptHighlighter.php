@@ -16,7 +16,11 @@ final class TranscriptHighlighter
      *   window_to?:int,
      *   dt_recorded?:int,
      *   intersections?:list<array{start:int,end:int,id?:int|string,match?:int|string}>,
-     *   compact?:bool
+     *   compact?:bool,
+     *   cue_speakers?:array<int,string>,
+     *   speaker_roles?:array<string,string>,
+     *   speaker_admins?:array<string,int> local_id => matched (or assumed) staff id for acronym badge
+     *   record_admin_id?:int when matched speaker == record staff, show green bar only (no acronym)
      * } $opts Absolute unix window (oper: collection DT ±15s) filters lines via dt_recorded + line offset.
      * @return array{html:string,lines:int,trash:int,keys:int,trash_candidates:list<string>,was_intersect:bool}
      */
@@ -45,6 +49,24 @@ final class TranscriptHighlighter
         $windowTo = max(0, (int)($opts['window_to'] ?? 0));
         $dtRecorded = max(0, (int)($opts['dt_recorded'] ?? 0));
         $compact = !empty($opts['compact']);
+        /** @var array<int,string> $cueSpeakers */
+        $cueSpeakers = [];
+        foreach (is_array($opts['cue_speakers'] ?? null) ? $opts['cue_speakers'] : [] as $lineNo => $spk) {
+            $cueSpeakers[(int)$lineNo] = (string)$spk;
+        }
+        /** @var array<string,string> $speakerRoles */
+        $speakerRoles = [];
+        foreach (is_array($opts['speaker_roles'] ?? null) ? $opts['speaker_roles'] : [] as $spk => $role) {
+            $speakerRoles[(string)$spk] = strtolower((string)$role);
+        }
+        /** @var array<string,int> $speakerAdmins */
+        $speakerAdmins = [];
+        foreach (is_array($opts['speaker_admins'] ?? null) ? $opts['speaker_admins'] : [] as $spk => $adminId) {
+            $aid = (int)$adminId;
+            if ($aid > 0) {
+                $speakerAdmins[(string)$spk] = $aid;
+            }
+        }
         /** @var list<array{start:int,end:int,id:string,match:string}> $intersections */
         $intersections = [];
         foreach (is_array($opts['intersections'] ?? null) ? $opts['intersections'] : [] as $ix) {
@@ -146,9 +168,19 @@ final class TranscriptHighlighter
                 }
             }
 
+            $spkId = $cueSpeakers[$num] ?? '';
+            $spkRole = $spkId !== '' ? ($speakerRoles[$spkId] ?? '') : '';
+            $matchedAdminEarly = $spkId !== '' ? (int)($speakerAdmins[$spkId] ?? 0) : 0;
+            if ($matchedAdminEarly > 0) {
+                $lineCls .= ' is-speaker-staff';
+            }
             $attrs = '';
             if ($timeEnd > 0) {
                 $attrs = ' data-time-start="' . $timeStart . '" data-time-end="' . $timeEnd . '"';
+            }
+            if ($matchedAdminEarly > 0 && $spkId !== '') {
+                $attrs .= ' data-speaker="' . e($spkId) . '" data-speaker-role="staff"'
+                    . ' data-speaker-admin="' . $matchedAdminEarly . '"';
             }
             $timeLabel = $timeRaw;
             $absMode = !empty($opts['absolute_time']) && $dtRecorded > 0;
@@ -158,10 +190,27 @@ final class TranscriptHighlighter
                     . '→'
                     . date('H:i:s', $absEnd);
             }
+            $spkMark = '';
+            // Known matched staff: acronym only for *other* people on this record.
+            // Record owner → green bar (is-speaker-staff) without repeating their badge.
+            if ($spkId !== '') {
+                $matchedAdmin = (int)($speakerAdmins[$spkId] ?? 0);
+                $recordAdmin = max(0, (int)($opts['record_admin_id'] ?? 0));
+                if (
+                    $matchedAdmin > 0
+                    && ($recordAdmin < 1 || $matchedAdmin !== $recordAdmin)
+                    && class_exists('UsersRepository', false)
+                ) {
+                    $spkMark = ' <span class="transcript-speaker-tag is-known">'
+                        . UsersRepository::badgeHtml($matchedAdmin, true, true)
+                        . '</span>';
+                }
+            }
             $numHtml = $compact ? '' : '<span class="transcript-num">' . $num . '</span> ';
             $html .= '<div class="' . $lineCls . '"' . $attrs . '>'
                 . $numHtml
-                . '<span class="transcript-time">[' . e($timeLabel) . ']</span> '
+                . '<span class="transcript-time">[' . e($timeLabel) . ']</span>'
+                . $spkMark . ' '
                 . '<span class="transcript-text">' . $highlighted . '</span>'
                 . $ixMark
                 . '</div>';

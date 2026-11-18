@@ -148,6 +148,14 @@ PUSH_WAKE: Optional[threading.Event] = None
 # Push mode keeps serving results/acks while whisper-server is down (no SystemExit).
 WHISPER_DOWN = False
 WHISPER_DOWN_RETRY_SEC = 120
+# Post-ASR WeSpeaker diarization (workers/plugins/diarize).
+DIARIZE_ENABLED = True
+_DIARIZE_PROFILES_CACHE: Dict[str, Any] = {
+	"ts": 0.0,
+	"ready": False,
+	"profiles": [],
+	"match_cue": 0.48,
+}
 
 # Copy configs/example.json → configs/local.json (gitignored) and fill secrets.
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "configs" / "local.json"
@@ -196,6 +204,7 @@ def load_config(config_path: Path) -> None:
 	global LOOP_SLEEP_SECONDS_IDLE, LOOP_SLEEP_SECONDS_RUN, SLEEP_HOUR
 	global NOTIFY_SETTINGS, NOTIFY_WHISPER_DOWN, NOTIFY_RECOGNITION_SUMMARY, NOTIFY_NOVAD_FALLBACK
 	global PULL_ENABLED, PUSH_ENABLED, PUSH_CFG, PUSH_MAX_ATTEMPTS, PUSH_RETRY_DELAY_SEC
+	global DIARIZE_ENABLED
 
 	with open(config_path, "r", encoding="utf-8") as f:
 		cfg = json.load(f)
@@ -206,6 +215,8 @@ def load_config(config_path: Path) -> None:
 	PUSH_CFG = cfg.get("push") or {}
 	PUSH_MAX_ATTEMPTS = max(1, int(PUSH_CFG.get("max_attempts", 5)))
 	PUSH_RETRY_DELAY_SEC = float(PUSH_CFG.get("retry_delay_sec", 120))
+	diar = cfg.get("diarize") if isinstance(cfg.get("diarize"), dict) else {}
+	DIARIZE_ENABLED = bool(diar.get("enabled", True))
 
 	SERVER = str(cfg["server"]).rstrip("/")
 	FTPSERVER = str(cfg["ftp_server"]).rstrip("/")
@@ -1089,11 +1100,106 @@ def clear_pending_result(file_name: str) -> None:
 		pass
 
 
+def _diarize_server_state() -> Dict[str, Any]:
+	"""Cached GET /audio/asr/diarize-status — gate + profile vectors for cue match."""
+	now = time.time()
+	if now - float(_DIARIZE_PROFILES_CACHE["ts"]) < 60.0:
+		return {
+			"ready": bool(_DIARIZE_PROFILES_CACHE.get("ready")),
+			"profiles": list(_DIARIZE_PROFILES_CACHE.get("profiles") or []),
+			"match_cue": float(_DIARIZE_PROFILES_CACHE.get("match_cue") or 0.48),
+		}
+	ready = False
+	profiles: list = []
+	match_cue = 0.48
+	try:
+		r = requests.get(
+			f"{SERVER}/audio/asr/diarize-status",
+			headers=backend_headers(),
+			verify=TLS_VERIFY,
+			timeout=60,
+		)
+		if r.status_code < 300:
+			data = r.json() if r.text else {}
+			if isinstance(data, dict):
+				if data.get("diarize_enabled") is False:
+					ready = False
+				elif data.get("requires_profiles") is False:
+					ready = True
+				else:
+					ready = bool(data.get("profiles_ready"))
+				raw = data.get("profiles")
+				if isinstance(raw, list):
+					profiles = [p for p in raw if isinstance(p, dict)]
+				try:
+					match_cue = float(data.get("match_cue") or match_cue)
+				except (TypeError, ValueError):
+					pass
+	except Exception as e:
+		log("⚠️ Diarize status check failed:", e)
+		ready = False
+		profiles = []
+	_DIARIZE_PROFILES_CACHE["ts"] = now
+	_DIARIZE_PROFILES_CACHE["ready"] = ready
+	_DIARIZE_PROFILES_CACHE["profiles"] = profiles
+	_DIARIZE_PROFILES_CACHE["match_cue"] = match_cue
+	return {"ready": ready, "profiles": profiles, "match_cue": match_cue}
+
+
+def _diarize_profiles_ready() -> bool:
+	return bool(_diarize_server_state()["ready"])
+
+
+def maybe_diarize(audio_path: Path, transcription: str) -> Optional[Dict[str, Any]]:
+	"""Run WeSpeaker diarize when local+server enabled, models present, profiles ready."""
+	if not DIARIZE_ENABLED:
+		return None
+	state = _diarize_server_state()
+	if not state["ready"]:
+		return None
+	try:
+		diarize_root = CLIENT_ROOT.parent / "diarize"
+		if str(diarize_root) not in sys.path:
+			sys.path.insert(0, str(diarize_root))
+		from diarize.whisper_hook import try_diarize  # type: ignore
+
+		# Prefer diarize plugin local.json (CAM++ etc.) over whisper-side defaults.
+		diar_cfg_path = diarize_root / "configs" / "local.json"
+		diar_cfg: Dict[str, Any] = {}
+		if diar_cfg_path.is_file():
+			try:
+				raw = json.loads(diar_cfg_path.read_text(encoding="utf-8"))
+				if isinstance(raw, dict):
+					diar_cfg = raw
+			except Exception:
+				diar_cfg = {}
+
+		payload = try_diarize(
+			audio_path,
+			transcription=transcription,
+			config=diar_cfg,
+			profiles_ready=True,
+			profiles=list(state.get("profiles") or []),
+			match_cue=float(state.get("match_cue") or 0.48),
+		)
+		if payload:
+			log(
+				f"🎙 Diarize: speakers={len(payload.get('speakers') or [])} "
+				f"cues={len(payload.get('cue_speakers') or [])} "
+				f"dominant={payload.get('dominant_speaker')}"
+			)
+		return payload
+	except Exception as e:
+		log("⚠️ Diarize skipped:", e)
+		return None
+
+
 def upload_transcription(
 	file_name: str,
 	text: str,
 	playtime: Optional[float] = None,
 	volume: Optional[float] = None,
+	speakers: Optional[Dict[str, Any]] = None,
 ):
 	"""
 	POST transcript to FreeSaaS. Raises BackendUploadError unless the server
@@ -1110,6 +1216,11 @@ def upload_transcription(
 		data["PLAYTIME"] = str(max(1, int(round(playtime))))
 	if volume is not None:
 		data["VOLUME"] = f"{volume:.2f}".rstrip("0").rstrip(".")
+	if speakers:
+		data["speakers"] = json.dumps(speakers.get("speakers") or [], ensure_ascii=False)
+		data["segments"] = json.dumps(speakers.get("segments") or [], ensure_ascii=False)
+		data["cue_speakers"] = json.dumps(speakers.get("cue_speakers") or [], ensure_ascii=False)
+		data["dominant_speaker"] = str(speakers.get("dominant_speaker") or "")
 
 	last_err: Optional[BaseException] = None
 	for attempt in range(1, UPLOAD_RETRIES + 1):
@@ -1267,8 +1378,16 @@ def transcribe_upload_srt(
 	best = formatted
 
 	send = deliver or upload_transcription
+
+	def _deliver_with_diarize(text: str) -> None:
+		speakers_payload = maybe_diarize(audio_path, text)
+		try:
+			send(file_name, text, playtime, volume, speakers_payload)  # type: ignore[call-arg]
+		except TypeError:
+			send(file_name, text, playtime, volume)
+
 	if quality_ok(formatted):
-		send(file_name, best, playtime, volume)
+		_deliver_with_diarize(best)
 		return
 
 	retry_temps: list[float] = []
@@ -1312,7 +1431,7 @@ def transcribe_upload_srt(
 			elif custom_format_nonempty_line_count(best) <= 1:
 				log("ℹ️ После повторов по-прежнему одна строка — отправляем лучший из доступных прогонов.")
 
-	send(file_name, best, playtime, volume)
+	_deliver_with_diarize(best)
 
 
 def _on_whisper_unreachable(
@@ -1386,10 +1505,16 @@ def run_file(
 # ---------- Push mode ----------
 
 def push_deliver_for(job_id: str) -> Deliver:
-	def deliver(file_name: str, text: str, playtime: Optional[float], volume: Optional[float]) -> None:
+	def deliver(
+		file_name: str,
+		text: str,
+		playtime: Optional[float],
+		volume: Optional[float],
+		speakers: Optional[Dict[str, Any]] = None,
+	) -> None:
 		pt = effective_playtime(playtime, text)
 		pt_out = float(max(1, int(round(pt)))) if pt is not None and pt >= 1.0 else None
-		PUSH_STORE.finish(job_id, text, pt_out, volume)
+		PUSH_STORE.finish(job_id, text, pt_out, volume, speakers=speakers)
 		log(f"💾 push: результат сохранён локально ({Path(file_name).name}), ждёт подтверждения FreeSaaS")
 	return deliver
 
@@ -1543,7 +1668,7 @@ def main():
 		_STATUS_WRITER.update(
 			ok=True,
 			meta={"server": SERVER, "whisper": WHISPER_SERVER_BASE},
-			counters={"files_ok": 0, "files_err": 0},
+			counters={"files_req": 0, "files_ok": 0, "files_err": 0},
 		)
 		set_activity("idle", "boot")
 
@@ -1695,6 +1820,13 @@ def main():
 
 			full_url = f"{FTPSERVER}{filename}"
 			log(tl("log.got_file", name=filename))
+			# Lifetime claimed count (session files_ok still tracks the idle window).
+			prev_req = 0
+			try:
+				prev_req = int(((_STATUS_WRITER.data.get("counters") or {}) if _STATUS_WRITER else {}).get("files_req") or 0)
+			except Exception:
+				prev_req = 0
+			status_update(counters={"files_req": prev_req + 1})
 			base_name = Path(filename).name
 
 			file_done = False

@@ -6,11 +6,13 @@ declare(strict_types=1);
  * @var array<string,array{module:string,label:string,max_inflight:int}> $services
  * @var array<string,mixed>|null $once
  * @var array<string,string> $notify
+ * @var list<array{id?:string,title?:string,weight?:int,html:string}> $extra_sections
  */
 $hosts = is_array($hosts ?? null) ? $hosts : [];
 $services = is_array($services ?? null) ? $services : [];
 $once = is_array($once ?? null) ? $once : null;
 $notify = is_array($notify ?? null) ? $notify : EdgeHostsNotify::formValues();
+$extraSections = is_array($extra_sections ?? null) ? $extra_sections : [];
 $fmtTime = static function (int $ts): string {
     return $ts > 0 ? date('d.m H:i:s', $ts) : '—';
 };
@@ -34,6 +36,9 @@ $fmtTime = static function (int $ts): string {
   <p class="muted"><?= te('core.edge_hosts.tables_missing') ?></p>
 <?php else: ?>
 <form method="post" action="/edge-hosts">
+  <?php foreach ($extraSections as $sec): ?>
+    <?= $sec['html'] ?? '' ?>
+  <?php endforeach; ?>
   <?php if ($hosts !== []): ?>
   <div class="table-wrap">
     <table class="data-table">

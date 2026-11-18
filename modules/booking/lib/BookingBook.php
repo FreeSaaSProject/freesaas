@@ -189,26 +189,46 @@ final class BookingBook
             $payload = $before['payload'];
         }
 
-        $locked = BookingLock::withOperatorDay(
-            $operatorId,
-            $dtStart,
-            10,
-            static function () use ($productIds, $operatorId, $dtStart, $leadSec, $assertOpts, $payload): array {
-                BookingValidate::assertSlot(
-                    $productIds,
-                    $operatorId,
-                    $dtStart,
-                    null,
-                    false,
-                    $leadSec,
-                    null,
-                    $assertOpts
-                );
-                $orderId = OrdersRepository::create($payload);
-                $row = OrdersRepository::find($orderId);
-                return ['order_id' => $orderId, 'row' => $row];
-            }
-        );
+        $bookFn = static function () use ($productIds, $operatorId, $dtStart, $leadSec, $assertOpts, $payload): array {
+            return BookingLock::withOperatorDay(
+                $operatorId,
+                $dtStart,
+                10,
+                static function () use ($productIds, $operatorId, $dtStart, $leadSec, $assertOpts, $payload): array {
+                    BookingValidate::assertSlot(
+                        $productIds,
+                        $operatorId,
+                        $dtStart,
+                        null,
+                        false,
+                        $leadSec,
+                        null,
+                        $assertOpts
+                    );
+                    if (class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+                        $products = BookingAvailability::loadProducts($productIds);
+                        $probe = BookingSlots::check(
+                            $products,
+                            $operatorId,
+                            [],
+                            $dtStart,
+                            $dtStart + 86400
+                        );
+                        $duration = max(BookingSlots::INTERVAL_SEC, (int)$probe['totalTime']);
+                        ResourceBooking::assertWindow($productIds, $dtStart, $dtStart + $duration);
+                    }
+                    $orderId = OrdersRepository::create($payload);
+                    $row = OrdersRepository::find($orderId);
+                    if (is_array($row) && class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+                        ResourceBooking::syncOrder($row);
+                    }
+                    return ['order_id' => $orderId, 'row' => $row];
+                }
+            );
+        };
+        $locked = class_exists('ResourceBooking', false) && ResourceBooking::ready()
+            ? ResourceBooking::withDayLock($dtStart, $productIds, 10, $bookFn)
+            : $bookFn();
         if ($locked === null) {
             throw new RuntimeException(t('booking.err.lock_busy'));
         }

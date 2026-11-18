@@ -72,7 +72,11 @@ function render_comment_node(
       <span class="muted"><?= te('comments.hidden') ?></span>
     <?php endif; ?>
     <?php if ((int)($node['PRICE_OFFER'] ?? 0) > 0): ?>
-      <span class="pill tone-type"><?= (int)$node['PRICE_OFFER'] ?> ₽</span>
+      <?php
+      $sumPending = (int)($node['DT_WORK_ACCEPT'] ?? 0) < 1
+          && (int)($node['DT_FAIL'] ?? 0) < 1;
+      ?>
+      <span class="pill tone-type<?= $sumPending ? ' contract-sum-pending' : '' ?>"><?= (int)$node['PRICE_OFFER'] ?> ₽</span>
       <?php if ((int)($node['DT_DEADLINE'] ?? 0) > 0): ?>
         <span class="muted"><?= te('comments.until') ?> <?= e(I18n::formatDate((int)$node['DT_DEADLINE'], 'date')) ?></span>
       <?php endif; ?>

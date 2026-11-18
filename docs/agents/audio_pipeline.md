@@ -30,6 +30,8 @@ Permissions: `audio_pipeline.view`.
 | `base_asr_leases` | Owned by `audio_pipeline` |
 | `base_asr_push_workers` | Owned by `audio_pipeline`; legacy — rows copied into core `base_edge_hosts` (same IDs), no longer read |
 
+Speaker diarization / voice enrollment tables live in module **`audio_diarize`** (soft couple: ASR saves speakers only when that module is enabled).
+
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
 Stem writes `base_records.KEY_TYPES` (legacy name) as a dict-hit chip blob — see [`audio.md`](audio.md) § `KEY_TYPES`. Do not derive chips from `base_records_instances` on list/read.
@@ -129,7 +131,8 @@ Handoff for updating an external Mac/Whisper pull worker and post-ASR parse.
 ### Claim / result
 
 - Claim response: **plain text** filename or `None`. Optional `?format=json` → `{"ok":true,"claim":"…"}`.
-- Result POST fields: `file_name`, `result`; optional `PLAYTIME`, `VOLUME`.
+- Result POST fields: `file_name`, `result`; optional `PLAYTIME`, `VOLUME`; optional diarize side-channel `speakers`, `segments`, `cue_speakers`, `dominant_speaker` (JSON strings) — applied only when module **`audio_diarize`** is enabled.
+- Standalone diarize/embed worker routes (`/audio/asr/diarize-*`, `/audio/asr/embed-sample-*`), voice profiles UI, and cron `audio_diarize.speakers_day` / `audio_diarize.push` belong to **`audio_diarize`** (edge plugin `workers/plugins/diarize`, WeSpeaker CAM++). Enable that module for enrollment and file-diarize; ASR/ingest/stem keep working without it.
 - Result save for a **past** day (`DT_RECORDED` before today, within `LOOKBACK_DAYS`) enqueues that day with `not_before = now + late_stem_delay_sec` (`cfg/modules/audio.ini` `[audio]`, default 3600); diag line shows `STEM_QUEUED=YYYY-MM-DD`. Further results for the same day merge into the same job and do **not** postpone it (earliest `not_before` wins). Why deferred: when a day drains, collect for all staff of the day + staff report publish (quality per employee, reward contract, gratitude board, optional cyclic LLM) run — too heavy to repeat every 5 min while uploads trickle in. Today's records are left to the Whisper idle ping; older than lookback: calendar Re-®.
 - Queue jobs carry `not_before` (0 = next tick). `drainStem` takes the first **due** job in order; if only deferred jobs remain the cron journal shows `stem_deferred`.
 - ASR claim/result are **not** part of `/cron/tick` — the Whisper worker polls FreeSaaS itself (pull channel).

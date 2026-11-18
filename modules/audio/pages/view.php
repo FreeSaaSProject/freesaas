@@ -5,6 +5,13 @@ $wantsJson = AgentHttp::wantsJson();
 
 require_once base_path('modules/audio/lib/RecordsRepository.php');
 require_once base_path('modules/audio/lib/TranscriptHighlighter.php');
+if (
+    ModuleManager::isEnabled('audio_diarize')
+    && is_file(base_path('modules/audio_diarize/lib/SpeakerService.php'))
+) {
+    require_once base_path('modules/audio_diarize/lib/SpeakerEmbedding.php');
+    require_once base_path('modules/audio_diarize/lib/SpeakerService.php');
+}
 
 $id = (int)Router::param('id');
 $flash = '';
@@ -49,10 +56,22 @@ if (!(class_exists('DemoMode', false) && DemoMode::readonly()) && $rel !== '') {
 
 $instances = RecordsRepository::instancesForRecords([$id]);
 $trash = RecordsRepository::trashPhrases();
+$speakerRows = [];
+$speakerOpts = [
+    'cue_speakers' => [],
+    'speaker_roles' => [],
+    'speaker_admins' => [],
+];
+if (class_exists('SpeakerService', false)) {
+    $speakerRows = SpeakerService::speakersForRecord($id);
+    $speakerOpts = SpeakerService::highlightOptsForRecord($id, (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0));
+}
 $transcript = TranscriptHighlighter::render(
     (string)($row['transcription'] ?? ''),
     $instances,
-    $trash
+    $trash,
+    '',
+    $speakerOpts
 );
 $dictMeta = RecordsRepository::dictMetaMap();
 $keyDicts = TranscriptHighlighter::parseKeyDicts(isset($row['key_dicts']) ? (string)$row['key_dicts'] : null);
@@ -86,4 +105,5 @@ View::render('view', [
     'instances' => $instances,
     'dictMeta' => $dictMeta,
     'keyDicts' => $keyDicts,
+    'speakers' => $speakerRows,
 ], 'layout', 'audio');

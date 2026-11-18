@@ -359,6 +359,10 @@ final class EventsRepository
             (int)$data['dtend'],
             $existing !== null ? (int)($existing['id'] ?? 0) : 0
         );
+        self::assertResourcesFree(
+            $data,
+            $existing !== null ? (int)($existing['id'] ?? 0) : 0
+        );
     }
 
     /**
@@ -428,6 +432,7 @@ final class EventsRepository
             (int)$data['dtend'],
             0
         );
+        self::assertResourcesFree($data, 0);
 
         $now = time();
         $isBlock = !empty($data['is_block']) ? 1 : 0;
@@ -459,6 +464,15 @@ final class EventsRepository
         } else {
             EventItemsRepository::replaceItems($id, $items);
         }
+        if (class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+            ResourceBooking::syncEvent([
+                'id' => $id,
+                'dtstart' => (int)$data['dtstart'],
+                'dtend' => (int)$data['dtend'],
+                'is_block' => $isBlock,
+                'enabled' => $isBlock ? 0 : 1,
+            ], $isBlock ? [] : $items);
+        }
         return $id;
     }
 
@@ -483,6 +497,7 @@ final class EventsRepository
             (int)$data['dtend'],
             $id
         );
+        self::assertResourcesFree($data, $id);
 
         $oldStart = (int)($old['dtstart'] ?? 0);
         $newStart = (int)$data['dtstart'];
@@ -526,6 +541,15 @@ final class EventsRepository
                 $newUser > 0 && $newUser !== $oldUser ? $newUser : null
             );
         }
+        if (class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+            ResourceBooking::syncEvent([
+                'id' => $id,
+                'dtstart' => (int)$data['dtstart'],
+                'dtend' => (int)$data['dtend'],
+                'is_block' => $isBlock,
+                'enabled' => $isBlock ? 0 : 1,
+            ], $isBlock ? [] : $items);
+        }
     }
 
     public static function delete(int $id): void
@@ -542,6 +566,9 @@ final class EventsRepository
             EventBonusRepository::deleteByEvent($id);
         }
         Database::pdo()->prepare('DELETE FROM base_events WHERE ID = ?')->execute([$id]);
+        if (class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
+            ResourceBooking::release(ResourceAllocationsRepository::SOURCE_EVENT, $id);
+        }
     }
 
     public static function touch(int $id): void
@@ -550,6 +577,42 @@ final class EventsRepository
             return;
         }
         Database::pdo()->prepare('UPDATE base_events SET DTUPDATE = ? WHERE ID = ?')->execute([time(), $id]);
+    }
+
+    /**
+     * Shared resources (equipment) for visit basket — soft dep on resources module.
+     *
+     * @param array<string,mixed> $data
+     */
+    private static function assertResourcesFree(array $data, int $excludeEventId = 0): void
+    {
+        if (!class_exists('ResourceBooking', false) || !ResourceBooking::ready()) {
+            return;
+        }
+        if (!empty($data['is_block'])) {
+            return;
+        }
+        $dtStart = (int)($data['dtstart'] ?? 0);
+        $dtEnd = (int)($data['dtend'] ?? 0);
+        if ($dtStart < 1 || $dtEnd <= $dtStart) {
+            return;
+        }
+        $productIds = [];
+        $items = is_array($data['items'] ?? null) ? $data['items'] : [];
+        foreach ($items as $it) {
+            if (!is_array($it)) {
+                continue;
+            }
+            $pid = (int)($it['id_good'] ?? $it['id'] ?? 0);
+            if ($pid > 0) {
+                $productIds[] = $pid;
+            }
+        }
+        if ($productIds === []) {
+            return;
+        }
+        $ex = ResourceBooking::excludeFrom(null, null, $excludeEventId > 0 ? $excludeEventId : null);
+        ResourceBooking::assertWindow($productIds, $dtStart, $dtEnd, $ex !== [] ? $ex : null);
     }
 
     /**

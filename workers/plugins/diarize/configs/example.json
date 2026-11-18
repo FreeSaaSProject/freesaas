@@ -1,0 +1,58 @@
+{
+  "server": "https://freesaas.example.tld",
+  "ftp_server": "https://files.example.tld",
+  "worker_token": "CHANGE_ME",
+  "tls": {
+    "verify": true,
+    "ca_bundle": "",
+    "upload_retries": 3,
+    "upload_retry_sleep_sec": 2.0
+  },
+  "mode": "auto",
+  "modes": {
+    "pull": false,
+    "push": true,
+    "comment": "Default push-only (same policy as ASR on shared hosting). FreeSaaS asr_push_enabled + edge-host service «diarize». Set pull=true only for labs without gateway."
+  },
+  "push": {
+    "worker_name": "diarize",
+    "db": "var/push/queue.db",
+    "capacity": 40,
+    "max_unacked": 1000,
+    "max_attempts": 5,
+    "retry_delay_sec": 120
+  },
+  "endpoints": {
+    "claim": "/audio/asr/diarize-claim",
+    "save": "/audio/asr/diarize-result",
+    "status": "/audio/asr/diarize-status",
+    "embed_claim": "/audio/asr/embed-sample-claim",
+    "embed_save": "/audio/asr/embed-sample-result"
+  },
+  "model": {
+    "backend": "onnx",
+    "onnx": "models/voxceleb_CAM++_LM.onnx",
+    "mlx_dir": "models/mlx",
+    "sample_rate": 16000,
+    "window_sec": 1.5,
+    "hop_sec": 0.75,
+    "min_speech_sec": 0.4,
+    "cluster_threshold": 0.35,
+    "max_speakers": 4,
+    "vad_rms_db": -42.0,
+    "threads": 2,
+    "match_cue": 0.48,
+    "comment": "Default: CAM++-LM ONNX 512-d. backend=mlx only for ResNet34 weights.npz (no CAM++ MLX yet)."
+  },
+  "filter": {
+    "day": "",
+    "admin": 0,
+    "lookback": 3,
+    "comment": "Restrict claim: day=YYYY-MM-DD and/or admin id; lookback days when day empty (default 3). Claim prefers ID_ADMIN>0 for enrollment."
+  },
+  "loop": {
+    "sleep_seconds_idle": 120,
+    "sleep_seconds_run": 1
+  },
+  "comment": "Standalone enricher for records that already have ASR but no speakers. Whisper can also call diarize.engine locally after SRT."
+}

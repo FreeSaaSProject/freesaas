@@ -408,6 +408,10 @@
   cursor: pointer;
 }
 
+.transcript-line.is-voice-pick {
+  background: rgba(14, 116, 144, 0.12);
+  outline: 1px solid rgba(14, 116, 144, 0.35);
+}
 .transcript-line.is-active,
 .transcript-line-active {
   background: rgba(37, 99, 235, 0.18) !important;
@@ -440,6 +444,58 @@
 .transcript-line.is-intersect .transcript-text {
   background: #ffc0cb;
   color: #000;
+}
+
+.transcript-speaker-tag {
+  font-size: 0.75em;
+  font-weight: 600;
+  margin-left: 0.15rem;
+  color: #64748b;
+}
+.transcript-speaker-tag.is-known {
+  background: transparent;
+  padding: 0;
+  border: 0;
+  color: inherit;
+}
+.transcript-speaker-tag.is-known .user-badge {
+  font-size: inherit;
+  vertical-align: baseline;
+}
+
+.transcript-line.is-speaker-staff {
+  border-left: 3px solid #0f766e;
+  padding-left: 0.25rem;
+}
+
+.transcript-line.is-speaker-staff .transcript-speaker-tag {
+  color: #0f766e;
+}
+
+.transcript-line.is-speaker-other {
+  border-left: 3px solid #a16207;
+  padding-left: 0.25rem;
+}
+
+.transcript-line.is-speaker-other .transcript-speaker-tag {
+  color: #a16207;
+}
+
+.audio-speakers-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.audio-speakers-list li.is-staff {
+  color: #0f766e;
+}
+
+.audio-speakers-list li.is-other {
+  color: #a16207;
 }
 
 .transcript-intersect-tag {
@@ -500,6 +556,16 @@
 .add-key-status {
   font-size: 0.72rem;
   color: #555;
+}
+
+.add-key-voice-range {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.add-key-voice-meta {
+  margin-top: 0.15rem;
 }
 
 .add-key-warnings {

@@ -478,9 +478,32 @@ $playHms = RecordsRepository::formatHms((int)$pageStats['playtime']);
   <?php endif; ?>
 </section>
 
+<?php
+$voiceEnrollment = $canEdit
+    && ModuleManager::isEnabled('audio_diarize')
+    && Auth::can('audio_diarize.edit');
+$voiceI18n = $voiceEnrollment ? [
+    'voiceEnrollment' => true,
+    'voiceSample' => t('audio_diarize.voice_sample.add'),
+    'voiceStaff' => t('audio_diarize.voice_sample.staff'),
+    'voiceNoStaff' => t('audio_diarize.voice_sample.err.no_staff'),
+    'voiceRange' => t('audio_diarize.voice_sample.range'),
+    'voiceHintSpan' => t('audio_diarize.voice_sample.hint_span'),
+    'voiceProgress' => t('audio_diarize.voice_sample.progress'),
+    'voiceProgressExtra' => t('audio_diarize.voice_sample.progress_extra'),
+    'voiceNeedTimes' => t('audio_diarize.voice_sample.err.range'),
+    'voiceMinSec' => 3,
+    'voiceMaxSec' => 120,
+    'voiceChecking' => t('audio_diarize.voice_sample.checking'),
+    'voiceDurOk' => t('audio_diarize.voice_sample.dur_ok'),
+    'voiceDurShort' => t('audio_diarize.voice_sample.dur_short'),
+    'voiceDurLong' => t('audio_diarize.voice_sample.dur_long'),
+    'voiceDuplicate' => t('audio_diarize.voice_sample.err.duplicate'),
+] : ['voiceEnrollment' => false];
+?>
 <?php if ($dictsOn && $canEdit): ?>
 <script>
-window.AudioListI18n = <?= json_encode([
+window.AudioListI18n = <?= json_encode(array_merge([
     'key' => t('audio.popover.key'),
     'dict' => t('audio.popover.dict'),
     'addKey' => t('audio.popover.add_key'),
@@ -505,16 +528,47 @@ window.AudioListI18n = <?= json_encode([
     'lazyLoading' => t('audio.lazy.loading'),
     'lazyError' => t('audio.lazy.error'),
     'trashTitle' => t('audio.transcript.trash_count', ['n' => '{n}']),
-], JSON_UNESCAPED_UNICODE) ?>;
+], $voiceI18n), JSON_UNESCAPED_UNICODE) ?>;
 </script>
 <script type="application/json" id="audio-key-dicts"><?= json_encode($keyDictOptions, JSON_UNESCAPED_UNICODE) ?></script>
 <script type="application/json" id="audio-key-dicts-by-admin"><?= json_encode($keyDictsByAdmin, JSON_UNESCAPED_UNICODE) ?></script>
 <?php else: ?>
 <script>
-window.AudioListI18n = <?= json_encode([
+window.AudioListI18n = <?= json_encode(array_merge([
+    'cancel' => t('core.common.cancel'),
+    'error' => t('audio.api.error'),
+    'network' => t('audio.api.network'),
+    'done' => t('audio.api.done'),
     'lazyLoading' => t('audio.lazy.loading'),
     'lazyError' => t('audio.lazy.error'),
     'trashTitle' => t('audio.transcript.trash_count', ['n' => '{n}']),
-], JSON_UNESCAPED_UNICODE) ?>;
+], $voiceI18n), JSON_UNESCAPED_UNICODE) ?>;
 </script>
+<?php endif; ?>
+
+<?php if ($voiceEnrollment):
+  $diarizeDay = ($year > 0 && $month > 0 && $day > 0)
+    ? sprintf('%04d-%02d-%02d', $year, $month, $day)
+    : '';
+?>
+<?= View::capture('_longjob_panel', [
+    'longjobId' => 'audio-diarize',
+    'longjobTitle' => t('audio_diarize.diarize.title'),
+    'longjobDualBars' => false,
+    'longjobShowBytes' => false,
+]) ?>
+<div id="audio-diarize-boot" hidden
+     data-csrf="<?= e(class_exists('Csrf', false) ? Csrf::token() : '') ?>"
+     data-day="<?= e($diarizeDay) ?>"
+     data-i18n="<?= e(json_encode([
+         'confirm' => t('audio_diarize.bulk.confirm_queue_diarize'),
+         'busy' => t('audio_diarize.bulk.diarize_busy'),
+         'empty' => t('audio_diarize.bulk.diarize_empty'),
+         'starting' => t('core.longjob.starting'),
+         'badJson' => t('core.longjob.bad_json'),
+         'doneTitle' => t('core.longjob.done_title'),
+         'errorTitle' => t('core.longjob.error_title'),
+         'cancelledTitle' => t('core.longjob.cancelled_title'),
+         'ok' => t('core.longjob.ok'),
+     ], JSON_UNESCAPED_UNICODE)) ?>"></div>
 <?php endif; ?>

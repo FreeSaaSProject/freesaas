@@ -2654,6 +2654,16 @@ table.data tr.is-disabled td a {
 .comment-meta .contract-curator {
   font-size: 0.86rem;
 }
+/* Offer sum before work accept — hard to miss in the thread */
+.comment-meta .pill.contract-sum-pending {
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  padding: 0.18rem 0.55rem;
+  background: color-mix(in srgb, var(--warn) 32%, transparent);
+  color: var(--warn);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--warn) 55%, transparent);
+}
 .contract-curator {
   display: inline-flex;
   flex-wrap: nowrap;

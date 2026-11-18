@@ -225,10 +225,16 @@ final class AsrService
     }
 
     /**
+     * @param array<string,mixed>|null $speakersPayload optional diarize side-channel
      * @return array{ok:bool|string,diag:string}
      */
-    public static function saveResult(string $fileName, string $result, ?string $playtime, ?string $volume): array
-    {
+    public static function saveResult(
+        string $fileName,
+        string $result,
+        ?string $playtime,
+        ?string $volume,
+        ?array $speakersPayload = null
+    ): array {
         $fileName = trim($fileName);
         $result = trim($result);
         if ($fileName === '' || !Database::tableExists('base_records')) {
@@ -245,6 +251,18 @@ final class AsrService
         $dtTrans = (int)$row['DT_TRANSCRIBED'];
         if ($dtTrans > 1) {
             // First result wins across pull/push workers; ack so the late worker drops its copy.
+            // Speakers may still arrive later via /audio/asr/diarize-result.
+            if (
+                $speakersPayload !== null
+                && class_exists('SpeakerService', false)
+                && SpeakerService::diarizeEnabled()
+            ) {
+                $spk = SpeakerService::saveForRecord((int)$row['ID'], $speakersPayload);
+                if (AsrLease::available()) {
+                    AsrLease::releaseRecord((int)$row['ID']);
+                }
+                return ['ok' => true, 'diag' => 'DUPLICATE_IGNORED=1 ' . ($spk['diag'] ?? '')];
+            }
             if (AsrLease::available()) {
                 AsrLease::releaseRecord((int)$row['ID']);
             }
@@ -317,6 +335,33 @@ final class AsrService
         if ($ok && $dtTrans !== 1 && AsrLease::available()) {
             AsrLease::releaseRecord((int)$row['ID']);
         }
+        if (
+            $ok
+            && $speakersPayload !== null
+            && class_exists('SpeakerService', false)
+            && SpeakerService::diarizeEnabled()
+        ) {
+            $spk = SpeakerService::saveForRecord((int)$row['ID'], $speakersPayload);
+            $diag .= ' ' . ($spk['diag'] ?? '');
+        } elseif (
+            $ok
+            && $dtTrans !== 1
+            && $speakersPayload === null
+            && $result !== ''
+            && ModuleManager::isEnabled('audio_diarize')
+            && class_exists('SpeakerService', false)
+            && SpeakerService::diarizeEnabled()
+            && !(SpeakerService::diarizeRequiresProfiles() && !SpeakerService::hasReadyProfiles())
+            && class_exists('DiarizeLease', false)
+            && DiarizeLease::requestsAvailable()
+        ) {
+            // Next step after ASR: explicit file-diarize request (not history lookback).
+            DiarizeLease::requestFiles([(int)$row['ID']], DiarizeLease::SOURCE_ASR);
+            if (class_exists('DiarizePushDispatcher', false)) {
+                DiarizePushDispatcher::afterQueueChange();
+            }
+            $diag .= ' DIARIZE_QUEUED=1';
+        }
         if ($ok && $dtTrans !== 1) {
             $queuedDay = self::enqueueStemForRecordDay((int)($row['DT_RECORDED'] ?? 0));
             if ($queuedDay !== '') {
@@ -324,6 +369,86 @@ final class AsrService
             }
         }
         return ['ok' => $ok, 'diag' => $diag];
+    }
+
+    /**
+     * Claim next explicitly requested file for standalone diarize worker (pull).
+     * Only rows in base_diarize_requests — no auto lookback of undiarized history.
+     * Optional filters: day=YYYY-MM-DD, admin=ID (narrow the request queue).
+     *
+     * @return array{file_name:string,transcription:string,id:int}|null
+     */
+    public static function claimDiarize(?string $day = null, int $adminId = 0, int $lookbackDays = 3): ?array
+    {
+        unset($lookbackDays);
+        if (
+            !Database::tableExists('base_records')
+            || !Database::tableExists('base_records_speakers')
+            || !Database::tableExists('base_diarize_requests')
+        ) {
+            return null;
+        }
+        if (class_exists('SpeakerService', false) && !SpeakerService::diarizeEnabled()) {
+            return null;
+        }
+        if (
+            class_exists('SpeakerService', false)
+            && SpeakerService::diarizeRequiresProfiles()
+            && !SpeakerService::hasReadyProfiles()
+        ) {
+            return null;
+        }
+        $pdo = Database::pdo();
+        $where = [
+            'r.DT_TRANSCRIBED > 1',
+            'r.DISABLED < 1',
+            "r.FILENAME <> ''",
+            's.ID IS NULL',
+        ];
+        $params = [];
+        $day = $day !== null ? trim($day) : '';
+        if ($day !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+            $from = strtotime($day . ' 00:00:00');
+            $to = strtotime($day . ' 23:59:59');
+            if ($from !== false && $to !== false) {
+                $where[] = 'r.DT_RECORDED >= ?';
+                $where[] = 'r.DT_RECORDED <= ?';
+                $params[] = $from;
+                $params[] = $to;
+            }
+        }
+        if ($adminId > 0) {
+            $where[] = 'r.ID_ADMIN = ?';
+            $params[] = $adminId;
+        }
+        if (
+            class_exists('SpeakerService', false)
+            && SpeakerService::diarizeRequiresProfiles()
+            && Database::tableExists('base_records_speaker_profiles')
+        ) {
+            $where[] = '(r.ID_ADMIN < 1 OR EXISTS (
+                SELECT 1 FROM base_records_speaker_profiles p
+                WHERE p.ID_ADMIN = r.ID_ADMIN AND p.EMBEDDING_DIM > 0
+            ))';
+        }
+        $sql = 'SELECT r.ID, r.FILENAME, r.TRANSCRIPTION
+                FROM base_diarize_requests q
+                INNER JOIN base_records r ON r.ID = q.ID_RECORD
+                LEFT JOIN base_records_speakers s ON s.ID_RECORD = r.ID
+                WHERE ' . implode(' AND ', $where) . '
+                ORDER BY q.DT_REQUESTED ASC, r.ID ASC
+                LIMIT 1';
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+        return [
+            'id' => (int)$row['ID'],
+            'file_name' => (string)$row['FILENAME'],
+            'transcription' => (string)($row['TRANSCRIPTION'] ?? ''),
+        ];
     }
 
     /** Delay before a late past-day result triggers that day's collect + publish. */

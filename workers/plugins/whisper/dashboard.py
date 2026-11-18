@@ -78,6 +78,7 @@ def render_html(snap: Dict[str, Any], ctx: Dict[str, Any]) -> str:
     health_txt = "up" if h.get("ok") else "DOWN"
     modes = snap.get("modes") or {}
     push = snap.get("push") or {}
+    counters = (st.get("counters") if isinstance(st.get("counters"), dict) else {}) or {}
     push_html = ""
     if modes.get("push"):
         last = int(push.get("last_contact") or 0)
@@ -98,6 +99,11 @@ def render_html(snap: Dict[str, Any], ctx: Dict[str, Any]) -> str:
   · pending {_esc(snap.get('pending'))}
   · stem_timeout {_esc(snap.get('stem_timeout'))}s
   <button type="button" data-act="restart_whisper_server" data-plugin="whisper">Restart server</button>
+</div>
+<div class="muted" style="margin-top:2px">
+  requested {_esc(counters.get('files_req', 0))}
+  · processed {_esc(counters.get('files_ok', 0))}
+  · err {_esc(counters.get('files_err', 0))}
 </div>
 <div class="activity" style="margin-top:4px"><span class="phase">{_esc(act.get('phase'))}</span>
   <span class="muted">{_esc(act.get('detail'))}</span></div>
