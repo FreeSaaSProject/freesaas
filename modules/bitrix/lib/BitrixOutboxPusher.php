@@ -80,6 +80,8 @@ final class BitrixOutboxPusher
             if ($method === '') {
                 return;
             }
+            // Category is set on add only; Bitrix moves deals between funnels separately.
+            unset($fields['CATEGORY_ID']);
             $res = BitrixApiClient::call($method, ['id' => $ext, 'fields' => $fields]);
             if (!$res['ok']) {
                 throw new RuntimeException((string)($res['error'] ?? 'update failed'));

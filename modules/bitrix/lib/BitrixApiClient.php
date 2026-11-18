@@ -9,6 +9,30 @@ final class BitrixApiClient
      */
     public static function call(string $method, array $params = []): array
     {
+        // Retry transient failures (network, non-JSON gateway pages, Bitrix rate limit).
+        for ($attempt = 1; ; $attempt++) {
+            $res = self::callOnce($method, $params);
+            $err = (string)($res['error'] ?? '');
+            $transient = !$res['ok'] && (
+                (int)($res['http'] ?? 0) >= 500
+                || $err === 'invalid json'
+                || str_contains((string)($res['raw'] ?? ''), 'QUERY_LIMIT_EXCEEDED')
+                || str_starts_with($err, 'curl')
+                || (int)($res['http'] ?? 0) === 0
+            );
+            if ($res['ok'] || !$transient || $attempt >= 3 || !BitrixConfig::apiReady()) {
+                return $res;
+            }
+            sleep($attempt * 2);
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $params
+     * @return array{ok:bool,result?:mixed,error?:string,http?:int,raw?:string}
+     */
+    private static function callOnce(string $method, array $params): array
+    {
         if (!BitrixConfig::apiReady()) {
             return ['ok' => false, 'error' => 'rest_url not configured'];
         }

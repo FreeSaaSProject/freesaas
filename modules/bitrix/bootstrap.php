@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/BitrixSyncStateRepository.php';
 require_once __DIR__ . '/lib/BitrixOutboxRepository.php';
 require_once __DIR__ . '/lib/BitrixWebhookEventsRepository.php';
 require_once __DIR__ . '/lib/BitrixApiClient.php';
+require_once __DIR__ . '/lib/BitrixPipelineMap.php';
 require_once __DIR__ . '/lib/BitrixImporter.php';
 require_once __DIR__ . '/lib/BitrixLongJob.php';
 require_once __DIR__ . '/lib/BitrixOutboxPusher.php';
@@ -116,11 +117,22 @@ Cron::register('bitrix.import_contacts', [
         if (!BitrixConfig::pullEnabled()) {
             return ['ok' => true, 'skipped' => 1, 'message' => 'pull disabled'];
         }
-        $r = BitrixImporter::run('contact', false);
+        // Incremental pull (rows changed since the last complete run). Companies and contacts
+        // first so deals/leads can link them. Without crm only contacts are pulled.
+        $entities = ModuleManager::isEnabled('crm') ? ['company', 'contact', 'lead', 'deal'] : ['contact'];
+        $ok = true;
+        $processed = 0;
+        $parts = [];
+        foreach ($entities as $entity) {
+            $r = BitrixImporter::run($entity, false, true);
+            $ok = $ok && !empty($r['ok']);
+            $processed += (int)($r['created'] ?? 0) + (int)($r['updated'] ?? 0) + (int)($r['linked'] ?? 0);
+            $parts[] = $entity . '=' . (!empty($r['ok']) ? (int)($r['fetched'] ?? 0) : (string)($r['error'] ?? 'error'));
+        }
         return [
-            'ok' => !empty($r['ok']),
-            'processed' => (int)($r['created'] ?? 0) + (int)($r['updated'] ?? 0),
-            'message' => (string)($r['error'] ?? ('fetched=' . (int)($r['fetched'] ?? 0))),
+            'ok' => $ok,
+            'processed' => $processed,
+            'message' => implode(' ', $parts),
         ];
     },
 ]);
