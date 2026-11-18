@@ -24,6 +24,7 @@ final class SpeakerSamplesRepository
 
     /**
      * Staff for voice-profiles catalog: records in the last N days, or anyone with samples.
+     * Two cheap DISTINCT queries (no OR EXISTS full scan of base_records) + batched counts/profiles.
      *
      * @return list<array{
      *   id_admin:int,admin_name:string,manual_count:int,diarize_count:int,
@@ -38,50 +39,63 @@ final class SpeakerSamplesRepository
         }
         $recentDays = max(1, min(3650, $recentDays));
         $since = time() - ($recentDays * 86400);
-        $samplesOk = self::available();
-        $sql = 'SELECT r.ID_ADMIN AS id_admin, COALESCE(u.NAME, \'\') AS admin_name,
-                       COUNT(*) AS record_count
-                FROM base_records r
-                LEFT JOIN base_users u ON u.ID = r.ID_ADMIN
-                WHERE r.ID_ADMIN > 0
-                  AND (r.DISABLED IS NULL OR r.DISABLED < 1)
-                  AND (
-                    r.DT_RECORDED >= ?
-                    OR EXISTS (
-                      SELECT 1 FROM base_records_speaker_samples s
-                      WHERE s.ID_ADMIN = r.ID_ADMIN
-                    )
-                  )
-                GROUP BY r.ID_ADMIN, u.NAME
-                ORDER BY admin_name ASC, r.ID_ADMIN ASC';
-        if (!$samplesOk) {
-            $sql = 'SELECT r.ID_ADMIN AS id_admin, COALESCE(u.NAME, \'\') AS admin_name,
-                           COUNT(*) AS record_count
-                    FROM base_records r
-                    LEFT JOIN base_users u ON u.ID = r.ID_ADMIN
-                    WHERE r.ID_ADMIN > 0
-                      AND (r.DISABLED IS NULL OR r.DISABLED < 1)
-                      AND r.DT_RECORDED >= ?
-                    GROUP BY r.ID_ADMIN, u.NAME
-                    ORDER BY admin_name ASC, r.ID_ADMIN ASC';
-        }
-        $st = Database::pdo()->prepare($sql);
+        $pdo = Database::pdo();
+        $ids = [];
+
+        // Indexed range on DT_RECORDED — avoid OR EXISTS that forces ALL scan of ~all partitions.
+        $st = $pdo->prepare(
+            'SELECT DISTINCT r.ID_ADMIN AS id_admin
+             FROM base_records r
+             WHERE r.ID_ADMIN > 0
+               AND (r.DISABLED IS NULL OR r.DISABLED < 1)
+               AND r.DT_RECORDED >= ?'
+        );
         $st->execute([$since]);
-        $out = [];
-        $seen = [];
         while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-            $adminId = (int)$row['id_admin'];
-            if ($adminId < 1 || isset($seen[$adminId])) {
-                continue;
+            $id = (int)$row['id_admin'];
+            if ($id > 0) {
+                $ids[$id] = true;
             }
-            $seen[$adminId] = true;
-            $counts = self::countsForAdmin($adminId);
-            $profile = class_exists('SpeakerProfilesRepository', false)
-                ? SpeakerProfilesRepository::findByAdmin($adminId)
-                : null;
+        }
+
+        if (self::available()) {
+            $st2 = $pdo->query(
+                'SELECT DISTINCT ID_ADMIN AS id_admin
+                 FROM base_records_speaker_samples
+                 WHERE ID_ADMIN > 0'
+            );
+            while ($row = $st2->fetch(PDO::FETCH_ASSOC)) {
+                $id = (int)$row['id_admin'];
+                if ($id > 0) {
+                    $ids[$id] = true;
+                }
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $adminIds = array_keys($ids);
+        $names = self::adminNamesMap($adminIds);
+        $countsBy = self::countsMapForAdmins($adminIds);
+        $profilesBy = [];
+        if (class_exists('SpeakerProfilesRepository', false) && SpeakerProfilesRepository::available()) {
+            $profilesBy = self::profilesMetaMap($adminIds);
+        }
+
+        $out = [];
+        foreach ($adminIds as $adminId) {
+            $counts = $countsBy[$adminId] ?? [
+                'manual' => 0,
+                'diarize' => 0,
+                'pending_manual' => 0,
+                'talk_sec_manual' => 0.0,
+            ];
+            $profile = $profilesBy[$adminId] ?? null;
             $out[] = [
                 'id_admin' => $adminId,
-                'admin_name' => (string)$row['admin_name'],
+                'admin_name' => $names[$adminId] ?? ('#' . $adminId),
                 'manual_count' => $counts['manual'],
                 'diarize_count' => $counts['diarize'],
                 'pending_embed' => $counts['pending_manual'],
@@ -93,44 +107,106 @@ final class SpeakerSamplesRepository
                 'profile_updated' => (int)($profile['dt_update'] ?? 0),
             ];
         }
-        // Staff who only have samples (no enabled records in window) — already covered by EXISTS.
-        // Also include sample-only admins if their records are all disabled/old but samples exist:
-        if ($samplesOk) {
-            $st2 = Database::pdo()->query(
-                'SELECT DISTINCT s.ID_ADMIN AS id_admin, COALESCE(u.NAME, \'\') AS admin_name
-                 FROM base_records_speaker_samples s
-                 LEFT JOIN base_users u ON u.ID = s.ID_ADMIN
-                 WHERE s.ID_ADMIN > 0
-                 ORDER BY admin_name ASC, s.ID_ADMIN ASC'
-            );
-            while ($row = $st2->fetch(PDO::FETCH_ASSOC)) {
-                $adminId = (int)$row['id_admin'];
-                if ($adminId < 1 || isset($seen[$adminId])) {
-                    continue;
-                }
-                $seen[$adminId] = true;
-                $counts = self::countsForAdmin($adminId);
-                $profile = class_exists('SpeakerProfilesRepository', false)
-                    ? SpeakerProfilesRepository::findByAdmin($adminId)
-                    : null;
-                $out[] = [
-                    'id_admin' => $adminId,
-                    'admin_name' => (string)$row['admin_name'],
-                    'manual_count' => $counts['manual'],
-                    'diarize_count' => $counts['diarize'],
-                    'pending_embed' => $counts['pending_manual'],
-                    'talk_sec_manual' => $counts['talk_sec_manual'],
-                    'has_profile' => $profile !== null && (int)($profile['embedding_dim'] ?? 0) > 0,
-                    'profile_dim' => (int)($profile['embedding_dim'] ?? 0),
-                    'profile_samples' => (int)($profile['sample_count'] ?? 0),
-                    'profile_talk' => (float)($profile['talk_sec_total'] ?? 0),
-                    'profile_updated' => (int)($profile['dt_update'] ?? 0),
+        usort($out, static function (array $a, array $b): int {
+            $c = strcmp((string)$a['admin_name'], (string)$b['admin_name']);
+            return $c !== 0 ? $c : ((int)$a['id_admin'] <=> (int)$b['id_admin']);
+        });
+        return $out;
+    }
+
+    /**
+     * @param list<int> $adminIds
+     * @return array<int,string>
+     */
+    private static function adminNamesMap(array $adminIds): array
+    {
+        $out = [];
+        $adminIds = array_values(array_unique(array_filter(array_map('intval', $adminIds))));
+        if ($adminIds === [] || !Database::tableExists('base_users')) {
+            return $out;
+        }
+        $ph = implode(',', array_fill(0, count($adminIds), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID, COALESCE(NAME, '') AS name FROM base_users WHERE ID IN ($ph)"
+        );
+        $st->execute($adminIds);
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $out[(int)$row['ID']] = (string)$row['name'];
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<int> $adminIds
+     * @return array<int,array{manual:int,diarize:int,pending_manual:int,talk_sec_manual:float}>
+     */
+    private static function countsMapForAdmins(array $adminIds): array
+    {
+        $out = [];
+        $adminIds = array_values(array_unique(array_filter(array_map('intval', $adminIds))));
+        if ($adminIds === [] || !self::available()) {
+            return $out;
+        }
+        $ph = implode(',', array_fill(0, count($adminIds), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID_ADMIN, SOURCE,
+                    COUNT(*) AS n,
+                    SUM(CASE WHEN DT_EMBEDDED < 1 THEN 1 ELSE 0 END) AS pending,
+                    SUM(GREATEST(0, T1 - T0)) AS talk
+             FROM base_records_speaker_samples
+             WHERE ID_ADMIN IN ($ph)
+             GROUP BY ID_ADMIN, SOURCE"
+        );
+        $st->execute($adminIds);
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $id = (int)$row['ID_ADMIN'];
+            if (!isset($out[$id])) {
+                $out[$id] = [
+                    'manual' => 0,
+                    'diarize' => 0,
+                    'pending_manual' => 0,
+                    'talk_sec_manual' => 0.0,
                 ];
             }
-            usort($out, static function (array $a, array $b): int {
-                $c = strcmp((string)$a['admin_name'], (string)$b['admin_name']);
-                return $c !== 0 ? $c : ((int)$a['id_admin'] <=> (int)$b['id_admin']);
-            });
+            $src = (string)$row['SOURCE'];
+            if ($src === 'manual') {
+                $out[$id]['manual'] = (int)$row['n'];
+                $out[$id]['pending_manual'] = (int)$row['pending'];
+                $out[$id]['talk_sec_manual'] = (float)$row['talk'];
+            } elseif ($src === 'diarize') {
+                $out[$id]['diarize'] = (int)$row['n'];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Profile meta only (no EMBEDDING blob).
+     *
+     * @param list<int> $adminIds
+     * @return array<int,array{embedding_dim:int,sample_count:int,talk_sec_total:float,dt_update:int}>
+     */
+    private static function profilesMetaMap(array $adminIds): array
+    {
+        $out = [];
+        $adminIds = array_values(array_unique(array_filter(array_map('intval', $adminIds))));
+        if ($adminIds === [] || !Database::tableExists('base_records_speaker_profiles')) {
+            return $out;
+        }
+        $ph = implode(',', array_fill(0, count($adminIds), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID_ADMIN, EMBEDDING_DIM, SAMPLE_COUNT, TALK_SEC_TOTAL, DT_UPDATE
+             FROM base_records_speaker_profiles
+             WHERE ID_ADMIN IN ($ph)"
+        );
+        $st->execute($adminIds);
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $out[(int)$row['ID_ADMIN']] = [
+                'embedding_dim' => (int)$row['EMBEDDING_DIM'],
+                'sample_count' => (int)$row['SAMPLE_COUNT'],
+                'talk_sec_total' => (float)$row['TALK_SEC_TOTAL'],
+                'dt_update' => (int)$row['DT_UPDATE'],
+            ];
         }
         return $out;
     }
