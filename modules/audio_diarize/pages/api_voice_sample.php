@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * POST /audio/api/voice-sample — add manual enrollment clip from transcript selection.
  * POST check=1 — dry-run validation (duration / duplicate) without insert.
- * GET/POST staff_list=1&record_id= — staff picker (on shift today, audio analytics, no assist/hidden).
+ * GET/POST staff_list=1&record_id= — staff picker (shift on record’s day ∩ AUDIO_ANALYTICS_ENABLED).
  */
 header('Content-Type: application/json; charset=utf-8');
 

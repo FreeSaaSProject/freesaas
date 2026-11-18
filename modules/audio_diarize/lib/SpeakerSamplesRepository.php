@@ -286,7 +286,7 @@ final class SpeakerSamplesRepository
             $base['error'] = 'bad_args';
             return $base;
         }
-        // Only shift staff with audio analytics for this record's day (no assist/fish).
+        // Same gates as staffOptionsForRecord: shift day + audio analytics.
         $allowed = false;
         foreach (self::staffOptionsForRecord($recordId) as $opt) {
             if ((int)($opt['id'] ?? 0) === $adminId) {
@@ -330,8 +330,10 @@ final class SpeakerSamplesRepository
     }
 
     /**
-     * Staff picker for voice sample: on shift the record’s day + AUDIO_ANALYTICS_ENABLED.
-     * Skips ASSIST_TEAM and IS_HIDDEN. Empty when none qualify.
+     * Staff picker for voice sample — only two gates:
+     * 1) on shift the record’s calendar day;
+     * 2) AUDIO_ANALYTICS_ENABLED on the user.
+     * No assist/hidden/group filters.
      *
      * @return list<array{id:int,name:string,default:bool}>
      */
@@ -370,21 +372,9 @@ final class SpeakerSamplesRepository
         $ids = [];
         foreach (WorkweeksRepository::listForDay($dayStart) as $shift) {
             $oid = (int)($shift['id_operator'] ?? $shift['ID_OPERATOR'] ?? 0);
-            if ($oid < 1) {
-                continue;
+            if ($oid > 0) {
+                $ids[$oid] = true;
             }
-            // Assist / fish (ASSIST_TEAM) and hidden — not voice-enrollment targets.
-            if ((int)($shift['assist_team'] ?? $shift['ASSIST_TEAM'] ?? 0) > 0) {
-                continue;
-            }
-            if ((int)($shift['is_hidden'] ?? $shift['IS_HIDDEN'] ?? 0) > 0) {
-                continue;
-            }
-            $group = (int)($shift['group'] ?? 0);
-            if ($group === 3 || $group === 4) {
-                continue;
-            }
-            $ids[$oid] = true;
         }
         if ($ids === []) {
             return [];
@@ -393,9 +383,6 @@ final class SpeakerSamplesRepository
         $out = [];
         foreach (array_keys($ids) as $uid) {
             if (empty($audioOn[$uid])) {
-                continue;
-            }
-            if (!self::isEligibleStaffAdmin($uid)) {
                 continue;
             }
             $name = class_exists('UsersRepository', false)
