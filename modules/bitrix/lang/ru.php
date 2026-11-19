@@ -14,7 +14,10 @@ return [
     'bitrix.menu.import' => 'Импорт',
     'bitrix.menu.settings' => 'Настройки',
 
-    'bitrix.cron.import_contacts' => 'Bitrix: pull контактов',
+    'bitrix.cron.import_contacts' => 'Bitrix: pull изменений (компании, контакты, лиды, сделки)',
+    'bitrix.pipeline.leads' => 'Лиды (Битрикс24)',
+    'bitrix.pipeline.deals_default' => 'Сделки (Битрикс24)',
+    'bitrix.pipeline.deals_n' => 'Воронка Битрикс24 #{id}',
     'bitrix.cron.outbox' => 'Bitrix: outbox push',
 
     'bitrix.status.api' => 'REST настроен',

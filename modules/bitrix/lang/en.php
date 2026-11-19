@@ -14,7 +14,10 @@ return [
     'bitrix.menu.import' => 'Import',
     'bitrix.menu.settings' => 'Settings',
 
-    'bitrix.cron.import_contacts' => 'Bitrix pull contacts',
+    'bitrix.cron.import_contacts' => 'Bitrix pull changes (companies, contacts, leads, deals)',
+    'bitrix.pipeline.leads' => 'Leads (Bitrix24)',
+    'bitrix.pipeline.deals_default' => 'Deals (Bitrix24)',
+    'bitrix.pipeline.deals_n' => 'Bitrix24 funnel #{id}',
     'bitrix.cron.outbox' => 'Bitrix outbox push',
 
     'bitrix.status.api' => 'REST configured',

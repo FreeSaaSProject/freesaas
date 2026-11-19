@@ -68,15 +68,20 @@ final class BitrixOutboxListener
         $kind = (string)($row['pipeline_kind'] ?? 'sale');
         $entity = $kind === 'lead' ? 'lead' : 'deal';
         $stageCode = (string)($row['stage_code'] ?? 'NEW');
-        BitrixOutboxRepository::enqueue($entity, $id, 'upsert', [
-            'fields' => [
-                'TITLE' => (string)($row['title'] ?? ''),
-                'STAGE_ID' => $stageCode,
-                'OPPORTUNITY' => (float)($row['amount'] ?? 0),
-                'CURRENCY_ID' => (string)($row['currency'] ?? 'RUB'),
-                'COMMENTS' => (string)($row['notes'] ?? ''),
-            ],
-        ]);
+        $fields = [
+            'TITLE' => (string)($row['title'] ?? ''),
+            'OPPORTUNITY' => (float)($row['amount'] ?? 0),
+            'CURRENCY_ID' => (string)($row['currency'] ?? 'RUB'),
+            'COMMENTS' => (string)($row['notes'] ?? ''),
+        ];
+        if ($entity === 'lead') {
+            $fields['STATUS_ID'] = strtoupper($stageCode);
+        } else {
+            // Non-default Bitrix categories need `C<n>:CODE` (+ CATEGORY_ID on add).
+            $portal = BitrixConfig::portal() !== '' ? BitrixConfig::portal() : 'default';
+            $fields += BitrixPipelineMap::forPush($portal, (int)($row['pipeline_id'] ?? 0), $stageCode);
+        }
+        BitrixOutboxRepository::enqueue($entity, $id, 'upsert', ['fields' => $fields]);
         return $payload;
     }
 

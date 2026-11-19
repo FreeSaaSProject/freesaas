@@ -7,7 +7,7 @@ final class BitrixImporter
     /**
      * @return array{ok:bool,entity:string,fetched?:int,created?:int,updated?:int,linked?:int,skipped?:int,error?:string}
      */
-    public static function run(string $entity, bool $dryRun = true): array
+    public static function run(string $entity, bool $dryRun = true, bool $incremental = false): array
     {
         $entity = strtolower(trim($entity));
         if (!in_array($entity, ['contact', 'company', 'deal', 'lead'], true)) {
@@ -35,11 +35,21 @@ final class BitrixImporter
         ];
         $start = 0;
         $error = '';
+        $startedAt = time();
 
+        // Incremental pull: only rows modified since the last successful real run (10 min overlap).
+        $prevMeta = self::stateMeta($entity);
+        $syncedAt = (int)($prevMeta['synced_at'] ?? 0);
+        $filter = [];
+        if ($incremental && $syncedAt > 0) {
+            $filter['>DATE_MODIFY'] = date('c', $syncedAt - 600);
+        }
+
+        BitrixPipelineMap::reset();
         CrmSyncContext::begin('bitrix');
         try {
             while (true) {
-                $chunk = self::importPage($entity, $start, $dryRun, $stats);
+                $chunk = self::importPage($entity, $start, $dryRun, $stats, $filter);
                 if (!$chunk['ok']) {
                     $error = (string)($stats['error'] ?? $chunk['error'] ?? 'api error');
                     break;
@@ -48,43 +58,76 @@ final class BitrixImporter
                     break;
                 }
                 $start = (int)$chunk['next_start'];
-                if ($start >= 10000) {
-                    break;
-                }
             }
         } finally {
             CrmSyncContext::end();
         }
 
         $ok = $error === '';
+        $capped = !empty($stats['capped']);
         BitrixSyncStateRepository::mark('import_' . $entity, $ok, (string)$start, $error, [
             'dry_run' => $dryRun,
+            'incremental' => $filter !== [],
+            'total' => (int)($stats['total'] ?? 0),
             'fetched' => (int)$stats['fetched'],
             'created' => (int)$stats['created'],
             'updated' => (int)$stats['updated'],
             'linked' => (int)$stats['linked'],
             'skipped' => (int)$stats['skipped'],
+            'errors' => (int)($stats['errors'] ?? 0),
+            'error_samples' => $stats['error_samples'] ?? [],
+            'capped' => $capped,
+            // Cursor for the next incremental run: only a complete, successful real pull advances it.
+            'synced_at' => (!$dryRun && $ok && !$capped) ? $startedAt : $syncedAt,
         ]);
 
         return [
             'ok' => $ok,
             'entity' => $entity,
+            'incremental' => $filter !== [],
+            'total' => (int)($stats['total'] ?? 0),
             'fetched' => (int)$stats['fetched'],
             'created' => (int)$stats['created'],
             'updated' => (int)$stats['updated'],
             'linked' => (int)$stats['linked'],
             'skipped' => (int)$stats['skipped'],
+            'errors' => (int)($stats['errors'] ?? 0),
+            'error_samples' => $stats['error_samples'] ?? [],
+            'capped' => $capped,
             'error' => $error !== '' ? $error : null,
         ];
+    }
+
+    /** @return array<string,mixed> */
+    private static function stateMeta(string $entity): array
+    {
+        $row = BitrixSyncStateRepository::get('import_' . $entity);
+        $meta = $row !== null ? json_decode((string)($row['meta_json'] ?? ''), true) : null;
+        return is_array($meta) ? $meta : [];
+    }
+
+    /** Trim to a varchar column width (characters). */
+    private static function fit(string $value, int $max): string
+    {
+        $value = trim($value);
+        return mb_strlen($value) > $max ? rtrim(mb_substr($value, 0, $max)) : $value;
+    }
+
+    /** Max rows per run (`max_records`, default 10000; 0 = no limit). */
+    private static function maxRecords(): int
+    {
+        $max = BitrixConfig::int('max_records', 10000);
+        return $max > 0 ? $max : PHP_INT_MAX;
     }
 
     /**
      * One API page (LongJob crumb). Mutates $stats.
      *
      * @param array<string,mixed> $stats
+     * @param array<string,mixed> $filter Bitrix list filter (e.g. `>DATE_MODIFY` for incremental pulls)
      * @return array{ok:bool,done:bool,next_start:int,error?:string}
      */
-    public static function importPage(string $entity, int $start, bool $dryRun, array &$stats): array
+    public static function importPage(string $entity, int $start, bool $dryRun, array &$stats, array $filter = []): array
     {
         $entity = strtolower(trim($entity));
         $start = max(0, $start);
@@ -103,19 +146,30 @@ final class BitrixImporter
         $select = match ($entity) {
             'contact' => ['ID', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'PHONE', 'EMAIL'],
             'company' => ['ID', 'TITLE', 'PHONE', 'EMAIL', 'WEB', 'ADDRESS'],
-            'deal', 'lead' => ['ID', 'TITLE', 'STAGE_ID', 'CATEGORY_ID', 'OPPORTUNITY', 'CURRENCY_ID', 'COMMENTS', 'COMPANY_ID', 'CONTACT_ID'],
+            'deal' => ['ID', 'TITLE', 'STAGE_ID', 'CATEGORY_ID', 'OPPORTUNITY', 'CURRENCY_ID', 'COMMENTS', 'COMPANY_ID', 'CONTACT_ID'],
+            'lead' => ['ID', 'TITLE', 'STATUS_ID', 'OPPORTUNITY', 'CURRENCY_ID', 'COMMENTS', 'COMPANY_ID', 'CONTACT_ID'],
         };
         $pageSize = max(1, min(50, BitrixConfig::int('page_size', 50)));
 
-        $res = BitrixApiClient::call($method, [
+        $params = [
             'select' => $select,
+            // Stable paging: rows created while the run is in progress land at the end.
+            'order' => ['ID' => 'ASC'],
             'start' => $start,
-        ]);
+        ];
+        if ($filter !== []) {
+            $params['filter'] = $filter;
+        }
+        $res = BitrixApiClient::call($method, $params);
         if (!$res['ok']) {
             $stats['error'] = (string)($res['error'] ?? 'api error');
             return ['ok' => false, 'done' => true, 'next_start' => $start, 'error' => $stats['error']];
         }
         $rows = is_array($res['result'] ?? null) ? $res['result'] : [];
+        $envelope = json_decode((string)($res['raw'] ?? ''), true);
+        if (is_array($envelope) && isset($envelope['total'])) {
+            $stats['total'] = (int)$envelope['total'];
+        }
         $stats['pages'] = (int)($stats['pages'] ?? 0) + 1;
         if ($rows === []) {
             return ['ok' => true, 'done' => true, 'next_start' => $start];
@@ -129,12 +183,21 @@ final class BitrixImporter
             if ($dryRun) {
                 continue;
             }
-            $action = match ($entity) {
-                'contact' => self::upsertContact($portal, $row),
-                'company' => self::upsertCompany($portal, $row),
-                'deal' => self::upsertDeal($portal, $row, 'sale'),
-                'lead' => self::upsertDeal($portal, $row, 'lead'),
-            };
+            try {
+                $action = match ($entity) {
+                    'contact' => self::upsertContact($portal, $row),
+                    'company' => self::upsertCompany($portal, $row),
+                    'deal' => self::upsertDeal($portal, $row, 'sale'),
+                    'lead' => self::upsertDeal($portal, $row, 'lead'),
+                };
+            } catch (Throwable $e) {
+                // One bad row must not abort the whole pull.
+                $stats['errors'] = (int)($stats['errors'] ?? 0) + 1;
+                if (count($stats['error_samples'] ?? []) < 5) {
+                    $stats['error_samples'][] = '#' . (string)($row['ID'] ?? '?') . ': ' . $e->getMessage();
+                }
+                continue;
+            }
             if ($action === 'created') {
                 $stats['created'] = (int)($stats['created'] ?? 0) + 1;
             } elseif ($action === 'updated') {
@@ -145,8 +208,24 @@ final class BitrixImporter
                 $stats['skipped'] = (int)($stats['skipped'] ?? 0) + 1;
             }
         }
+        // Bitrix signals more pages with `next`; past the end it repeats the last page,
+        // so a full last page (total divisible by 50) must not loop.
         $nextStart = $start + $pageSize;
-        $done = count($rows) < $pageSize || $nextStart >= 10000;
+        $done = count($rows) < $pageSize;
+        if (is_array($envelope)) {
+            if (isset($envelope['next']) && (int)$envelope['next'] > $start) {
+                $nextStart = (int)$envelope['next'];
+            } else {
+                $done = true;
+            }
+            if (isset($envelope['total']) && $nextStart >= (int)$envelope['total']) {
+                $done = true;
+            }
+        }
+        if (!$done && $nextStart >= self::maxRecords()) {
+            $done = true;
+            $stats['capped'] = true;
+        }
         return [
             'ok' => true,
             'done' => $done,
@@ -170,15 +249,18 @@ final class BitrixImporter
         if ($name === '') {
             $name = $tel ?? ('Bitrix #' . $extId);
         }
+        // First e-mail that fits base_clients.mail (varchar 64); longer values are junk/concatenations.
         $mail = '';
         if (is_array($row['EMAIL'] ?? null)) {
             foreach ($row['EMAIL'] as $em) {
-                if (is_array($em) && trim((string)($em['VALUE'] ?? '')) !== '') {
-                    $mail = trim((string)$em['VALUE']);
+                $v = is_array($em) ? trim((string)($em['VALUE'] ?? '')) : '';
+                if ($v !== '' && strlen($v) <= 64) {
+                    $mail = $v;
                     break;
                 }
             }
         }
+        $name = self::fit($name, 255);
 
         $mapped = BitrixIdMapRepository::findLocalId($portal, 'contact', $extId);
         $existing = $mapped !== null ? ClientsRepository::find($mapped) : null;
@@ -186,7 +268,10 @@ final class BitrixImporter
             $existing = ClientsRepository::findByTel($tel);
         }
         if ($tel === null && $existing === null) {
-            return 'skipped';
+            // Phone is the client identity; e-mail-only contacts are opt-in (`contacts_without_phone = 1`).
+            if ($mail === '' || !BitrixConfig::flag('contacts_without_phone', false)) {
+                return 'skipped';
+            }
         }
         $data = [
             'name' => $name,
@@ -197,9 +282,9 @@ final class BitrixImporter
             'enabled' => 1,
             'status_id' => (int)($existing['status_id'] ?? 0),
             'staff_user_id' => (int)($existing['staff_user_id'] ?? 0),
-            'surname' => (string)($row['LAST_NAME'] ?? ($existing['surname'] ?? '')),
-            'pname' => (string)($row['NAME'] ?? ($existing['pname'] ?? '')),
-            'patronymic' => (string)($row['SECOND_NAME'] ?? ($existing['patronymic'] ?? '')),
+            'surname' => self::fit((string)($row['LAST_NAME'] ?? ($existing['surname'] ?? '')), 255),
+            'pname' => self::fit((string)($row['NAME'] ?? ($existing['pname'] ?? '')), 255),
+            'patronymic' => self::fit((string)($row['SECOND_NAME'] ?? ($existing['patronymic'] ?? '')), 255),
             'passport_serie' => (string)($existing['passport_serie'] ?? ''),
             'passport_number' => (string)($existing['passport_number'] ?? ''),
             'passport_issued_by' => (string)($existing['passport_issued_by'] ?? ''),
@@ -235,21 +320,22 @@ final class BitrixImporter
         $mapped = BitrixIdMapRepository::findLocalId($portal, 'company', $extId);
         $existing = $mapped !== null ? CrmCompaniesRepository::find($mapped) : null;
         $data = [
-            'name' => $title,
+            'name' => self::fit($title, 255),
             'inn' => (string)($existing['inn'] ?? ''),
             'kpp' => (string)($existing['kpp'] ?? ''),
-            'phone' => BitrixPhone::fromBitrixField($row['PHONE'] ?? null) ?? (string)($existing['phone'] ?? ''),
+            'phone' => self::fit(BitrixPhone::fromBitrixField($row['PHONE'] ?? null) ?? (string)($existing['phone'] ?? ''), 64),
             'email' => '',
             'website' => '',
-            'address' => (string)($row['ADDRESS'] ?? ($existing['address'] ?? '')),
+            'address' => self::fit((string)($row['ADDRESS'] ?? ($existing['address'] ?? '')), 512),
             'notes' => (string)($existing['notes'] ?? ''),
             'enabled' => 1,
             'responsible_user_id' => (int)($existing['responsible_user_id'] ?? 0),
         ];
         if (is_array($row['EMAIL'] ?? null)) {
             foreach ($row['EMAIL'] as $em) {
-                if (is_array($em) && trim((string)($em['VALUE'] ?? '')) !== '') {
-                    $data['email'] = trim((string)$em['VALUE']);
+                $v = is_array($em) ? trim((string)($em['VALUE'] ?? '')) : '';
+                if ($v !== '' && strlen($v) <= 128) {
+                    $data['email'] = $v;
                     break;
                 }
             }
@@ -257,7 +343,7 @@ final class BitrixImporter
         if (is_array($row['WEB'] ?? null)) {
             foreach ($row['WEB'] as $w) {
                 if (is_array($w) && trim((string)($w['VALUE'] ?? '')) !== '') {
-                    $data['website'] = trim((string)$w['VALUE']);
+                    $data['website'] = self::fit(trim((string)$w['VALUE']), 255);
                     break;
                 }
             }
@@ -284,8 +370,13 @@ final class BitrixImporter
         if ($title === '') {
             $title = 'Bitrix ' . $mapEntity . ' #' . $extId;
         }
-        $pipelineId = self::ensurePipelineForKind($kind);
-        $stageId = self::resolveStage($pipelineId, (string)($row['STAGE_ID'] ?? 'NEW'));
+        // Leads carry STATUS_ID, deals STAGE_ID (+ CATEGORY_ID).
+        $bxStage = (string)($row['STAGE_ID'] ?? ($row['STATUS_ID'] ?? 'NEW'));
+        [$pipelineId, $stageId] = BitrixPipelineMap::resolve($portal, $kind, $row);
+        if ($pipelineId < 1) {
+            $pipelineId = self::ensurePipelineForKind($kind);
+            $stageId = self::resolveStage($pipelineId, $bxStage);
+        }
         if ($pipelineId < 1 || $stageId < 1) {
             return 'skipped';
         }
@@ -305,12 +396,12 @@ final class BitrixImporter
         $mapped = BitrixIdMapRepository::findLocalId($portal, $mapEntity, $extId);
         $existing = $mapped !== null ? CrmDealsRepository::find($mapped) : null;
         $data = [
-            'title' => $title,
+            'title' => self::fit($title, 255),
             'pipeline_id' => $pipelineId,
             'stage_id' => $stageId,
             'company_id' => $companyLocal,
             'amount' => (float)($row['OPPORTUNITY'] ?? 0),
-            'currency' => (string)($row['CURRENCY_ID'] ?? 'RUB'),
+            'currency' => self::fit((string)($row['CURRENCY_ID'] ?? '') ?: 'RUB', 8),
             'responsible_user_id' => (int)($existing['responsible_user_id'] ?? 0),
             'source' => 'bitrix',
             'notes' => (string)($row['COMMENTS'] ?? ($existing['notes'] ?? '')),
