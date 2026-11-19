@@ -85,12 +85,17 @@ final class AsrDiaPushDispatcher
             $matchCue = max(0.50, SpeakerService::matchCueThreshold());
             $matchMargin = max(0.05, SpeakerService::matchMarginThreshold());
             $jobs = [];
+            $unionAdmins = [];
             foreach ($pending as $row) {
                 $file = (string)$row['file_name'];
                 if ($file === '') {
                     continue;
                 }
                 $recordId = (int)$row['record_id'];
+                $profileIds = SpeakerService::matchAdminIdsForRecord($recordId);
+                foreach ($profileIds as $aid) {
+                    $unionAdmins[(int)$aid] = true;
+                }
                 $job = [
                     'job_id' => (string)$row['job_id'],
                     'kind' => 'asr_dia',
@@ -99,8 +104,8 @@ final class AsrDiaPushDispatcher
                     'asr_model' => (string)$row['asr_model'],
                     'apply_speakers' => !empty($row['apply_speakers']),
                     'apply_transcription' => !empty($row['apply_transcription']),
-                    // Per-record pack: on-shift (± gap) only — not the whole catalog.
-                    'profiles' => SpeakerService::profilesPayloadForRecord($recordId),
+                    // Filter root pack on the worker — do not duplicate embeddings per job.
+                    'profile_ids' => $profileIds,
                     'match_cue' => $matchCue,
                     'match_margin' => $matchMargin,
                 ];
@@ -132,13 +137,10 @@ final class AsrDiaPushDispatcher
                 $res['error'] = 'no_path';
                 return $res;
             }
-            // Dia centroids are longer windows than cue pads — keep margin so near-ties stay unmatched.
-            // Floor 0.50 (not 0.58): enrolled staff often land ~0.50–0.55 on real multi-talker
-            // clusters; 0.58 left МОВ unmatched while ДВМ (0.70) still passed. Weak enrollments
-            // are already dropped via min_sample_count / min_talk_sec on the worker.
-            // Root profiles omitted: each job already carries its shift-scoped pack.
+            // One centroid pack for the batch (shift union). Sample vectors omitted — match uses centroid only.
             $body = [
                 'jobs' => $jobs,
+                'profiles' => SpeakerService::profilesPayloadForWorker(array_keys($unionAdmins), false),
                 'match_cue' => $matchCue,
                 'match_margin' => $matchMargin,
             ];

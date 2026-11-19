@@ -971,14 +971,17 @@ final class SpeakerService
     }
 
     /**
-     * Compact profile pack for the diarize worker (centroid + manual sample vectors).
-     * Optional $adminIds filters to those staff only (empty = all ready profiles).
+     * Profile pack for the edge worker.
+     * Default: centroids only (asr_dia match uses embedding, not per-sample vectors).
+     * Pass $includeSampleVectors=true only when a consumer needs raw sample embeds.
      *
-     * @param list<int> $adminIds
-     * @return list<array{id_admin:int,embedding:list<float>,samples:list<list<float>>}>
+     * @param list<int> $adminIds empty = all ready profiles
+     * @return list<array{id_admin:int,embedding:list<float>,sample_count:int,talk_sec:float,samples?:list<list<float>>}>
      */
-    public static function profilesPayloadForWorker(array $adminIds = []): array
-    {
+    public static function profilesPayloadForWorker(
+        array $adminIds = [],
+        bool $includeSampleVectors = false
+    ): array {
         $want = [];
         foreach ($adminIds as $id) {
             $id = (int)$id;
@@ -1003,17 +1006,17 @@ final class SpeakerService
         }
         $samplesByAdmin = [];
         if (
-            is_file(base_path('modules/audio_diarize/lib/SpeakerSamplesRepository.php'))
+            $includeSampleVectors
+            && is_file(base_path('modules/audio_diarize/lib/SpeakerSamplesRepository.php'))
             && Database::tableExists('base_records_speaker_samples')
         ) {
             require_once base_path('modules/audio_diarize/lib/SpeakerSamplesRepository.php');
             foreach ($profiles as $p) {
                 $adminId = (int)$p['id_admin'];
-                $clips = SpeakerSamplesRepository::embeddedManualForAdmin($adminId);
                 $vecs = [];
-                foreach ($clips as $c) {
+                foreach (SpeakerSamplesRepository::embeddedManualForAdmin($adminId) as $c) {
                     if (!empty($c['embedding']) && is_array($c['embedding'])) {
-                        $vecs[] = array_map('floatval', $c['embedding']);
+                        $vecs[] = self::compactEmbedding(array_map('floatval', $c['embedding']));
                     }
                 }
                 $samplesByAdmin[$adminId] = $vecs;
@@ -1022,13 +1025,31 @@ final class SpeakerService
         $out = [];
         foreach ($profiles as $p) {
             $adminId = (int)$p['id_admin'];
-            $out[] = [
+            $row = [
                 'id_admin' => $adminId,
-                'embedding' => array_map('floatval', $p['embedding']),
-                'samples' => $samplesByAdmin[$adminId] ?? [],
-                'sample_count' => (int)($p['sample_count'] ?? count($samplesByAdmin[$adminId] ?? [])),
-                'talk_sec' => (float)($p['talk_sec'] ?? 0),
+                'embedding' => self::compactEmbedding(array_map('floatval', $p['embedding'])),
+                'sample_count' => (int)($p['sample_count'] ?? 0),
+                'talk_sec' => round((float)($p['talk_sec'] ?? 0), 2),
             ];
+            if ($includeSampleVectors) {
+                $row['samples'] = $samplesByAdmin[$adminId] ?? [];
+            }
+            $out[] = $row;
+        }
+        return $out;
+    }
+
+    /**
+     * Round floats for JSON (512-dim × many samples blew past gateway body limits).
+     *
+     * @param list<float> $emb
+     * @return list<float>
+     */
+    private static function compactEmbedding(array $emb): array
+    {
+        $out = [];
+        foreach ($emb as $v) {
+            $out[] = round((float)$v, 5);
         }
         return $out;
     }
@@ -1101,13 +1122,13 @@ final class SpeakerService
     }
 
     /**
-     * Match pack for one record: only shift-relevant ready profiles (not the whole catalog).
+     * Match pack for one record: shift-relevant centroids only (no sample vectors).
      *
-     * @return list<array{id_admin:int,embedding:list<float>,samples:list<list<float>>}>
+     * @return list<array{id_admin:int,embedding:list<float>,sample_count:int,talk_sec:float}>
      */
     public static function profilesPayloadForRecord(int $recordId): array
     {
-        return self::profilesPayloadForWorker(self::matchAdminIdsForRecord($recordId));
+        return self::profilesPayloadForWorker(self::matchAdminIdsForRecord($recordId), false);
     }
 
     /**

@@ -151,6 +151,15 @@ def process_job(cfg: Dict[str, Any], job: Dict[str, Any]) -> Dict[str, Any]:
 		profiles, mc = fetch_profiles(cfg, record_id)
 		if match_cue is None:
 			match_cue = mc
+	# Batch root may carry a union pack; narrow to this record's shift staff.
+	raw_ids = job.get("profile_ids")
+	if isinstance(raw_ids, list) and raw_ids and profiles:
+		want = {int(x) for x in raw_ids if int(x or 0) > 0}
+		if want:
+			profiles = [
+				p for p in profiles
+				if isinstance(p, dict) and int(p.get("id_admin") or p.get("ID_ADMIN") or 0) in want
+			]
 	cfg_run = dict(cfg)
 	match = dict(cfg_run.get("match") or {})
 	if match_cue is not None:

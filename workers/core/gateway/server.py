@@ -15,10 +15,13 @@ from .config import API_VERSION, Client, GatewayConfig, Service, load_gateway_co
 from .nonces import NonceStore
 from .signing import matches
 
-MAX_BODY = 4 * 1024 * 1024
+# Large ASR/diarize job batches (many source_url / voice payloads) can exceed 4 MiB.
+MAX_BODY = 32 * 1024 * 1024
 BAN_AFTER_FAILS = 5
 BAN_WINDOW_SEC = 600
 BAN_SEC = 900
+# Size rejects are not auth abuse — do not feed the IP ban (ban → TCP drop → curl 35).
+BAN_SKIP_REASONS = frozenset({"body_too_large"})
 NONCE_MIN_LEN = 16
 NONCE_MAX_LEN = 64
 STATUS_TIMEOUT_SEC = 5.0
@@ -75,6 +78,9 @@ class Gateway:
             return until > 0
 
     def note_fail(self, ip: str, reason: str) -> None:
+        if reason in BAN_SKIP_REASONS:
+            self.log(f"gateway: reject {ip}: {reason}")
+            return
         now = time.time()
         with self._lock:
             hits = [t for t in self._fails.get(ip, []) if t > now - BAN_WINDOW_SEC]
@@ -86,6 +92,13 @@ class Gateway:
                 self.log(f"gateway: ban {ip} for {BAN_SEC}s ({reason})")
                 return
         self.log(f"gateway: auth fail {ip}: {reason}")
+
+    def clear_bans(self) -> int:
+        with self._lock:
+            n = len(self._banned)
+            self._banned.clear()
+            self._fails.clear()
+            return n
 
     def verify(self, ip: str, method: str, path_qs: str, headers: Any, body: bytes) -> Tuple[Optional[Client], str]:
         if not self.cfg.clients:
