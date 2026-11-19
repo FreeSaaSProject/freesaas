@@ -228,7 +228,8 @@ def process_job(cfg: Dict[str, Any], job: Dict[str, Any]) -> Dict[str, Any]:
 			"cue_speakers": result.cue_speakers,
 			"meta": meta,
 			"apply_speakers": bool(job.get("apply_speakers", True)),
-			"apply_transcription": bool(job.get("apply_transcription", False)),
+			# Default True: cabin divert needs text+DT stamp; PHP run flags remain SoT on apply.
+			"apply_transcription": bool(job.get("apply_transcription", True)),
 			"asr_model_id": str(((cfg_run.get("asr") or {}).get("model_id")) or ""),
 		}
 

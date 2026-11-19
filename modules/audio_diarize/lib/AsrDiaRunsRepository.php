@@ -25,6 +25,12 @@ final class AsrDiaRunsRepository
             return [];
         }
         $pdo = Database::pdo();
+        // Reuse active journal row — cabin divert used to INSERT forever while DT_TRANSCRIBED stayed 0.
+        $findActive = $pdo->prepare(
+            "SELECT ID FROM base_asr_dia_runs
+             WHERE ID_RECORD = ? AND STATUS IN ('pending','queued')
+             ORDER BY ID DESC LIMIT 1"
+        );
         $ins = $pdo->prepare(
             'INSERT INTO base_asr_dia_runs
              (ID_RECORD, JOB_ID, ENGINE, ASR_MODEL, STATUS, APPLY_SPEAKERS, APPLY_TRANSCRIPTION, DT_CREATE)
@@ -35,6 +41,26 @@ final class AsrDiaRunsRepository
         foreach ($recordIds as $rid) {
             $rid = (int)$rid;
             if ($rid < 1) {
+                continue;
+            }
+            $findActive->execute([$rid]);
+            $existing = (int)($findActive->fetchColumn() ?: 0);
+            if ($existing > 0) {
+                // Refresh flags — reuse used to keep APPLY_TRANSCRIPTION=0 from an older
+                // enrollment enqueue, so cabin divert never stamped DT_TRANSCRIBED.
+                $pdo->prepare(
+                    'UPDATE base_asr_dia_runs
+                     SET APPLY_SPEAKERS = ?, APPLY_TRANSCRIPTION = ?,
+                         ASR_MODEL = IF(? <> \'\', ?, ASR_MODEL)
+                     WHERE ID = ? AND STATUS IN (\'pending\',\'queued\')'
+                )->execute([
+                    $applySpeakers ? 1 : 0,
+                    $applyTranscription ? 1 : 0,
+                    $asrModel,
+                    $asrModel,
+                    $existing,
+                ]);
+                $out[] = $existing;
                 continue;
             }
             $jobId = bin2hex(random_bytes(16));
@@ -142,9 +168,10 @@ final class AsrDiaRunsRepository
         $transcription = (string)($result['transcription'] ?? '');
         $asrModel = trim((string)($meta['asr_model_id'] ?? $result['asr_model_id'] ?? ''));
 
-        // Run flags are SoT; worker may omit/echo them. Do not require result.apply_transcription=true.
-        $applySpeakers = !empty($run['APPLY_SPEAKERS']) && ($result['apply_speakers'] ?? true);
-        $applyTr = !empty($run['APPLY_TRANSCRIPTION']) && ($result['apply_transcription'] ?? true);
+        // Run flags are SoT. Worker often echoes apply_transcription=false (its job default)
+        // even when the journal row has APPLY_TRANSCRIPTION=1 — never AND with result flags.
+        $applySpeakers = !empty($run['APPLY_SPEAKERS']);
+        $applyTr = !empty($run['APPLY_TRANSCRIPTION']);
 
         // Strip dictionary trash (base_records_trashes / TranscriptGarbage) before apply —
         // same rules as UI; edge worker must not hardcode watermark phrases.
@@ -213,10 +240,25 @@ final class AsrDiaRunsRepository
             ];
             SpeakerService::saveForRecord($recordId, $payload, ['rematch' => false]);
         }
-        if ($applyTr && $recordId > 0 && $applyText !== '' && Database::tableExists('base_records')) {
-            Database::pdo()->prepare(
-                'UPDATE base_records SET TRANSCRIPTION = ? WHERE ID = ? LIMIT 1'
-            )->execute([$applyText, $recordId]);
+        if ($recordId > 0 && $applyText !== '' && Database::tableExists('base_records')) {
+            // Must stamp DT_TRANSCRIBED — otherwise AsrLease keeps claiming the file and
+            // cabin divert re-enqueues ASR-DIA in a loop (same day files ×N).
+            // APPLY_TRANSCRIPTION controls whether TRANSCRIPTION text is overwritten;
+            // DT stamp still happens for untranscribed rows so the lease can clear.
+            if ($applyTr) {
+                Database::pdo()->prepare(
+                    'UPDATE base_records
+                     SET TRANSCRIPTION = ?, DT_TRANSCRIBED = ?
+                     WHERE ID = ? LIMIT 1'
+                )->execute([$applyText, time(), $recordId]);
+            } else {
+                Database::pdo()->prepare(
+                    'UPDATE base_records
+                     SET DT_TRANSCRIBED = ?
+                     WHERE ID = ? AND (DT_TRANSCRIBED IS NULL OR DT_TRANSCRIBED < 1)
+                     LIMIT 1'
+                )->execute([time(), $recordId]);
+            }
         }
         return true;
     }
