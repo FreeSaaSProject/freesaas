@@ -9,11 +9,15 @@ declare(strict_types=1);
 /** @var array<int,array{name:string,color:string,bg:string}> $dictMeta */
 /** @var list<array{dict_id:int,diversity:int,instances:int}> $keyDicts */
 /** @var list<array<string,mixed>> $speakers */
+/** @var bool $canAssignSpeaker */
 $dictMeta = is_array($dictMeta ?? null) ? $dictMeta : [];
 $keyDicts = is_array($keyDicts ?? null) ? $keyDicts : [];
 $instances = is_array($instances ?? null) ? $instances : [];
 $speakers = is_array($speakers ?? null) ? $speakers : [];
 $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'lines' => 0, 'trash' => 0, 'keys' => 0];
+$canAssignSpeaker = !empty($canAssignSpeaker);
+$recordId = (int)($row['id'] ?? $row['ID'] ?? 0);
+$recordAdminId = (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0);
 ?>
 <?php if ($flash !== ''): ?><p class="flash"><?= e($flash) ?></p><?php endif; ?>
 
@@ -30,11 +34,13 @@ $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'line
   </div>
 </section>
 
-<div class="audio-view-grid">
+<div class="audio-view-grid"
+     data-record-id="<?= $recordId ?>"
+     data-admin-id="<?= $recordAdminId ?>">
   <div class="audio-view-main">
     <dl class="kv">
-      <dt>ID</dt><dd><?= (int)$row['id'] ?></dd>
-      <dt><?= te('audio.col.admin') ?></dt><dd><?= UsersRepository::badgeHtml((int)$row['id_admin']) ?></dd>
+      <dt>ID</dt><dd><?= $recordId ?></dd>
+      <dt><?= te('audio.col.admin') ?></dt><dd><?= UsersRepository::badgeHtml($recordAdminId) ?></dd>
       <dt><?= te('audio.col.badge') ?></dt><dd><code><?= e((string)$row['id_dictophone']) ?></code></dd>
       <dt><?= te('audio.col.dt') ?></dt><dd><?= !empty($row['dt_recorded']) ? e(date('Y-m-d H:i:s', (int)$row['dt_recorded'])) : '—' ?></dd>
       <dt><?= te('audio.col.filename') ?></dt><dd><?= e((string)$row['filename']) ?></dd>
@@ -66,25 +72,58 @@ $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'line
     <?php if ($speakers !== []): ?>
     <section class="audio-speakers" aria-label="<?= te('audio.view.speakers') ?>">
       <h2><?= te('audio.view.speakers') ?></h2>
-      <ul class="audio-speakers-list">
+      <?php if ($canAssignSpeaker): ?>
+      <p class="muted small audio-speakers-hint"><?= te('audio_diarize.speaker_assign.hint') ?></p>
+      <?php endif; ?>
+      <ul class="audio-speakers-list" id="audio-speakers-list">
         <?php foreach ($speakers as $sp): ?>
           <?php
             $role = (string)($sp['role'] ?? 'unknown');
             $lid = (string)($sp['local_id'] ?? '');
-            $cls = $role === 'staff' ? 'is-staff' : ($role === 'other' ? 'is-other' : '');
+            $matched = (int)($sp['matched_admin_id'] ?? 0);
+            $cls = $matched > 0 || $role === 'staff' ? 'is-staff' : ($role === 'other' ? 'is-other' : '');
+            $canBind = $canAssignSpeaker && $matched < 1 && $lid !== '';
           ?>
-          <li class="<?= e($cls) ?>">
-            <code><?= e($lid) ?></code>
-            <span class="muted"><?= e($role) ?></span>
-            <?php if (!empty($sp['is_dominant'])): ?><strong>·</strong><?php endif; ?>
-            <?= (int)round((float)($sp['talk_sec'] ?? 0)) ?>s
-            <?php if ((int)($sp['matched_admin_id'] ?? 0) > 0): ?>
-              · <?= UsersRepository::badgeHtml((int)$sp['matched_admin_id']) ?>
-              (<?= (int)round(((float)($sp['confidence'] ?? 0)) * 100) ?>%)
+          <li class="audio-speaker-chip <?= e($cls) ?>" data-speaker-id="<?= e($lid) ?>">
+            <button type="button"
+                    class="audio-speaker-filter"
+                    data-speaker-filter="<?= e($lid) ?>"
+                    aria-pressed="false">
+              <code><?= e($lid) ?></code>
+              <span class="muted"><?= e($role) ?></span>
+              <?php if (!empty($sp['is_dominant'])): ?><strong>·</strong><?php endif; ?>
+              <?= (int)round((float)($sp['talk_sec'] ?? 0)) ?>s
+              <?php if ($matched > 0): ?>
+                · <?= UsersRepository::badgeHtml($matched) ?>
+                (<?= (int)round(((float)($sp['confidence'] ?? 0)) * 100) ?>%)
+              <?php endif; ?>
+            </button>
+            <?php if ($canBind): ?>
+            <button type="button"
+                    class="audio-speaker-assign"
+                    data-speaker-assign="<?= e($lid) ?>"
+                    hidden
+                    title="<?= te('audio_diarize.speaker_assign.bind') ?>">
+              <?= te('audio_diarize.speaker_assign.bind') ?>
+            </button>
             <?php endif; ?>
           </li>
         <?php endforeach; ?>
       </ul>
+      <div class="audio-speaker-assign-bar" id="audio-speaker-assign-bar" hidden>
+        <label class="audio-speaker-assign-label">
+          <span class="muted"><?= te('audio_diarize.voice_sample.staff') ?></span>
+          <select id="audio-speaker-assign-admin"></select>
+        </label>
+        <button type="button" class="btn" id="audio-speaker-assign-confirm">
+          <?= te('audio_diarize.speaker_assign.bind') ?>
+        </button>
+        <button type="button" class="btn-link" id="audio-speaker-assign-cancel">
+          <?= te('core.common.cancel') ?>
+        </button>
+        <span class="muted small" id="audio-speaker-assign-status"></span>
+      </div>
+      <p class="muted small" id="audio-speaker-filter-status" hidden></p>
     </section>
     <?php endif; ?>
 
@@ -92,7 +131,7 @@ $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'line
       <h2><?= te('audio.view.transcription') ?>
         <span class="muted">(<?= te('audio.transcript.stats', ['lines' => (int)$transcript['lines'], 'keys' => (int)$transcript['keys']]) ?>)</span>
       </h2>
-      <div class="transcript" id="audio-transcript">
+      <div class="transcript" id="audio-transcript" data-record="<?= $recordId ?>">
         <?= $transcript['html'] ?>
       </div>
     </section>
@@ -123,3 +162,25 @@ $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'line
     <?php endif; ?>
   </aside>
 </div>
+
+<?php if ($canAssignSpeaker || $speakers !== []): ?>
+<script>
+window.AudioListI18n = Object.assign({}, window.AudioListI18n || {}, <?= json_encode([
+    'voiceEnrollment' => $canAssignSpeaker,
+    'voiceStaff' => t('audio_diarize.voice_sample.staff'),
+    'voiceNoStaff' => t('audio_diarize.voice_sample.err.no_staff'),
+    'voiceSample' => t('audio_diarize.voice_sample.add'),
+    'voiceMinSec' => 3,
+    'voiceMaxSec' => 120,
+    'speakerAssignBind' => t('audio_diarize.speaker_assign.bind'),
+    'speakerAssignClear' => t('audio_diarize.speaker_assign.clear'),
+    'speakerAssignWorking' => t('audio_diarize.speaker_assign.working'),
+    'speakerAssignExclude' => t('audio_diarize.speaker_assign.exclude'),
+    'speakerAssignInclude' => t('audio_diarize.speaker_assign.include'),
+    'speakerAssignExcludedN' => t('audio_diarize.speaker_assign.excluded_n'),
+    'error' => t('audio.api.error'),
+    'network' => t('audio.api.network'),
+    'done' => t('audio.api.done'),
+], JSON_UNESCAPED_UNICODE) ?>);
+</script>
+<?php endif; ?>

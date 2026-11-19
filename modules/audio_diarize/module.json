@@ -2,7 +2,7 @@
     "id": "audio_diarize",
     "name": "audio_diarize.module.name",
     "description": "audio_diarize.module.description",
-    "version": "0.1.0",
+    "version": "0.1.3",
     "type": "product",
     "requires": {
         "core": ">=1.1.0",
@@ -31,16 +31,20 @@
             "/audio/voice-profiles/{id}/samples",
             "/audio/diarize/longjob",
             "/audio/api/voice-sample",
+            "/audio/asr-dia",
+            "/audio/asr-dia/longjob",
             "/audio-diarize/settings",
             "/audio/asr/diarize-claim",
             "/audio/asr/diarize-result",
             "/audio/asr/diarize-status",
             "/audio/asr/embed-sample-claim",
-            "/audio/asr/embed-sample-result"
+            "/audio/asr/embed-sample-result",
+            "/audio/asr/asr-dia-status",
+            "/audio/asr/asr-dia-result"
         ]
     },
     "agent": {
-        "docs": "docs/agents/audio_pipeline.md",
+        "docs": "docs/agents/asr_dia.md",
         "ops": [
             {
                 "id": "audio_diarize.voice_profiles.list",
@@ -70,7 +74,7 @@
                 "path": "/audio/api/voice-sample",
                 "permission": "audio_diarize.edit",
                 "assistant": false,
-                "description": "Add manual enrollment clip: record_id, admin_id, t0, t1; check=1 dry-run; staff_list=1&record_id for picker"
+                "description": "Add manual enrollment clip: record_id, admin_id, t0, t1; check=1 dry-run; assign_speaker=1+local_id bind cluster→staff (+samples); staff_list=1&record_id for picker"
             },
             {
                 "id": "audio_diarize.diarize.longjob",
@@ -126,6 +130,37 @@
                 "permission": "public",
                 "assistant": false,
                 "description": "Worker: POST sample_id + embedding JSON; optional build_profile=1"
+            },
+            {
+                "id": "audio_diarize.asr_dia.list",
+                "method": "GET",
+                "path": "/audio/asr-dia",
+                "permission": "audio_diarize.view",
+                "description": "Dia-first experiment console: fixture 16.11 baseline + latest asr_dia runs"
+            },
+            {
+                "id": "audio_diarize.asr_dia.longjob",
+                "method": "POST",
+                "path": "/audio/asr-dia/longjob",
+                "permission": "audio_diarize.edit",
+                "assistant": false,
+                "description": "LongJob asr_dia: day/ids_csv, asr_model=large-v3|podlodka-turbo, apply_speakers"
+            },
+            {
+                "id": "audio_diarize.asr.asr_dia_status",
+                "method": "GET",
+                "path": "/audio/asr/asr-dia-status",
+                "permission": "public",
+                "assistant": false,
+                "description": "asr_dia worker: profiles pack + match_cue"
+            },
+            {
+                "id": "audio_diarize.asr.asr_dia_result",
+                "method": "POST",
+                "path": "/audio/asr/asr-dia-result",
+                "permission": "public",
+                "assistant": false,
+                "description": "asr_dia worker pull-style result (push uses edge collect)"
             }
         ]
     },
@@ -137,6 +172,15 @@
             "group": "audio.menu.group",
             "permission": "audio_diarize.view",
             "num": 45,
+            "kind": "work"
+        },
+        {
+            "path": "/audio/asr-dia",
+            "icon": "🧪",
+            "title": "audio_diarize.menu.asr_dia",
+            "group": "audio.menu.group",
+            "permission": "audio_diarize.view",
+            "num": 46,
             "kind": "work"
         },
         {
@@ -162,7 +206,8 @@
         "base_records_speaker_profiles",
         "base_records_speaker_samples",
         "base_diarize_leases",
-        "base_diarize_requests"
+        "base_diarize_requests",
+        "base_asr_dia_runs"
     ],
     "hooks": {
         "subscribe": [

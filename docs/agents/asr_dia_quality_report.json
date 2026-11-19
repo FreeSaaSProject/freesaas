@@ -1,0 +1,144 @@
+{
+    "dict_keys_loaded": 4009,
+    "summary": {
+        "records": 12,
+        "with_asr_dia": 0,
+        "prod_dict_hits_sum": 48,
+        "new_dict_hits_sum": 0,
+        "note": "Side-by-side dict-key proxy; listen 5–10 fragments before model cutover"
+    },
+    "rows": [
+        {
+            "record_id": 291129,
+            "admin": 145,
+            "prod_chars": 9,
+            "new_chars": 0,
+            "prod_dict_hits": 0,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291130,
+            "admin": 145,
+            "prod_chars": 27,
+            "new_chars": 0,
+            "prod_dict_hits": 0,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291195,
+            "admin": 148,
+            "prod_chars": 2739,
+            "new_chars": 0,
+            "prod_dict_hits": 4,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291196,
+            "admin": 148,
+            "prod_chars": 2770,
+            "new_chars": 0,
+            "prod_dict_hits": 5,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291273,
+            "admin": 85,
+            "prod_chars": 90,
+            "new_chars": 0,
+            "prod_dict_hits": 1,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291274,
+            "admin": 85,
+            "prod_chars": 48,
+            "new_chars": 0,
+            "prod_dict_hits": 0,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291361,
+            "admin": 127,
+            "prod_chars": 2140,
+            "new_chars": 0,
+            "prod_dict_hits": 2,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291362,
+            "admin": 127,
+            "prod_chars": 1498,
+            "new_chars": 0,
+            "prod_dict_hits": 1,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291407,
+            "admin": 103,
+            "prod_chars": 430,
+            "new_chars": 0,
+            "prod_dict_hits": 0,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291408,
+            "admin": 103,
+            "prod_chars": 1950,
+            "new_chars": 0,
+            "prod_dict_hits": 13,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291478,
+            "admin": 58,
+            "prod_chars": 2248,
+            "new_chars": 0,
+            "prod_dict_hits": 7,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        },
+        {
+            "record_id": 291479,
+            "admin": 58,
+            "prod_chars": 1190,
+            "new_chars": 0,
+            "prod_dict_hits": 15,
+            "new_dict_hits": null,
+            "asr_model": "",
+            "run_status": "none",
+            "matched_pct": null
+        }
+    ]
+}

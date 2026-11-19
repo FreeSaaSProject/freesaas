@@ -1,0 +1,59 @@
+{
+  "day": "2026-11-16",
+  "evaluated_at": "2026-11-19",
+  "edge_host": "macstudio (192.168.1.215, /Users/lora/freesaas/workers)",
+  "baseline": {
+    "source": "docs/agents/asr_dia_fixture_2026-11-16.json",
+    "median_matched_pct": 0,
+    "gate": "need_asr_dia"
+  },
+  "studio_smoke": {
+    "record_id": 291361,
+    "admin_badge": 127,
+    "clip_sec": 180,
+    "dia_engine": "nemotron3",
+    "profiles_loaded": 13,
+    "large-v3": {
+      "turns": 23,
+      "cues": 26,
+      "matched_cues": 26,
+      "matched_pct": 100.0,
+      "elapsed_sec": 36.3,
+      "staff_ids": [145, 127, 85]
+    },
+    "podlodka-turbo": {
+      "turns": 23,
+      "cues": 26,
+      "matched_cues": 26,
+      "matched_pct": 100.0,
+      "elapsed_sec": 23.7,
+      "staff_ids": [145, 127, 85],
+      "note": "Same dia turns; faster; RU punctuation; listen still required vs large-v3 wording"
+    },
+    "artifacts": [
+      "docs/agents/asr_dia_studio_ab_180s.json",
+      "docs/agents/asr_dia_studio_ab_45s.json"
+    ]
+  },
+  "axes": {
+    "speaker_id": {
+      "verdict": "go_candidate",
+      "note": "180s clip: matched_pct 100% vs baseline 0% on same day staff; soft confidences ~0.47–0.50 — run full fixture day before production cutover"
+    },
+    "asr_quality": {
+      "verdict": "listen_ab_needed",
+      "note": "Both models hallucinate on short/noisy turns (large-v3 subtitle credits). Prefer podlodka-turbo as default for speed+RU; confirm on full files via php bin/asr-dia-compare.php after LongJob"
+    },
+    "stability": {
+      "verdict": "go",
+      "note": "Plugin stays out of default enabled_plugins; whisper/diarize claim unchanged"
+    }
+  },
+  "decision": "continue_experiment",
+  "next": [
+    "Enable asr_dia on Mac Studio host.local.json + edge-host service asr_dia after FreeSaaS deploy of audio_diarize routes",
+    "LongJob fixture day twice (large-v3 then podlodka-turbo), apply_speakers=1 apply_transcription=0",
+    "php bin/asr-dia-compare.php && php bin/asr-dia-ab.php",
+    "If matched stays high on full day: default asr.model_id=podlodka-turbo; optional rebuild profiles via bin/asr-dia-rebuild-profiles.php"
+  ]
+}

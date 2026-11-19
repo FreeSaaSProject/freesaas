@@ -11,6 +11,7 @@ Related product docs: [video.md](video.md), [video-label.md](video-label.md), [a
 | `video` | YOLO cameras | Mac |
 | `whisper` | Cabin ASR claim/result/stem (+ optional post-ASR diarize) | Mac |
 | `diarize` | WeSpeaker ONNX speakers / voiceprint enrich (standalone or via whisper) | Mac |
+| `asr_dia` | **Experiment only:** dia-first (speech-swift Nemotron3) → whisper per turn → CAM++ ID — see [asr_dia.md](asr_dia.md); keep out of default `enabled_plugins` | Mac |
 | `audioloader` | Badge USB → MP3 → FTP inbox → ingest GET | Windows |
 | `freesaas` | Local FreeSaaS supervise + standby-sync + doctor/update (opt-in) | Mac / Windows PC |
 | `llm` | stub — leave disabled | — |
@@ -29,6 +30,7 @@ workers/
     video/                   # YOLO + ffmpeg + optional camera VPN
     whisper/                 # claim → whisper.cpp → result → stem (+ optional diarize)
     diarize/                 # WeSpeaker ONNX speakers / voiceprint (Mac)
+    asr_dia/                 # optional dia-first experiment (Nemotron3 + whisper) — off by default
     audioloader/             # badge USB → FTP → GET /audio/jobs/ingest
     freesaas/                # PC local stack + standby orchestrator (opt-in)
     llm/                     # stub only — do not enable yet

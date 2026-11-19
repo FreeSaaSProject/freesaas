@@ -1,0 +1,19 @@
+{
+  "id": "asr_dia",
+  "title": "ASR-DIA (speaker recognition)",
+  "version": "0.2.0",
+  "entrypoint": "worker.py",
+  "requirements": "requirements.txt",
+  "status_file": "logs/status.json",
+  "depends_binaries": ["ffmpeg"],
+  "models": [],
+  "widgets": ["stats", "loop"],
+  "actions": [],
+  "service": "asr_dia",
+  "local_api_port": 18473,
+  "capabilities": ["jobs", "results", "source_url"],
+  "billing_units": ["audio_sec"],
+  "remote_actions": [],
+  "log_sources": {},
+  "comment": "Nemotron3 → whisper → CAM++ match. Production path when every on-shift audio staff has a voice profile. Reuses ../diarize/models for CAM++. Enable on Mac Studio when profiles are ready."
+}

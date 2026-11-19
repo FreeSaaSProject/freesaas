@@ -234,6 +234,8 @@ $allowed = [
     '/audio/asr/embed-sample-claim' => ['methods' => ['GET', 'POST'], 'why' => 'voice sample embed claim'],
     '/audio/asr/embed-sample-result' => ['methods' => ['GET', 'POST'], 'why' => 'voice sample embed result'],
     '/audio/asr/diarize-result' => ['methods' => ['GET', 'POST'], 'why' => 'audio diarize result'],
+    '/audio/asr/asr-dia-status' => ['methods' => ['GET', 'POST'], 'why' => 'asr_dia profiles pack'],
+    '/audio/asr/asr-dia-result' => ['methods' => ['GET', 'POST'], 'why' => 'asr_dia result'],
 
     // Video Mac worker (X-Video-Token)
     '/video/worker/hello' => ['methods' => ['GET', 'POST'], 'why' => 'video worker heartbeat'],

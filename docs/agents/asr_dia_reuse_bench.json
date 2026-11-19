@@ -1,0 +1,87 @@
+{
+    "cabin": {
+        "infer_sec_sum": 41.35,
+        "wall_sec_sum": 44.89,
+        "rtf_mean": 0.044,
+        "rows": [
+            {
+                "id": 291361,
+                "infer_sec": 16.67,
+                "wall_sec": 18.19,
+                "rtf": 0.046,
+                "lines": 71
+            },
+            {
+                "id": 291362,
+                "infer_sec": 11.74,
+                "wall_sec": 13,
+                "rtf": 0.054,
+                "lines": 35
+            },
+            {
+                "id": 291363,
+                "infer_sec": 12.94,
+                "wall_sec": 13.7,
+                "rtf": 0.036,
+                "lines": 39
+            }
+        ]
+    },
+    "asr_dia_reuse": {
+        "batch_wall_sec": 35.4,
+        "wall_sec_sum": 30.9,
+        "rows": [
+            {
+                "id": 291361,
+                "status": "done",
+                "cues": 71,
+                "matched_pct": 70.4,
+                "wall_sec": 11.67,
+                "pipeline_sec": 11.06,
+                "dia_sec": 2.86,
+                "asr_sec": 0,
+                "id_sec": 7.92,
+                "asr_backend": "cabin_reuse",
+                "asr_mode": "reuse",
+                "error": "",
+                "download_sec": 0.6
+            },
+            {
+                "id": 291362,
+                "status": "done",
+                "cues": 35,
+                "matched_pct": 100,
+                "wall_sec": 7.53,
+                "pipeline_sec": 6.58,
+                "dia_sec": 2.25,
+                "asr_sec": 0,
+                "id_sec": 4.14,
+                "asr_backend": "cabin_reuse",
+                "asr_mode": "reuse",
+                "error": "",
+                "download_sec": 0.94
+            },
+            {
+                "id": 291363,
+                "status": "done",
+                "cues": 39,
+                "matched_pct": 100,
+                "wall_sec": 11.67,
+                "pipeline_sec": 8.73,
+                "dia_sec": 2.61,
+                "asr_sec": 0,
+                "id_sec": 5.84,
+                "asr_backend": "cabin_reuse",
+                "asr_mode": "reuse",
+                "error": "",
+                "download_sec": 2.94
+            }
+        ]
+    },
+    "total_e2e": {
+        "cabin_infer_plus_reuse_wall": 72.2,
+        "cabin_dl_infer_plus_reuse_wall": 75.8,
+        "compare_full_asr_dia_large_v3_batch_wall": 164.1,
+        "compare_full_asr_dia_291361": 66.3
+    }
+}

@@ -550,20 +550,42 @@ window.AudioListI18n = <?= json_encode(array_merge([
   $diarizeDay = ($year > 0 && $month > 0 && $day > 0)
     ? sprintf('%04d-%02d-%02d', $year, $month, $day)
     : '';
+  $shiftCoverage = ['ok' => true, 'missing_count' => 0, 'missing' => [], 'total' => 0];
+  if (
+      $diarizeDay !== ''
+      && class_exists('SpeakerService', false)
+  ) {
+      $shiftCoverage = SpeakerService::shiftProfileCoverage($diarizeDay);
+  }
+  $missingNames = [];
+  foreach (($shiftCoverage['missing'] ?? []) as $m) {
+      $acr = trim((string)($m['acronym'] ?? ''));
+      $missingNames[] = $acr !== '' ? $acr : (string)($m['name'] ?? ('#' . (int)($m['id'] ?? 0)));
+  }
+  $profilesReadyForDay = (int)($shiftCoverage['missing_count'] ?? 0) < 1
+      && (int)($shiftCoverage['total'] ?? 0) > 0;
 ?>
 <?= View::capture('_longjob_panel', [
     'longjobId' => 'audio-diarize',
-    'longjobTitle' => t('audio_diarize.diarize.title'),
+    'longjobTitle' => t('audio_diarize.asr_dia.longjob_title'),
     'longjobDualBars' => false,
     'longjobShowBytes' => false,
 ]) ?>
 <div id="audio-diarize-boot" hidden
      data-csrf="<?= e(class_exists('Csrf', false) ? Csrf::token() : '') ?>"
      data-day="<?= e($diarizeDay) ?>"
+     data-profiles-ready="<?= $profilesReadyForDay ? '1' : '0' ?>"
+     data-profiles-url="/audio/voice-profiles"
+     data-missing-count="<?= (int)($shiftCoverage['missing_count'] ?? 0) ?>"
      data-i18n="<?= e(json_encode([
          'confirm' => t('audio_diarize.bulk.confirm_queue_diarize'),
          'busy' => t('audio_diarize.bulk.diarize_busy'),
          'empty' => t('audio_diarize.bulk.diarize_empty'),
+         'missingProfiles' => t('audio_diarize.bulk.err.missing_profiles', [
+             'n' => (string)(int)($shiftCoverage['missing_count'] ?? 0),
+             'who' => implode(', ', $missingNames),
+         ]),
+         'fillProfiles' => t('audio_diarize.bulk.err.fill_profiles'),
          'starting' => t('core.longjob.starting'),
          'badJson' => t('core.longjob.bad_json'),
          'doneTitle' => t('core.longjob.done_title'),

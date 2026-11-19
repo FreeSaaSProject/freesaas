@@ -81,6 +81,179 @@ final class SpeakerService
     }
 
     /**
+     * On-shift staff with AUDIO_ANALYTICS and whether each has a ready voice profile.
+     *
+     * @return array{
+     *   ok:bool,day:string,total:int,missing_count:int,
+     *   staff:list<array{id:int,name:string,acronym:string,has_profile:bool}>,
+     *   missing:list<array{id:int,name:string,acronym:string,has_profile:bool}>
+     * }
+     */
+    public static function shiftProfileCoverage(string $dayYmd): array
+    {
+        $dayYmd = trim($dayYmd);
+        $empty = [
+            'ok' => true,
+            'day' => $dayYmd,
+            'total' => 0,
+            'missing_count' => 0,
+            'staff' => [],
+            'missing' => [],
+        ];
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dayYmd)) {
+            $empty['ok'] = false;
+            return $empty;
+        }
+        if (
+            !ModuleManager::isEnabled('workweeks')
+            || !class_exists('WorkweeksRepository', false)
+            || !is_file(base_path('modules/audio_diarize/lib/SpeakerSamplesRepository.php'))
+        ) {
+            return $empty;
+        }
+        require_once base_path('modules/audio_diarize/lib/SpeakerSamplesRepository.php');
+        $dayStart = strtotime($dayYmd . ' 00:00:00');
+        if ($dayStart === false) {
+            $empty['ok'] = false;
+            return $empty;
+        }
+        $ids = [];
+        foreach (WorkweeksRepository::listForDay((int)$dayStart) as $shift) {
+            $oid = (int)($shift['id_operator'] ?? $shift['ID_OPERATOR'] ?? 0);
+            if ($oid > 0) {
+                $ids[$oid] = true;
+            }
+        }
+        if ($ids === []) {
+            return $empty;
+        }
+        // Reuse picker gate: audio analytics on.
+        $audioOn = [];
+        if (
+            Database::tableExists('base_users')
+            && Database::columnExists('base_users', 'AUDIO_ANALYTICS_ENABLED')
+        ) {
+            $idList = array_keys($ids);
+            $ph = implode(',', array_fill(0, count($idList), '?'));
+            $st = Database::pdo()->prepare(
+                "SELECT ID, AUDIO_ANALYTICS_ENABLED AS audio FROM base_users WHERE ID IN ($ph)"
+            );
+            $st->execute($idList);
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+                $audioOn[(int)$row['ID']] = !empty($row['audio']);
+            }
+        }
+        $staff = [];
+        $missing = [];
+        foreach (array_keys($ids) as $uid) {
+            if (empty($audioOn[$uid])) {
+                continue;
+            }
+            $name = class_exists('UsersRepository', false)
+                ? trim((string)UsersRepository::nameById($uid))
+                : ('#' . $uid);
+            if ($name === '') {
+                $name = '#' . $uid;
+            }
+            $acr = class_exists('UsersRepository', false)
+                ? UsersRepository::shortName($name)
+                : '';
+            $row = [
+                'id' => $uid,
+                'name' => $name,
+                'acronym' => $acr,
+                'has_profile' => self::profileReadyForAdmin($uid),
+            ];
+            $staff[] = $row;
+            if (!$row['has_profile']) {
+                $missing[] = $row;
+            }
+        }
+        usort($staff, static function (array $a, array $b): int {
+            return strcasecmp($a['name'], $b['name']);
+        });
+        return [
+            'ok' => $missing === [],
+            'day' => $dayYmd,
+            'total' => count($staff),
+            'missing_count' => count($missing),
+            'staff' => $staff,
+            'missing' => $missing,
+        ];
+    }
+
+    /** True when this record’s calendar day has full on-shift voice-profile coverage. */
+    public static function recordDayProfilesReady(int $recordId): bool
+    {
+        if ($recordId < 1 || !Database::tableExists('base_records')) {
+            return false;
+        }
+        $st = Database::pdo()->prepare('SELECT DT_RECORDED FROM base_records WHERE ID = ? LIMIT 1');
+        $st->execute([$recordId]);
+        $ts = (int)($st->fetchColumn() ?: 0);
+        if ($ts < 1) {
+            return false;
+        }
+        $cov = self::shiftProfileCoverage(date('Y-m-d', $ts));
+        return !empty($cov['ok']) && (int)($cov['total'] ?? 0) > 0;
+    }
+
+    /**
+     * Cabin jobs with full shift profiles go to ASR-DIA (speakers+text); otherwise whisper ASR.
+     */
+    public static function preferAsrDiaForRecord(int $recordId): bool
+    {
+        if ($recordId < 1 || !self::diarizeEnabled()) {
+            return false;
+        }
+        // requires_profiles (default on): every on-shift audio staff must have a vector.
+        if (self::diarizeRequiresProfiles() && !self::recordDayProfilesReady($recordId)) {
+            return false;
+        }
+        if (!is_file(base_path('modules/audio_diarize/lib/AsrDiaRunsRepository.php'))) {
+            return false;
+        }
+        require_once base_path('modules/audio_diarize/lib/AsrDiaRunsRepository.php');
+        if (!AsrDiaRunsRepository::available()) {
+            return false;
+        }
+        if (!class_exists('EdgeHosts', false) || EdgeHosts::forService('asr_dia') === []) {
+            return false;
+        }
+        // Soft mode (requires_profiles off): still need at least one pack for matching.
+        if (!self::diarizeRequiresProfiles() && !self::hasReadyProfiles()) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Divert untranscribed record from whisper → asr_dia journal (apply transcription+speakers).
+     *
+     * @return array{ok:bool,run_id:int,diag:string}
+     */
+    public static function enqueueAsrDiaInsteadOfWhisper(int $recordId): array
+    {
+        $out = ['ok' => false, 'run_id' => 0, 'diag' => ''];
+        if ($recordId < 1 || !self::preferAsrDiaForRecord($recordId)) {
+            $out['diag'] = 'not_eligible';
+            return $out;
+        }
+        require_once base_path('modules/audio_diarize/lib/AsrDiaRunsRepository.php');
+        require_once base_path('modules/audio_diarize/lib/AsrDiaPushDispatcher.php');
+        $ids = AsrDiaRunsRepository::enqueueRecords([$recordId], '', true, true);
+        if ($ids === []) {
+            $out['diag'] = 'enqueue_failed';
+            return $out;
+        }
+        AsrDiaPushDispatcher::syncAll();
+        $out['ok'] = true;
+        $out['run_id'] = (int)$ids[0];
+        $out['diag'] = 'ASR_DIA=' . $out['run_id'];
+        return $out;
+    }
+
+    /**
      * @param array{
      *   speakers?:list<array<string,mixed>>,
      *   segments?:list<array<string,mixed>>,
@@ -149,7 +322,11 @@ final class SpeakerService
         return $out;
     }
 
-    public static function saveForRecord(int $recordId, ?array $payload): array
+    /**
+     * @param array<string,mixed>|null $payload
+     * @param array{rematch?:bool} $opts rematch=false keeps worker IDs (asr_dia already matched with stricter floors)
+     */
+    public static function saveForRecord(int $recordId, ?array $payload, array $opts = []): array
     {
         if ($recordId < 1 || !self::tablesReady()) {
             return ['ok' => false, 'diag' => 'speakers_unavailable'];
@@ -165,6 +342,11 @@ final class SpeakerService
         $segments = is_array($payload['segments'] ?? null) ? $payload['segments'] : [];
         $cues = is_array($payload['cue_speakers'] ?? null) ? $payload['cue_speakers'] : [];
         $dominant = trim((string)($payload['dominant_speaker'] ?? ''));
+        $doRematch = !array_key_exists('rematch', $opts) || !empty($opts['rematch']);
+        // asr_dia (and similar) send final IDs — soft cue rematch would re-attach weak false positives.
+        if (!empty($payload['skip_rematch']) || (string)($payload['engine'] ?? '') === 'asr_dia') {
+            $doRematch = false;
+        }
 
         $pdo = Database::pdo();
         self::clearForRecords([$recordId]);
@@ -251,11 +433,22 @@ final class SpeakerService
             }
         }
 
-        $matchDiag = self::matchRecordAgainstProfiles($recordId);
+        $cueFix = self::realignCuesFromSegments($recordId);
+
+        $matchDiag = '';
+        if ($doRematch) {
+            $matchDiag = self::matchRecordAgainstProfiles($recordId);
+        }
         // Auto-enroll from dominant is disabled — profiles come from manual samples only.
         $bindDiag = self::maybeAutobindOrphan($recordId);
 
         $diag = 'SPEAKERS=' . $saved;
+        if (!$doRematch) {
+            $diag .= ' NO_REMATCH';
+        }
+        if ($cueFix > 0) {
+            $diag .= ' CUE_FIX=' . $cueFix;
+        }
         if ($matchDiag !== '') {
             $diag .= ' ' . $matchDiag;
         }
@@ -263,6 +456,136 @@ final class SpeakerService
             $diag .= ' ' . $bindDiag;
         }
         return ['ok' => true, 'diag' => $diag];
+    }
+
+    /**
+     * Fix cue↔speaker labels by majority overlap with Nemotron segments.
+     * Mis-tagged lines (S2 on A127 speech) confuse UI filter; samples use segments, not cues.
+     *
+     * @return int number of cue rows updated or deleted
+     */
+    public static function realignCuesFromSegments(int $recordId): int
+    {
+        if (
+            $recordId < 1
+            || !Database::tableExists('base_records_cue_speakers')
+            || !Database::tableExists('base_records_speaker_segments')
+            || !Database::tableExists('base_records')
+        ) {
+            return 0;
+        }
+        $pdo = Database::pdo();
+        $stTx = $pdo->prepare('SELECT TRANSCRIPTION FROM base_records WHERE ID = ? LIMIT 1');
+        $stTx->execute([$recordId]);
+        $tx = (string)($stTx->fetchColumn() ?: '');
+        if (trim($tx) === '') {
+            return 0;
+        }
+
+        $stSeg = $pdo->prepare(
+            'SELECT LOCAL_ID, T0, T1 FROM base_records_speaker_segments
+             WHERE ID_RECORD = ? ORDER BY T0 ASC'
+        );
+        $stSeg->execute([$recordId]);
+        $segs = $stSeg->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($segs === []) {
+            return 0;
+        }
+
+        $stCue = $pdo->prepare(
+            'SELECT STRING_NUM, LOCAL_ID FROM base_records_cue_speakers WHERE ID_RECORD = ?'
+        );
+        $stCue->execute([$recordId]);
+        $cues = [];
+        while ($row = $stCue->fetch(PDO::FETCH_ASSOC)) {
+            $cues[(int)$row['STRING_NUM']] = (string)$row['LOCAL_ID'];
+        }
+        if ($cues === []) {
+            return 0;
+        }
+
+        $upd = $pdo->prepare(
+            'UPDATE base_records_cue_speakers SET LOCAL_ID = ? WHERE ID_RECORD = ? AND STRING_NUM = ?'
+        );
+        $del = $pdo->prepare(
+            'DELETE FROM base_records_cue_speakers WHERE ID_RECORD = ? AND STRING_NUM = ?'
+        );
+
+        $changed = 0;
+        $lines = preg_split("/\R/u", $tx) ?: [];
+        foreach ($lines as $i => $line) {
+            $num = $i + 1;
+            if (!isset($cues[$num])) {
+                continue;
+            }
+            $line = trim((string)$line);
+            if ($line === '' || $line[0] !== '[') {
+                continue;
+            }
+            $rb = strpos($line, ']');
+            if ($rb === false) {
+                continue;
+            }
+            $timeRaw = substr($line, 1, $rb - 1);
+            if (strpos($timeRaw, '->') === false) {
+                continue;
+            }
+            [$a, $b] = array_map('trim', explode('->', $timeRaw, 2));
+            $t0 = (float)self::mmssToSeconds($a);
+            $t1 = (float)self::mmssToSeconds($b);
+            if ($t1 <= $t0) {
+                $t1 = $t0 + 1.0;
+            }
+            $dur = $t1 - $t0;
+            $votes = [];
+            foreach ($segs as $seg) {
+                $ov0 = max($t0, (float)$seg['T0']);
+                $ov1 = min($t1, (float)$seg['T1']);
+                if ($ov1 > $ov0) {
+                    $lid = (string)$seg['LOCAL_ID'];
+                    $votes[$lid] = ($votes[$lid] ?? 0.0) + ($ov1 - $ov0);
+                }
+            }
+            $best = '';
+            $bestOv = 0.0;
+            foreach ($votes as $lid => $ov) {
+                if ($ov > $bestOv) {
+                    $bestOv = $ov;
+                    $best = (string)$lid;
+                }
+            }
+            $cur = $cues[$num];
+            $minOv = max(0.25, min(0.75, $dur * 0.30));
+            if ($best === '' || $bestOv < $minOv) {
+                // No reliable segment cover — drop false label (e.g. S2 on silence/other).
+                if ($cur !== '') {
+                    $del->execute([$recordId, $num]);
+                    $changed++;
+                }
+                continue;
+            }
+            if ($best !== $cur) {
+                $upd->execute([substr($best, 0, 16), $recordId, $num]);
+                $changed++;
+            }
+        }
+        return $changed;
+    }
+
+    private static function mmssToSeconds(string $mmss): int
+    {
+        $mmss = trim($mmss);
+        if (strpos($mmss, ':') === false) {
+            return max(0, (int)$mmss);
+        }
+        $p = explode(':', $mmss);
+        if (count($p) === 2) {
+            return max(0, ((int)$p[0]) * 60 + (int)$p[1]);
+        }
+        if (count($p) >= 3) {
+            return max(0, ((int)$p[0]) * 3600 + ((int)$p[1]) * 60 + (int)$p[2]);
+        }
+        return 0;
     }
 
     /**
@@ -602,7 +925,8 @@ final class SpeakerService
             return [];
         }
         $st = Database::pdo()->query(
-            'SELECT ID_ADMIN, EMBEDDING, EMBEDDING_DIM FROM base_records_speaker_profiles WHERE ID_ADMIN > 0'
+            'SELECT ID_ADMIN, EMBEDDING, EMBEDDING_DIM, SAMPLE_COUNT, TALK_SEC_TOTAL
+             FROM base_records_speaker_profiles WHERE ID_ADMIN > 0'
         );
         $out = [];
         while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
@@ -613,7 +937,12 @@ final class SpeakerService
             if ($emb === []) {
                 continue;
             }
-            $out[] = ['id_admin' => (int)$row['ID_ADMIN'], 'embedding' => $emb];
+            $out[] = [
+                'id_admin' => (int)$row['ID_ADMIN'],
+                'embedding' => $emb,
+                'sample_count' => (int)($row['SAMPLE_COUNT'] ?? 0),
+                'talk_sec' => (float)($row['TALK_SEC_TOTAL'] ?? 0),
+            ];
         }
         return $out;
     }
@@ -654,6 +983,8 @@ final class SpeakerService
                 'id_admin' => $adminId,
                 'embedding' => array_map('floatval', $p['embedding']),
                 'samples' => $samplesByAdmin[$adminId] ?? [],
+                'sample_count' => (int)($p['sample_count'] ?? count($samplesByAdmin[$adminId] ?? [])),
+                'talk_sec' => (float)($p['talk_sec'] ?? 0),
             ];
         }
         return $out;
@@ -823,6 +1154,128 @@ final class SpeakerService
             $n++;
         }
         return ['ok' => true, 'processed' => $n, 'message' => 'day_cluster_done'];
+    }
+
+    /**
+     * Manual bind: local cluster (e.g. S2) → staff. Updates match row + optional enrollment clips.
+     *
+     * @return array{
+     *   ok:bool,error:string,local_id:string,admin_id:int,
+     *   samples?:array<string,mixed>
+     * }
+     */
+    /**
+     * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $excludeRanges
+     */
+    public static function assignLocalToAdmin(
+        int $recordId,
+        string $localId,
+        int $adminId,
+        bool $addSamples = true,
+        array $excludeRanges = []
+    ): array {
+        $localId = substr(trim($localId), 0, 16);
+        $out = [
+            'ok' => false,
+            'error' => '',
+            'local_id' => $localId,
+            'admin_id' => $adminId,
+        ];
+        if ($recordId < 1 || $localId === '' || $adminId < 1) {
+            $out['error'] = 'bad_args';
+            return $out;
+        }
+        if (!Database::tableExists('base_records_speakers')) {
+            $out['error'] = 'speakers_unavailable';
+            return $out;
+        }
+        if (
+            class_exists('SpeakerSamplesRepository', false)
+            && !SpeakerSamplesRepository::isEligibleStaffAdmin($adminId)
+        ) {
+            $out['error'] = 'bad_admin';
+            return $out;
+        }
+        if (class_exists('SpeakerSamplesRepository', false)) {
+            $allowed = false;
+            foreach (SpeakerSamplesRepository::staffOptionsForRecord($recordId) as $opt) {
+                if ((int)($opt['id'] ?? 0) === $adminId) {
+                    $allowed = true;
+                    break;
+                }
+            }
+            if (!$allowed) {
+                $out['error'] = 'bad_admin';
+                return $out;
+            }
+        }
+
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            'SELECT ID, MATCHED_ADMIN_ID FROM base_records_speakers
+             WHERE ID_RECORD = ? AND LOCAL_ID = ? LIMIT 1'
+        );
+        $st->execute([$recordId, $localId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            $out['error'] = 'speaker_missing';
+            return $out;
+        }
+
+        $now = time();
+        $pdo->prepare(
+            'UPDATE base_records_speakers
+             SET ROLE = ?, MATCHED_ADMIN_ID = ?, CONFIDENCE = ?, DT_UPDATE = ?
+             WHERE ID = ?'
+        )->execute(['staff', $adminId, 1.0, $now, (int)$row['ID']]);
+
+        $samples = null;
+        if ($addSamples && class_exists('SpeakerSamplesRepository', false)) {
+            $samples = SpeakerSamplesRepository::addManualFromLocalSpeaker(
+                $adminId,
+                $recordId,
+                $localId,
+                $excludeRanges
+            );
+            if (
+                !empty($samples['ok'])
+                && (int)($samples['added'] ?? 0) > 0
+                && class_exists('DiarizePushDispatcher', false)
+            ) {
+                DiarizePushDispatcher::afterQueueChange();
+            }
+        }
+        if ($samples !== null) {
+            $out['samples'] = $samples;
+        }
+        $out['ok'] = true;
+        return $out;
+    }
+
+    /**
+     * @return list<array{t0:float,t1:float}>
+     */
+    public static function parseExcludeRanges($raw): array
+    {
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $r) {
+            if (!is_array($r)) {
+                continue;
+            }
+            $t0 = (float)($r['t0'] ?? $r[0] ?? 0);
+            $t1 = (float)($r['t1'] ?? $r[1] ?? 0);
+            if ($t1 > $t0) {
+                $out[] = ['t0' => $t0, 't1' => $t1];
+            }
+        }
+        return $out;
     }
 
     /**

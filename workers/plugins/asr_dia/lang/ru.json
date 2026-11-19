@@ -1,0 +1,7 @@
+{
+  "activity.idle_sleep": "простой {sec}с",
+  "activity.diarize": "диаризация {file}",
+  "activity.asr": "ASR сегментов {file}",
+  "activity.match": "сопоставление профилей {file}",
+  "activity.push_wait": "ожидание заданий"
+}

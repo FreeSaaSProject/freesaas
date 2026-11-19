@@ -1,0 +1,64 @@
+{
+  "large-v3": {
+    "ok": true,
+    "error": "",
+    "meta": {
+      "engine": "asr_dia",
+      "dia_engine": "nemotron3",
+      "asr_model_id": "large-v3",
+      "turns": 2,
+      "cues": 2,
+      "matched_cues": 0,
+      "matched_pct": 0.0
+    },
+    "speakers": [
+      {
+        "id": "S0",
+        "role": "other",
+        "id_admin": 0,
+        "confidence": 0.0,
+        "talk_sec": 1.44
+      },
+      {
+        "id": "S1",
+        "role": "other",
+        "id_admin": 0,
+        "confidence": 0.0,
+        "talk_sec": 1.87
+      }
+    ],
+    "transcription": "[0:38.8->0:40.3]Все нормально, просто отдал.\n[0:42.7->0:44.5]Ох, да.",
+    "elapsed_sec": 4.4
+  },
+  "podlodka-turbo": {
+    "ok": true,
+    "error": "",
+    "meta": {
+      "engine": "asr_dia",
+      "dia_engine": "nemotron3",
+      "asr_model_id": "podlodka-turbo",
+      "turns": 2,
+      "cues": 2,
+      "matched_cues": 0,
+      "matched_pct": 0.0
+    },
+    "speakers": [
+      {
+        "id": "S0",
+        "role": "other",
+        "id_admin": 0,
+        "confidence": 0.0,
+        "talk_sec": 1.44
+      },
+      {
+        "id": "S1",
+        "role": "other",
+        "id_admin": 0,
+        "confidence": 0.0,
+        "talk_sec": 1.87
+      }
+    ],
+    "transcription": "[0:38.8->0:40.0]Всё нормально, открой кардал.\n[0:42.8->0:43.8]Ох, да!",
+    "elapsed_sec": 3.1
+  }
+}

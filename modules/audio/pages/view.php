@@ -63,6 +63,8 @@ $speakerOpts = [
     'speaker_admins' => [],
 ];
 if (class_exists('SpeakerService', false)) {
+    // Fix cue labels that disagree with Nemotron segments (false S2 on other speech).
+    SpeakerService::realignCuesFromSegments($id);
     $speakerRows = SpeakerService::speakersForRecord($id);
     $speakerOpts = SpeakerService::highlightOptsForRecord($id, (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0));
 }
@@ -90,6 +92,10 @@ if ($wantsJson) {
     return;
 }
 
+$canAssignSpeaker = ModuleManager::isEnabled('audio_diarize')
+    && Auth::can('audio_diarize.edit')
+    && class_exists('SpeakerService', false);
+
 View::render('view', [
     'title' => '#' . $id,
     'breadcrumbs' => Breadcrumbs::withHome([
@@ -106,4 +112,5 @@ View::render('view', [
     'dictMeta' => $dictMeta,
     'keyDicts' => $keyDicts,
     'speakers' => $speakerRows,
+    'canAssignSpeaker' => $canAssignSpeaker,
 ], 'layout', 'audio');

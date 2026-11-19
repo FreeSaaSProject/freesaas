@@ -1,0 +1,42 @@
+{
+  "when": "2026-11-19",
+  "edge": "macstudio LAN https://192.168.1.215:18443",
+  "enabled_plugins": ["whisper", "diarize", "egisz", "asr_dia"],
+  "sample_ids": [291273, 291407, 291361],
+  "playtime_each_sec": 360,
+  "profiles_rebuild_needed": false,
+  "profiles_note": "Existing CAM++ enrollment (13 ready) matched 60–83% cues on full 6‑min files without rebuild. Studio 180s smoke earlier was 100% matched on same vectors.",
+  "asr_dia": {
+    "large-v3": {
+      "batch_wall_sec": 146.9,
+      "wall_sec_sum": 143,
+      "rtf_mean": 0.132,
+      "rows": [
+        {"id": 291273, "wall_sec": 17.49, "rtf": 0.049, "matched_pct": 66.7},
+        {"id": 291407, "wall_sec": 21.16, "rtf": 0.059, "matched_pct": 83.3},
+        {"id": 291361, "wall_sec": 104.31, "rtf": 0.29, "matched_pct": 75.0}
+      ]
+    },
+    "podlodka-turbo": {
+      "batch_wall_sec": 82.5,
+      "wall_sec_sum": 78.7,
+      "rtf_mean": 0.073,
+      "rows": [
+        {"id": 291273, "wall_sec": 8.01, "rtf": 0.022, "matched_pct": 60.0},
+        {"id": 291407, "wall_sec": 13.26, "rtf": 0.037, "matched_pct": 83.3},
+        {"id": 291361, "wall_sec": 57.38, "rtf": 0.159, "matched_pct": 71.4}
+      ]
+    }
+  },
+  "reference_old_path": {
+    "diarize_cue_only_291361": {
+      "wall_sec": 2.18,
+      "rtf": 0.006,
+      "matched_pct": 100,
+      "note": "Post-ASR only (transcription already present). Does not include cabin whisper time."
+    },
+    "fair_compare": "End-to-end text+speakers: asr_dia wall vs (whisper ASR + diarize). Cue-diarize alone is ~2s but needs prior ASR; asr_dia podlodka did dia+ASR+ID for 291361 in ~57s (RTF 0.16)."
+  },
+  "speed_verdict": "podlodka-turbo ~1.8× faster than large-v3 on same three files (79s vs 143s wall sum). Prefer podlodka as default for asr_dia experiment.",
+  "speaker_verdict": "Matched 60–83% on full files vs baseline 0% cue rows — go_candidate; profiles rebuild not required."
+}

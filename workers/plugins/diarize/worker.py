@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FreeSaaS diarize worker: embed manual samples + optional full-file diarize."""
+"""FreeSaaS voice vectorizer: CAM++ embed for manual samples (file diarize retired)."""
 
 from __future__ import annotations
 
@@ -585,12 +585,18 @@ def process_push_job(
 	kind = str(job.get("kind") or "")
 	bump_counter("files_req")
 	try:
-		if kind == "embed":
-			if emb is None:
-				emb = _embedder(cfg)
-			result = process_embed(cfg, job, emb, push=True)
-		else:
-			result = process_diarize(cfg, job, push=True)
+		if kind != "embed":
+			# File WeSpeaker diarize retired — drop non-embed jobs without loading engine.
+			log(f"skip non-embed push job kind={kind!r} (vectorizer is embed-only)")
+			PUSH_STORE.finish(
+				job_id,
+				{"kind": kind or "file", "status": "skipped", "error": "file_diarize_retired"},
+			)
+			bump_counter("files_ok")
+			return emb, True
+		if emb is None:
+			emb = _embedder(cfg)
+		result = process_embed(cfg, job, emb, push=True)
 		if result is None:
 			raise RuntimeError("empty result")
 		PUSH_STORE.finish(job_id, result)
@@ -632,7 +638,11 @@ def main() -> int:
 		raise SystemExit("modes.pull and modes.push are both off")
 	idle = int(((cfg.get("loop") or {}).get("sleep_seconds_idle")) or 120)
 	run_sleep = int(((cfg.get("loop") or {}).get("sleep_seconds_run")) or 1)
-	mode = str((cfg.get("mode") or "auto")).strip().lower()  # auto | embed | diarize
+	# Default embed-only — file WeSpeaker diarize is retired (use asr_dia).
+	mode = str((cfg.get("mode") or "embed")).strip().lower()
+	if mode in ("auto", "diarize"):
+		log(f"mode={mode!r} forced to embed (file diarize retired)")
+		mode = "embed"
 	status_update(meta={"mode": mode, "pull": pull_enabled, "push": push_enabled})
 	emb: Optional[WeSpeakerEmbedder] = None
 	while True:
@@ -661,45 +671,21 @@ def main() -> int:
 				idle_sleep(idle, detail=tl("activity.push_wait"))
 				continue
 
-			# Pull path (labs / dual-mode): claim FreeSaaS.
-			if mode in ("auto", "embed"):
-				set_activity("claim", tl("activity.claim_embed"))
-				job = claim_embed(cfg)
-				if job:
-					bump_counter("files_req")
-					try:
-						if emb is None:
-							emb = _embedder(cfg)
-						process_embed(cfg, job, emb, push=False)
-						bump_counter("files_ok")
-					except Exception:
-						bump_counter("files_err")
-						raise
-					time.sleep(run_sleep)
-					continue
-			if mode in ("auto", "diarize"):
-				state = diarize_server_state(cfg)
-				if not state["enabled"]:
-					set_activity("idle", tl("activity.diarize_off"))
-					idle_sleep(idle, detail=tl("activity.diarize_off"))
-					continue
-				if state["ready"] or mode == "diarize":
-					set_activity("claim", tl("activity.claim_diarize"))
-					job = claim_diarize(cfg)
-					if job:
-						bump_counter("files_req")
-						try:
-							process_diarize(cfg, job, push=False)
-							bump_counter("files_ok")
-						except Exception:
-							bump_counter("files_err")
-							raise
-						time.sleep(run_sleep)
-						continue
-				elif mode == "auto":
-					set_activity("idle", tl("activity.wait_profiles"))
-					idle_sleep(idle, detail=tl("activity.wait_profiles"))
-					continue
+			# Pull path (labs): embed claims only.
+			set_activity("claim", tl("activity.claim_embed"))
+			job = claim_embed(cfg)
+			if job:
+				bump_counter("files_req")
+				try:
+					if emb is None:
+						emb = _embedder(cfg)
+					process_embed(cfg, job, emb, push=False)
+					bump_counter("files_ok")
+				except Exception:
+					bump_counter("files_err")
+					raise
+				time.sleep(run_sleep)
+				continue
 			idle_sleep(idle, detail=tl("log.no_files_wait", sec=idle))
 		except KeyboardInterrupt:
 			status_update(ok=False)

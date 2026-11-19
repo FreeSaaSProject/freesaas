@@ -468,9 +468,13 @@ final class SpeakerSamplesRepository
             if ($name === '') {
                 $name = '#' . $uid;
             }
+            $acr = class_exists('UsersRepository', false)
+                ? UsersRepository::shortName($name)
+                : '';
             $out[] = [
                 'id' => $uid,
                 'name' => $name,
+                'acronym' => $acr,
                 'default' => $uid === $defaultAdmin,
             ];
         }
@@ -563,6 +567,323 @@ final class SpeakerSamplesRepository
             'duration' => $t1 - $t0,
             'overlap_id' => 0,
         ];
+    }
+
+    /** Merge nearby [t0,t1] into enrollment-sized clips; split overlong. */
+    public const LOCAL_MERGE_GAP_SEC = 3.5;
+
+    /**
+     * @param list<array{0:float,1:float}|array{t0:float,t1:float}> $ranges
+     * @return list<array{0:float,1:float}>
+     */
+    private static function normalizePairs(array $ranges): array
+    {
+        $pairs = [];
+        foreach ($ranges as $r) {
+            if (!is_array($r)) {
+                continue;
+            }
+            $t0 = (float)($r['t0'] ?? $r[0] ?? 0);
+            $t1 = (float)($r['t1'] ?? $r[1] ?? 0);
+            if ($t1 > $t0) {
+                $pairs[] = [$t0, $t1];
+            }
+        }
+        usort($pairs, static function (array $a, array $b): int {
+            return $a[0] <=> $b[0];
+        });
+        return $pairs;
+    }
+
+    /**
+     * Subtract blocker intervals from keep intervals (foreign speech punch-out).
+     *
+     * @param list<array{0:float,1:float}|array{t0:float,t1:float}> $keep
+     * @param list<array{0:float,1:float}|array{t0:float,t1:float}> $blockers
+     * @return list<array{t0:float,t1:float}>
+     */
+    public static function punchOutRanges(array $keep, array $blockers): array
+    {
+        $pairs = self::normalizePairs($keep);
+        $blocks = self::normalizePairs($blockers);
+        if ($pairs === []) {
+            return [];
+        }
+        if ($blocks === []) {
+            $out = [];
+            foreach ($pairs as $p) {
+                $out[] = ['t0' => $p[0], 't1' => $p[1]];
+            }
+            return $out;
+        }
+        $out = [];
+        foreach ($pairs as $p) {
+            $pieces = [[$p[0], $p[1]]];
+            foreach ($blocks as $b) {
+                $next = [];
+                foreach ($pieces as $piece) {
+                    [$a, $c] = $piece;
+                    [$x, $y] = $b;
+                    if ($y <= $a || $x >= $c) {
+                        $next[] = [$a, $c];
+                        continue;
+                    }
+                    if ($x > $a) {
+                        $next[] = [$a, min($x, $c)];
+                    }
+                    if ($y < $c) {
+                        $next[] = [max($y, $a), $c];
+                    }
+                }
+                $pieces = $next;
+            }
+            foreach ($pieces as $piece) {
+                if ($piece[1] > $piece[0]) {
+                    $out[] = ['t0' => $piece[0], 't1' => $piece[1]];
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<array{0:float,1:float}|array{t0:float,t1:float}> $ranges
+     * @return list<array{t0:float,t1:float}>
+     */
+    public static function mergeClipRanges(array $ranges, float $gapSec = self::LOCAL_MERGE_GAP_SEC): array
+    {
+        $pairs = self::normalizePairs($ranges);
+        if ($pairs === []) {
+            return [];
+        }
+        $merged = [];
+        $cur0 = $pairs[0][0];
+        $cur1 = $pairs[0][1];
+        for ($i = 1, $n = count($pairs); $i < $n; $i++) {
+            [$a, $b] = $pairs[$i];
+            if ($a <= $cur1 + $gapSec) {
+                $cur1 = max($cur1, $b);
+                continue;
+            }
+            $merged[] = ['t0' => $cur0, 't1' => $cur1];
+            $cur0 = $a;
+            $cur1 = $b;
+        }
+        $merged[] = ['t0' => $cur0, 't1' => $cur1];
+
+        $out = [];
+        foreach ($merged as $clip) {
+            $t0 = $clip['t0'];
+            $t1 = $clip['t1'];
+            $dur = $t1 - $t0;
+            if ($dur < self::MIN_CLIP_SEC) {
+                continue;
+            }
+            if ($dur <= self::MAX_CLIP_SEC) {
+                $out[] = ['t0' => $t0, 't1' => $t1];
+                continue;
+            }
+            $pos = $t0;
+            while ($pos + self::MIN_CLIP_SEC <= $t1) {
+                $end = min($t1, $pos + self::MAX_CLIP_SEC);
+                if ($end - $pos >= self::MIN_CLIP_SEC) {
+                    $out[] = ['t0' => $pos, 't1' => $end];
+                }
+                $pos = $end;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Nemotron segment windows for one local speaker on a record.
+     *
+     * @return list<array{t0:float,t1:float}>
+     */
+    public static function segmentRangesForLocal(int $recordId, string $localId): array
+    {
+        $localId = substr(trim($localId), 0, 16);
+        if ($recordId < 1 || $localId === '' || !Database::tableExists('base_records_speaker_segments')) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT T0, T1 FROM base_records_speaker_segments
+             WHERE ID_RECORD = ? AND LOCAL_ID = ? ORDER BY T0 ASC'
+        );
+        $st->execute([$recordId, $localId]);
+        $out = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $t0 = (float)$row['T0'];
+            $t1 = (float)$row['T1'];
+            if ($t1 > $t0) {
+                $out[] = ['t0' => $t0, 't1' => $t1];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * All segment windows on a record except one local speaker.
+     *
+     * @return list<array{t0:float,t1:float}>
+     */
+    public static function segmentRangesExceptLocal(int $recordId, string $localId): array
+    {
+        $localId = substr(trim($localId), 0, 16);
+        if ($recordId < 1 || !Database::tableExists('base_records_speaker_segments')) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT T0, T1 FROM base_records_speaker_segments
+             WHERE ID_RECORD = ? AND LOCAL_ID <> ? ORDER BY T0 ASC'
+        );
+        $st->execute([$recordId, $localId]);
+        $out = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $t0 = (float)$row['T0'];
+            $t1 = (float)$row['T1'];
+            if ($t1 > $t0) {
+                $out[] = ['t0' => $t0, 't1' => $t1];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Enrollment clips: merge own segments, then punch out foreign speech (gap-merge
+     * alone can re-include A127 inside an S2 window) and optional operator excludes,
+     * then re-apply min/max sizing.
+     *
+     * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $excludeRanges
+     * @return list<array{t0:float,t1:float}>
+     */
+    public static function enrollmentClipsForLocal(
+        int $recordId,
+        string $localId,
+        array $excludeRanges = []
+    ): array {
+        $own = self::segmentRangesForLocal($recordId, $localId);
+        if ($own === []) {
+            return [];
+        }
+        $blockers = array_merge(
+            self::segmentRangesExceptLocal($recordId, $localId),
+            $excludeRanges
+        );
+        $rough = self::mergeClipRanges($own, self::LOCAL_MERGE_GAP_SEC);
+        $clean = self::punchOutRanges($rough, $blockers);
+        // Tiny gap only for float abut; do not bridge punched holes again.
+        return self::mergeClipRanges($clean, 0.05);
+    }
+
+    /**
+     * Create manual samples from a local cluster’s segments (merge → clips → insert).
+     *
+     * @return array{
+     *   ok:bool,error:string,added:int,skipped_dup:int,skipped_short:int,
+     *   ids:list<int>,clips:list<array{t0:float,t1:float}>,
+     *   manual_count:int,remaining:int,talk_sec:float
+     * }
+     */
+    /**
+     * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $excludeRanges
+     */
+    public static function addManualFromLocalSpeaker(
+        int $adminId,
+        int $recordId,
+        string $localId,
+        array $excludeRanges = []
+    ): array {
+        $counts = self::countsForAdmin($adminId);
+        $base = [
+            'ok' => false,
+            'error' => '',
+            'added' => 0,
+            'skipped_dup' => 0,
+            'skipped_short' => 0,
+            'ids' => [],
+            'clips' => [],
+            'manual_count' => $counts['manual'],
+            'remaining' => max(0, self::RECOMMENDED_MANUAL - $counts['manual']),
+            'talk_sec' => 0.0,
+        ];
+        if (!self::available()) {
+            $base['error'] = 'samples_unavailable';
+            return $base;
+        }
+        if ($adminId < 1 || $recordId < 1 || trim($localId) === '') {
+            $base['error'] = 'bad_args';
+            return $base;
+        }
+        $allowed = false;
+        foreach (self::staffOptionsForRecord($recordId) as $opt) {
+            if ((int)($opt['id'] ?? 0) === $adminId) {
+                $allowed = true;
+                break;
+            }
+        }
+        if (!$allowed) {
+            $base['error'] = 'bad_admin';
+            return $base;
+        }
+        if ($counts['manual'] >= self::MAX_MANUAL) {
+            $base['error'] = 'too_many';
+            return $base;
+        }
+
+        $raw = self::segmentRangesForLocal($recordId, $localId);
+        $rawTalk = 0.0;
+        foreach ($raw as $r) {
+            $rawTalk += max(0.0, $r['t1'] - $r['t0']);
+        }
+        $base['talk_sec'] = $rawTalk;
+        // Punch out other speakers + operator-excluded cues before insert.
+        $clips = self::enrollmentClipsForLocal($recordId, $localId, $excludeRanges);
+        $base['clips'] = $clips;
+        if ($clips === []) {
+            $base['error'] = 'no_clips';
+            $base['skipped_short'] = count($raw);
+            return $base;
+        }
+
+        $added = 0;
+        $dup = 0;
+        $ids = [];
+        foreach ($clips as $clip) {
+            if ($counts['manual'] + $added >= self::MAX_MANUAL) {
+                break;
+            }
+            $res = self::addManual($adminId, $recordId, $clip['t0'], $clip['t1']);
+            if ($res['ok']) {
+                $added++;
+                $ids[] = (int)$res['id'];
+                continue;
+            }
+            if (($res['error'] ?? '') === 'duplicate') {
+                $dup++;
+                continue;
+            }
+            // First hard failure (e.g. too_many mid-loop) — stop.
+            if ($added < 1 && $dup < 1) {
+                $base['error'] = (string)$res['error'];
+                $base['manual_count'] = (int)$res['manual_count'];
+                $base['remaining'] = (int)$res['remaining'];
+                return $base;
+            }
+            break;
+        }
+
+        $counts = self::countsForAdmin($adminId);
+        $base['ok'] = $added > 0 || $dup > 0;
+        $base['added'] = $added;
+        $base['skipped_dup'] = $dup;
+        $base['ids'] = $ids;
+        $base['manual_count'] = $counts['manual'];
+        $base['remaining'] = max(0, self::RECOMMENDED_MANUAL - $counts['manual']);
+        if (!$base['ok']) {
+            $base['error'] = 'no_clips';
+        }
+        return $base;
     }
 
     public static function delete(int $sampleId, int $adminId = 0): bool

@@ -307,6 +307,26 @@ final class AsrPushDispatcher
         if ($leases === []) {
             return 0;
         }
+        // Full shift voice profiles → ASR-DIA instead of cabin whisper.
+        if (class_exists('SpeakerService', false)) {
+            $kept = [];
+            foreach ($leases as $lease) {
+                $rid = (int)($lease['record_id'] ?? 0);
+                if ($rid > 0 && SpeakerService::preferAsrDiaForRecord($rid)) {
+                    AsrLease::releaseJob($id, (string)$lease['job_id']);
+                    $divert = SpeakerService::enqueueAsrDiaInsteadOfWhisper($rid);
+                    if (empty($divert['ok'])) {
+                        error_log('[asr_push] asr_dia divert failed record=' . $rid . ' ' . ($divert['diag'] ?? ''));
+                    }
+                    continue;
+                }
+                $kept[] = $lease;
+            }
+            $leases = $kept;
+            if ($leases === []) {
+                return 0;
+            }
+        }
         $sourceBase = rtrim(trim((string)Config::get('audio', 'asr_source_base_url', '')), '/');
         $jobs = array_map(static function (array $l) use ($sourceBase): array {
             $job = ['job_id' => $l['job_id'], 'file_name' => $l['file_name']];

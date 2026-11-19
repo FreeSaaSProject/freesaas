@@ -1,0 +1,32 @@
+{
+  "day": "2026-11-16",
+  "gate": {
+    "median_matched_pct": 0,
+    "threshold_pct": 30,
+    "decision": "need_asr_dia",
+    "note": "All 12 sample records had 0 cue_speakers / 0 matched speakers after profiles present (13 ready)."
+  },
+  "staff": [
+    {"id_admin": 58, "name": "Бадбаев Николай Алексеевич", "records": [291478, 291479]},
+    {"id_admin": 85, "name": "Эмери Татьяна Александровна", "records": [291273, 291274]},
+    {"id_admin": 103, "name": "Вохмянина Татьяна Сергеевна", "records": [291407, 291408]},
+    {"id_admin": 127, "name": "Денисов Вячеслав Михайлович", "records": [291361, 291362]},
+    {"id_admin": 145, "name": "Мелашенко Ольга Вячеславовна", "records": [291129, 291130]},
+    {"id_admin": 148, "name": "Исправникова Татьяна Владимировна", "records": [291195, 291196]}
+  ],
+  "record_ids": [291478, 291479, 291273, 291274, 291407, 291408, 291361, 291362, 291129, 291130, 291195, 291196],
+  "baseline": [
+    {"record_id": 291478, "admin": 58, "cues": 48, "matched_cues": 0, "pct": 0},
+    {"record_id": 291479, "admin": 58, "cues": 15, "matched_cues": 0, "pct": 0},
+    {"record_id": 291273, "admin": 85, "cues": 5, "matched_cues": 0, "pct": 0},
+    {"record_id": 291274, "admin": 85, "cues": 1, "matched_cues": 0, "pct": 0},
+    {"record_id": 291407, "admin": 103, "cues": 12, "matched_cues": 0, "pct": 0},
+    {"record_id": 291408, "admin": 103, "cues": 42, "matched_cues": 0, "pct": 0},
+    {"record_id": 291361, "admin": 127, "cues": 82, "matched_cues": 0, "pct": 0},
+    {"record_id": 291362, "admin": 127, "cues": 31, "matched_cues": 0, "pct": 0},
+    {"record_id": 291129, "admin": 145, "cues": 1, "matched_cues": 0, "pct": 0},
+    {"record_id": 291130, "admin": 145, "cues": 1, "matched_cues": 0, "pct": 0},
+    {"record_id": 291195, "admin": 148, "cues": 87, "matched_cues": 0, "pct": 0},
+    {"record_id": 291196, "admin": 148, "cues": 76, "matched_cues": 0, "pct": 0}
+  ]
+}

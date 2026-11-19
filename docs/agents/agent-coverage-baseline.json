@@ -122,11 +122,15 @@
         "audio_diarize": {
             "ops": [
                 "audio_diarize.api.voice_sample",
+                "audio_diarize.asr.asr_dia_result",
+                "audio_diarize.asr.asr_dia_status",
                 "audio_diarize.asr.diarize_claim",
                 "audio_diarize.asr.diarize_result",
                 "audio_diarize.asr.diarize_status",
                 "audio_diarize.asr.embed_sample_claim",
                 "audio_diarize.asr.embed_sample_result",
+                "audio_diarize.asr_dia.list",
+                "audio_diarize.asr_dia.longjob",
                 "audio_diarize.diarize.longjob",
                 "audio_diarize.settings",
                 "audio_diarize.voice_profiles.list",

@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-19T08:23:53+00:00",
+    "generated_at": "2026-11-19T10:42:10+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -198,7 +198,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.25",
+            "version": "1.0.27",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -239,19 +239,19 @@
         },
         {
             "id": "audio_diarize",
-            "version": "0.1.0",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Diarization",
                 "ru": "Диаризация"
             },
             "description": {
-                "en": "Cabin speaker labels (WeSpeaker CAM++ on the edge) and voice-profile enrollment.",
-                "ru": "Разметка спикеров на кабинных записях (WeSpeaker CAM++ на edge) и enrollment голосовых профилей."
+                "en": "Voice profiles (CAM++), ASR-DIA with speaker recognition, manual cluster assign.",
+                "ru": "Голосовые профили (CAM++), ASR-DIA с распознаванием спикеров, ручная привязка кластеров."
             },
             "summary": {
-                "en": "Enable when you need edge diarize and manual voice samples. Without it, ASR/ingest/stem keep working as before.",
-                "ru": "Включайте, когда нужен edge diarize и ручные голосовые сэмплы. Без модуля ASR/ingest/stem работают как раньше."
+                "en": "Enable for profiles and ASR-DIA. Without it, cabin ASR/ingest/stem keep working as before.",
+                "ru": "Включайте для профилей и ASR-DIA. Без модуля cabin ASR/ingest/stem работают как раньше."
             },
             "requires": {
                 "core": ">=1.1.0",
@@ -270,7 +270,7 @@
                 "tags": []
             },
             "agent": {
-                "docs": "docs/agents/audio_pipeline.md"
+                "docs": "docs/agents/asr_dia.md"
             }
         },
         {
@@ -389,7 +389,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.3.9",
+            "version": "1.3.10",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",

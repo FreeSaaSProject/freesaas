@@ -1,0 +1,7 @@
+{
+  "activity.idle_sleep": "idle {sec}s",
+  "activity.diarize": "diarize {file}",
+  "activity.asr": "ASR turns {file}",
+  "activity.match": "match profiles {file}",
+  "activity.push_wait": "waiting for jobs"
+}

@@ -1,0 +1,76 @@
+{
+    "ok": true,
+    "model": "reuse_gap",
+    "gateway": "https:\/\/192.168.1.215:18443",
+    "ids": [
+        291361,
+        291362,
+        291363
+    ],
+    "run_ids": [
+        34,
+        35,
+        36
+    ],
+    "sync_first": {
+        "ok": true,
+        "workers": 1,
+        "saved": 0,
+        "sent": 3,
+        "message": "workers=1 saved=0 sent=3"
+    },
+    "batch_wall_sec": 82.4,
+    "push_latency_sec": 1.51,
+    "audio_sec_sum": 939,
+    "pipeline_sec_sum": 73.6,
+    "wall_sec_sum": 77.7,
+    "rtf_mean": 0.083,
+    "rows": [
+        {
+            "record_id": 291361,
+            "admin": 127,
+            "playtime_sec": 360,
+            "status": "done",
+            "asr_model": "reuse_gap",
+            "cues": 84,
+            "matched_cues": 60,
+            "matched_pct": 71.4,
+            "download_sec": 1.09,
+            "pipeline_sec": 26.41,
+            "wall_sec": 27.5,
+            "rtf": 0.076,
+            "error": ""
+        },
+        {
+            "record_id": 291362,
+            "admin": 127,
+            "playtime_sec": 219,
+            "status": "done",
+            "asr_model": "reuse_gap",
+            "cues": 43,
+            "matched_cues": 43,
+            "matched_pct": 100,
+            "download_sec": 0.72,
+            "pipeline_sec": 19.72,
+            "wall_sec": 20.44,
+            "rtf": 0.093,
+            "error": ""
+        },
+        {
+            "record_id": 291363,
+            "admin": 127,
+            "playtime_sec": 360,
+            "status": "done",
+            "asr_model": "reuse_gap",
+            "cues": 53,
+            "matched_cues": 53,
+            "matched_pct": 100,
+            "download_sec": 2.31,
+            "pipeline_sec": 27.47,
+            "wall_sec": 29.78,
+            "rtf": 0.083,
+            "error": ""
+        }
+    ],
+    "note": "wall_sec = download+pipeline on edge; rtf = wall\/playtime. Old cue-diarize is post-ASR only — compare pipeline_sec to diarize worker times, not full whisper."
+}

@@ -68,20 +68,29 @@ foreach ($rows as $r) {
         $remain = max(0, $recommended - $manual);
         $pending = (int)$r['pending_embed'];
         $ready = !empty($r['has_profile']);
+        $enough = $manual >= $recommended;
         $canSend = $canEdit && $manual > 0 && ($pending > 0 || !$ready);
       ?>
       <tr>
-        <td><?= UsersRepository::badgeHtml($adminId) ?></td>
+        <td>
+          <?php if ($enough): ?>
+            <span title="<?= te('audio_diarize.voice_profiles.samples_enough') ?>"
+                  aria-label="<?= te('audio_diarize.voice_profiles.samples_enough') ?>">✅</span>
+          <?php endif; ?>
+          <?= UsersRepository::badgeHtml($adminId) ?>
+        </td>
         <td><?= $manual ?> / <?= $recommended ?></td>
-        <td><?= $remain ?></td>
+        <td><?= $enough ? '✅' : (string)$remain ?></td>
         <td><?= (int)$r['diarize_count'] ?></td>
         <td><?= $pending ?></td>
         <td>
           <?php if ($ready): ?>
-            <?= te('audio_diarize.voice_profiles.status_ready', [
+            ✅ <?= te('audio_diarize.voice_profiles.status_ready', [
                 'dim' => (string)(int)$r['profile_dim'],
                 'n' => (string)(int)$r['profile_samples'],
             ]) ?>
+          <?php elseif ($enough): ?>
+            ✅ <?= te('audio_diarize.voice_profiles.status_samples_ok') ?>
           <?php else: ?>
             <?= te('audio_diarize.voice_profiles.status_none') ?>
           <?php endif; ?>

@@ -173,14 +173,22 @@ final class TranscriptHighlighter
             $matchedAdminEarly = $spkId !== '' ? (int)($speakerAdmins[$spkId] ?? 0) : 0;
             if ($matchedAdminEarly > 0) {
                 $lineCls .= ' is-speaker-staff';
+            } elseif ($spkId !== '') {
+                $lineCls .= ' is-speaker-other';
             }
             $attrs = '';
             if ($timeEnd > 0) {
                 $attrs = ' data-time-start="' . $timeStart . '" data-time-end="' . $timeEnd . '"';
             }
-            if ($matchedAdminEarly > 0 && $spkId !== '') {
-                $attrs .= ' data-speaker="' . e($spkId) . '" data-speaker-role="staff"'
-                    . ' data-speaker-admin="' . $matchedAdminEarly . '"';
+            // Always expose local_id so UI can filter/listen unmatched clusters (S2…).
+            if ($spkId !== '') {
+                $roleAttr = $matchedAdminEarly > 0
+                    ? 'staff'
+                    : ($spkRole !== '' ? $spkRole : 'other');
+                $attrs .= ' data-speaker="' . e($spkId) . '" data-speaker-role="' . e($roleAttr) . '"';
+                if ($matchedAdminEarly > 0) {
+                    $attrs .= ' data-speaker-admin="' . $matchedAdminEarly . '"';
+                }
             }
             $timeLabel = $timeRaw;
             $absMode = !empty($opts['absolute_time']) && $dtRecorded > 0;
@@ -204,6 +212,8 @@ final class TranscriptHighlighter
                     $spkMark = ' <span class="transcript-speaker-tag is-known">'
                         . UsersRepository::badgeHtml($matchedAdmin, true, true)
                         . '</span>';
+                } elseif ($matchedAdmin < 1) {
+                    $spkMark = ' <span class="transcript-speaker-tag">' . e($spkId) . '</span>';
                 }
             }
             $numHtml = $compact ? '' : '<span class="transcript-num">' . $num . '</span> ';

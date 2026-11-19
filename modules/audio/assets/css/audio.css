@@ -335,6 +335,7 @@
 
 /* Multi-column transcripts (oper .kolonka) — compact readable density */
 .kolonka {
+  position: relative; /* anchor for absolute add-key popover (out of column flow) */
   columns: 5;
   -moz-columns: 5;
   -webkit-columns: 5;
@@ -484,18 +485,142 @@
 .audio-speakers-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 1rem;
+  margin: 0 0 0.5rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  gap: 0.5rem 0.75rem;
 }
 
+.audio-speakers-hint {
+  margin: 0 0 0.5rem;
+}
+
+.audio-speaker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.audio-speaker-filter {
+  appearance: none;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #f8fafc;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.audio-speaker-filter:hover {
+  border-color: rgba(0, 0, 0, 0.28);
+}
+
+.audio-speaker-chip.is-staff .audio-speaker-filter,
 .audio-speakers-list li.is-staff {
   color: #0f766e;
 }
 
+.audio-speaker-chip.is-other .audio-speaker-filter,
 .audio-speakers-list li.is-other {
   color: #a16207;
+}
+
+.audio-speaker-chip.is-active .audio-speaker-filter,
+.audio-speaker-filter[aria-pressed="true"] {
+  border-color: #0f766e;
+  background: #ecfdf5;
+  box-shadow: inset 0 0 0 1px #0f766e;
+}
+
+.audio-speaker-assign {
+  appearance: none;
+  border: 1px solid rgba(15, 118, 110, 0.35);
+  background: #fff;
+  color: #0f766e;
+  border-radius: 4px;
+  padding: 0.2rem 0.45rem;
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.audio-speaker-assign:hover {
+  background: #ecfdf5;
+}
+
+.audio-speaker-assign[hidden],
+.audio-speaker-assign-bar[hidden] {
+  display: none !important;
+}
+
+.audio-speaker-assign-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.35rem 0 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  background: #f8fafc;
+}
+
+.audio-speaker-cue-exclude {
+  appearance: none;
+  margin-left: 0.35rem;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: #fff;
+  border-radius: 3px;
+  padding: 0 0.35rem;
+  font: inherit;
+  font-size: 0.7em;
+  line-height: 1.5;
+  cursor: pointer;
+  color: #64748b;
+  vertical-align: middle;
+}
+
+.audio-speaker-cue-exclude:hover {
+  border-color: #b45309;
+  color: #b45309;
+}
+
+.transcript-line.is-speaker-excluded {
+  opacity: 0.22 !important;
+  text-decoration: line-through;
+  outline: none !important;
+  background: transparent !important;
+}
+
+.transcript-line.is-speaker-excluded .audio-speaker-cue-exclude {
+  opacity: 1;
+  text-decoration: none;
+  border-color: #b45309;
+  color: #b45309;
+  background: #fffbeb;
+}
+
+.audio-speaker-assign-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.transcript.is-speaker-filtered .transcript-line {
+  opacity: 0.28;
+}
+
+.transcript.is-speaker-filtered .transcript-line.is-speaker-focus {
+  opacity: 1;
+  outline: 1px solid rgba(15, 118, 110, 0.35);
+  background: rgba(236, 253, 245, 0.55);
+}
+
+.transcript.is-speaker-filtered .transcript-line.is-speaker-focus.is-speaker-other {
+  outline-color: rgba(161, 98, 7, 0.45);
+  background: rgba(254, 243, 199, 0.45);
 }
 
 .transcript-intersect-tag {
@@ -506,19 +631,22 @@
 }
 
 .add-key-popover {
+  /* Fixed to viewport: not in CSS columns, not clipped by table cells near page bottom. */
+  position: fixed;
+  z-index: 10000;
   background: #fff;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
   padding: 0.5rem 0.65rem;
-  margin: 0.4rem 0;
+  margin: 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  max-width: 22rem;
-  break-inside: avoid;
-  position: relative;
-  z-index: 2;
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 16px));
+  min-width: 14rem;
+  box-sizing: border-box;
   font-size: 0.8rem;
 }
 
@@ -527,6 +655,12 @@
   flex-wrap: wrap;
   gap: 0.3rem;
   align-items: center;
+}
+
+/* .add-key-row { display:flex } would otherwise override UA [hidden] without !important. */
+.add-key-row[hidden],
+.add-key-warnings[hidden] {
+  display: none !important;
 }
 
 .add-key-lbl {

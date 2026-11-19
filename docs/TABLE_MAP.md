@@ -46,6 +46,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_records_speaker_profiles` | audio_diarize | Staff voiceprint centroids (WeSpeaker embeddings) for match / orphan bind |
 | `base_records_speaker_samples` | audio_diarize | Manual (and later diarize) enrollment clips → embed → profile build |
 | `base_diarize_leases`, `base_diarize_requests` | audio_diarize | Edge diarize/embed leases + explicit file-diarize queue |
+| `base_asr_dia_runs` | audio_diarize | Experiment journal for dia-first `asr_dia` edge plugin (side-by-side vs cue diarize) |
 | `base_records_llm_studies`, `base_records_llm_study_results` | audio_llm | LLM studies over transcripts + cyclic templates |
 | `base_script_coach_runs`, `base_script_coach_artifacts`, `base_script_coach_proposals` | audio_script_coach | Day investigation jobs + LLM dict enrichment proposals |
 | `base_records_phrases`, `base_records_phrase_days` | audio_phrases | Top N-gram harvest (coach is soft successor for script enrichment) |

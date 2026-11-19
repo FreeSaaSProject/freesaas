@@ -8,14 +8,14 @@
     "upload_retries": 3,
     "upload_retry_sleep_sec": 2.0
   },
-  "mode": "auto",
+  "mode": "embed",
   "modes": {
     "pull": false,
     "push": true,
-    "comment": "Default push-only (same policy as ASR on shared hosting). FreeSaaS asr_push_enabled + edge-host service «diarize». Set pull=true only for labs without gateway."
+    "comment": "Embed-only CAM++ vectorizer (service id «diarize»). File WeSpeaker diarize retired — use asr_dia. Set pull=true only for labs without gateway."
   },
   "push": {
-    "worker_name": "diarize",
+    "worker_name": "voice_embed",
     "db": "var/push/queue.db",
     "capacity": 40,
     "max_unacked": 1000,

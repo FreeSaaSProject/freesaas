@@ -1,0 +1,180 @@
+{
+  "title": "asr_dia approach catalog (A/B experiments)",
+  "updated": "2026-11-19",
+  "fixture_ids": [
+    291361,
+    291362,
+    291363
+  ],
+  "fixture_note": "admin=127 day=2026-11-16 consecutive records; playtimes 360/219/360s",
+  "how_to_rerun": {
+    "full_words_align": "php bin/asr-dia-sample-run.php --ids=291361,291362,291363 --model=large-v3 --apply-transcription",
+    "reuse_speakers_only": "php bin/asr-dia-sample-run.php --ids=291361,291362,291363 --model=reuse (needs cabin TRANSCRIPTION present; apply speakers only)",
+    "reuse_gap": "php bin/asr-dia-sample-run.php --ids=291361,291362,291363 --model=reuse_gap --apply-transcription",
+    "restore_edge_config": "Studio local.json: asr.model_id=large-v3, asr.use_whisper_server=true"
+  },
+  "approaches": [
+    {
+      "id": "A_full_large_v3_server_gap_cli",
+      "status": "measured",
+      "summary": "Full asr_dia: Nemotron + cabin whisper-server full file + gap_fill via whisper-CLI + dedupe/seq",
+      "enqueue": {
+        "asr_model": "large-v3",
+        "asr_mode": "words_align"
+      },
+      "edge": {
+        "use_whisper_server": true,
+        "gap_fill": true,
+        "model_id": "large-v3"
+      },
+      "pros": [
+        "Best text recall among large-v3 runs",
+        "Recovers quiet turns"
+      ],
+      "cons": [
+        "~4× cabin ASR; gap_fill CLI cold-start dominates"
+      ],
+      "bench": {
+        "source": "run #22 / sample 2026-11-19",
+        "291361_wall_sec": 66.3,
+        "batch_wall_sec_sum": 164.1,
+        "batch_rtf": 0.175,
+        "291361_cues": 87,
+        "291361_matched_pct": 67.8
+      }
+    },
+    {
+      "id": "B_podlodka_cli_gap",
+      "status": "rejected",
+      "summary": "Same pipeline with podlodka-turbo CLI (use_whisper_server=false)",
+      "enqueue": {
+        "asr_model": "podlodka-turbo"
+      },
+      "edge": {
+        "use_whisper_server": false,
+        "model_id": "podlodka-turbo",
+        "gap_fill": true
+      },
+      "pros": [
+        "~1.2× faster than A"
+      ],
+      "cons": [
+        "Much worse text (hallucinations, swearing, dupes) — do not use"
+      ],
+      "bench": {
+        "source": "run #28",
+        "291361_wall_sec": 59.3,
+        "batch_wall_sec_sum": 128.4,
+        "note": "Rejected on quality"
+      }
+    },
+    {
+      "id": "C_cabin_plus_reuse",
+      "status": "measured",
+      "summary": "Cabin whisper-server ASR from scratch, then asr_dia mode=reuse (dia+ID only, keep cabin text)",
+      "enqueue": {
+        "asr_model": "reuse",
+        "apply_transcription": false,
+        "apply_speakers": true
+      },
+      "pros": [
+        "~2.3× faster E2E than A",
+        "Cabin text quality"
+      ],
+      "cons": [
+        "No gap_fill — fewer lines / missed quiet speech"
+      ],
+      "bench": {
+        "source": "docs/agents/asr_dia_reuse_bench.json",
+        "cabin_infer_sum_sec": 41.4,
+        "reuse_wall_sum_sec": 30.9,
+        "e2e_infer_plus_reuse_sec": 72.2,
+        "291361_cabin_infer_sec": 16.7,
+        "291361_reuse_wall_sec": 11.7,
+        "291361_e2e_sec": 28.4,
+        "291361_cabin_lines": 71
+      }
+    },
+    {
+      "id": "D_cabin_plus_reuse_gap_server",
+      "status": "measured",
+      "summary": "Cabin transcript as base + gap_fill uncovered Nemotron turns via whisper-server (parallel) + dia/ID",
+      "enqueue": {
+        "asr_model": "reuse_gap",
+        "apply_transcription": true,
+        "apply_speakers": true
+      },
+      "edge": {
+        "use_whisper_server": true,
+        "gap_fill_parallel": 4
+      },
+      "pros": [
+        "Should recover holes without re-ASR of whole file",
+        "Server clips avoid CLI cold-start"
+      ],
+      "cons": [
+        "Still pays dia+ID; gap_fill count depends on cover threshold"
+      ],
+      "bench": {
+        "source": "runs #34-36",
+        "reuse_gap_wall_sum_sec": 77.7,
+        "reuse_gap_batch_wall_sec": 82.4,
+        "e2e_with_prior_cabin_infer_sec": 119.1,
+        "291361": {
+          "wall_sec": 27.5,
+          "cues": 84,
+          "matched_pct": 71.4,
+          "vs_cabin_lines": "71→84",
+          "vs_full_A_wall": 66.3
+        },
+        "291362": {
+          "wall_sec": 20.4,
+          "cues": 43
+        },
+        "291363": {
+          "wall_sec": 29.8,
+          "cues": 53
+        },
+        "note": "reuse_gap wall is dia+gap_fill_server+id only; add cabin ASR (~41s batch) for cold E2E. Warm path (cabin already done) ≈78s batch vs A 164s."
+      }
+    },
+    {
+      "id": "E_full_gap_server_parallel",
+      "status": "planned",
+      "summary": "Same as A but gap_fill already prefers whisper-server + parallel (code landed with D)",
+      "enqueue": {
+        "asr_model": "large-v3",
+        "asr_mode": "words_align"
+      },
+      "note": "Re-measure A after D ships — expect wall drop without quality loss"
+    },
+    {
+      "id": "F_full_no_gap_fill",
+      "status": "measured_partial",
+      "summary": "asr_dia words_align without gap_fill (~27s on 291361 historically)",
+      "enqueue": {
+        "asr_model": "large-v3"
+      },
+      "edge": {
+        "gap_fill": false
+      },
+      "pros": [
+        "Fast"
+      ],
+      "cons": [
+        "Same text holes as cabin"
+      ],
+      "bench": {
+        "291361_wall_sec": 26.7,
+        "source": "run #14 whisper_server only"
+      }
+    }
+  ],
+  "decision": {
+    "preferred": "D_cabin_plus_reuse_gap_server",
+    "rejected": [
+      "B_podlodka_cli_gap"
+    ],
+    "notes": "D looks strong for warm path (cabin already transcribed): ~78s batch vs A ~164s, more cues than pure reuse. Cold E2E ≈ cabin+ D ≈ 119s still better than A. Prefer D over C when recall matters; A if max recall and time OK."
+  }
+}

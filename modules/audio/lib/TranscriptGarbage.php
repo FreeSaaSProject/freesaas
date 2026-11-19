@@ -67,16 +67,18 @@ final class TranscriptGarbage
 
     /**
      * Rebuild Whisper transcript without trash lines (same rules as UI highlighter).
-     * Drops dictionary trash, ASR loops, overlong/counting lines, and immediate repeats.
+     * Drops dictionary trash (`base_records_trashes`), ASR loops, overlong/counting
+     * lines, and immediate repeats.
      *
      * @param list<string>|null $trashPhrases null = load enabled phrases from DB when available
-     * @return array{text:string,lines:int,trash:int}
+     * @return array{text:string,lines:int,trash:int,kept_orig_lines:list<int>}
+     *         kept_orig_lines = 1-based source line numbers that survived (for cue remap)
      */
     public static function filterTranscription(string $transcription, ?array $trashPhrases = null): array
     {
         $src = (string)$transcription;
         if ($src === '' || strpos($src, '[') === false) {
-            return ['text' => $src, 'lines' => 0, 'trash' => 0];
+            return ['text' => $src, 'lines' => 0, 'trash' => 0, 'kept_orig_lines' => []];
         }
         if ($trashPhrases === null) {
             $trashPhrases = class_exists('RecordsRepository', false)
@@ -86,10 +88,13 @@ final class TranscriptGarbage
         $parts = explode('[', $src);
         array_shift($parts);
         $kept = [];
+        $keptOrig = [];
         $lines = 0;
         $trash = 0;
         $prevTexts = ['', '', ''];
+        $origLine = 0;
         foreach ($parts as $chunk) {
+            $origLine++;
             if (strpos($chunk, ']') === false) {
                 continue;
             }
@@ -106,6 +111,7 @@ final class TranscriptGarbage
             }
             $lines++;
             $kept[] = '[' . $timeRaw . ']' . $text;
+            $keptOrig[] = $origLine;
             $prevTexts[2] = $prevTexts[1];
             $prevTexts[1] = $prevTexts[0];
             $prevTexts[0] = $text;
@@ -115,6 +121,7 @@ final class TranscriptGarbage
             'text' => implode("\n", $kept),
             'lines' => $lines,
             'trash' => $trash,
+            'kept_orig_lines' => $keptOrig,
         ];
     }
 

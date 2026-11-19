@@ -1,0 +1,83 @@
+{
+  "server": "https://freesaas.example.tld",
+  "ftp_server": "https://files.example.tld",
+  "worker_token": "CHANGE_ME",
+  "tls": {
+    "verify": true,
+    "ca_bundle": ""
+  },
+  "modes": {
+    "pull": false,
+    "push": true,
+    "comment": "Push-only experiment channel. FreeSaaS edge-host service «asr_dia» + LongJob /audio/asr-dia/longjob."
+  },
+  "push": {
+    "worker_name": "asr_dia",
+    "db": "var/push/queue.db",
+    "capacity": 20,
+    "max_unacked": 200,
+    "max_attempts": 5,
+    "retry_delay_sec": 120
+  },
+  "endpoints": {
+    "status": "/audio/asr/asr-dia-status",
+    "save": "/audio/asr/asr-dia-result"
+  },
+  "dia": {
+    "engine": "nemotron3",
+    "speech_bin": "speech",
+    "backend": "coreml",
+    "min_turn_sec": 0.8,
+    "merge_gap_sec": 0.3,
+    "comment": "engine=nemotron3 needs speech-swift CLI on PATH. engine=vad_fallback uses diarize plugin VAD/cluster (no speech CLI) for smoke only."
+  },
+  "asr": {
+    "mode": "words_align",
+    "model_id": "large-v3",
+    "models": {
+      "large-v3": "${WHISPER_CPP_DIR}/models/ggml-large-v3.bin",
+      "podlodka-turbo": "${WHISPER_CPP_DIR}/models/ggml-podlodka-turbo-q8_0.bin"
+    },
+    "whisper_cli": "${WHISPER_CPP_DIR}/build/bin/whisper-cli",
+    "use_whisper_server": true,
+    "whisper_server": "http://127.0.0.1:17871/inference",
+    "form_params": {
+      "language": "ru",
+      "task": "transcribe",
+      "response_format": "srt",
+      "temperature": "0.0",
+      "temperature_inc": "0.0"
+    },
+    "language": "ru",
+    "threads": 8,
+    "beam_size": 8,
+    "best_of": 1,
+    "no_speech_thold": 0.35,
+    "max_context": 0,
+    "entropy_thold": 2.4,
+    "vad_model": "${WHISPER_CPP_DIR}/models/ggml-silero-v5.1.2.bin",
+    "vad_threshold": 0.12,
+    "vad_min_speech_ms": 80,
+    "vad_min_silence_ms": 40,
+    "vad_speech_pad_ms": 280,
+    "gap_fill": true,
+    "gap_fill_min_cover": 0.35,
+    "gap_fill_parallel": 4,
+    "gap_split_sec": 0.75,
+    "max_cue_sec": 14,
+    "comment": "words_align: cabin whisper-server for main text + gap_fill on uncovered Nemotron turns (prefer same server, parallel clips; CLI fallback). Modes: words_align | reuse (cabin text+speakers) | reuse_gap (cabin text + gap_fill + speakers). See docs/agents/asr_dia_approaches.json."
+  },
+  "match": {
+    "cue": 0.5,
+    "margin": 0.05,
+    "min_sample_count": 3,
+    "min_talk_sec": 15,
+    "wespeaker_onnx": "../diarize/models/voxceleb_CAM++_LM.onnx",
+    "comment": "Align with FreeSaaS match_cue floor 0.50; margin rejects near-ties. Skip weak enrollments (sample_count/talk_sec)."
+  },
+  "loop": {
+    "sleep_seconds_idle": 30,
+    "sleep_seconds_run": 1
+  },
+  "comment": "Copy to local.json. Keep asr_dia OUT of host.local.json enabled_plugins until experiment."
+}

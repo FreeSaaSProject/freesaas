@@ -2,11 +2,13 @@
 declare(strict_types=1);
 
 /**
- * Push channel for diarize/embed: same edge hosts + same asr_push_enabled policy as ASR.
- * FreeSaaS → GET /v1/status → collect /v1/diarize/results → POST /v1/diarize/jobs.
+ * Push channel for CAM++ voice sample embeds (edge service id stays «diarize» for host JSON).
+ * File WeSpeaker diarize is retired — speakers come from ASR-DIA.
+ * FreeSaaS → GET /v1/status → collect /v1/diarize/results → POST /v1/diarize/jobs (embed only).
  */
 final class DiarizePushDispatcher
 {
+    /** Edge host plugin key (legacy id). UI label: voice vectorizer. */
     public const SERVICE = 'diarize';
     private const RESULT_PAGES = 4;
     private const RESULT_PAGE_SIZE = 50;
@@ -135,7 +137,7 @@ final class DiarizePushDispatcher
 
         $sourceBase = rtrim(trim((string)Config::get('audio', 'asr_source_base_url', '')), '/');
         $jobs = [];
-        // Embeds first; do not mix heavy profile packs into the same request.
+        // Embed-only vectorizer — never dispatch WeSpeaker file-diarize jobs.
         $embedCap = min($free, 20);
         $embeds = DiarizeLease::leaseEmbeds(DiarizeLease::CHANNEL_PUSH, $id, AsrLease::pushTtl(), $embedCap);
         foreach ($embeds as $lease) {
@@ -146,26 +148,6 @@ final class DiarizePushDispatcher
             $jobs[] = $p;
         }
         $body = ['jobs' => $jobs];
-        // File diarize only when no embeds in this round (profiles ~hundreds KB — once per POST).
-        if ($jobs === []) {
-            $profiles = SpeakerService::profilesPayloadForWorker();
-            $fileCap = min($free, $profiles === [] ? 20 : 8);
-            foreach (DiarizeLease::leaseFiles(DiarizeLease::CHANNEL_PUSH, $id, AsrLease::pushTtl(), $fileCap) as $lease) {
-                $p = $lease['payload'];
-                if ($sourceBase !== '' && (string)($p['file_name'] ?? '') !== '') {
-                    $p['source_url'] = $sourceBase . $p['file_name'];
-                }
-                // Strip accidental bulky keys — profiles go once at request root.
-                unset($p['profiles'], $p['match_cue']);
-                $jobs[] = $p;
-            }
-            $body['jobs'] = $jobs;
-            if ($jobs !== []) {
-                $body['match_cue'] = SpeakerService::matchCueThreshold();
-                $body['match_margin'] = SpeakerService::matchMarginThreshold();
-                $body['profiles'] = $profiles;
-            }
-        }
         if ($jobs === []) {
             return $res;
         }
@@ -285,6 +267,10 @@ final class DiarizePushDispatcher
     /** @param array<string,mixed> $row */
     private static function applyFileResult(array $row): bool
     {
+        // Vectorizer may echo skipped file-diarize leftovers — ack and drop.
+        if ((string)($row['status'] ?? '') === 'skipped') {
+            return true;
+        }
         if (!SpeakerService::diarizeEnabled()) {
             return true;
         }

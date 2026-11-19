@@ -11,6 +11,9 @@ require_once __DIR__ . '/lib/DiarizeLease.php';
 require_once __DIR__ . '/lib/DiarizePushDispatcher.php';
 require_once __DIR__ . '/lib/AudioVoiceEmbedLongJob.php';
 require_once __DIR__ . '/lib/AudioDiarizeLongJob.php';
+require_once __DIR__ . '/lib/AsrDiaRunsRepository.php';
+require_once __DIR__ . '/lib/AsrDiaPushDispatcher.php';
+require_once __DIR__ . '/lib/AudioAsrDiaLongJob.php';
 
 /**
  * Cabin speaker diarization + voice enrollment.
@@ -24,6 +27,8 @@ $workerRoutes = [
     '/audio/asr/diarize-status' => 'diarize_status.php',
     '/audio/asr/embed-sample-claim' => 'embed_sample_claim.php',
     '/audio/asr/embed-sample-result' => 'embed_sample_result.php',
+    '/audio/asr/asr-dia-status' => 'asr_dia_status.php',
+    '/audio/asr/asr-dia-result' => 'asr_dia_result.php',
 ];
 
 foreach ($workerRoutes as $path => $file) {
@@ -62,6 +67,16 @@ $staffPages = [
         'permission' => 'audio_diarize.edit',
         'methods' => ['GET', 'POST'],
         'file' => 'api_voice_sample.php',
+    ],
+    '/audio/asr-dia' => [
+        'permission' => 'audio_diarize.view',
+        'methods' => ['GET'],
+        'file' => 'asr_dia.php',
+    ],
+    '/audio/asr-dia/longjob' => [
+        'permission' => 'audio_diarize.edit',
+        'methods' => ['POST'],
+        'file' => 'asr_dia_longjob.php',
     ],
 ];
 
@@ -112,6 +127,19 @@ LongJob::register(AudioDiarizeLongJob::TYPE, [
     'tick' => [AudioDiarizeLongJob::class, 'tick'],
 ]);
 
+LongJob::register(AudioAsrDiaLongJob::TYPE, [
+    'module' => 'audio_diarize',
+    'permission' => 'audio_diarize.edit',
+    'defaults' => ['tick_seconds' => 20],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 20],
+        'cli' => ['tick_seconds' => 30],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [AudioAsrDiaLongJob::class, 'onStart'],
+    'tick' => [AudioAsrDiaLongJob::class, 'tick'],
+]);
+
 BulkActions::register('audio_records', 'queue_diarize', [
     'label' => 'audio_diarize.bulk.queue_diarize',
     'group' => 'audio.bulk.group.resetters',
@@ -134,6 +162,12 @@ EdgeHosts::registerService(DiarizePushDispatcher::SERVICE, [
     'max_inflight' => 10,
 ]);
 
+EdgeHosts::registerService(AsrDiaPushDispatcher::SERVICE, [
+    'module' => 'audio_diarize',
+    'label' => 'audio_diarize.edge.asr_dia',
+    'max_inflight' => 5,
+]);
+
 EventBus::on('core.edge_host.deleted', static function ($payload) {
     $id = is_array($payload) ? (int)($payload['id'] ?? 0) : 0;
     if ($id > 0 && DiarizeLease::available()) {
@@ -148,11 +182,13 @@ Cron::register('audio_diarize.push', [
     'every' => class_exists('AsrLease', false) ? AsrLease::pushEveryMin() : 5,
     'handler' => static function (): array {
         $dia = DiarizePushDispatcher::syncAll();
+        $asrDia = AsrDiaPushDispatcher::syncAll();
         return [
-            'ok' => !empty($dia['ok']),
-            'processed' => (int)($dia['saved'] ?? 0) + (int)($dia['sent'] ?? 0),
+            'ok' => !empty($dia['ok']) && !empty($asrDia['ok']),
+            'processed' => (int)($dia['saved'] ?? 0) + (int)($dia['sent'] ?? 0)
+                + (int)($asrDia['saved'] ?? 0) + (int)($asrDia['sent'] ?? 0),
             'skipped' => 0,
-            'message' => (string)($dia['message'] ?? ''),
+            'message' => trim((string)($dia['message'] ?? '') . ' | ' . (string)($asrDia['message'] ?? '')),
         ];
     },
 ]);

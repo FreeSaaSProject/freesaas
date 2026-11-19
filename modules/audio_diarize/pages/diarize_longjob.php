@@ -2,14 +2,16 @@
 declare(strict_types=1);
 
 /**
- * POST /audio/diarize/longjob — LongJob start/tick/cancel for edge diarize queue.
+ * POST /audio/diarize/longjob — retargeted to ASR-DIA (WeSpeaker file-diarize retired).
+ * Same URL kept so list bulk / LongJobPanel keep working.
  */
 if (!Auth::can('audio_diarize.edit')) {
     AgentHttp::error('Forbidden', 403);
     return;
 }
 
-require_once base_path('modules/audio_diarize/lib/AudioDiarizeLongJob.php');
+require_once base_path('modules/audio_diarize/lib/AudioAsrDiaLongJob.php');
+require_once base_path('modules/audio_diarize/lib/SpeakerService.php');
 
 $action = trim((string)($_POST['action'] ?? ''));
 if (!in_array($action, ['job_start', 'job_tick', 'job_cancel'], true)) {
@@ -23,10 +25,35 @@ if (class_exists('Csrf', false) && !Csrf::verify()) {
 
 try {
     if ($action === 'job_start') {
-        $job = LongJob::start(AudioDiarizeLongJob::TYPE, [
+        $day = trim((string)($_POST['day'] ?? ''));
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+            $cov = SpeakerService::shiftProfileCoverage($day);
+            if ((int)($cov['missing_count'] ?? 0) > 0) {
+                $names = [];
+                foreach (($cov['missing'] ?? []) as $m) {
+                    $acr = trim((string)($m['acronym'] ?? ''));
+                    $names[] = $acr !== '' ? $acr : (string)($m['name'] ?? ('#' . (int)($m['id'] ?? 0)));
+                }
+                AgentHttp::emit([
+                    'ok' => false,
+                    'error' => 'no_profiles',
+                    'message' => t('audio_diarize.bulk.err.missing_profiles', [
+                        'n' => (string)$cov['missing_count'],
+                        'who' => implode(', ', $names),
+                    ]),
+                    'coverage' => $cov,
+                    'profiles_url' => '/audio/voice-profiles',
+                ]);
+                return;
+            }
+        }
+        $job = LongJob::start(AudioAsrDiaLongJob::TYPE, [
             'ids_csv' => (string)($_POST['ids_csv'] ?? ''),
-            'day' => trim((string)($_POST['day'] ?? '')),
+            'day' => $day,
             'admin_id' => (int)($_POST['admin_id'] ?? 0),
+            'asr_model' => (string)($_POST['asr_model'] ?? ''),
+            'apply_speakers' => 1,
+            'apply_transcription' => 1,
             'ret' => (string)($_POST['ret'] ?? '/audio'),
         ], ['context' => 'ui']);
         AgentHttp::emit(['ok' => true, 'job' => LongJob::public($job)]);
@@ -34,7 +61,7 @@ try {
     }
     if ($action === 'job_tick') {
         $id = (string)($_POST['job_id'] ?? '');
-        $job = LongJob::tick($id, AudioDiarizeLongJob::TYPE);
+        $job = LongJob::tick($id, AudioAsrDiaLongJob::TYPE);
         AgentHttp::emit([
             'ok' => ($job['status'] ?? '') !== LongJob::STATUS_ERROR,
             'job' => LongJob::public($job),
@@ -46,7 +73,7 @@ try {
     }
     if ($action === 'job_cancel') {
         $id = (string)($_POST['job_id'] ?? '');
-        $job = LongJob::cancel($id, AudioDiarizeLongJob::TYPE);
+        $job = LongJob::cancel($id, AudioAsrDiaLongJob::TYPE);
         AgentHttp::emit(['ok' => true, 'job' => LongJob::public($job)]);
         return;
     }

@@ -30,9 +30,26 @@ final class AsrService
             return 'None';
         }
         if (AsrLease::available()) {
-            $got = AsrLease::leaseNext(AsrLease::CHANNEL_PULL, 0, AsrLease::pullTtl(), 1);
-
-            return $got === [] ? 'None' : $got[0]['file_name'];
+            // Skip records that should go to ASR-DIA (full shift profiles).
+            for ($i = 0; $i < 12; $i++) {
+                $got = AsrLease::leaseNext(AsrLease::CHANNEL_PULL, 0, AsrLease::pullTtl(), 1);
+                if ($got === []) {
+                    return 'None';
+                }
+                $lease = $got[0];
+                $rid = (int)($lease['record_id'] ?? 0);
+                if (
+                    $rid > 0
+                    && class_exists('SpeakerService', false)
+                    && SpeakerService::preferAsrDiaForRecord($rid)
+                ) {
+                    AsrLease::releaseRecord($rid);
+                    SpeakerService::enqueueAsrDiaInsteadOfWhisper($rid);
+                    continue;
+                }
+                return (string)$lease['file_name'];
+            }
+            return 'None';
         }
 
         return self::claimLegacyFileLock();
@@ -343,25 +360,8 @@ final class AsrService
         ) {
             $spk = SpeakerService::saveForRecord((int)$row['ID'], $speakersPayload);
             $diag .= ' ' . ($spk['diag'] ?? '');
-        } elseif (
-            $ok
-            && $dtTrans !== 1
-            && $speakersPayload === null
-            && $result !== ''
-            && ModuleManager::isEnabled('audio_diarize')
-            && class_exists('SpeakerService', false)
-            && SpeakerService::diarizeEnabled()
-            && !(SpeakerService::diarizeRequiresProfiles() && !SpeakerService::hasReadyProfiles())
-            && class_exists('DiarizeLease', false)
-            && DiarizeLease::requestsAvailable()
-        ) {
-            // Next step after ASR: explicit file-diarize request (not history lookback).
-            DiarizeLease::requestFiles([(int)$row['ID']], DiarizeLease::SOURCE_ASR);
-            if (class_exists('DiarizePushDispatcher', false)) {
-                DiarizePushDispatcher::afterQueueChange();
-            }
-            $diag .= ' DIARIZE_QUEUED=1';
         }
+        // Post-ASR WeSpeaker file-diarize removed — speakers come from ASR-DIA when profiles ready.
         if ($ok && $dtTrans !== 1) {
             $queuedDay = self::enqueueStemForRecordDay((int)($row['DT_RECORDED'] ?? 0));
             if ($queuedDay !== '') {

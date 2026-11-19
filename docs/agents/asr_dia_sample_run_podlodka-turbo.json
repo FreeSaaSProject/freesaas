@@ -1,0 +1,76 @@
+{
+    "ok": true,
+    "model": "podlodka-turbo",
+    "gateway": "https:\/\/192.168.1.215:18443",
+    "ids": [
+        291361,
+        291362,
+        291363
+    ],
+    "run_ids": [
+        28,
+        29,
+        30
+    ],
+    "sync_first": {
+        "ok": true,
+        "workers": 1,
+        "saved": 0,
+        "sent": 3,
+        "message": "workers=1 saved=0 sent=3"
+    },
+    "batch_wall_sec": 132.9,
+    "push_latency_sec": 1.51,
+    "audio_sec_sum": 939,
+    "pipeline_sec_sum": 125.5,
+    "wall_sec_sum": 128.4,
+    "rtf_mean": 0.137,
+    "rows": [
+        {
+            "record_id": 291361,
+            "admin": 127,
+            "playtime_sec": 360,
+            "status": "done",
+            "asr_model": "podlodka-turbo",
+            "cues": 112,
+            "matched_cues": 88,
+            "matched_pct": 78.6,
+            "download_sec": 0.91,
+            "pipeline_sec": 58.37,
+            "wall_sec": 59.28,
+            "rtf": 0.165,
+            "error": ""
+        },
+        {
+            "record_id": 291362,
+            "admin": 127,
+            "playtime_sec": 219,
+            "status": "done",
+            "asr_model": "podlodka-turbo",
+            "cues": 51,
+            "matched_cues": 51,
+            "matched_pct": 100,
+            "download_sec": 0.95,
+            "pipeline_sec": 23.6,
+            "wall_sec": 24.56,
+            "rtf": 0.112,
+            "error": ""
+        },
+        {
+            "record_id": 291363,
+            "admin": 127,
+            "playtime_sec": 360,
+            "status": "done",
+            "asr_model": "podlodka-turbo",
+            "cues": 81,
+            "matched_cues": 81,
+            "matched_pct": 100,
+            "download_sec": 1.08,
+            "pipeline_sec": 43.52,
+            "wall_sec": 44.6,
+            "rtf": 0.124,
+            "error": ""
+        }
+    ],
+    "note": "wall_sec = download+pipeline on edge; rtf = wall\/playtime. Old cue-diarize is post-ASR only — compare pipeline_sec to diarize worker times, not full whisper."
+}

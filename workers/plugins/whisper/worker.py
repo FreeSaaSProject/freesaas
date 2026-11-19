@@ -148,8 +148,8 @@ PUSH_WAKE: Optional[threading.Event] = None
 # Push mode keeps serving results/acks while whisper-server is down (no SystemExit).
 WHISPER_DOWN = False
 WHISPER_DOWN_RETRY_SEC = 120
-# Post-ASR WeSpeaker diarization (workers/plugins/diarize).
-DIARIZE_ENABLED = True
+# Post-ASR WeSpeaker file-diarize retired (use asr_dia). Keep off to save RAM/CPU.
+DIARIZE_ENABLED = False
 _DIARIZE_PROFILES_CACHE: Dict[str, Any] = {
 	"ts": 0.0,
 	"ready": False,

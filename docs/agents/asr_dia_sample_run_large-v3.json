@@ -1,0 +1,76 @@
+{
+    "ok": true,
+    "model": "large-v3",
+    "gateway": "https:\/\/192.168.1.215:18443",
+    "ids": [
+        291361,
+        291362,
+        291363
+    ],
+    "run_ids": [
+        22,
+        23,
+        24
+    ],
+    "sync_first": {
+        "ok": true,
+        "workers": 1,
+        "saved": 0,
+        "sent": 3,
+        "message": "workers=1 saved=0 sent=3"
+    },
+    "batch_wall_sec": 168.2,
+    "push_latency_sec": 1.54,
+    "audio_sec_sum": 939,
+    "pipeline_sec_sum": 159.5,
+    "wall_sec_sum": 164.1,
+    "rtf_mean": 0.175,
+    "rows": [
+        {
+            "record_id": 291361,
+            "admin": 127,
+            "playtime_sec": 360,
+            "status": "done",
+            "asr_model": "large-v3",
+            "cues": 87,
+            "matched_cues": 59,
+            "matched_pct": 67.8,
+            "download_sec": 1.4,
+            "pipeline_sec": 64.87,
+            "wall_sec": 66.27,
+            "rtf": 0.184,
+            "error": ""
+        },
+        {
+            "record_id": 291362,
+            "admin": 127,
+            "playtime_sec": 219,
+            "status": "done",
+            "asr_model": "large-v3",
+            "cues": 36,
+            "matched_cues": 36,
+            "matched_pct": 100,
+            "download_sec": 1.43,
+            "pipeline_sec": 39.61,
+            "wall_sec": 41.04,
+            "rtf": 0.187,
+            "error": ""
+        },
+        {
+            "record_id": 291363,
+            "admin": 127,
+            "playtime_sec": 360,
+            "status": "done",
+            "asr_model": "large-v3",
+            "cues": 65,
+            "matched_cues": 65,
+            "matched_pct": 100,
+            "download_sec": 1.71,
+            "pipeline_sec": 55.03,
+            "wall_sec": 56.74,
+            "rtf": 0.158,
+            "error": ""
+        }
+    ],
+    "note": "wall_sec = download+pipeline on edge; rtf = wall\/playtime. Old cue-diarize is post-ASR only — compare pipeline_sec to diarize worker times, not full whisper."
+}

@@ -1,0 +1,84 @@
+{
+    "ok": true,
+    "metric": "chars_proxy_plus_matched (listen still required)",
+    "summary": {
+        "large-v3_wins": 0,
+        "podlodka-turbo_wins": 0,
+        "ties": 0,
+        "incomplete": 12
+    },
+    "pairs": [
+        {
+            "record_id": 291478,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291479,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291273,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291274,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291407,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291408,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291361,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291362,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291129,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291130,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291195,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        },
+        {
+            "record_id": 291196,
+            "large-v3": null,
+            "podlodka-turbo": null,
+            "winner": "incomplete"
+        }
+    ]
+}
