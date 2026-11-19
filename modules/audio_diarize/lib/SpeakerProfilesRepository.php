@@ -83,6 +83,27 @@ final class SpeakerProfilesRepository
             return false;
         }
         $st = Database::pdo()->prepare('DELETE FROM base_records_speaker_profiles WHERE ID_ADMIN = ?');
-        return $st->execute([$adminId]);
+        $ok = $st->execute([$adminId]);
+        if ($ok) {
+            self::clearRecordMatchesForAdmin($adminId);
+        }
+        return $ok;
+    }
+
+    /**
+     * Drop stale auto-matches after the vector is gone (record rows otherwise keep A* badges).
+     */
+    public static function clearRecordMatchesForAdmin(int $adminId): int
+    {
+        if ($adminId < 1 || !Database::tableExists('base_records_speakers')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_records_speakers
+             SET MATCHED_ADMIN_ID = 0, ROLE = \'other\', CONFIDENCE = 0, DT_UPDATE = ?
+             WHERE MATCHED_ADMIN_ID = ?'
+        );
+        $st->execute([time(), $adminId]);
+        return (int)$st->rowCount();
     }
 }

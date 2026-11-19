@@ -140,7 +140,9 @@ return [
     'audio_diarize.voice_sample.dur_long' => '{sec}s — too long (max {max}s)',
 
     'audio_diarize.speaker_assign.bind' => 'Assign',
-    'audio_diarize.speaker_assign.hint' => '1) Click S* to listen. 2) Turn Off foreign cues. 3) Assign → pick staff.',
+    'audio_diarize.speaker_assign.rebind' => 'Reassign',
+    'audio_diarize.speaker_assign.hint' => 'Use Assign next to a speaker → staff (+samples). Optionally click S* first and turn Off foreign cues.',
+    'audio_diarize.speaker_assign.need_edit' => 'Missing audio_diarize.edit — speaker assign is unavailable.',
     'audio_diarize.speaker_assign.exclude' => 'Off',
     'audio_diarize.speaker_assign.include' => 'On',
     'audio_diarize.speaker_assign.excluded_n' => 'Excluded cues: {n}',

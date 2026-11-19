@@ -363,7 +363,11 @@ final class SpeakerService
             if (!is_array($s)) {
                 continue;
             }
-            $local = substr(trim((string)($s['id'] ?? '')), 0, 16);
+            // Prefer stable cluster id (S1…) over matched alias (A127) so UI bind stays on S*.
+            $local = substr(trim((string)($s['local_id'] ?? '')), 0, 16);
+            if ($local === '') {
+                $local = substr(trim((string)($s['id'] ?? '')), 0, 16);
+            }
             if ($local === '') {
                 continue;
             }

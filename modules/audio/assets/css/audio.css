@@ -550,7 +550,11 @@
   background: #ecfdf5;
 }
 
-.audio-speaker-assign[hidden],
+.audio-speaker-chip.is-active .audio-speaker-assign {
+  background: #ecfdf5;
+  border-color: #0f766e;
+}
+
 .audio-speaker-assign-bar[hidden] {
   display: none !important;
 }

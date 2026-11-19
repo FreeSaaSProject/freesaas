@@ -141,6 +141,8 @@ if ($asrDiaRun !== null) {
       <h2><?= te('audio.view.speakers') ?></h2>
       <?php if ($canAssignSpeaker): ?>
       <p class="muted small audio-speakers-hint"><?= te('audio_diarize.speaker_assign.hint') ?></p>
+      <?php elseif ($diarizeOn && $speakers !== []): ?>
+      <p class="muted small"><?= te('audio_diarize.speaker_assign.need_edit') ?></p>
       <?php endif; ?>
       <?php if ($speakers === []): ?>
       <p class="muted"><?= te('audio_diarize.view.speakers_empty') ?></p>
@@ -152,9 +154,15 @@ if ($asrDiaRun !== null) {
             $lid = (string)($sp['local_id'] ?? '');
             $matched = (int)($sp['matched_admin_id'] ?? 0);
             $cls = $matched > 0 || $role === 'staff' ? 'is-staff' : ($role === 'other' ? 'is-other' : '');
-            $canBind = $canAssignSpeaker && $matched < 1 && $lid !== '';
+            // Always allow bind/rebind when enrollment is on — matched clusters still need samples.
+            $canBind = $canAssignSpeaker && $lid !== '';
+            $bindLabel = $matched > 0
+                ? t('audio_diarize.speaker_assign.rebind')
+                : t('audio_diarize.speaker_assign.bind');
           ?>
-          <li class="audio-speaker-chip <?= e($cls) ?>" data-speaker-id="<?= e($lid) ?>">
+          <li class="audio-speaker-chip <?= e($cls) ?>"
+              data-speaker-id="<?= e($lid) ?>"
+              data-matched-admin="<?= $matched ?>">
             <button type="button"
                     class="audio-speaker-filter"
                     data-speaker-filter="<?= e($lid) ?>"
@@ -172,9 +180,8 @@ if ($asrDiaRun !== null) {
             <button type="button"
                     class="audio-speaker-assign"
                     data-speaker-assign="<?= e($lid) ?>"
-                    hidden
-                    title="<?= te('audio_diarize.speaker_assign.bind') ?>">
-              <?= te('audio_diarize.speaker_assign.bind') ?>
+                    title="<?= e($bindLabel) ?>">
+              <?= e($bindLabel) ?>
             </button>
             <?php endif; ?>
           </li>

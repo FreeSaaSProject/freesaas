@@ -1661,7 +1661,8 @@ def run_pipeline(
 				spk_admin[spk] = (admin, sim)
 			speakers.append(
 				{
-					"id": spk if id_admin < 1 else f"A{id_admin}",
+					# Keep cluster id S* stable — matched staff is id_admin only (UI badge).
+					"id": spk,
 					"role": role,
 					"id_admin": id_admin,
 					"confidence": round(float(conf), 4),
@@ -1693,17 +1694,15 @@ def run_pipeline(
 				}
 			)
 
-		local_to_final = {s.get("local_id") or s["id"]: s["id"] for s in speakers}
 		for c in cue_speakers:
 			loc = str(c.get("speaker") or "")
-			c["speaker"] = local_to_final.get(loc, loc)
 			if loc in spk_admin:
 				c["confidence"] = round(float(spk_admin[loc][1]), 4)
-		for seg in segments:
-			loc = str(seg.get("speaker") or "")
-			seg["speaker"] = local_to_final.get(loc, loc)
+		# segments already use S* — do not rename to A{admin}.
 
-		matched_lines = sum(1 for c in cue_speakers if str(c.get("speaker") or "").startswith("A"))
+		matched_lines = sum(
+			1 for c in cue_speakers if str(c.get("speaker") or "") in spk_admin
+		)
 		t_phases["id_sec"] = round(time.time() - t_id0, 2)
 		meta_out: Dict[str, Any] = {
 			"engine": "asr_dia",

@@ -297,11 +297,8 @@
     });
   }
 
-  function syncAssignButtons(activeSpeakerId) {
-    document.querySelectorAll('.audio-speaker-assign').forEach(function (btn) {
-      var lid = btn.getAttribute('data-speaker-assign') || '';
-      btn.hidden = !(activeSpeakerId && lid === activeSpeakerId);
-    });
+  function syncAssignButtons(/* activeSpeakerId */) {
+    // Bind buttons stay visible; chip.is-active is enough visual cue.
   }
 
   function bindAudioTranscript(audio, kolonka, bindRoot) {
@@ -449,6 +446,12 @@
       if (statusEl) statusEl.textContent = '';
     }
 
+    function matchedAdminForLocal(localId) {
+      var chip = list.querySelector('.audio-speaker-chip[data-speaker-id="' + String(localId).replace(/"/g, '') + '"]');
+      if (!chip) return 0;
+      return parseInt(chip.getAttribute('data-matched-admin') || '0', 10) || 0;
+    }
+
     function showAssignBar(localId) {
       if (!bar || !adminSel || recordId < 1) return;
       pendingLocal = String(localId || '');
@@ -456,6 +459,7 @@
       adminSel.innerHTML = '';
       bar.hidden = false;
       var L = labels();
+      var preferAdmin = matchedAdminForLocal(pendingLocal);
       fetch('/audio/api/voice-sample?staff_list=1&record_id=' + encodeURIComponent(String(recordId)), {
         credentials: 'same-origin',
       })
@@ -476,7 +480,11 @@
             o.textContent = (acr ? acr + ' — ' : '') + (s.name || ('#' + id));
             adminSel.appendChild(o);
           });
-          var def = staff.filter(function (s) { return s.default; })[0] || staff[0];
+          var def = null;
+          if (preferAdmin > 0) {
+            def = staff.filter(function (s) { return parseInt(s.id, 10) === preferAdmin; })[0] || null;
+          }
+          if (!def) def = staff.filter(function (s) { return s.default; })[0] || staff[0];
           if (def) adminSel.value = String(def.id || 0);
         })
         .catch(function () {

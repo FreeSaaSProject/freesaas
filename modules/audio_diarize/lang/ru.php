@@ -140,7 +140,9 @@ return [
     'audio_diarize.voice_sample.dur_long' => '{sec} с — много (макс. {max} с)',
 
     'audio_diarize.speaker_assign.bind' => 'Привязать',
-    'audio_diarize.speaker_assign.hint' => '1) Клик по S* — слушать. 2) «Выкл» на чужих репликах. 3) «Привязать» → сотрудник.',
+    'audio_diarize.speaker_assign.rebind' => 'Перепривязать',
+    'audio_diarize.speaker_assign.hint' => 'Кнопка «Привязать» у спикера → сотрудник (+сэмплы). Сначала можно кликнуть S* и выключить чужие реплики.',
+    'audio_diarize.speaker_assign.need_edit' => 'Нет права audio_diarize.edit — привязка спикеров недоступна.',
     'audio_diarize.speaker_assign.exclude' => 'Выкл',
     'audio_diarize.speaker_assign.include' => 'Вкл',
     'audio_diarize.speaker_assign.excluded_n' => 'Исключено реплик: {n}',
