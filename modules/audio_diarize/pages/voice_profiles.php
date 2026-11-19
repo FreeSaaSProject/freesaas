@@ -13,7 +13,10 @@ $canEdit = Auth::can('audio_diarize.edit');
 $recommended = SpeakerSamplesRepository::RECOMMENDED_MANUAL;
 $recentDays = SpeakerSamplesRepository::CATALOG_RECENT_DAYS;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
+BulkActions::tryHandle('audio_voice_profiles', '/audio/voice-profiles', []);
+$bulkFlash = BulkActions::consumeFlash();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit && !isset($_POST['bulk_action'])) {
     $action = (string)($_POST['action'] ?? '');
     $adminId = (int)($_POST['admin_id'] ?? 0);
     if ($action === 'delete_profile' && $adminId > 0) {
@@ -48,6 +51,7 @@ View::render('voice_profiles', [
     ]),
     'rows' => $rows,
     'flash' => $flash,
+    'bulkFlash' => $bulkFlash,
     'canEdit' => $canEdit,
     'recommended' => $recommended,
     'recentDays' => $recentDays,

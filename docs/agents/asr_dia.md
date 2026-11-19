@@ -33,7 +33,8 @@ flowchart LR
 | Baseline | `php bin/asr-dia-baseline.php --day=2026-11-16` |
 | Migrate | `php bin/freesaas.php migrate run --module=audio_diarize` |
 | Edge | Enable plugin `asr_dia` only on experiment Mac; edge-host service **ASR-DIA**; copy `configs/example.json` → `local.json` |
-| Queue | UI `/audio/asr-dia` or LongJob `POST /audio/asr-dia/longjob` (`day` / `ids_csv`, `asr_model`) |
+| Queue (prod) | Record **Run diarization** or list bulk → `POST /audio/diarize/longjob` (`ids_csv`, optional `asr_model=reuse`) |
+| Dev console | `/audio/asr-dia` (SUPERADMIN, not in menu) — fixture A/B only |
 | Compare ASR | `php bin/asr-dia-compare.php` (prod vs `TRANSCRIPTION_NEW`, dict hits) |
 | Rebuild profiles | `php bin/asr-dia-rebuild-profiles.php` (manual embedded samples → centroid) |
 

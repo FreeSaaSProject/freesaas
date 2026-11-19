@@ -68,16 +68,6 @@ $staffPages = [
         'methods' => ['GET', 'POST'],
         'file' => 'api_voice_sample.php',
     ],
-    '/audio/asr-dia' => [
-        'permission' => 'audio_diarize.view',
-        'methods' => ['GET'],
-        'file' => 'asr_dia.php',
-    ],
-    '/audio/asr-dia/longjob' => [
-        'permission' => 'audio_diarize.edit',
-        'methods' => ['POST'],
-        'file' => 'asr_dia_longjob.php',
-    ],
 ];
 
 foreach ($staffPages as $path => $def) {
@@ -91,6 +81,24 @@ foreach ($staffPages as $path => $def) {
         },
     ]);
 }
+
+// Fixture/dev console — not in menu; director-only. Prod path = /audio/diarize/longjob.
+ModuleManager::registerRoute('/audio/asr-dia', [
+    'module' => 'audio_diarize',
+    'methods' => ['GET'],
+    'capability' => 'SUPERADMIN_ACCESS',
+    'handler' => static function (): void {
+        require base_path('modules/audio_diarize/pages/asr_dia.php');
+    },
+]);
+ModuleManager::registerRoute('/audio/asr-dia/longjob', [
+    'module' => 'audio_diarize',
+    'methods' => ['POST'],
+    'capability' => 'SUPERADMIN_ACCESS',
+    'handler' => static function (): void {
+        require base_path('modules/audio_diarize/pages/asr_dia_longjob.php');
+    },
+]);
 
 ModuleManager::registerRoute('/audio-diarize/settings', [
     'module' => 'audio_diarize',
@@ -153,6 +161,70 @@ BulkActions::register('audio_records', 'queue_diarize', [
             'skipped' => [],
             'error' => t('audio_diarize.bulk.err.use_longjob'),
         ];
+    },
+]);
+
+BulkActions::register('audio_voice_profiles', 'clear_vectors', [
+    'label' => 'audio_diarize.bulk.clear_vectors',
+    'permission' => 'audio_diarize.edit',
+    'confirm' => 'audio_diarize.bulk.confirm_clear_vectors',
+    'run' => static function (array $ids, array $params): array {
+        unset($params);
+        $done = 0;
+        $skipped = [];
+        foreach ($ids as $adminId) {
+            $adminId = (int)$adminId;
+            if ($adminId < 1) {
+                continue;
+            }
+            if (SpeakerProfilesRepository::deleteByAdmin($adminId)) {
+                $done++;
+            } else {
+                $skipped[] = ['id' => $adminId, 'reason' => t('audio_diarize.bulk.err.no_vector')];
+            }
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    },
+]);
+
+BulkActions::register('audio_voice_profiles', 'clear_samples', [
+    'label' => 'audio_diarize.bulk.clear_samples',
+    'permission' => 'audio_diarize.edit',
+    'confirm' => 'audio_diarize.bulk.confirm_clear_samples',
+    'run' => static function (array $ids, array $params): array {
+        unset($params);
+        $done = 0;
+        foreach ($ids as $adminId) {
+            $adminId = (int)$adminId;
+            if ($adminId < 1) {
+                continue;
+            }
+            $n = SpeakerSamplesRepository::deleteAllForAdmin($adminId);
+            if ($n > 0) {
+                $done++;
+            }
+        }
+        return ['done' => $done, 'skipped' => []];
+    },
+]);
+
+BulkActions::register('audio_voice_profiles', 'clear_all', [
+    'label' => 'audio_diarize.bulk.clear_all',
+    'permission' => 'audio_diarize.edit',
+    'confirm' => 'audio_diarize.bulk.confirm_clear_all',
+    'run' => static function (array $ids, array $params): array {
+        unset($params);
+        $done = 0;
+        foreach ($ids as $adminId) {
+            $adminId = (int)$adminId;
+            if ($adminId < 1) {
+                continue;
+            }
+            SpeakerSamplesRepository::deleteAllForAdmin($adminId);
+            SpeakerProfilesRepository::deleteByAdmin($adminId);
+            $done++;
+        }
+        return ['done' => $done, 'skipped' => []];
     },
 ]);
 

@@ -85,8 +85,18 @@ $canAssignSpeaker = $diarizeOn && Auth::can('audio_diarize.edit');
 $hasAsrDiaHost = $diarizeOn
     && class_exists('EdgeHosts', false)
     && EdgeHosts::forService('asr_dia') !== [];
-$canRunDiarize = $canAssignSpeaker && $hasAsrDiaHost;
+// Allow queue even if host briefly missing — LongJob / status still useful; push needs host.
+$canRunDiarize = $canAssignSpeaker;
 $hasTranscription = trim((string)($row['transcription'] ?? $row['TRANSCRIPTION'] ?? '')) !== '';
+
+$asrDiaRun = null;
+if ($diarizeOn && is_file(base_path('modules/audio_diarize/lib/AsrDiaRunsRepository.php'))) {
+    require_once base_path('modules/audio_diarize/lib/AsrDiaRunsRepository.php');
+    if (AsrDiaRunsRepository::available()) {
+        $runs = AsrDiaRunsRepository::latestForRecords([$id]);
+        $asrDiaRun = $runs[0] ?? null;
+    }
+}
 
 if ($wantsJson) {
     $withTranscription = !empty($_GET['include_transcription']);
@@ -104,6 +114,7 @@ if ($wantsJson) {
             'can_run_diarize' => $canRunDiarize,
             'has_asr_dia_host' => $hasAsrDiaHost,
             'has_transcription' => $hasTranscription,
+            'latest_run' => $asrDiaRun,
             // Enrollment: POST /audio/diarize/longjob ids_csv=<id> asr_model=reuse apply_transcription=0
             'run_diarize_op' => 'audio_diarize.diarize.longjob',
         ],
@@ -136,4 +147,5 @@ View::render('view', [
     'hasAsrDiaHost' => $hasAsrDiaHost,
     'hasTranscription' => $hasTranscription,
     'diarizeOn' => $diarizeOn,
+    'asrDiaRun' => $asrDiaRun,
 ], 'layout', 'audio');

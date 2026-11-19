@@ -2,6 +2,7 @@
 declare(strict_types=1);
 /** @var list<array<string,mixed>> $rows */
 /** @var string $flash */
+/** @var mixed $bulkFlash */
 /** @var bool $canEdit */
 /** @var int $recommended */
 /** @var bool $profilesReady */
@@ -11,6 +12,7 @@ $recommended = max(1, (int)($recommended ?? 8));
 $canEdit = !empty($canEdit);
 $profilesReady = !empty($profilesReady);
 $recentDays = max(1, (int)($recentDays ?? 40));
+$listId = 'audio_voice_profiles';
 $pendingAny = false;
 foreach ($rows as $r) {
     if ((int)($r['pending_embed'] ?? 0) > 0 || ((int)($r['manual_count'] ?? 0) > 0 && empty($r['has_profile']))) {
@@ -20,6 +22,9 @@ foreach ($rows as $r) {
 }
 ?>
 <?php if ($flash !== ''): ?><p class="flash"><?= e($flash) ?></p><?php endif; ?>
+<?php if (!empty($bulkFlash)): ?>
+  <?= BulkActions::flashHtml($bulkFlash) ?>
+<?php endif; ?>
 
 <p class="muted"><?= te('audio_diarize.voice_profiles.help') ?></p>
 <p class="muted">
@@ -47,9 +52,12 @@ foreach ($rows as $r) {
 <?php if ($rows === []): ?>
   <p class="muted"><?= te('audio_diarize.voice_profiles.empty') ?></p>
 <?php else: ?>
+<?= BulkActions::beginForm($listId, '/audio/voice-profiles') ?>
+<?= BulkActions::bar($listId) ?>
 <table class="data">
   <thead>
     <tr>
+      <?= BulkActions::th($listId) ?>
       <th><?= te('audio_diarize.voice_profiles.col.admin') ?></th>
       <th><?= te('audio_diarize.voice_profiles.col.manual') ?></th>
       <th><?= te('audio_diarize.voice_profiles.col.remaining') ?></th>
@@ -72,6 +80,7 @@ foreach ($rows as $r) {
         $canSend = $canEdit && $manual > 0 && ($pending > 0 || !$ready);
       ?>
       <tr>
+        <?= BulkActions::td($listId, $adminId) ?>
         <td>
           <?php if ($enough): ?>
             <span title="<?= te('audio_diarize.voice_profiles.samples_enough') ?>"
@@ -104,26 +113,46 @@ foreach ($rows as $r) {
             </button>
           <?php endif; ?>
           <?php if ($canEdit && $ready): ?>
-            <form method="post" class="inline-form" style="display:inline" onsubmit="return confirm(<?= tj('audio_diarize.voice_profiles.confirm_delete_vector') ?>);">
-              <?= NavContext::hiddenField() ?>
-              <input type="hidden" name="action" value="delete_profile">
-              <input type="hidden" name="admin_id" value="<?= $adminId ?>">
-              <button type="submit" class="btn-secondary btn-sm"><?= te('audio_diarize.voice_profiles.delete_vector') ?></button>
-            </form>
+            <button type="submit" class="btn-secondary btn-sm"
+                    form="vp-del-vec-<?= $adminId ?>"
+                    onclick="return confirm(<?= tj('audio_diarize.voice_profiles.confirm_delete_vector') ?>);">
+              <?= te('audio_diarize.voice_profiles.delete_vector') ?>
+            </button>
           <?php endif; ?>
           <?php if ($canEdit && ($manual > 0 || (int)$r['diarize_count'] > 0)): ?>
-            <form method="post" class="inline-form" style="display:inline" onsubmit="return confirm(<?= tj('audio_diarize.voice_profiles.confirm_clear_samples') ?>);">
-              <?= NavContext::hiddenField() ?>
-              <input type="hidden" name="action" value="clear_samples">
-              <input type="hidden" name="admin_id" value="<?= $adminId ?>">
-              <button type="submit" class="btn-secondary btn-sm"><?= te('audio_diarize.voice_profiles.clear_samples') ?></button>
-            </form>
+            <button type="submit" class="btn-secondary btn-sm"
+                    form="vp-clr-smp-<?= $adminId ?>"
+                    onclick="return confirm(<?= tj('audio_diarize.voice_profiles.confirm_clear_samples') ?>);">
+              <?= te('audio_diarize.voice_profiles.clear_samples') ?>
+            </button>
           <?php endif; ?>
         </td>
       </tr>
     <?php endforeach; ?>
   </tbody>
 </table>
+<?= BulkActions::endForm($listId) ?>
+<?php if ($canEdit): ?>
+  <?php foreach ($rows as $r): ?>
+    <?php $adminId = (int)$r['id_admin']; ?>
+    <?php if (!empty($r['has_profile'])): ?>
+    <form id="vp-del-vec-<?= $adminId ?>" method="post" class="hidden-form" hidden>
+      <?= Csrf::field() ?>
+      <?= NavContext::hiddenField() ?>
+      <input type="hidden" name="action" value="delete_profile">
+      <input type="hidden" name="admin_id" value="<?= $adminId ?>">
+    </form>
+    <?php endif; ?>
+    <?php if ((int)($r['manual_count'] ?? 0) > 0 || (int)($r['diarize_count'] ?? 0) > 0): ?>
+    <form id="vp-clr-smp-<?= $adminId ?>" method="post" class="hidden-form" hidden>
+      <?= Csrf::field() ?>
+      <?= NavContext::hiddenField() ?>
+      <input type="hidden" name="action" value="clear_samples">
+      <input type="hidden" name="admin_id" value="<?= $adminId ?>">
+    </form>
+    <?php endif; ?>
+  <?php endforeach; ?>
+<?php endif; ?>
 <?php endif; ?>
 
 <?php if ($canEdit): ?>

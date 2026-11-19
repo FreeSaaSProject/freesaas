@@ -1466,6 +1466,96 @@
     slots.forEach(function (slot) { io.observe(slot); });
   }
 
+  /** Record page «Run diarization» → LongJobPanel + status line. */
+  function initRecordDiarize() {
+    var boot = document.getElementById('audio-record-diarize-boot');
+    var overlay = document.getElementById('audio-record-asr-dia-overlay');
+    var btn = document.getElementById('audio-run-diarize');
+    var statusEl = document.getElementById('audio-diarize-status');
+    if (!boot || !overlay || !btn) return;
+
+    var tries = 0;
+    function start() {
+      if (!window.LongJobPanel) {
+        if (++tries < 80) setTimeout(start, 50);
+        else if (statusEl) {
+          statusEl.textContent = 'LongJobPanel unavailable';
+        }
+        return;
+      }
+      if (boot.getAttribute('data-bound') === '1') return;
+      boot.setAttribute('data-bound', '1');
+
+      var i18n = {};
+      try {
+        i18n = JSON.parse(boot.getAttribute('data-i18n') || '{}') || {};
+      } catch (e) {
+        i18n = {};
+      }
+      var csrf = boot.getAttribute('data-csrf')
+        || (window.freesaasCsrfToken ? window.freesaasCsrfToken() : '');
+      var panel = LongJobPanel.mount({
+        root: overlay,
+        startUrl: '/audio/diarize/longjob',
+        tickUrl: '/audio/diarize/longjob',
+        cancelUrl: '/audio/diarize/longjob',
+        dualBars: false,
+        showBytes: false,
+        reloadOnOk: true,
+        csrf: csrf,
+        i18n: {
+          title: i18n.title || '',
+          starting: i18n.ljStarting || i18n.starting || '…',
+          badJson: i18n.badJson || '',
+          doneTitle: i18n.doneTitle || 'OK',
+          errorTitle: i18n.errorTitle || 'Error',
+          cancelledTitle: i18n.cancelledTitle || '',
+          ok: i18n.ok || 'OK',
+        },
+        onJob: function (job) {
+          if (!statusEl || !job) return;
+          var msg = job.message || job.status || '';
+          if (job.progress != null) msg += ' (' + Math.round(job.progress) + '%)';
+          statusEl.textContent = msg;
+        },
+        onFinish: function (status, message) {
+          if (!statusEl) return;
+          if (status === 'error') {
+            statusEl.textContent = (i18n.error || 'Error: {msg}').replace('{msg}', message || status);
+          } else if (message) {
+            statusEl.textContent = message;
+          }
+        },
+      });
+      if (!panel) {
+        if (statusEl) statusEl.textContent = 'LongJobPanel mount failed';
+        return;
+      }
+
+      btn.addEventListener('click', function () {
+        if (i18n.confirm && !window.confirm(i18n.confirm)) return;
+        if (statusEl) statusEl.textContent = i18n.starting || '…';
+        var rid = btn.getAttribute('data-record-id') || boot.getAttribute('data-record-id') || '';
+        var reuse = (btn.getAttribute('data-reuse') || boot.getAttribute('data-reuse')) === '1';
+        var fd = new FormData();
+        fd.set('ids_csv', rid);
+        fd.set('apply_speakers', '1');
+        fd.set('apply_transcription', reuse ? '0' : '1');
+        if (reuse) fd.set('asr_model', 'reuse');
+        fd.set('ret', '/audio/' + rid);
+        panel.runFormData(fd, {}).catch(function (err) {
+          if (statusEl) {
+            statusEl.textContent = (i18n.error || 'Error: {msg}').replace(
+              '{msg}',
+              (err && err.message) ? err.message : String(err)
+            );
+          }
+        });
+      });
+    }
+    start();
+  }
+
   /** Bulk «Send to diarization» → LongJobPanel (clear speakers, wait for edge worker). */
   function initDiarizeBulk() {
     var boot = document.getElementById('audio-diarize-boot');
@@ -1584,5 +1674,6 @@
     });
     bindLazyTranscripts();
     initDiarizeBulk();
+    initRecordDiarize();
   });
 })();

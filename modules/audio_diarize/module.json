@@ -2,7 +2,7 @@
     "id": "audio_diarize",
     "name": "audio_diarize.module.name",
     "description": "audio_diarize.module.description",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "type": "product",
     "requires": {
         "core": ">=1.1.0",
@@ -51,7 +51,7 @@
                 "method": "GET",
                 "path": "/audio/voice-profiles",
                 "permission": "audio_diarize.view",
-                "description": "Staff (last 40d or with samples) + sample progress; POST action=delete_profile|clear_samples (edit)"
+                "description": "Staff (last 40d or with samples) + sample progress; POST action=delete_profile|clear_samples; bulk clear_vectors|clear_samples|clear_all (edit)"
             },
             {
                 "id": "audio_diarize.voice_profiles.longjob",
@@ -135,16 +135,17 @@
                 "id": "audio_diarize.asr_dia.list",
                 "method": "GET",
                 "path": "/audio/asr-dia",
-                "permission": "audio_diarize.view",
-                "description": "ASR-DIA console: fixture baseline + latest asr_dia runs (enrollment also via /audio/{id} → diarize.longjob)"
+                "permission": "SUPERADMIN_ACCESS",
+                "assistant": false,
+                "description": "Dev/fixture ASR-DIA console only (not in menu). Prod enrollment: audio_diarize.diarize.longjob; cabin divert when profiles ready"
             },
             {
                 "id": "audio_diarize.asr_dia.longjob",
                 "method": "POST",
                 "path": "/audio/asr-dia/longjob",
-                "permission": "audio_diarize.edit",
+                "permission": "SUPERADMIN_ACCESS",
                 "assistant": false,
-                "description": "LongJob asr_dia: day/ids_csv, asr_model=large-v3|podlodka-turbo, apply_speakers"
+                "description": "Dev LongJob for fixture console; prefer audio_diarize.diarize.longjob for prod"
             },
             {
                 "id": "audio_diarize.asr.asr_dia_status",
@@ -175,15 +176,6 @@
             "kind": "work"
         },
         {
-            "path": "/audio/asr-dia",
-            "icon": "🧪",
-            "title": "audio_diarize.menu.asr_dia",
-            "group": "audio.menu.group",
-            "permission": "audio_diarize.view",
-            "num": 46,
-            "kind": "work"
-        },
-        {
             "path": "/audio-diarize/settings",
             "icon": "⚙️",
             "title": "audio_diarize.menu.settings",
@@ -197,6 +189,18 @@
         {
             "list_id": "audio_records",
             "action": "queue_diarize"
+        },
+        {
+            "list_id": "audio_voice_profiles",
+            "action": "clear_vectors"
+        },
+        {
+            "list_id": "audio_voice_profiles",
+            "action": "clear_samples"
+        },
+        {
+            "list_id": "audio_voice_profiles",
+            "action": "clear_all"
         }
     ],
     "tables": [

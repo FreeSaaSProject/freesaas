@@ -14,6 +14,7 @@ declare(strict_types=1);
 /** @var bool $hasAsrDiaHost */
 /** @var bool $hasTranscription */
 /** @var bool $diarizeOn */
+/** @var array<string,mixed>|null $asrDiaRun */
 $dictMeta = is_array($dictMeta ?? null) ? $dictMeta : [];
 $keyDicts = is_array($keyDicts ?? null) ? $keyDicts : [];
 $instances = is_array($instances ?? null) ? $instances : [];
@@ -24,23 +25,46 @@ $canRunDiarize = !empty($canRunDiarize);
 $hasAsrDiaHost = !empty($hasAsrDiaHost);
 $hasTranscription = !empty($hasTranscription);
 $diarizeOn = !empty($diarizeOn);
+$asrDiaRun = is_array($asrDiaRun ?? null) ? $asrDiaRun : null;
 $recordId = (int)($row['id'] ?? $row['ID'] ?? 0);
 $recordAdminId = (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0);
+$runStatusText = '';
+if ($asrDiaRun !== null) {
+    $runStatusText = t('audio_diarize.view.run_status_detail', [
+        'status' => (string)($asrDiaRun['status'] ?? ''),
+        'model' => (string)(($asrDiaRun['asr_model'] ?? '') !== '' ? $asrDiaRun['asr_model'] : '—'),
+        'cues' => (string)(int)($asrDiaRun['cues'] ?? 0),
+        'pct' => (string)$asrDiaRun['matched_pct'],
+    ]);
+    if ((string)($asrDiaRun['error'] ?? '') !== '') {
+        $runStatusText .= ' · ' . (string)$asrDiaRun['error'];
+    }
+}
 ?>
 <?php if ($flash !== ''): ?><p class="flash"><?= e($flash) ?></p><?php endif; ?>
 
 <section class="page-head-row">
-  <div></div>
+  <div>
+    <?php if ($diarizeOn): ?>
+    <p class="muted small" id="audio-diarize-status" aria-live="polite">
+      <?= $runStatusText !== ''
+        ? e($runStatusText)
+        : te('audio_diarize.view.run_none') ?>
+    </p>
+    <?php if ($canRunDiarize && !$hasAsrDiaHost): ?>
+    <p class="muted small"><?= te('audio_diarize.view.no_asr_dia_host') ?></p>
+    <?php endif; ?>
+    <?php endif; ?>
+  </div>
   <div class="page-actions">
     <?php if ($canRunDiarize): ?>
     <button type="button" class="btn" id="audio-run-diarize"
+            data-record-diarize
             data-record-id="<?= $recordId ?>"
             data-reuse="<?= $hasTranscription ? '1' : '0' ?>"
             title="<?= te('audio_diarize.view.run_diarize_hint') ?>">
       <?= te('audio_diarize.view.run_diarize') ?>
     </button>
-    <?php elseif ($diarizeOn && $canAssignSpeaker && !$hasAsrDiaHost): ?>
-    <span class="muted small"><?= te('audio_diarize.view.no_asr_dia_host') ?></span>
     <?php endif; ?>
     <?php if ($canEdit): ?>
     <form method="post" class="inline-form">
@@ -54,11 +78,27 @@ $recordAdminId = (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0);
 
 <?php if ($canRunDiarize): ?>
 <?= View::capture('_longjob_panel', [
-    'longjobId' => 'audio-diarize',
+    'longjobId' => 'audio-record-asr-dia',
     'longjobTitle' => t('audio_diarize.asr_dia.longjob_title'),
     'longjobDualBars' => false,
     'longjobShowBytes' => false,
 ], 'core') ?>
+<div id="audio-record-diarize-boot" hidden
+     data-csrf="<?= e(class_exists('Csrf', false) ? Csrf::token() : '') ?>"
+     data-record-id="<?= $recordId ?>"
+     data-reuse="<?= $hasTranscription ? '1' : '0' ?>"
+     data-i18n="<?= e(json_encode([
+         'confirm' => t('audio_diarize.view.run_diarize_confirm'),
+         'starting' => t('audio_diarize.view.run_starting'),
+         'error' => t('audio_diarize.view.run_error', ['msg' => '{msg}']),
+         'ljStarting' => t('core.longjob.starting'),
+         'badJson' => t('core.longjob.bad_json'),
+         'doneTitle' => t('core.longjob.done_title'),
+         'errorTitle' => t('core.longjob.error_title'),
+         'cancelledTitle' => t('core.longjob.cancelled_title'),
+         'ok' => t('core.longjob.ok'),
+         'title' => t('audio_diarize.asr_dia.longjob_title'),
+     ], JSON_UNESCAPED_UNICODE)) ?>"></div>
 <?php endif; ?>
 
 <div class="audio-view-grid"
@@ -213,54 +253,5 @@ window.AudioListI18n = Object.assign({}, window.AudioListI18n || {}, <?= json_en
     'network' => t('audio.api.network'),
     'done' => t('audio.api.done'),
 ], JSON_UNESCAPED_UNICODE) ?>);
-</script>
-<?php endif; ?>
-
-<?php if ($canRunDiarize): ?>
-<script>
-(function () {
-  function boot() {
-    if (!window.LongJobPanel) {
-      setTimeout(boot, 30);
-      return;
-    }
-    var overlay = document.getElementById('audio-diarize-overlay');
-    var btn = document.getElementById('audio-run-diarize');
-    if (!overlay || !btn) return;
-    var panel = LongJobPanel.mount({
-      root: overlay,
-      startUrl: '/audio/diarize/longjob',
-      tickUrl: '/audio/diarize/longjob',
-      cancelUrl: '/audio/diarize/longjob',
-      dualBars: false,
-      showBytes: false,
-      reloadOnOk: true,
-      csrf: <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>,
-      i18n: {
-        title: <?= json_encode(t('audio_diarize.asr_dia.longjob_title'), JSON_UNESCAPED_UNICODE) ?>,
-        starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
-        badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
-        doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
-        errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
-        cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
-        ok: <?= json_encode(t('core.longjob.ok'), JSON_UNESCAPED_UNICODE) ?>
-      }
-    });
-    btn.addEventListener('click', function () {
-      if (!confirm(<?= tj('audio_diarize.view.run_diarize_confirm') ?>)) return;
-      var rid = btn.getAttribute('data-record-id') || '';
-      var reuse = btn.getAttribute('data-reuse') === '1';
-      var fd = new FormData();
-      fd.set('ids_csv', rid);
-      fd.set('apply_speakers', '1');
-      fd.set('apply_transcription', reuse ? '0' : '1');
-      if (reuse) fd.set('asr_model', 'reuse');
-      fd.set('ret', '/audio/' + rid);
-      panel.runFormData(fd, {});
-    });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
-})();
 </script>
 <?php endif; ?>
