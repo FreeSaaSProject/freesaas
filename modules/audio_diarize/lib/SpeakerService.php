@@ -351,6 +351,11 @@ final class SpeakerService
         $pdo = Database::pdo();
         self::clearForRecords([$recordId]);
 
+        $localId = static function (string $raw): string {
+            return substr(trim($raw), 0, 16);
+        };
+        $dominant = $localId($dominant);
+
         $now = time();
         $insSpk = $pdo->prepare(
             'INSERT INTO base_records_speakers
@@ -359,18 +364,19 @@ final class SpeakerService
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $saved = 0;
+        $seenLocal = [];
         foreach ($speakers as $s) {
             if (!is_array($s)) {
                 continue;
             }
-            // Prefer stable cluster id (S1…) over matched alias (A127) so UI bind stays on S*.
-            $local = substr(trim((string)($s['local_id'] ?? '')), 0, 16);
+            $local = $localId((string)($s['local_id'] ?? ''));
             if ($local === '') {
-                $local = substr(trim((string)($s['id'] ?? '')), 0, 16);
+                $local = $localId((string)($s['id'] ?? ''));
             }
-            if ($local === '') {
+            if ($local === '' || isset($seenLocal[$local])) {
                 continue;
             }
+            $seenLocal[$local] = true;
             $emb = [];
             if (isset($s['embedding']) && is_array($s['embedding'])) {
                 foreach ($s['embedding'] as $v) {
@@ -406,7 +412,7 @@ final class SpeakerService
                 if (!is_array($seg)) {
                     continue;
                 }
-                $local = substr(trim((string)($seg['speaker'] ?? $seg['local_id'] ?? '')), 0, 16);
+                $local = $localId((string)($seg['speaker'] ?? $seg['local_id'] ?? ''));
                 if ($local === '') {
                     continue;
                 }
@@ -429,7 +435,7 @@ final class SpeakerService
                     continue;
                 }
                 $line = (int)($c['line'] ?? 0);
-                $local = substr(trim((string)($c['speaker'] ?? '')), 0, 16);
+                $local = $localId((string)($c['speaker'] ?? ''));
                 if ($line < 1 || $local === '') {
                     continue;
                 }
@@ -1162,21 +1168,22 @@ final class SpeakerService
 
     /**
      * Manual bind: local cluster (e.g. S2) → staff. Updates match row + optional enrollment clips.
+     * Rebind replaces prior manual samples for this staff on this record.
      *
+     * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $excludeRanges
+     * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $includeRanges
      * @return array{
      *   ok:bool,error:string,local_id:string,admin_id:int,
-     *   samples?:array<string,mixed>
+     *   samples?:array<string,mixed>,adopted_cues?:int
      * }
-     */
-    /**
-     * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $excludeRanges
      */
     public static function assignLocalToAdmin(
         int $recordId,
         string $localId,
         int $adminId,
         bool $addSamples = true,
-        array $excludeRanges = []
+        array $excludeRanges = [],
+        array $includeRanges = []
     ): array {
         $localId = substr(trim($localId), 0, 16);
         $out = [
@@ -1226,6 +1233,7 @@ final class SpeakerService
             return $out;
         }
 
+        $prevAdmin = (int)$row['MATCHED_ADMIN_ID'];
         $now = time();
         $pdo->prepare(
             'UPDATE base_records_speakers
@@ -1233,13 +1241,23 @@ final class SpeakerService
              WHERE ID = ?'
         )->execute(['staff', $adminId, 1.0, $now, (int)$row['ID']]);
 
+        // Move adopted cues (+ overlapping segments) onto this cluster before sampling.
+        $adopted = self::adoptRangesToLocal($recordId, $localId, $includeRanges);
+        $out['adopted_cues'] = $adopted;
+
         $samples = null;
         if ($addSamples && class_exists('SpeakerSamplesRepository', false)) {
+            // Previous staff on this cluster: drop their clips from this record too.
+            if ($prevAdmin > 0 && $prevAdmin !== $adminId) {
+                SpeakerSamplesRepository::deleteManualForRecordAdmin($recordId, $prevAdmin);
+            }
             $samples = SpeakerSamplesRepository::addManualFromLocalSpeaker(
                 $adminId,
                 $recordId,
                 $localId,
-                $excludeRanges
+                $excludeRanges,
+                $includeRanges,
+                true
             );
             if (
                 !empty($samples['ok'])
@@ -1257,7 +1275,82 @@ final class SpeakerService
     }
 
     /**
-     * @return list<array{t0:float,t1:float}>
+     * Re-label cue lines (and overlapping Nemotron segments) to $localId.
+     *
+     * @param list<array{t0:float,t1:float,line?:int}|array{0:float,1:float}> $ranges
+     * @return int cue rows updated
+     */
+    public static function adoptRangesToLocal(int $recordId, string $localId, array $ranges): int
+    {
+        $localId = substr(trim($localId), 0, 16);
+        if ($recordId < 1 || $localId === '' || $ranges === []) {
+            return 0;
+        }
+        $pairs = [];
+        $lineNums = [];
+        foreach ($ranges as $r) {
+            if (!is_array($r)) {
+                continue;
+            }
+            $t0 = (float)($r['t0'] ?? $r[0] ?? 0);
+            $t1 = (float)($r['t1'] ?? $r[1] ?? 0);
+            $line = (int)($r['line'] ?? $r['string_num'] ?? 0);
+            if ($t1 > $t0) {
+                $pairs[] = [$t0, $t1];
+            }
+            if ($line > 0) {
+                $lineNums[$line] = $line;
+            }
+        }
+        if ($pairs === [] && $lineNums === []) {
+            return 0;
+        }
+
+        $pdo = Database::pdo();
+        $cueFixed = 0;
+        if ($lineNums !== [] && Database::tableExists('base_records_cue_speakers')) {
+            $upd = $pdo->prepare(
+                'INSERT INTO base_records_cue_speakers (ID_RECORD, STRING_NUM, LOCAL_ID)
+                 VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE LOCAL_ID = VALUES(LOCAL_ID)'
+            );
+            foreach ($lineNums as $num) {
+                $upd->execute([$recordId, $num, $localId]);
+                $cueFixed++;
+            }
+        }
+
+        if ($pairs !== [] && Database::tableExists('base_records_speaker_segments')) {
+            $st = $pdo->prepare(
+                'SELECT ID, LOCAL_ID, T0, T1 FROM base_records_speaker_segments WHERE ID_RECORD = ?'
+            );
+            $st->execute([$recordId]);
+            $updSeg = $pdo->prepare(
+                'UPDATE base_records_speaker_segments SET LOCAL_ID = ? WHERE ID = ?'
+            );
+            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+                if ((string)$row['LOCAL_ID'] === $localId) {
+                    continue;
+                }
+                $a = (float)$row['T0'];
+                $b = (float)$row['T1'];
+                foreach ($pairs as $p) {
+                    $ov0 = max($a, $p[0]);
+                    $ov1 = min($b, $p[1]);
+                    // Majority overlap → this segment belongs to the adopted speaker.
+                    if ($ov1 > $ov0 && ($ov1 - $ov0) >= 0.5 * max(0.01, $b - $a)) {
+                        $updSeg->execute([$localId, (int)$row['ID']]);
+                        break;
+                    }
+                }
+            }
+        }
+
+        return $cueFixed;
+    }
+
+    /**
+     * @return list<array{t0:float,t1:float,line?:int}>
      */
     public static function parseExcludeRanges($raw): array
     {
@@ -1275,9 +1368,15 @@ final class SpeakerService
             }
             $t0 = (float)($r['t0'] ?? $r[0] ?? 0);
             $t1 = (float)($r['t1'] ?? $r[1] ?? 0);
-            if ($t1 > $t0) {
-                $out[] = ['t0' => $t0, 't1' => $t1];
+            if ($t1 <= $t0) {
+                continue;
             }
+            $row = ['t0' => $t0, 't1' => $t1];
+            $line = (int)($r['line'] ?? $r['string_num'] ?? 0);
+            if ($line > 0) {
+                $row['line'] = $line;
+            }
+            $out[] = $row;
         }
         return $out;
     }

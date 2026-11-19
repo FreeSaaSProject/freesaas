@@ -750,26 +750,32 @@ final class SpeakerSamplesRepository
     }
 
     /**
-     * Enrollment clips: merge own segments, then punch out foreign speech (gap-merge
-     * alone can re-include A127 inside an S2 window) and optional operator excludes,
-     * then re-apply min/max sizing.
+     * Enrollment clips: merge own segments (+ optional adopted cues), then punch out
+     * foreign speech and operator excludes, then re-apply min/max sizing.
      *
      * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $excludeRanges
+     * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $includeRanges
      * @return list<array{t0:float,t1:float}>
      */
     public static function enrollmentClipsForLocal(
         int $recordId,
         string $localId,
-        array $excludeRanges = []
+        array $excludeRanges = [],
+        array $includeRanges = []
     ): array {
-        $own = self::segmentRangesForLocal($recordId, $localId);
+        $own = array_merge(
+            self::segmentRangesForLocal($recordId, $localId),
+            self::normalizePairs($includeRanges)
+        );
         if ($own === []) {
             return [];
         }
-        $blockers = array_merge(
+        // Adopted ranges leave the foreign-blocker set so they stay in the clip.
+        $foreign = self::punchOutRanges(
             self::segmentRangesExceptLocal($recordId, $localId),
-            $excludeRanges
+            $includeRanges
         );
+        $blockers = array_merge($foreign, $excludeRanges);
         $rough = self::mergeClipRanges($own, self::LOCAL_MERGE_GAP_SEC);
         $clean = self::punchOutRanges($rough, $blockers);
         // Tiny gap only for float abut; do not bridge punched holes again.
@@ -779,20 +785,21 @@ final class SpeakerSamplesRepository
     /**
      * Create manual samples from a local cluster’s segments (merge → clips → insert).
      *
+     * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $excludeRanges
+     * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $includeRanges
      * @return array{
-     *   ok:bool,error:string,added:int,skipped_dup:int,skipped_short:int,
+     *   ok:bool,error:string,added:int,skipped_dup:int,skipped_short:int,replaced:int,
      *   ids:list<int>,clips:list<array{t0:float,t1:float}>,
      *   manual_count:int,remaining:int,talk_sec:float
      * }
-     */
-    /**
-     * @param list<array{t0:float,t1:float}|array{0:float,1:float}> $excludeRanges
      */
     public static function addManualFromLocalSpeaker(
         int $adminId,
         int $recordId,
         string $localId,
-        array $excludeRanges = []
+        array $excludeRanges = [],
+        array $includeRanges = [],
+        bool $replaceRecordSamples = true
     ): array {
         $counts = self::countsForAdmin($adminId);
         $base = [
@@ -801,6 +808,7 @@ final class SpeakerSamplesRepository
             'added' => 0,
             'skipped_dup' => 0,
             'skipped_short' => 0,
+            'replaced' => 0,
             'ids' => [],
             'clips' => [],
             'manual_count' => $counts['manual'],
@@ -826,6 +834,14 @@ final class SpeakerSamplesRepository
             $base['error'] = 'bad_admin';
             return $base;
         }
+
+        // Rebind: drop previous manual clips from this record for this staff, then insert fresh.
+        if ($replaceRecordSamples) {
+            $base['replaced'] = self::deleteManualForRecordAdmin($recordId, $adminId);
+            $counts = self::countsForAdmin($adminId);
+            $base['manual_count'] = $counts['manual'];
+            $base['remaining'] = max(0, self::RECOMMENDED_MANUAL - $counts['manual']);
+        }
         if ($counts['manual'] >= self::MAX_MANUAL) {
             $base['error'] = 'too_many';
             return $base;
@@ -836,9 +852,12 @@ final class SpeakerSamplesRepository
         foreach ($raw as $r) {
             $rawTalk += max(0.0, $r['t1'] - $r['t0']);
         }
+        foreach (self::normalizePairs($includeRanges) as $r) {
+            $rawTalk += max(0.0, $r[1] - $r[0]);
+        }
         $base['talk_sec'] = $rawTalk;
-        // Punch out other speakers + operator-excluded cues before insert.
-        $clips = self::enrollmentClipsForLocal($recordId, $localId, $excludeRanges);
+        // Punch out other speakers + operator-excluded cues; keep adopted includes.
+        $clips = self::enrollmentClipsForLocal($recordId, $localId, $excludeRanges, $includeRanges);
         $base['clips'] = $clips;
         if ($clips === []) {
             $base['error'] = 'no_clips';
@@ -899,6 +918,24 @@ final class SpeakerSamplesRepository
         }
         $st = Database::pdo()->prepare('DELETE FROM base_records_speaker_samples WHERE ID = ?');
         return $st->execute([$sampleId]);
+    }
+
+    /**
+     * Drop manual samples for one staff on one record (rebind rebuild).
+     *
+     * @return int rows deleted
+     */
+    public static function deleteManualForRecordAdmin(int $recordId, int $adminId): int
+    {
+        if ($recordId < 1 || $adminId < 1 || !self::available()) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'DELETE FROM base_records_speaker_samples
+             WHERE ID_RECORD = ? AND ID_ADMIN = ? AND SOURCE = \'manual\''
+        );
+        $st->execute([$recordId, $adminId]);
+        return (int)$st->rowCount();
     }
 
     /** Delete all enrollment samples for one staff (manual + diarize sources). */

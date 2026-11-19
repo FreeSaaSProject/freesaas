@@ -2,7 +2,7 @@
     "id": "audio_diarize",
     "name": "audio_diarize.module.name",
     "description": "audio_diarize.module.description",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "type": "product",
     "requires": {
         "core": ">=1.1.0",
@@ -74,7 +74,7 @@
                 "path": "/audio/api/voice-sample",
                 "permission": "audio_diarize.edit",
                 "assistant": false,
-                "description": "Add manual enrollment clip: record_id, admin_id, t0, t1; check=1 dry-run; assign_speaker=1+local_id bind cluster→staff (+samples); staff_list=1&record_id for picker"
+                "description": "Add manual enrollment clip: record_id, admin_id, t0, t1; check=1 dry-run; assign_speaker=1+local_id bind cluster→staff (rebuilds samples for this record; exclude_json/include_json); staff_list=1&record_id for picker"
             },
             {
                 "id": "audio_diarize.diarize.longjob",

@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-19T11:06:54+00:00",
+    "generated_at": "2026-11-19T11:40:45+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -198,7 +198,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.27",
+            "version": "1.0.28",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -239,7 +239,7 @@
         },
         {
             "id": "audio_diarize",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Diarization",

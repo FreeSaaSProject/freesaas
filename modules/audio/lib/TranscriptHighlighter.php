@@ -176,9 +176,9 @@ final class TranscriptHighlighter
             } elseif ($spkId !== '') {
                 $lineCls .= ' is-speaker-other';
             }
-            $attrs = '';
+            $attrs = ' data-line="' . $num . '"';
             if ($timeEnd > 0) {
-                $attrs = ' data-time-start="' . $timeStart . '" data-time-end="' . $timeEnd . '"';
+                $attrs .= ' data-time-start="' . $timeStart . '" data-time-end="' . $timeEnd . '"';
             }
             // Always expose local_id so UI can filter/listen unmatched clusters (S2…).
             if ($spkId !== '') {

@@ -66,12 +66,14 @@ if ($assignSpeaker) {
     $localId = trim((string)($_POST['local_id'] ?? ''));
     $addSamples = !isset($_POST['samples']) || (string)$_POST['samples'] !== '0';
     $excludeRanges = SpeakerService::parseExcludeRanges($_POST['exclude_json'] ?? []);
+    $includeRanges = SpeakerService::parseExcludeRanges($_POST['include_json'] ?? []);
     $res = SpeakerService::assignLocalToAdmin(
         $recordId,
         $localId,
         $adminId,
         $addSamples,
-        $excludeRanges
+        $excludeRanges,
+        $includeRanges
     );
     if (!$res['ok']) {
         echo json_encode([
@@ -90,17 +92,18 @@ if ($assignSpeaker) {
     }
     $who = $adminAcr !== '' ? $adminAcr : ($adminName !== '' ? $adminName : ('#' . $adminId));
     $added = (int)($samples['added'] ?? 0);
-    $dup = (int)($samples['skipped_dup'] ?? 0);
+    $replaced = (int)($samples['replaced'] ?? 0);
     $msg = t('audio_diarize.speaker_assign.ok', [
         'local' => $localId,
         'who' => $who,
         'n' => (string)$added,
     ]);
-    if ($dup > 0 && $added < 1) {
-        $msg = t('audio_diarize.speaker_assign.ok_dup', [
+    if ($replaced > 0) {
+        $msg = t('audio_diarize.speaker_assign.ok_rebuild', [
             'local' => $localId,
             'who' => $who,
-            'dup' => (string)$dup,
+            'n' => (string)$added,
+            'old' => (string)$replaced,
         ]);
     }
     echo json_encode([
@@ -111,6 +114,7 @@ if ($assignSpeaker) {
         'admin_acronym' => $adminAcr,
         'message' => $msg,
         'samples' => $samples,
+        'adopted_cues' => (int)($res['adopted_cues'] ?? 0),
         'recommended' => SpeakerSamplesRepository::RECOMMENDED_MANUAL,
         'max_manual' => SpeakerSamplesRepository::MAX_MANUAL,
         'manual_count' => (int)($samples['manual_count'] ?? 0),

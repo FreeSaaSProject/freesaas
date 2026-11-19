@@ -606,6 +606,26 @@
   background: #fffbeb;
 }
 
+.audio-speaker-cue-adopt {
+  margin-left: 0.35rem;
+  font-size: 0.75em;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid #0f766e;
+  border-radius: 3px;
+  background: #ecfdf5;
+  color: #0f766e;
+  cursor: pointer;
+}
+
+.transcript-line.is-speaker-adopted {
+  outline: 1px dashed rgba(15, 118, 110, 0.55);
+  background: rgba(204, 251, 241, 0.65);
+}
+
+.transcript.is-speaker-filtered .transcript-line.is-speaker-adopted {
+  opacity: 1;
+}
+
 .audio-speaker-assign-label {
   display: inline-flex;
   align-items: center;

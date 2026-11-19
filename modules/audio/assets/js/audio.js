@@ -223,7 +223,10 @@
     kolonka.querySelectorAll('.transcript-line.is-speaker-excluded').forEach(function (el) {
       el.classList.remove('is-speaker-excluded');
     });
-    kolonka.querySelectorAll('.audio-speaker-cue-exclude').forEach(function (btn) {
+    kolonka.querySelectorAll('.transcript-line.is-speaker-adopted').forEach(function (el) {
+      el.classList.remove('is-speaker-adopted', 'is-speaker-focus');
+    });
+    kolonka.querySelectorAll('.audio-speaker-cue-exclude, .audio-speaker-cue-adopt').forEach(function (btn) {
       btn.remove();
     });
   }
@@ -241,17 +244,40 @@
     return out;
   }
 
+  function includedSpeakerRanges(kolonka) {
+    var out = [];
+    if (!kolonka) return out;
+    kolonka.querySelectorAll('.transcript-line.is-speaker-adopted[data-time-start]').forEach(function (line) {
+      var t0 = parseFloat(line.getAttribute('data-time-start') || '');
+      var t1 = parseFloat(line.getAttribute('data-time-end') || '');
+      if (isNaN(t0)) return;
+      if (isNaN(t1) || t1 <= t0) t1 = t0 + 1;
+      var row = { t0: t0, t1: t1 };
+      var lineNum = parseInt(line.getAttribute('data-line') || '0', 10) || 0;
+      if (lineNum > 0) row.line = lineNum;
+      out.push(row);
+    });
+    return out;
+  }
+
   function syncExcludeStatus(kolonka) {
     var status = document.getElementById('audio-speaker-filter-status');
     if (!status || !kolonka) return;
     var filter = String(kolonka.getAttribute('data-speaker-filter') || '');
     if (!filter) return;
     var n = kolonka.querySelectorAll('.transcript-line.is-speaker-excluded').length;
+    var a = kolonka.querySelectorAll('.transcript-line.is-speaker-adopted').length;
     var L = labels();
     var clear = L.speakerAssignClear || 'Clear';
-    var excl = (L.speakerAssignExcludedN || 'Excluded: {n}').replace('{n}', String(n));
+    var parts = [clear + ': ' + filter];
+    if (n > 0) {
+      parts.push((L.speakerAssignExcludedN || 'Excluded: {n}').replace('{n}', String(n)));
+    }
+    if (a > 0) {
+      parts.push((L.speakerAssignAdoptedN || 'Added: {n}').replace('{n}', String(a)));
+    }
     status.hidden = false;
-    status.textContent = clear + ': ' + filter + (n > 0 ? ' · ' + excl : '');
+    status.textContent = parts.join(' · ');
   }
 
   function mountExcludeButtons(kolonka, filter) {
@@ -260,6 +286,7 @@
     var labelOff = L.speakerAssignExclude || 'Off';
     var labelOn = L.speakerAssignInclude || 'On';
     kolonka.querySelectorAll('.transcript-line.is-speaker-focus').forEach(function (line) {
+      if (line.classList.contains('is-speaker-adopted')) return;
       if (line.querySelector('.audio-speaker-cue-exclude')) return;
       var btn = document.createElement('button');
       btn.type = 'button';
@@ -287,6 +314,49 @@
             }
           }
         }
+      });
+      var timeEl = line.querySelector('.transcript-time');
+      if (timeEl && timeEl.nextSibling) {
+        line.insertBefore(btn, timeEl.nextSibling);
+      } else {
+        line.appendChild(btn);
+      }
+    });
+  }
+
+  /** Dimmed other-speaker cues → adopt into the filtered cluster for samples/rebind. */
+  function mountAdoptButtons(kolonka, filter) {
+    if (!kolonka || !filter) return;
+    var L = labels();
+    var labelAdd = L.speakerAssignAdopt || 'To me';
+    var labelUndo = L.speakerAssignAdoptUndo || 'Undo';
+    kolonka.querySelectorAll('.transcript-line[data-time-start]').forEach(function (line) {
+      var spk = String(line.getAttribute('data-speaker') || '');
+      if (spk === filter && !line.classList.contains('is-speaker-adopted')) return;
+      if (line.querySelector('.audio-speaker-cue-adopt')) return;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'audio-speaker-cue-adopt';
+      btn.textContent = line.classList.contains('is-speaker-adopted') ? labelUndo : labelAdd;
+      btn.title = labelAdd;
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        var on = !line.classList.contains('is-speaker-adopted');
+        if (on) {
+          line.classList.add('is-speaker-adopted', 'is-speaker-focus');
+          line.classList.remove('is-speaker-excluded');
+          line.setAttribute('data-speaker-adopt-from', spk);
+          line.setAttribute('data-speaker', filter);
+          btn.textContent = labelUndo;
+        } else {
+          var from = line.getAttribute('data-speaker-adopt-from') || '';
+          line.classList.remove('is-speaker-adopted', 'is-speaker-focus');
+          if (from) line.setAttribute('data-speaker', from);
+          line.removeAttribute('data-speaker-adopt-from');
+          btn.textContent = labelAdd;
+        }
+        syncExcludeStatus(kolonka);
       });
       var timeEl = line.querySelector('.transcript-time');
       if (timeEl && timeEl.nextSibling) {
@@ -395,6 +465,7 @@
     }
     syncAssignButtons(sid);
     mountExcludeButtons(kolonka, sid);
+    mountAdoptButtons(kolonka, sid);
     if (status) {
       status.style.cursor = 'pointer';
       status.onclick = function () { setSpeakerFilter(kolonka, '', false); };
@@ -534,6 +605,10 @@
         var excl = excludedSpeakerRanges(kolonka);
         if (excl.length) {
           body.set('exclude_json', JSON.stringify(excl));
+        }
+        var incl = includedSpeakerRanges(kolonka);
+        if (incl.length) {
+          body.set('include_json', JSON.stringify(incl));
         }
         fetch('/audio/api/voice-sample', {
           method: 'POST',
