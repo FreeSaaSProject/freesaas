@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-19T11:40:45+00:00",
+    "generated_at": "2026-11-19T13:24:23+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -239,7 +239,7 @@
         },
         {
             "id": "audio_diarize",
-            "version": "0.1.6",
+            "version": "0.1.7",
             "type": "product",
             "name": {
                 "en": "Diarization",

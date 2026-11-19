@@ -81,22 +81,28 @@ final class AsrDiaPushDispatcher
             if ($pending === []) {
                 return $res;
             }
-            $profiles = SpeakerService::profilesPayloadForWorker();
             $sourceBase = rtrim(trim((string)Config::get('audio', 'asr_source_base_url', '')), '/');
+            $matchCue = max(0.50, SpeakerService::matchCueThreshold());
+            $matchMargin = max(0.05, SpeakerService::matchMarginThreshold());
             $jobs = [];
             foreach ($pending as $row) {
                 $file = (string)$row['file_name'];
                 if ($file === '') {
                     continue;
                 }
+                $recordId = (int)$row['record_id'];
                 $job = [
                     'job_id' => (string)$row['job_id'],
                     'kind' => 'asr_dia',
                     'file_name' => $file,
-                    'record_id' => (int)$row['record_id'],
+                    'record_id' => $recordId,
                     'asr_model' => (string)$row['asr_model'],
                     'apply_speakers' => !empty($row['apply_speakers']),
                     'apply_transcription' => !empty($row['apply_transcription']),
+                    // Per-record pack: on-shift (± gap) only — not the whole catalog.
+                    'profiles' => SpeakerService::profilesPayloadForRecord($recordId),
+                    'match_cue' => $matchCue,
+                    'match_margin' => $matchMargin,
                 ];
                 $mode = strtolower(trim((string)($row['asr_mode'] ?? '')));
                 $modelL = strtolower((string)$row['asr_model']);
@@ -130,11 +136,11 @@ final class AsrDiaPushDispatcher
             // Floor 0.50 (not 0.58): enrolled staff often land ~0.50–0.55 on real multi-talker
             // clusters; 0.58 left МОВ unmatched while ДВМ (0.70) still passed. Weak enrollments
             // are already dropped via min_sample_count / min_talk_sec on the worker.
+            // Root profiles omitted: each job already carries its shift-scoped pack.
             $body = [
                 'jobs' => $jobs,
-                'profiles' => $profiles,
-                'match_cue' => max(0.50, SpeakerService::matchCueThreshold()),
-                'match_margin' => max(0.05, SpeakerService::matchMarginThreshold()),
+                'match_cue' => $matchCue,
+                'match_margin' => $matchMargin,
             ];
             $r = AsrPushClient::call($w, 'POST', $path, $body);
             if (!$r['ok']) {

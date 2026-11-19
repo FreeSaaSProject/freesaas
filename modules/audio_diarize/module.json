@@ -2,7 +2,7 @@
     "id": "audio_diarize",
     "name": "audio_diarize.module.name",
     "description": "audio_diarize.module.description",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "type": "product",
     "requires": {
         "core": ">=1.1.0",
@@ -153,7 +153,7 @@
                 "path": "/audio/asr/asr-dia-status",
                 "permission": "public",
                 "assistant": false,
-                "description": "asr_dia worker: profiles pack + match_cue"
+                "description": "asr_dia worker: match_cue; profiles only with record_id= (shift-scoped ± gap)"
             },
             {
                 "id": "audio_diarize.asr.asr_dia_result",

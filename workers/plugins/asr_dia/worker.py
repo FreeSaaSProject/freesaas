@@ -109,13 +109,19 @@ def download_audio(cfg: Dict[str, Any], file_name: str, dest: Path, source_url: 
 				f.write(chunk)
 
 
-def fetch_profiles(cfg: Dict[str, Any]) -> Tuple[list, float]:
+def fetch_profiles(cfg: Dict[str, Any], record_id: int = 0) -> Tuple[list, float]:
+	"""Pull shift-scoped profiles when job payload omitted them. Requires record_id."""
 	server = str(cfg.get("server") or "").rstrip("/")
 	ep = (cfg.get("endpoints") or {}).get("status") or "/audio/asr/asr-dia-status"
 	profiles: list = []
 	match_cue = float(((cfg.get("match") or {}).get("cue")) or 0.45)
+	if record_id < 1:
+		return profiles, match_cue
 	try:
-		r = requests.get(server + ep, headers=backend_headers(cfg), verify=tls_verify(cfg), timeout=60)
+		url = server + ep
+		sep = "&" if "?" in ep else "?"
+		url = f"{url}{sep}record_id={int(record_id)}"
+		r = requests.get(url, headers=backend_headers(cfg), verify=tls_verify(cfg), timeout=60)
 		r.raise_for_status()
 		data = r.json() if r.text else {}
 		if isinstance(data, dict):
@@ -138,10 +144,11 @@ def process_job(cfg: Dict[str, Any], job: Dict[str, Any]) -> Dict[str, Any]:
 		file_name = urlsplit(source_url).path
 	base = Path(file_name).name or "audio.mp3"
 	set_activity("download", base)
+	record_id = int(job.get("record_id") or 0)
 	profiles = job.get("profiles") if isinstance(job.get("profiles"), list) else None
 	match_cue = job.get("match_cue")
 	if profiles is None:
-		profiles, mc = fetch_profiles(cfg)
+		profiles, mc = fetch_profiles(cfg, record_id)
 		if match_cue is None:
 			match_cue = mc
 	cfg_run = dict(cfg)

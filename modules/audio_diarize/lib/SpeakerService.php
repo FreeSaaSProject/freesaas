@@ -15,6 +15,8 @@ final class SpeakerService
     public const MATCH_CUE = 0.48;
     public const ENROLL_MIN_TALK_SEC = 8.0;
     public const DAY_CLUSTER_THRESHOLD = 0.55;
+    /** Minutes before/after shift window still include that staff in the match pack. */
+    public const MATCH_SHIFT_GAP_MIN = 45;
 
     /** Live cue→profile cosine gate (ini / settings). */
     public static function matchCueThreshold(): float
@@ -34,6 +36,17 @@ final class SpeakerService
         }
 
         return self::MATCH_MARGIN;
+    }
+
+    /** Soft padding around workweeks shift windows when picking match profiles. */
+    public static function matchShiftGapSec(): int
+    {
+        $min = (int)Config::get(
+            'audio_diarize',
+            'match_shift_gap_min',
+            (string)self::MATCH_SHIFT_GAP_MIN
+        );
+        return max(0, min(180, $min)) * 60;
     }
 
     public static function tablesReady(): bool
@@ -959,12 +972,32 @@ final class SpeakerService
 
     /**
      * Compact profile pack for the diarize worker (centroid + manual sample vectors).
+     * Optional $adminIds filters to those staff only (empty = all ready profiles).
      *
+     * @param list<int> $adminIds
      * @return list<array{id_admin:int,embedding:list<float>,samples:list<list<float>>}>
      */
-    public static function profilesPayloadForWorker(): array
+    public static function profilesPayloadForWorker(array $adminIds = []): array
     {
+        $want = [];
+        foreach ($adminIds as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $want[$id] = true;
+            }
+        }
         $profiles = self::allProfiles();
+        if ($profiles === []) {
+            return [];
+        }
+        if ($want !== []) {
+            $profiles = array_values(array_filter(
+                $profiles,
+                static function (array $p) use ($want): bool {
+                    return isset($want[(int)$p['id_admin']]);
+                }
+            ));
+        }
         if ($profiles === []) {
             return [];
         }
@@ -998,6 +1031,83 @@ final class SpeakerService
             ];
         }
         return $out;
+    }
+
+    /**
+     * Staff who may appear on this cabin recording: badge wearer + on-shift that day,
+     * narrowed by PRICE_COL windows (± match_shift_gap_min) when windows exist.
+     *
+     * @return list<int>
+     */
+    public static function matchAdminIdsForRecord(int $recordId): array
+    {
+        if ($recordId < 1 || !Database::tableExists('base_records')) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID_ADMIN, DT_RECORDED, PLAYTIME FROM base_records WHERE ID = ? LIMIT 1'
+        );
+        $st->execute([$recordId]);
+        $rec = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$rec) {
+            return [];
+        }
+        $badgeAdmin = (int)($rec['ID_ADMIN'] ?? 0);
+        $ids = [];
+        if ($badgeAdmin > 0) {
+            $ids[$badgeAdmin] = true;
+        }
+        $recorded = (int)($rec['DT_RECORDED'] ?? 0);
+        if ($recorded < 1) {
+            return array_keys($ids);
+        }
+        if (
+            !ModuleManager::isEnabled('workweeks')
+            || !class_exists('WorkweeksRepository', false)
+        ) {
+            return array_keys($ids);
+        }
+        $dayStart = (int)mktime(
+            0,
+            0,
+            0,
+            (int)date('n', $recorded),
+            (int)date('j', $recorded),
+            (int)date('Y', $recorded)
+        );
+        $play = max(0, (int)($rec['PLAYTIME'] ?? 0));
+        $win0 = $recorded;
+        $win1 = $recorded + max(60, $play);
+        $gap = self::matchShiftGapSec();
+        foreach (WorkweeksRepository::listForDay($dayStart) as $shift) {
+            $oid = (int)($shift['id_operator'] ?? $shift['ID_OPERATOR'] ?? 0);
+            if ($oid < 1) {
+                continue;
+            }
+            $pc = (int)($shift['price_col'] ?? $shift['PRICE_COL'] ?? 0);
+            $range = $pc > 0 ? WorkweeksRepository::shiftRangeForDay($dayStart, $pc) : null;
+            if ($range === null) {
+                // No lane window → whole calendar day.
+                $ids[$oid] = true;
+                continue;
+            }
+            $s0 = (int)$range['start'] - $gap;
+            $s1 = (int)$range['end'] + $gap;
+            if ($win1 >= $s0 && $win0 <= $s1) {
+                $ids[$oid] = true;
+            }
+        }
+        return array_keys($ids);
+    }
+
+    /**
+     * Match pack for one record: only shift-relevant ready profiles (not the whole catalog).
+     *
+     * @return list<array{id_admin:int,embedding:list<float>,samples:list<list<float>>}>
+     */
+    public static function profilesPayloadForRecord(int $recordId): array
+    {
+        return self::profilesPayloadForWorker(self::matchAdminIdsForRecord($recordId));
     }
 
     /**
