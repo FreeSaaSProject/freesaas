@@ -38,41 +38,72 @@ final class AsrDiaRunsRepository
         );
         $now = time();
         $out = [];
+        $dtCheck = Database::tableExists('base_records')
+            ? $pdo->prepare('SELECT DT_TRANSCRIBED FROM base_records WHERE ID = ? LIMIT 1')
+            : null;
         foreach ($recordIds as $rid) {
             $rid = (int)$rid;
             if ($rid < 1) {
                 continue;
             }
-            $findActive->execute([$rid]);
-            $existing = (int)($findActive->fetchColumn() ?: 0);
-            if ($existing > 0) {
-                // Refresh flags — reuse used to keep APPLY_TRANSCRIPTION=0 from an older
-                // enrollment enqueue, so cabin divert never stamped DT_TRANSCRIBED.
-                $pdo->prepare(
-                    'UPDATE base_asr_dia_runs
-                     SET APPLY_SPEAKERS = ?, APPLY_TRANSCRIPTION = ?,
-                         ASR_MODEL = IF(? <> \'\', ?, ASR_MODEL)
-                     WHERE ID = ? AND STATUS IN (\'pending\',\'queued\')'
-                )->execute([
+            // Cabin divert (applyTranscription=1) must not re-open rows once DT is stamped.
+            // Enrollment LongJob uses applyTranscription=0 on already-transcribed records — allow.
+            if ($applyTranscription && $dtCheck !== null) {
+                $dtCheck->execute([$rid]);
+                $dt = (int)($dtCheck->fetchColumn() ?: 0);
+                if ($dt > 1) {
+                    continue;
+                }
+            }
+            // Serialize find+insert — concurrent divert/push was creating 2 pending rows per record.
+            $lockName = 'asr_dia_enq_' . $rid;
+            $gotLock = false;
+            try {
+                $lk = $pdo->query('SELECT GET_LOCK(' . $pdo->quote($lockName) . ', 5)');
+                $gotLock = $lk !== false && (int)$lk->fetchColumn() === 1;
+            } catch (Throwable $e) {
+                $gotLock = false;
+            }
+            try {
+                $findActive->execute([$rid]);
+                $existing = (int)($findActive->fetchColumn() ?: 0);
+                if ($existing > 0) {
+                    // Refresh flags — reuse used to keep APPLY_TRANSCRIPTION=0 from an older
+                    // enrollment enqueue, so cabin divert never stamped DT_TRANSCRIBED.
+                    $pdo->prepare(
+                        'UPDATE base_asr_dia_runs
+                         SET APPLY_SPEAKERS = ?, APPLY_TRANSCRIPTION = ?,
+                             ASR_MODEL = IF(? <> \'\', ?, ASR_MODEL)
+                         WHERE ID = ? AND STATUS IN (\'pending\',\'queued\')'
+                    )->execute([
+                        $applySpeakers ? 1 : 0,
+                        $applyTranscription ? 1 : 0,
+                        $asrModel,
+                        $asrModel,
+                        $existing,
+                    ]);
+                    $out[] = $existing;
+                    continue;
+                }
+                $jobId = bin2hex(random_bytes(16));
+                $ins->execute([
+                    $rid,
+                    $jobId,
+                    $asrModel,
                     $applySpeakers ? 1 : 0,
                     $applyTranscription ? 1 : 0,
-                    $asrModel,
-                    $asrModel,
-                    $existing,
+                    $now,
                 ]);
-                $out[] = $existing;
-                continue;
+                $out[] = (int)$pdo->lastInsertId();
+            } finally {
+                if ($gotLock) {
+                    try {
+                        $pdo->query('SELECT RELEASE_LOCK(' . $pdo->quote($lockName) . ')');
+                    } catch (Throwable $e) {
+                        // ignore
+                    }
+                }
             }
-            $jobId = bin2hex(random_bytes(16));
-            $ins->execute([
-                $rid,
-                $jobId,
-                $asrModel,
-                $applySpeakers ? 1 : 0,
-                $applyTranscription ? 1 : 0,
-                $now,
-            ]);
-            $out[] = (int)$pdo->lastInsertId();
         }
         return $out;
     }
@@ -84,6 +115,21 @@ final class AsrDiaRunsRepository
             return [];
         }
         $limit = max(1, min(50, $limit));
+        // Drop cabin-divert leftovers (APPLY_TRANSCRIPTION=1) once DT is stamped.
+        // Do not touch enrollment rows (APPLY_TRANSCRIPTION=0) on already-transcribed records.
+        try {
+            Database::pdo()->exec(
+                "UPDATE base_asr_dia_runs r
+                 INNER JOIN base_records rec ON rec.ID = r.ID_RECORD
+                 SET r.STATUS = 'done', r.ERROR = 'skip_already_transcribed', r.DT_DONE = UNIX_TIMESTAMP()
+                 WHERE r.STATUS IN ('pending','queued')
+                   AND r.APPLY_TRANSCRIPTION > 0
+                   AND rec.DT_TRANSCRIBED > 1"
+            );
+        } catch (Throwable $e) {
+            // non-fatal — listing still filters below
+        }
+
         $st = Database::pdo()->query(
             "SELECT r.ID AS run_id, r.ID_RECORD AS record_id, r.JOB_ID AS job_id,
                     r.ASR_MODEL AS asr_model, r.APPLY_SPEAKERS AS apply_speakers,
@@ -93,6 +139,11 @@ final class AsrDiaRunsRepository
              FROM base_asr_dia_runs r
              INNER JOIN base_records rec ON rec.ID = r.ID_RECORD
              WHERE r.STATUS = 'pending'
+               AND (
+                 r.APPLY_TRANSCRIPTION < 1
+                 OR rec.DT_TRANSCRIBED IS NULL
+                 OR rec.DT_TRANSCRIBED < 1
+               )
              ORDER BY r.ID ASC
              LIMIT {$limit}"
         );
@@ -240,25 +291,31 @@ final class AsrDiaRunsRepository
             ];
             SpeakerService::saveForRecord($recordId, $payload, ['rematch' => false]);
         }
-        if ($recordId > 0 && $applyText !== '' && Database::tableExists('base_records')) {
-            // Must stamp DT_TRANSCRIBED — otherwise AsrLease keeps claiming the file and
-            // cabin divert re-enqueues ASR-DIA in a loop (same day files ×N).
-            // APPLY_TRANSCRIPTION controls whether TRANSCRIPTION text is overwritten;
-            // DT stamp still happens for untranscribed rows so the lease can clear.
-            if ($applyTr) {
+        if ($recordId > 0 && Database::tableExists('base_records')) {
+            // Always stamp DT_TRANSCRIBED on successful asr_dia apply — empty text still
+            // clears AsrLease (DT < 1), otherwise cabin divert re-pushes the same day ×N.
+            // APPLY_TRANSCRIPTION only controls whether TRANSCRIPTION text is overwritten.
+            $now = time();
+            if ($applyTr && $applyText !== '') {
                 Database::pdo()->prepare(
                     'UPDATE base_records
                      SET TRANSCRIPTION = ?, DT_TRANSCRIBED = ?
                      WHERE ID = ? LIMIT 1'
-                )->execute([$applyText, time(), $recordId]);
+                )->execute([$applyText, $now, $recordId]);
             } else {
                 Database::pdo()->prepare(
                     'UPDATE base_records
                      SET DT_TRANSCRIBED = ?
                      WHERE ID = ? AND (DT_TRANSCRIBED IS NULL OR DT_TRANSCRIBED < 1)
                      LIMIT 1'
-                )->execute([time(), $recordId]);
+                )->execute([$now, $recordId]);
             }
+            // Cancel sibling pending/queued rows for this record (race with divert).
+            Database::pdo()->prepare(
+                "UPDATE base_asr_dia_runs
+                 SET STATUS = 'done', ERROR = 'superseded_after_apply', DT_DONE = ?
+                 WHERE ID_RECORD = ? AND STATUS IN ('pending','queued') AND JOB_ID <> ?"
+            )->execute([$now, $recordId, $jobId]);
         }
         return true;
     }
