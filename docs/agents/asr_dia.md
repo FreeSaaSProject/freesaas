@@ -1,18 +1,20 @@
-# ASR-DIA experiment (dia-first)
+# ASR-DIA (dia-first speaker recognition)
 
-Optional Apple Silicon pipeline that **does not replace** cabin `whisper` / `diarize`.
+Apple Silicon pipeline for **speakers + text** when every on-shift staff with audio analytics has a voice profile. Cabin `whisper` stays the default otherwise. Edge `diarize` is the **embed-only** CAM++ vectorizer (enrollment), not file-diarize.
+
+**Enrollment path:** on a record (`/audio/{id}`) use **Run diarization** — queues ASR-DIA for that id **without** the shift-profile gate (`asr_model=reuse` when a cabin transcript exists → Nemotron turns + speaker rows `S*`, no text overwrite). Then bind clusters → samples → process profiles on `/audio/voice-profiles`.
 
 ## Why
 
-Current edge diarize ([`workers/plugins/diarize`](../../workers/plugins/diarize)) labels **after** ASR: short Whisper cues → pad → WeSpeaker. On 2026-11-16 fixture staff (profiles ready) **median matched cues = 0%** — see [`asr_dia_fixture_2026-11-16.json`](asr_dia_fixture_2026-11-16.json). Gate: median &lt; 30% → try dia-first.
+Post-ASR WeSpeaker cue labeling was retired (fixture 2026-11-16 median matched cues **0%** — [`asr_dia_fixture_2026-11-16.json`](asr_dia_fixture_2026-11-16.json)). Dia-first Nemotron3 recovers speakers for assign / enrollment and for matched ID once profiles exist.
 
-**ASR mode (default `words_align`):** one full-file `whisper-cli -ojf` (same large-v3 sense as cabin) → map segment text onto Nemotron turns; word timestamps only split cues that clearly cross speakers. Legacy `per_turn` (clip ASR) stays for A/B — avoid for quality.
+**ASR mode (default `words_align`):** one full-file `whisper-cli -ojf` (same large-v3 sense as cabin) → map segment text onto Nemotron turns; word timestamps only split cues that clearly cross speakers. Manual record button prefers `reuse` (map existing cabin cues). Legacy `per_turn` (clip ASR) stays for A/B — avoid for quality.
 
 ## Pipeline
 
-1. **Diarize first** — `speech diarize --engine nemotron3` ([speech-swift](https://github.com/soniqo/speech-swift)), or `dia.engine=vad_fallback` for smoke  
-2. **ASR per turn** — whisper.cpp (`large-v3` or `podlodka-turbo` GGML)  
-3. **ID** — WeSpeaker CAM++ (same as enrollment) → `SpeakerService::saveForRecord` when `apply_speakers=1`  
+1. **Diarize first** — `speech diarize --engine nemotron3` ([speech-swift](https://github.com/soniqo/speech-swift) Apache-2.0; weights NVIDIA OpenMDW 1.1 — see [`workers/plugins/asr_dia/THIRD_PARTY.md`](../../workers/plugins/asr_dia/THIRD_PARTY.md)), or `dia.engine=vad_fallback` for smoke  
+2. **ASR** — whisper.cpp (`large-v3` / `podlodka-turbo`) or `reuse` / `reuse_gap` of cabin text  
+3. **ID** — WeSpeaker CAM++ (shared with vectorizer) → `SpeakerService::saveForRecord` when `apply_speakers=1` (unmatched clusters stay `S*`)  
 4. Journal — `base_asr_dia_runs` (optional apply transcription)
 
 ```mermaid

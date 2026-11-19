@@ -324,6 +324,23 @@ if ($dictsOn && !empty($result['items'])) {
 }
 
 if ($wantsJson) {
+    $diarizePayload = [
+        'enabled' => ModuleManager::isEnabled('audio_diarize'),
+        'bulk_op' => 'audio_diarize.diarize.longjob',
+    ];
+    if (
+        $diarizePayload['enabled']
+        && class_exists('SpeakerService', false)
+        && $year > 0 && $month > 0 && $day > 0
+    ) {
+        $cov = SpeakerService::shiftProfileCoverage(sprintf('%04d-%02d-%02d', $year, $month, $day));
+        $diarizePayload['shift_profiles'] = [
+            'ok' => !empty($cov['ok']),
+            'total' => (int)($cov['total'] ?? 0),
+            'missing_count' => (int)($cov['missing_count'] ?? 0),
+            'missing' => $cov['missing'] ?? [],
+        ];
+    }
     AgentHttp::emit([
         'ok' => true,
         'total' => $result['total'],
@@ -344,6 +361,7 @@ if ($wantsJson) {
         'per_page' => $lq['per_page'],
         'show_all' => $lq['show_all'],
         'review_by_id' => $reviewById,
+        'audio_diarize' => $diarizePayload,
     ]);
     return;
 }

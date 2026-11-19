@@ -44,7 +44,9 @@ first-party storefront theme.
 | OpenCV (`opencv-python-headless`), Pillow, requests, urllib3 | `workers/plugins/video/requirements.txt` | Apache-2.0 / HPND / Apache-2.0 / MIT (typical) | Supporting libs for the video worker only. |
 | requests, urllib3, psutil | `workers/core/requirements.txt`, `workers/plugins/whisper/requirements.txt` | Apache-2.0 / MIT / BSD (typical) | Workers host + Whisper pull client; not in PHP zip. |
 | pydub, mutagen, tzdata, sounddevice, numpy, requests | `workers/plugins/audioloader/requirements.txt` | MIT / GPL-2+ (mutagen) / Apache-2.0 / MIT / BSD (typical) | Windows badge USB → FTP → ingest (`docs/agents/audioloader.md`). Not in PHP zip; operator installs on the edge host. LAME/FFmpeg are separate binaries — see `workers/plugins/audioloader/THIRD_PARTY.md`. |
-| **WeSpeaker** ONNX (`voxceleb_resnet34_LM.onnx`) + onnxruntime / kaldi-native-fbank / soundfile / numpy / **mlx** (Darwin-only) | `workers/plugins/diarize/` | Toolkit **Apache-2.0**; weights **CC-BY-4.0** (VoxCeleb, as stated by WeSpeaker); mlx typically Apache-2.0 | Optional Mac diarization + voiceprint plugin (`docs/agents/workers.md`). Downloaded by `download-models`; not in PHP zip. `mlx` is optional (`sys_platform == "darwin"` in `requirements.txt`) for ResNet34 MLX embedder. Keep CC-BY attribution — see `workers/plugins/diarize/THIRD_PARTY.md`. Commercial FreeSaaS license does not remove CC-BY obligations for the weights. |
+| **WeSpeaker** ONNX (`voxceleb_CAM++_LM.onnx`, optional ResNet34) + onnxruntime / kaldi-native-fbank / soundfile / numpy / **mlx** (Darwin-only) | `workers/plugins/diarize/` | Toolkit **Apache-2.0**; weights **CC-BY-4.0** (VoxCeleb, as stated by WeSpeaker); mlx typically Apache-2.0 | Optional Mac **voice vectorizer** (embed-only; file WeSpeaker diarize retired). Shared CAM++ weights used by `asr_dia` for speaker ID. Downloaded by `download-models`; not in PHP zip. Keep CC-BY attribution — see `workers/plugins/diarize/THIRD_PARTY.md`. Commercial FreeSaaS license does not remove CC-BY obligations for the weights. |
+| **speech-swift** + **Nemotron-3-Diarization** (+ shared CAM++ / whisper.cpp) | `workers/plugins/asr_dia/` | speech-swift **Apache-2.0**; Nemotron weights **NVIDIA OpenMDW 1.1**; CAM++ as above; whisper.cpp typically MIT | Optional Apple Silicon **ASR-DIA** plugin (dia-first → ASR → CAM++). Binaries/models installed on the edge host only — see `workers/plugins/asr_dia/THIRD_PARTY.md` and `docs/agents/asr_dia.md`. FreeSaaS commercial license does **not** replace OpenMDW / CC-BY notices for those weights. |
+| onnxruntime, numpy, requests (asr_dia pip) | `workers/plugins/asr_dia/requirements.txt` | Apache-2.0 / BSD / MIT (typical) | Edge host only; same families already listed for diarize/whisper. |
 
 ## Intentionally not shipped
 
@@ -67,6 +69,9 @@ first-party storefront theme.
 - No GPL-only libraries are currently vendored in the public PHP tree.
 - Ultralytics is an **optional AGPL worker dependency** (not vendored); commercial FreeSaaS
   licensees must license Ultralytics separately or omit `workers/plugins/video`.
+- ASR-DIA edge deps (speech-swift Apache-2.0, Nemotron OpenMDW 1.1, WeSpeaker CAM++ CC-BY-4.0)
+  stay on the worker host; commercial FreeSaaS does not waive those notices — see
+  `workers/plugins/asr_dia/THIRD_PARTY.md`.
 - Private / instance themes are out of scope for this file.
 - No outstanding public review items for unclear-provenance code.
 - phpMorphy (LGPL-2.1+) and phpqrcode (LGPL-3.0-or-later) stay manageable if

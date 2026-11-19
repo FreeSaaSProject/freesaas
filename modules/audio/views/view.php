@@ -10,12 +10,20 @@ declare(strict_types=1);
 /** @var list<array{dict_id:int,diversity:int,instances:int}> $keyDicts */
 /** @var list<array<string,mixed>> $speakers */
 /** @var bool $canAssignSpeaker */
+/** @var bool $canRunDiarize */
+/** @var bool $hasAsrDiaHost */
+/** @var bool $hasTranscription */
+/** @var bool $diarizeOn */
 $dictMeta = is_array($dictMeta ?? null) ? $dictMeta : [];
 $keyDicts = is_array($keyDicts ?? null) ? $keyDicts : [];
 $instances = is_array($instances ?? null) ? $instances : [];
 $speakers = is_array($speakers ?? null) ? $speakers : [];
 $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'lines' => 0, 'trash' => 0, 'keys' => 0];
 $canAssignSpeaker = !empty($canAssignSpeaker);
+$canRunDiarize = !empty($canRunDiarize);
+$hasAsrDiaHost = !empty($hasAsrDiaHost);
+$hasTranscription = !empty($hasTranscription);
+$diarizeOn = !empty($diarizeOn);
 $recordId = (int)($row['id'] ?? $row['ID'] ?? 0);
 $recordAdminId = (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0);
 ?>
@@ -24,6 +32,16 @@ $recordAdminId = (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0);
 <section class="page-head-row">
   <div></div>
   <div class="page-actions">
+    <?php if ($canRunDiarize): ?>
+    <button type="button" class="btn" id="audio-run-diarize"
+            data-record-id="<?= $recordId ?>"
+            data-reuse="<?= $hasTranscription ? '1' : '0' ?>"
+            title="<?= te('audio_diarize.view.run_diarize_hint') ?>">
+      <?= te('audio_diarize.view.run_diarize') ?>
+    </button>
+    <?php elseif ($diarizeOn && $canAssignSpeaker && !$hasAsrDiaHost): ?>
+    <span class="muted small"><?= te('audio_diarize.view.no_asr_dia_host') ?></span>
+    <?php endif; ?>
     <?php if ($canEdit): ?>
     <form method="post" class="inline-form">
       <?= NavContext::hiddenField() ?>
@@ -33,6 +51,15 @@ $recordAdminId = (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0);
     <?php endif; ?>
   </div>
 </section>
+
+<?php if ($canRunDiarize): ?>
+<?= View::capture('_longjob_panel', [
+    'longjobId' => 'audio-diarize',
+    'longjobTitle' => t('audio_diarize.asr_dia.longjob_title'),
+    'longjobDualBars' => false,
+    'longjobShowBytes' => false,
+], 'core') ?>
+<?php endif; ?>
 
 <div class="audio-view-grid"
      data-record-id="<?= $recordId ?>"
@@ -69,12 +96,15 @@ $recordAdminId = (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0);
     </section>
     <?php endif; ?>
 
-    <?php if ($speakers !== []): ?>
+    <?php if ($diarizeOn || $speakers !== []): ?>
     <section class="audio-speakers" aria-label="<?= te('audio.view.speakers') ?>">
       <h2><?= te('audio.view.speakers') ?></h2>
       <?php if ($canAssignSpeaker): ?>
       <p class="muted small audio-speakers-hint"><?= te('audio_diarize.speaker_assign.hint') ?></p>
       <?php endif; ?>
+      <?php if ($speakers === []): ?>
+      <p class="muted"><?= te('audio_diarize.view.speakers_empty') ?></p>
+      <?php else: ?>
       <ul class="audio-speakers-list" id="audio-speakers-list">
         <?php foreach ($speakers as $sp): ?>
           <?php
@@ -110,6 +140,7 @@ $recordAdminId = (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0);
           </li>
         <?php endforeach; ?>
       </ul>
+      <?php endif; ?>
       <div class="audio-speaker-assign-bar" id="audio-speaker-assign-bar" hidden>
         <label class="audio-speaker-assign-label">
           <span class="muted"><?= te('audio_diarize.voice_sample.staff') ?></span>
@@ -163,7 +194,7 @@ $recordAdminId = (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0);
   </aside>
 </div>
 
-<?php if ($canAssignSpeaker || $speakers !== []): ?>
+<?php if ($canAssignSpeaker || $speakers !== [] || $canRunDiarize): ?>
 <script>
 window.AudioListI18n = Object.assign({}, window.AudioListI18n || {}, <?= json_encode([
     'voiceEnrollment' => $canAssignSpeaker,
@@ -182,5 +213,54 @@ window.AudioListI18n = Object.assign({}, window.AudioListI18n || {}, <?= json_en
     'network' => t('audio.api.network'),
     'done' => t('audio.api.done'),
 ], JSON_UNESCAPED_UNICODE) ?>);
+</script>
+<?php endif; ?>
+
+<?php if ($canRunDiarize): ?>
+<script>
+(function () {
+  function boot() {
+    if (!window.LongJobPanel) {
+      setTimeout(boot, 30);
+      return;
+    }
+    var overlay = document.getElementById('audio-diarize-overlay');
+    var btn = document.getElementById('audio-run-diarize');
+    if (!overlay || !btn) return;
+    var panel = LongJobPanel.mount({
+      root: overlay,
+      startUrl: '/audio/diarize/longjob',
+      tickUrl: '/audio/diarize/longjob',
+      cancelUrl: '/audio/diarize/longjob',
+      dualBars: false,
+      showBytes: false,
+      reloadOnOk: true,
+      csrf: <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>,
+      i18n: {
+        title: <?= json_encode(t('audio_diarize.asr_dia.longjob_title'), JSON_UNESCAPED_UNICODE) ?>,
+        starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
+        badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+        doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+        errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+        cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
+        ok: <?= json_encode(t('core.longjob.ok'), JSON_UNESCAPED_UNICODE) ?>
+      }
+    });
+    btn.addEventListener('click', function () {
+      if (!confirm(<?= tj('audio_diarize.view.run_diarize_confirm') ?>)) return;
+      var rid = btn.getAttribute('data-record-id') || '';
+      var reuse = btn.getAttribute('data-reuse') === '1';
+      var fd = new FormData();
+      fd.set('ids_csv', rid);
+      fd.set('apply_speakers', '1');
+      fd.set('apply_transcription', reuse ? '0' : '1');
+      if (reuse) fd.set('asr_model', 'reuse');
+      fd.set('ret', '/audio/' + rid);
+      panel.runFormData(fd, {});
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
 </script>
 <?php endif; ?>

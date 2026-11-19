@@ -47,13 +47,17 @@ try {
                 return;
             }
         }
+        // Explicit ids_csv (record «Run diarization») skips the day profile gate above.
+        // Default on (list bulk); pass apply_transcription=0 for enrollment reuse.
+        $applyTrRaw = $_POST['apply_transcription'] ?? '1';
+        $applyTr = !in_array((string)$applyTrRaw, ['0', 'false', 'off', ''], true);
         $job = LongJob::start(AudioAsrDiaLongJob::TYPE, [
             'ids_csv' => (string)($_POST['ids_csv'] ?? ''),
             'day' => $day,
             'admin_id' => (int)($_POST['admin_id'] ?? 0),
             'asr_model' => (string)($_POST['asr_model'] ?? ''),
             'apply_speakers' => 1,
-            'apply_transcription' => 1,
+            'apply_transcription' => $applyTr ? 1 : 0,
             'ret' => (string)($_POST['ret'] ?? '/audio'),
         ], ['context' => 'ui']);
         AgentHttp::emit(['ok' => true, 'job' => LongJob::public($job)]);

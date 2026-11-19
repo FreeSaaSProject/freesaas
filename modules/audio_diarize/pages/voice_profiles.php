@@ -15,11 +15,14 @@ $recentDays = SpeakerSamplesRepository::CATALOG_RECENT_DAYS;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
     $action = (string)($_POST['action'] ?? '');
-    if ($action === 'delete_profile') {
-        $adminId = (int)($_POST['admin_id'] ?? 0);
-        if ($adminId > 0 && SpeakerProfilesRepository::deleteByAdmin($adminId)) {
+    $adminId = (int)($_POST['admin_id'] ?? 0);
+    if ($action === 'delete_profile' && $adminId > 0) {
+        if (SpeakerProfilesRepository::deleteByAdmin($adminId)) {
             $flash = t('audio_diarize.voice_profiles.deleted');
         }
+    } elseif ($action === 'clear_samples' && $adminId > 0) {
+        $n = SpeakerSamplesRepository::deleteAllForAdmin($adminId);
+        $flash = t('audio_diarize.voice_profiles.samples_cleared', ['n' => (string)$n]);
     }
 }
 

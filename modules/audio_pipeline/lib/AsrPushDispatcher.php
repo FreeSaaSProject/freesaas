@@ -307,8 +307,8 @@ final class AsrPushDispatcher
         if ($leases === []) {
             return 0;
         }
-        // Full shift voice profiles → ASR-DIA instead of cabin whisper.
-        if (class_exists('SpeakerService', false)) {
+        // Full shift voice profiles → ASR-DIA instead of cabin whisper (soft audio_diarize).
+        if (ModuleManager::isEnabled('audio_diarize') && class_exists('SpeakerService', false)) {
             $kept = [];
             foreach ($leases as $lease) {
                 $rid = (int)($lease['record_id'] ?? 0);

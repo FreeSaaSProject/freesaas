@@ -9,9 +9,9 @@ Related product docs: [video.md](video.md), [video-label.md](video-label.md), [a
 | Plugin | Role | Typical OS (MVP) |
 |--------|------|------------------|
 | `video` | YOLO cameras | Mac |
-| `whisper` | Cabin ASR claim/result/stem (+ optional post-ASR diarize) | Mac |
-| `diarize` | WeSpeaker ONNX speakers / voiceprint enrich (standalone or via whisper) | Mac |
-| `asr_dia` | **Experiment only:** dia-first (speech-swift Nemotron3) → whisper per turn → CAM++ ID — see [asr_dia.md](asr_dia.md); keep out of default `enabled_plugins` | Mac |
+| `whisper` | Cabin ASR claim/result/stem (no post-ASR file diarize) | Mac |
+| `diarize` | WeSpeaker CAM++ **embed-only** vectorizer (voice samples → profiles) | Mac |
+| `asr_dia` | Dia-first ASR-DIA (speech-swift Nemotron3 → ASR → CAM++ ID) when shift profiles ready; enrollment via record UI — [asr_dia.md](asr_dia.md) | Mac |
 | `audioloader` | Badge USB → MP3 → FTP inbox → ingest GET | Windows |
 | `freesaas` | Local FreeSaaS supervise + standby-sync + doctor/update (opt-in) | Mac / Windows PC |
 | `llm` | stub — leave disabled | — |
@@ -28,9 +28,9 @@ workers/
   core/                      # supervisor, dashboard, install, CLI, autostart
   plugins/
     video/                   # YOLO + ffmpeg + optional camera VPN
-    whisper/                 # claim → whisper.cpp → result → stem (+ optional diarize)
-    diarize/                 # WeSpeaker ONNX speakers / voiceprint (Mac)
-    asr_dia/                 # optional dia-first experiment (Nemotron3 + whisper) — off by default
+    whisper/                 # claim → whisper.cpp → result → stem
+    diarize/                 # CAM++ embed-only vectorizer (Mac)
+    asr_dia/                 # ASR-DIA: Nemotron3 → ASR → CAM++ (when profiles ready)
     audioloader/             # badge USB → FTP → GET /audio/jobs/ingest
     freesaas/                # PC local stack + standby orchestrator (opt-in)
     llm/                     # stub only — do not enable yet

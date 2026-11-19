@@ -62,14 +62,14 @@
                 "method": "GET",
                 "path": "/audio",
                 "permission": "audio.view",
-                "description": "List audio records; filters: q, search, year, month, day, admin, badge, review, disabled, score"
+                "description": "List audio records; filters: q, search, year, month, day, admin, badge, review, disabled, score. Soft audio_diarize{enabled,bulk_op,shift_profiles} when day filter set"
             },
             {
                 "id": "audio.get",
                 "method": "GET",
                 "path": "/audio/{id}",
                 "permission": "audio.view",
-                "description": "One record; include_transcription=1 for trash-filtered transcript (same as UI; drops base_records_trashes / ASR junk); POST action=toggle_disabled (audio.edit)"
+                "description": "One record; include_transcription=1 for trash-filtered transcript; POST action=toggle_disabled (audio.edit). Soft audio_diarize: speakers[] + audio_diarize{enabled,can_run_diarize}; enrollment ASR-DIA via op audio_diarize.diarize.longjob (ids_csv, asr_model=reuse, apply_transcription=0)"
             },
             {
                 "id": "audio.badges.list",

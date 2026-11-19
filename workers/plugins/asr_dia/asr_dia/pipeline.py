@@ -1673,6 +1673,25 @@ def run_pipeline(
 					"match_rejected": (not ok) and admin > 0,
 				}
 			)
+		# Enrollment / no-ONNX: still emit S* rows from Nemotron turns so UI can bind.
+		have = {str(s.get("local_id") or "") for s in speakers}
+		for spk, talk in spk_talk.items():
+			if spk in have:
+				continue
+			speakers.append(
+				{
+					"id": spk,
+					"role": "other",
+					"id_admin": 0,
+					"confidence": 0.0,
+					"talk_sec": round(float(talk), 3),
+					"embedding": [],
+					"local_id": spk,
+					"match_best": 0.0,
+					"match_second": 0.0,
+					"match_rejected": False,
+				}
+			)
 
 		local_to_final = {s.get("local_id") or s["id"]: s["id"] for s in speakers}
 		for c in cue_speakers:

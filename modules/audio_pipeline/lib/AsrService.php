@@ -40,6 +40,7 @@ final class AsrService
                 $rid = (int)($lease['record_id'] ?? 0);
                 if (
                     $rid > 0
+                    && ModuleManager::isEnabled('audio_diarize')
                     && class_exists('SpeakerService', false)
                     && SpeakerService::preferAsrDiaForRecord($rid)
                 ) {
@@ -271,6 +272,7 @@ final class AsrService
             // Speakers may still arrive later via /audio/asr/diarize-result.
             if (
                 $speakersPayload !== null
+                && ModuleManager::isEnabled('audio_diarize')
                 && class_exists('SpeakerService', false)
                 && SpeakerService::diarizeEnabled()
             ) {
@@ -355,6 +357,7 @@ final class AsrService
         if (
             $ok
             && $speakersPayload !== null
+            && ModuleManager::isEnabled('audio_diarize')
             && class_exists('SpeakerService', false)
             && SpeakerService::diarizeEnabled()
         ) {
@@ -381,6 +384,10 @@ final class AsrService
     public static function claimDiarize(?string $day = null, int $adminId = 0, int $lookbackDays = 3): ?array
     {
         unset($lookbackDays);
+        // Soft optionalRequires: never pull file-diarize when audio_diarize is off.
+        if (!ModuleManager::isEnabled('audio_diarize')) {
+            return null;
+        }
         if (
             !Database::tableExists('base_records')
             || !Database::tableExists('base_records_speakers')

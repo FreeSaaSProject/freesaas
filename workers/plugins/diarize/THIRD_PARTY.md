@@ -1,4 +1,7 @@
-# Third-party — diarize worker
+# Third-party — diarize worker (voice vectorizer)
+
+Product role: **embed-only** CAM++ vectorizer for voice samples / profiles.
+File WeSpeaker diarize is retired; speaker markup comes from `asr_dia` (Nemotron3).
 
 | Component | License | Notes |
 |-----------|---------|-------|

@@ -78,9 +78,19 @@ $transcript = TranscriptHighlighter::render(
 $dictMeta = RecordsRepository::dictMetaMap();
 $keyDicts = TranscriptHighlighter::parseKeyDicts(isset($row['key_dicts']) ? (string)$row['key_dicts'] : null);
 
+$diarizeOn = ModuleManager::isEnabled('audio_diarize')
+    && class_exists('SpeakerService', false)
+    && SpeakerService::diarizeEnabled();
+$canAssignSpeaker = $diarizeOn && Auth::can('audio_diarize.edit');
+$hasAsrDiaHost = $diarizeOn
+    && class_exists('EdgeHosts', false)
+    && EdgeHosts::forService('asr_dia') !== [];
+$canRunDiarize = $canAssignSpeaker && $hasAsrDiaHost;
+$hasTranscription = trim((string)($row['transcription'] ?? $row['TRANSCRIPTION'] ?? '')) !== '';
+
 if ($wantsJson) {
     $withTranscription = !empty($_GET['include_transcription']);
-    AgentHttp::emit([
+    $payload = [
         'ok' => true,
         'id' => $id,
         'item' => RecordsRepository::forAgent($row, $withTranscription),
@@ -88,13 +98,22 @@ if ($wantsJson) {
         'instances' => $instances,
         'key_dicts' => $keyDicts,
         'can_edit' => Auth::can('audio.edit'),
-    ]);
+        'audio_diarize' => [
+            'enabled' => $diarizeOn,
+            'can_assign' => $canAssignSpeaker,
+            'can_run_diarize' => $canRunDiarize,
+            'has_asr_dia_host' => $hasAsrDiaHost,
+            'has_transcription' => $hasTranscription,
+            // Enrollment: POST /audio/diarize/longjob ids_csv=<id> asr_model=reuse apply_transcription=0
+            'run_diarize_op' => 'audio_diarize.diarize.longjob',
+        ],
+    ];
+    if ($diarizeOn) {
+        $payload['speakers'] = $speakerRows;
+    }
+    AgentHttp::emit($payload);
     return;
 }
-
-$canAssignSpeaker = ModuleManager::isEnabled('audio_diarize')
-    && Auth::can('audio_diarize.edit')
-    && class_exists('SpeakerService', false);
 
 View::render('view', [
     'title' => '#' . $id,
@@ -113,4 +132,8 @@ View::render('view', [
     'keyDicts' => $keyDicts,
     'speakers' => $speakerRows,
     'canAssignSpeaker' => $canAssignSpeaker,
+    'canRunDiarize' => $canRunDiarize,
+    'hasAsrDiaHost' => $hasAsrDiaHost,
+    'hasTranscription' => $hasTranscription,
+    'diarizeOn' => $diarizeOn,
 ], 'layout', 'audio');

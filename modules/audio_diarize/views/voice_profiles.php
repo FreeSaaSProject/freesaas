@@ -104,11 +104,19 @@ foreach ($rows as $r) {
             </button>
           <?php endif; ?>
           <?php if ($canEdit && $ready): ?>
-            <form method="post" class="inline-form" style="display:inline" onsubmit="return confirm(<?= tj('audio_diarize.voice_profiles.confirm_delete') ?>);">
+            <form method="post" class="inline-form" style="display:inline" onsubmit="return confirm(<?= tj('audio_diarize.voice_profiles.confirm_delete_vector') ?>);">
               <?= NavContext::hiddenField() ?>
               <input type="hidden" name="action" value="delete_profile">
               <input type="hidden" name="admin_id" value="<?= $adminId ?>">
-              <button type="submit" class="btn-secondary btn-sm"><?= te('audio_diarize.voice_profiles.delete') ?></button>
+              <button type="submit" class="btn-secondary btn-sm"><?= te('audio_diarize.voice_profiles.delete_vector') ?></button>
+            </form>
+          <?php endif; ?>
+          <?php if ($canEdit && ($manual > 0 || (int)$r['diarize_count'] > 0)): ?>
+            <form method="post" class="inline-form" style="display:inline" onsubmit="return confirm(<?= tj('audio_diarize.voice_profiles.confirm_clear_samples') ?>);">
+              <?= NavContext::hiddenField() ?>
+              <input type="hidden" name="action" value="clear_samples">
+              <input type="hidden" name="admin_id" value="<?= $adminId ?>">
+              <button type="submit" class="btn-secondary btn-sm"><?= te('audio_diarize.voice_profiles.clear_samples') ?></button>
             </form>
           <?php endif; ?>
         </td>

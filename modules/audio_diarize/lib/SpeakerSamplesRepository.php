@@ -901,6 +901,19 @@ final class SpeakerSamplesRepository
         return $st->execute([$sampleId]);
     }
 
+    /** Delete all enrollment samples for one staff (manual + diarize sources). */
+    public static function deleteAllForAdmin(int $adminId): int
+    {
+        if ($adminId < 1 || !self::available()) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'DELETE FROM base_records_speaker_samples WHERE ID_ADMIN = ?'
+        );
+        $st->execute([$adminId]);
+        return (int)$st->rowCount();
+    }
+
     /**
      * Pending manual samples for embed worker (optional filter by admin).
      *

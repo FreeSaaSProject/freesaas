@@ -2,7 +2,7 @@
     "id": "audio_diarize",
     "name": "audio_diarize.module.name",
     "description": "audio_diarize.module.description",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "type": "product",
     "requires": {
         "core": ">=1.1.0",
@@ -51,7 +51,7 @@
                 "method": "GET",
                 "path": "/audio/voice-profiles",
                 "permission": "audio_diarize.view",
-                "description": "Staff (last 40d or with samples) + sample progress; POST action=delete_profile (edit)"
+                "description": "Staff (last 40d or with samples) + sample progress; POST action=delete_profile|clear_samples (edit)"
             },
             {
                 "id": "audio_diarize.voice_profiles.longjob",
@@ -82,7 +82,7 @@
                 "path": "/audio/diarize/longjob",
                 "permission": "audio_diarize.edit",
                 "assistant": false,
-                "description": "LongJob queue diarize: action=job_start|job_tick|job_cancel; ids_csv and/or day=YYYY-MM-DD, optional admin_id"
+                "description": "LongJob ASR-DIA: action=job_start|job_tick|job_cancel; ids_csv (enrollment, no profile gate) and/or day=YYYY-MM-DD (gated); asr_model=reuse|…; apply_transcription=0|1"
             },
             {
                 "id": "audio_diarize.settings",
@@ -97,7 +97,7 @@
                 "path": "/audio/asr/diarize-claim",
                 "permission": "public",
                 "assistant": false,
-                "description": "Diarize worker: claim next transcribed record missing speakers (X-Audio-Token)"
+                "description": "Legacy/vectorizer worker claim (file-diarize retired; prefer asr_dia). X-Audio-Token"
             },
             {
                 "id": "audio_diarize.asr.diarize_status",
@@ -121,7 +121,7 @@
                 "path": "/audio/asr/embed-sample-claim",
                 "permission": "public",
                 "assistant": false,
-                "description": "Worker: claim pending manual voice sample for WeSpeaker embed"
+                "description": "Worker: claim pending manual voice sample for CAM++ vectorizer embed"
             },
             {
                 "id": "audio_diarize.asr.embed_sample_result",
@@ -136,7 +136,7 @@
                 "method": "GET",
                 "path": "/audio/asr-dia",
                 "permission": "audio_diarize.view",
-                "description": "Dia-first experiment console: fixture 16.11 baseline + latest asr_dia runs"
+                "description": "ASR-DIA console: fixture baseline + latest asr_dia runs (enrollment also via /audio/{id} → diarize.longjob)"
             },
             {
                 "id": "audio_diarize.asr_dia.longjob",
