@@ -93,6 +93,8 @@ Each seed also: checks installed module versions against `modules/demo/module.js
 php bin/freesaas.php demo provision --login=demo --password=demodemo --format=json
 ```
 
+Scheduled reseeds (`demo.reseed*`, `demo.version_check`) re-provision the guest before seeding with `[demo] guest_password` (empty = `demodemo`). On a closed stand with its own guest password, put the same value in `guest_password`, or the next reseed resets the guest to the public default.
+
 Creates/updates role **Demo Viewer** (no `SUPERADMIN_ACCESS`) and user with `core.home`, `*.view`, `core.news`, plus demo ACL flags (`SHOW_ADMINISTRATOR_DATA`, `CAN_SEE_SUM_OTHERS`, …). Mutations still blocked by Router.
 
 ## Self-maintenance without CLI (cron)

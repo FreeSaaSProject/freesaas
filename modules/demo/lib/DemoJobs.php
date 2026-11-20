@@ -45,13 +45,18 @@ final class DemoJobs
         ];
     }
 
-    /** Ensure Demo Viewer + auto-login user exist before seed (shared hosting has no CLI). */
+    /**
+     * Ensure Demo Viewer + auto-login user exist before seed (shared hosting has no CLI).
+     * Password: [demo] guest_password, else the public default — closed stands set their own,
+     * otherwise every scheduled reseed resets the guest to the documented `demodemo`.
+     */
     private static function ensureGuest(): void
     {
         $login = class_exists('DemoMode', false) ? DemoMode::autoLoginUser() : 'demo';
+        $password = trim((string)Config::get('demo', 'guest_password', ''));
         DemoProvision::run([
             'login' => $login,
-            'password' => 'demodemo',
+            'password' => $password !== '' ? $password : 'demodemo',
         ]);
     }
 
