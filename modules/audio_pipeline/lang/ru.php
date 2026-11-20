@@ -107,4 +107,9 @@ return [
     'audio_pipeline.asr.sync_done' => '«{name}»: сохранено результатов {saved}, отправлено заданий {sent}; ошибка: {error}',
     'audio_pipeline.asr.promote_ok' => 'Новый секрет применён. Перенесите его на воркере из push.secret_next в push.secret.',
     'audio_pipeline.asr.promote_none' => 'Нового секрета нет — сначала нажмите «Новый секрет».',
+    'audio_pipeline.media_probe.err.unavailable' => 'Таблица media probe недоступна — выполните миграции audio_pipeline.',
+    'audio_pipeline.media_probe.err.empty' => 'Нет записей для probe (укажите день или id).',
+    'audio_pipeline.media_probe.queued' => 'В очередь media probe: {n}',
+    'audio_pipeline.media_probe.progress' => 'Probe: {done}/{total} (ошибок {failed})',
+    'audio_pipeline.media_probe.done' => 'Probe готов: ok={done}, failed={failed}',
 ];

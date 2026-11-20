@@ -42,6 +42,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_records_coverage_profiles` | audio_pipeline | Per-status / per-staff coverage overrides |
 | `base_asr_leases` | audio_pipeline | One active ASR lease per record across pull + push channels |
 | `base_asr_push_workers` | audio_pipeline | Legacy push ASR workers; copied into `base_edge_hosts` (not read anymore) |
+| `base_records_probe_runs` | audio_pipeline | Explicit ffprobe PLAYTIME/VOLUME probe journal (agent/LongJob only; not normal ASR) |
 | `base_records_speakers`, `base_records_speaker_segments`, `base_records_cue_speakers` | audio_diarize | Per-record diarization (local speaker ids, embeddings, cue map) |
 | `base_records_speaker_profiles` | audio_diarize | Staff voiceprint centroids (WeSpeaker embeddings) for match / orphan bind |
 | `base_records_speaker_samples` | audio_diarize | Manual (and later diarize) enrollment clips → embed → profile build |

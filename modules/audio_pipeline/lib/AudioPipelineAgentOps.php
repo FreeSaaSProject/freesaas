@@ -39,8 +39,12 @@ final class AudioPipelineAgentOps
                 'body' => ['admin', 'date', 'confirm', 'reset', 'time_budget_sec'],
             ]],
             ['POST', '/agent/audio_pipeline/backfill-playtime', 'audio_pipeline.backfill_playtime', [self::class, 'backfillPlaytime'], [
-                'description' => 'Set PLAYTIME from transcript cue end where PLAYTIME=0 (confirm=1; dry_run=1 default)',
-                'body' => ['admin', 'date', 'confirm', 'dry_run', 'limit'],
+                'description' => 'UNSAFE cue-based PLAYTIME (payroll-wrong). Prefer media-probe. Requires unsafe_cues=1; confirm=1; dry_run=1 default',
+                'body' => ['admin', 'date', 'confirm', 'dry_run', 'limit', 'unsafe_cues'],
+            ]],
+            ['POST', '/agent/audio_pipeline/media-probe', 'audio_pipeline.media_probe', [self::class, 'mediaProbe'], [
+                'description' => 'Enqueue ffprobe PLAYTIME+VOLUME (no ASR). Body: day=YYYY-MM-DD or ids=, force=1, confirm=1, optional admin=',
+                'body' => ['day', 'ids', 'admin', 'force', 'confirm'],
             ]],
         ];
         foreach ($ops as [$method, $path, $opId, $handler, $meta]) {
@@ -56,6 +60,7 @@ final class AudioPipelineAgentOps
             '/agent/audio_pipeline/instances' => ['GET'],
             '/agent/audio_pipeline/day-reparse' => ['POST'],
             '/agent/audio_pipeline/backfill-playtime' => ['POST'],
+            '/agent/audio_pipeline/media-probe' => ['POST'],
         ];
         foreach ($routes as $path => $methods) {
             ModuleManager::registerRoute($path, [
@@ -671,13 +676,78 @@ final class AudioPipelineAgentOps
     }
 
     /**
-     * Backfill PLAYTIME from transcript cue ends where PLAYTIME is 0.
+     * Enqueue Whisper kind=probe for day/ids (ffprobe PLAYTIME+VOLUME). Force default on.
+     * Does not auto-loop: terminal journal rows block re-queue unless force=1.
+     *
+     * @return array<string,mixed>
+     */
+    public static function mediaProbe(): array
+    {
+        $in = AgentOps::requestInput();
+        if (!self::confirmed($in)) {
+            return ['ok' => false, 'error' => 'confirm=1 required', 'http' => 400];
+        }
+        require_once base_path('modules/audio_pipeline/lib/MediaProbeRunsRepository.php');
+        require_once base_path('modules/audio_pipeline/lib/MediaProbePushDispatcher.php');
+        if (!MediaProbeRunsRepository::available()) {
+            return ['ok' => false, 'error' => 'base_records_probe_runs missing — run migrations', 'http' => 500];
+        }
+        $force = !isset($in['force']) || !in_array(strtolower((string)$in['force']), ['0', 'false', 'no'], true);
+        $day = trim((string)($in['day'] ?? $in['date'] ?? ''));
+        $admin = isset($in['admin']) ? (int)$in['admin'] : 0;
+        $ids = [];
+        $raw = trim((string)($in['ids'] ?? ''));
+        if ($raw !== '') {
+            foreach (preg_split('/[\s,;]+/', $raw) ?: [] as $p) {
+                $id = (int)$p;
+                if ($id > 0) {
+                    $ids[$id] = $id;
+                }
+            }
+        }
+        $ids = array_values($ids);
+        if ($ids === [] && preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+            $ids = MediaProbeRunsRepository::recordIdsForDay($day, $admin > 0 ? $admin : null);
+        }
+        if ($ids === []) {
+            return ['ok' => false, 'error' => 'day=YYYY-MM-DD or ids= required', 'http' => 400];
+        }
+        $runIds = MediaProbeRunsRepository::enqueueRecords($ids, $force);
+        $sync = MediaProbePushDispatcher::syncAll();
+        if (class_exists('AsrPushDispatcher', false)) {
+            AsrPushDispatcher::syncAll();
+            $sync = MediaProbePushDispatcher::syncAll();
+        }
+        return [
+            'ok' => true,
+            'http' => 200,
+            'force' => $force,
+            'records' => count($ids),
+            'runs' => count($runIds),
+            'run_ids' => $runIds,
+            'sync' => $sync,
+            'hint' => 'Cron asr_push + media_probe dispatch will drain; LongJob audio_pipeline.media_probe for UI progress',
+        ];
+    }
+
+    /**
+     * Unsafe: PLAYTIME from transcript cue ends (distorts file duration / payroll).
+     * Prefer media-probe LongJob /agent/audio_pipeline/media-probe. Requires unsafe_cues=1.
      *
      * @return array<string,mixed>
      */
     public static function backfillPlaytime(): array
     {
         $in = AgentOps::requestInput();
+        $unsafe = !empty($in['unsafe_cues'])
+            || in_array(strtolower((string)($in['unsafe_cues'] ?? '')), ['1', 'true', 'yes'], true);
+        if (!$unsafe) {
+            return [
+                'ok' => false,
+                'error' => 'cue backfill disabled for payroll; use media-probe (ffprobe) or pass unsafe_cues=1',
+                'http' => 400,
+            ];
+        }
         $dry = !isset($in['dry_run']) || !in_array(strtolower((string)$in['dry_run']), ['0', 'false', 'no'], true);
         if (!$dry && !self::confirmed($in)) {
             return ['ok' => false, 'error' => 'confirm=1 required when dry_run=0', 'http' => 400];
@@ -698,6 +768,7 @@ final class AudioPipelineAgentOps
             return ['ok' => false, 'error' => 'AsrService missing', 'http' => 500];
         }
         $res = AsrService::backfillPlaytimeFromTranscripts($date, $admin, $dry, $limit);
+        $res['unsafe_cues'] = true;
         $res['http'] = !empty($res['ok']) ? 200 : 500;
 
         return $res;

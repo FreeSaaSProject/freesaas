@@ -222,6 +222,18 @@ final class AsrPushDispatcher
             $ack = [];
             foreach ($rows as $row) {
                 $jobId = (string)($row['job_id'] ?? '');
+                // Media probe (ffprobe PLAYTIME/VOLUME) shares /results — handle before ASR leases.
+                if (class_exists('MediaProbePushDispatcher', false)) {
+                    $probeHandled = MediaProbePushDispatcher::tryCollectResult(is_array($row) ? $row : []);
+                    if ($probeHandled === true) {
+                        $ack[] = $jobId;
+                        $saved++;
+                        continue;
+                    }
+                    if ($probeHandled === false) {
+                        continue; // retry next sync
+                    }
+                }
                 if (AsrLease::cleanJobIds([$jobId]) === []) {
                     continue;
                 }

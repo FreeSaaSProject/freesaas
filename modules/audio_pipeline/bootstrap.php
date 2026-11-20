@@ -8,6 +8,9 @@ require_once __DIR__ . '/lib/AsrService.php';
 require_once __DIR__ . '/lib/AsrPushClient.php';
 require_once __DIR__ . '/lib/AsrPushWorkers.php';
 require_once __DIR__ . '/lib/AsrPushDispatcher.php';
+require_once __DIR__ . '/lib/MediaProbeRunsRepository.php';
+require_once __DIR__ . '/lib/MediaProbePushDispatcher.php';
+require_once __DIR__ . '/lib/AudioMediaProbeLongJob.php';
 require_once __DIR__ . '/lib/AsrDispatchSettings.php';
 require_once __DIR__ . '/lib/AsrPushAgentOps.php';
 require_once __DIR__ . '/lib/JobLock.php';
@@ -186,13 +189,28 @@ Cron::register('audio_pipeline.asr_push', [
     'every' => AsrLease::pushEveryMin(),
     'handler' => static function (): array {
         $asr = AsrPushDispatcher::syncAll();
+        $probe = MediaProbePushDispatcher::syncAll();
         return [
-            'ok' => !empty($asr['ok']),
-            'processed' => (int)($asr['saved'] ?? 0) + (int)($asr['sent'] ?? 0) + (int)($asr['voice'] ?? 0),
+            'ok' => !empty($asr['ok']) && !empty($probe['ok']),
+            'processed' => (int)($asr['saved'] ?? 0) + (int)($asr['sent'] ?? 0) + (int)($asr['voice'] ?? 0)
+                + (int)($probe['saved'] ?? 0) + (int)($probe['sent'] ?? 0),
             'skipped' => 0,
-            'message' => (string)($asr['message'] ?? ''),
+            'message' => (string)($asr['message'] ?? '') . '; probe=' . (string)($probe['message'] ?? ''),
         ];
     },
+]);
+
+LongJob::register(AudioMediaProbeLongJob::TYPE, [
+    'module' => 'audio_pipeline',
+    'permission' => 'audio_pipeline.view',
+    'defaults' => ['tick_seconds' => 15],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 15],
+        'cli' => ['tick_seconds' => 20],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [AudioMediaProbeLongJob::class, 'onStart'],
+    'tick' => [AudioMediaProbeLongJob::class, 'tick'],
 ]);
 
 EventBus::on('audio_dicts.changed', static function ($payload) {

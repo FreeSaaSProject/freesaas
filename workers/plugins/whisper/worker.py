@@ -1523,9 +1523,10 @@ def process_push_job(job: Dict[str, Any]) -> bool:
 	"""One push job end-to-end. True = delivered into the local store."""
 	job_id = str(job["job_id"])
 	filename = str(job["file_name"])
+	kind = str(job.get("kind") or "asr").strip().lower() or "asr"
 	source_url = str(job.get("source_url") or "") or f"{FTPSERVER}{filename}"
 	base_name = Path(filename).name
-	log(f"📦 push: задание {job_id[:8]} {base_name} (попытка {job.get('attempts')})")
+	log(f"📦 push: задание {job_id[:8]} {base_name} kind={kind} (попытка {job.get('attempts')})")
 	with tempfile.TemporaryDirectory() as tmpdir:
 		tmp_path = Path(tmpdir) / base_name
 		set_activity("download", tl("activity.download", name=base_name))
@@ -1538,6 +1539,16 @@ def process_push_job(job: Dict[str, Any]) -> bool:
 			log("❌ push: скачивание не удалось:", e, "→", "повтор позже" if requeued else "failed")
 			return False
 		playtime, volume = probe_audio_metadata(tmp_path)
+		# kind=probe: ffprobe PLAYTIME/VOLUME only — no Whisper/ASR (payroll-safe duration).
+		if kind == "probe":
+			pt_out = float(max(1, int(round(playtime)))) if playtime is not None and playtime >= 1.0 else None
+			# Always finish (terminal) even when duration is missing/0 — FreeSaaS must not re-loop.
+			PUSH_STORE.finish(job_id, "", pt_out, volume)
+			log(
+				f"📏 push probe: {base_name} PLAYTIME={pt_out if pt_out is not None else 0} "
+				f"VOLUME={volume if volume is not None else '—'}"
+			)
+			return True
 		set_activity("transcribe", tl("activity.transcribe", name=base_name))
 		try:
 			done = run_file(tmp_path, filename, playtime, volume, deliver=push_deliver_for(job_id))

@@ -86,6 +86,8 @@ class PushStore:
 				self._conn.execute("ALTER TABLE jobs ADD COLUMN source_url TEXT NOT NULL DEFAULT ''")
 			if "speakers_json" not in cols:
 				self._conn.execute("ALTER TABLE jobs ADD COLUMN speakers_json TEXT NOT NULL DEFAULT ''")
+			if "kind" not in cols:
+				self._conn.execute("ALTER TABLE jobs ADD COLUMN kind TEXT NOT NULL DEFAULT 'asr'")
 			self._conn.execute("DROP TABLE IF EXISTS nonces")
 			self._conn.commit()
 		try:
@@ -144,6 +146,14 @@ class PushStore:
 				job_id = job.get("job_id")
 				file_name = job.get("file_name")
 				source_url = job.get("source_url") or ""
+				kind = str(job.get("kind") or "asr").strip().lower() or "asr"
+				if kind in ("", "asr", "file", "whisper", "transcribe"):
+					kind = "asr"
+				elif kind == "probe":
+					kind = "probe"
+				else:
+					rejected.append({"job_id": str(job_id or "")[:40], "reason": "bad_kind"})
+					continue
 				if not valid_job_id(job_id):
 					rejected.append({"job_id": str(job_id or "")[:40], "reason": "bad_job_id"})
 					continue
@@ -163,9 +173,9 @@ class PushStore:
 					rejected.append({"job_id": str(job_id), "reason": "queue_full"})
 					continue
 				self._conn.execute(
-					"INSERT INTO jobs (job_id, file_name, source_url, state, attempts, not_before, created_at, updated_at)"
-					" VALUES (?, ?, ?, ?, 0, 0, ?, ?)",
-					(job_id, file_name, source_url, STATE_QUEUED, now, now),
+					"INSERT INTO jobs (job_id, file_name, source_url, kind, state, attempts, not_before, created_at, updated_at)"
+					" VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)",
+					(job_id, file_name, source_url, kind, STATE_QUEUED, now, now),
 				)
 				slots -= 1
 				accepted.append(str(job_id))

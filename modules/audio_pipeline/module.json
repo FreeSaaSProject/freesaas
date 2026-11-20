@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "1.3.10",
+    "version": "1.3.11",
     "type": "product",
     "requires": {
         "core": ">=1.1.0",
@@ -41,6 +41,7 @@
             "/agent/audio_pipeline/instances",
             "/agent/audio_pipeline/day-reparse",
             "/agent/audio_pipeline/backfill-playtime",
+            "/agent/audio_pipeline/media-probe",
             "/agent/audio_pipeline/asr-push/status",
             "/agent/audio_pipeline/asr-push/sync",
             "/agent/audio_pipeline/asr-push/config",
@@ -114,7 +115,16 @@
                 "permission": "public",
                 "assistant": false,
                 "side_effect": "write",
-                "description": "Agent-token: backfill PLAYTIME=0 from transcript cue end; body date=, admin=, dry_run=1|0, confirm=1 when writing"
+                "description": "UNSAFE cue PLAYTIME (needs unsafe_cues=1). Prefer media-probe ffprobe."
+            },
+            {
+                "id": "audio_pipeline.media_probe",
+                "method": "POST",
+                "path": "/agent/audio_pipeline/media-probe",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Enqueue Whisper kind=probe (ffprobe PLAYTIME+VOLUME, no ASR). Body day= or ids=, force=1, confirm=1. LongJob type audio_pipeline.media_probe for UI ticks."
             },
             {
                 "id": "audio_pipeline.asr_push_status",
@@ -242,7 +252,8 @@
         "base_records_stem_key_cache",
         "base_records_coverage_profiles",
         "base_asr_leases",
-        "base_asr_push_workers"
+        "base_asr_push_workers",
+        "base_records_probe_runs"
     ],
     "migrators": [],
     "hooks": {

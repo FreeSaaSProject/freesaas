@@ -296,19 +296,44 @@ final class AsrDiaRunsRepository
             // clears AsrLease (DT < 1), otherwise cabin divert re-pushes the same day ×N.
             // APPLY_TRANSCRIPTION only controls whether TRANSCRIPTION text is overwritten.
             $now = time();
+            // PLAYTIME/VOLUME only from worker ffprobe meta — never transcript cues / segments
+            // (payroll uses file duration). Missing meta → leave columns unchanged.
+            $playtime = self::ffprobePlaytimeFromResult($result, $meta);
+            $volume = self::ffprobeVolumeFromResult($result, $meta);
             if ($applyTr && $applyText !== '') {
+                $sets = ['TRANSCRIPTION = ?', 'DT_TRANSCRIBED = ?'];
+                $params = [$applyText, $now];
+                if ($playtime !== null) {
+                    $sets[] = 'PLAYTIME = IF(COALESCE(PLAYTIME, 0) < 1, ?, PLAYTIME)';
+                    $params[] = $playtime;
+                }
+                if ($volume !== null) {
+                    $sets[] = 'VOLUME = IF(VOLUME IS NULL OR VOLUME = 0, ?, VOLUME)';
+                    $params[] = $volume;
+                }
+                $params[] = $recordId;
                 Database::pdo()->prepare(
-                    'UPDATE base_records
-                     SET TRANSCRIPTION = ?, DT_TRANSCRIBED = ?
-                     WHERE ID = ? LIMIT 1'
-                )->execute([$applyText, $now, $recordId]);
+                    'UPDATE base_records SET ' . implode(', ', $sets) . ' WHERE ID = ? LIMIT 1'
+                )->execute($params);
             } else {
+                $sets = [];
+                $params = [];
+                $sets[] = 'DT_TRANSCRIBED = CASE
+                    WHEN DT_TRANSCRIBED IS NULL OR DT_TRANSCRIBED < 1 THEN ?
+                    ELSE DT_TRANSCRIBED END';
+                $params[] = $now;
+                if ($playtime !== null) {
+                    $sets[] = 'PLAYTIME = IF(COALESCE(PLAYTIME, 0) < 1, ?, PLAYTIME)';
+                    $params[] = $playtime;
+                }
+                if ($volume !== null) {
+                    $sets[] = 'VOLUME = IF(VOLUME IS NULL OR VOLUME = 0, ?, VOLUME)';
+                    $params[] = $volume;
+                }
+                $params[] = $recordId;
                 Database::pdo()->prepare(
-                    'UPDATE base_records
-                     SET DT_TRANSCRIBED = ?
-                     WHERE ID = ? AND (DT_TRANSCRIBED IS NULL OR DT_TRANSCRIBED < 1)
-                     LIMIT 1'
-                )->execute([$now, $recordId]);
+                    'UPDATE base_records SET ' . implode(', ', $sets) . ' WHERE ID = ? LIMIT 1'
+                )->execute($params);
             }
             // Cancel sibling pending/queued rows for this record (race with divert).
             Database::pdo()->prepare(
@@ -318,6 +343,40 @@ final class AsrDiaRunsRepository
             )->execute([$now, $recordId, $jobId]);
         }
         return true;
+    }
+
+    /**
+     * File duration from worker ffprobe only (≥1 s). No cue/segment fallback.
+     *
+     * @param array<string,mixed> $result
+     * @param array<string,mixed> $meta
+     */
+    private static function ffprobePlaytimeFromResult(array $result, array $meta): ?int
+    {
+        foreach (['duration_sec', 'playtime', 'audio_sec'] as $k) {
+            $raw = $meta[$k] ?? $result[$k] ?? null;
+            if (is_numeric($raw) && (float)$raw >= 1) {
+                return (int)round((float)$raw);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Absolute volume from worker probe (|ReplayGain| / |mean_volume|).
+     *
+     * @param array<string,mixed> $result
+     * @param array<string,mixed> $meta
+     */
+    private static function ffprobeVolumeFromResult(array $result, array $meta): ?float
+    {
+        foreach (['volume', 'volume_abs', 'mean_volume_abs'] as $k) {
+            $raw = $meta[$k] ?? $result[$k] ?? null;
+            if (is_numeric($raw) && (float)$raw > 0) {
+                return round((float)$raw, 4);
+            }
+        }
+        return null;
     }
 
     /**

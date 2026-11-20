@@ -2,7 +2,7 @@
     "id": "audio_diarize",
     "name": "audio_diarize.module.name",
     "description": "audio_diarize.module.description",
-    "version": "0.1.13",
+    "version": "0.1.16",
     "type": "product",
     "requires": {
         "core": ">=1.1.0",

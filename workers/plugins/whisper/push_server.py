@@ -94,12 +94,28 @@ class PushApi:
 			jobs = data.get("jobs")
 			if not isinstance(jobs, list) or len(jobs) > MAX_JOBS_PER_REQUEST:
 				return 400, {"ok": False, "error": "bad_jobs"}
+			# kind=probe needs only ffprobe — accept even when whisper-server is down.
 			if not self.whisper_ok():
-				return 200, {
-					"ok": True,
-					"accepted": [],
-					"rejected": [{"job_id": str(j.get("job_id") or "") if isinstance(j, dict) else "", "reason": "whisper_down"} for j in jobs],
-				}
+				probe_ok = []
+				asr_rej = []
+				for j in jobs:
+					if not isinstance(j, dict):
+						asr_rej.append({"job_id": "", "reason": "whisper_down"})
+						continue
+					kind = str(j.get("kind") or "asr").strip().lower()
+					if kind == "probe":
+						probe_ok.append(j)
+					else:
+						asr_rej.append({
+							"job_id": str(j.get("job_id") or ""),
+							"reason": "whisper_down",
+						})
+				accepted, rejected = ([], asr_rej)
+				if probe_ok:
+					a2, r2 = self.store.add_jobs(probe_ok)
+					accepted = a2
+					rejected = asr_rej + r2
+				return 200, {"ok": True, "accepted": accepted, "rejected": rejected}
 			accepted, rejected = self.store.add_jobs(jobs)
 			if accepted and self.wake is not None:
 				self.wake.set()

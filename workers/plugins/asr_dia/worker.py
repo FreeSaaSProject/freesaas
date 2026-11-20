@@ -109,6 +109,72 @@ def download_audio(cfg: Dict[str, Any], file_name: str, dest: Path, source_url: 
 				f.write(chunk)
 
 
+def audio_duration_sec(path: Path) -> Optional[float]:
+	"""ffprobe duration for FreeSaaS PLAYTIME (empty transcripts have no cue ends)."""
+	try:
+		p = subprocess.run(
+			[
+				"ffprobe",
+				"-v",
+				"error",
+				"-show_entries",
+				"format=duration",
+				"-of",
+				"json",
+				str(path),
+			],
+			capture_output=True,
+			text=True,
+			timeout=60,
+			check=False,
+		)
+	except (OSError, subprocess.TimeoutExpired):
+		return None
+	if p.returncode != 0 or not (p.stdout or "").strip():
+		return None
+	try:
+		data = json.loads(p.stdout)
+		raw = (data.get("format") or {}).get("duration")
+		sec = float(raw)
+		return sec if sec >= 1.0 else None
+	except (TypeError, ValueError, json.JSONDecodeError):
+		return None
+
+
+def audio_volume_abs(path: Path) -> Optional[float]:
+	"""|mean_volume| dB via ffmpeg volumedetect — same idea as Whisper VOLUME."""
+	import re
+
+	try:
+		p = subprocess.run(
+			[
+				"ffmpeg",
+				"-nostdin",
+				"-i",
+				str(path),
+				"-af",
+				"volumedetect",
+				"-f",
+				"null",
+				"-",
+			],
+			capture_output=True,
+			text=True,
+			timeout=120,
+			check=False,
+		)
+	except (OSError, subprocess.TimeoutExpired):
+		return None
+	text = (p.stderr or "") + (p.stdout or "")
+	m = re.search(r"mean_volume:\s*([-+]?\d+(?:\.\d+)?)\s*dB", text)
+	if not m:
+		return None
+	try:
+		return abs(float(m.group(1)))
+	except ValueError:
+		return None
+
+
 def fetch_profiles(cfg: Dict[str, Any], record_id: int = 0) -> Tuple[list, float]:
 	"""Pull shift-scoped profiles when job payload omitted them. Requires record_id."""
 	server = str(cfg.get("server") or "").rstrip("/")
@@ -218,6 +284,12 @@ def process_job(cfg: Dict[str, Any], job: Dict[str, Any]) -> Dict[str, Any]:
 		meta["download_sec"] = round(t_dl, 2)
 		meta["pipeline_sec"] = round(t_pipe, 2)
 		meta["wall_sec"] = round(t_dl + t_pipe, 2)
+		dur = audio_duration_sec(local)
+		vol = audio_volume_abs(local)
+		if dur is not None:
+			meta["duration_sec"] = round(dur, 3)
+		if vol is not None:
+			meta["volume"] = round(vol, 4)
 		return {
 			"kind": "asr_dia",
 			"file_name": file_name,
@@ -227,6 +299,8 @@ def process_job(cfg: Dict[str, Any], job: Dict[str, Any]) -> Dict[str, Any]:
 			"segments": result.segments,
 			"cue_speakers": result.cue_speakers,
 			"meta": meta,
+			"playtime": int(round(dur)) if dur is not None else None,
+			"volume": vol,
 			"apply_speakers": bool(job.get("apply_speakers", True)),
 			# Default True: cabin divert needs text+DT stamp; PHP run flags remain SoT on apply.
 			"apply_transcription": bool(job.get("apply_transcription", True)),

@@ -107,4 +107,9 @@ return [
     'audio_pipeline.asr.sync_done' => '“{name}”: results saved {saved}, jobs sent {sent}; error: {error}',
     'audio_pipeline.asr.promote_ok' => 'New secret applied. On the worker move it from push.secret_next to push.secret.',
     'audio_pipeline.asr.promote_none' => 'No new secret yet — press “New secret” first.',
+    'audio_pipeline.media_probe.err.unavailable' => 'Media probe table missing — run audio_pipeline migrations.',
+    'audio_pipeline.media_probe.err.empty' => 'No records to probe (pass a day or ids).',
+    'audio_pipeline.media_probe.queued' => 'Queued media probe: {n}',
+    'audio_pipeline.media_probe.progress' => 'Probe: {done}/{total} (failed {failed})',
+    'audio_pipeline.media_probe.done' => 'Probe finished: ok={done}, failed={failed}',
 ];

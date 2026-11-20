@@ -249,6 +249,7 @@
                 "audio_pipeline.jobs.ingest_run",
                 "audio_pipeline.jobs.stem",
                 "audio_pipeline.jobs.stem_run",
+                "audio_pipeline.media_probe",
                 "audio_pipeline.record_get"
             ],
             "uncovered_routes": [],
