@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-20T06:45:28+00:00",
+    "generated_at": "2026-11-20T06:57:58+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -389,7 +389,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.3.11",
+            "version": "1.3.12",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",

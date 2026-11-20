@@ -107,7 +107,8 @@ final class MediaProbeRunsRepository
         if (!self::available()) {
             return [];
         }
-        $limit = max(1, min(50, $limit));
+        // Cap matches EdgeHosts::clampInflight (max 200).
+        $limit = max(1, min(200, $limit));
         $st = Database::pdo()->query(
             "SELECT r.ID AS run_id, r.ID_RECORD AS record_id, r.JOB_ID AS job_id,
                     r.FORCE_OVERWRITE AS force_overwrite,

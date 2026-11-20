@@ -66,8 +66,9 @@ final class MediaProbePushDispatcher
             if ($free < 1 || empty($status['accepting'])) {
                 return $res;
             }
-            // Leave headroom for cabin ASR / voice.
-            $n = min(10, max(1, intdiv($free, 2)));
+            // Same throttle as ASR push: edge-hosts max_inflight ∩ worker free_slots.
+            $max = EdgeHosts::maxInflight($w, self::SERVICE);
+            $n = min($free, max(1, $max));
             $pending = MediaProbeRunsRepository::listPending($n);
             if ($pending === []) {
                 return $res;

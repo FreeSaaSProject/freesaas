@@ -57,7 +57,7 @@
   "push": {
     "worker_name": "whisper",
     "db": "var/push/queue.db",
-    "capacity": 50,
+    "capacity": 100,
     "max_unacked": 2000,
     "max_attempts": 5,
     "retry_delay_sec": 120,
