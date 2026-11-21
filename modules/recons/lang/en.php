@@ -44,7 +44,17 @@ return [
     'recons.day.err.not_today' => 'Reconciliations can only be edited for today',
     'recons.day.err.not_editable' => 'Only today or the latest reconciliation day can be edited',
 
+    'recons.cash.title' => 'Cash calculator',
+    'recons.cash.open' => 'Count cash',
+    'recons.cash.clear' => 'Clear',
+    'recons.cash.col.denom' => 'Denomination',
+    'recons.cash.col.qty' => 'Qty',
+    'recons.cash.col.line' => 'Amount',
+    'recons.cash.total' => 'Total',
+    'recons.cash.qty_aria' => 'Count for {d}',
+
     'recons.setup.step.ready' => 'Open the reconciliations board',
+
     'recons.setup.step.ready_help' => 'Confirm staff can open /recons/day and have ledger.reconcile if they should edit.',
     'recons.setup.ask.ready' => 'Open the day board after enabling?',
     'recons.setup.choice.open' => 'Open board',

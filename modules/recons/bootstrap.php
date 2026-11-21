@@ -5,6 +5,7 @@ require_once __DIR__ . '/lib/ReconsDayBoard.php';
 
 Assets::register('recons', [
     'css' => ['recons.css'],
+    'js' => ['cash_calc.js'],
 ]);
 
 EventBus::on('assistant.system.hints', static function ($payload) {

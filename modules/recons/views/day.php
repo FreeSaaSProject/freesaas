@@ -31,7 +31,21 @@ $urlShowZeros = ListQuery::url($path, ['day' => $day, 'show_zeros' => '1'], []);
 $urlHideZeros = ListQuery::url($path, ['day' => $day], []);
 $dayLabel = date('d.m.Y', strtotime($day) ?: time());
 $formAction = ListQuery::url($path, $navQ($day), []);
-
+$cashOpenBtn = '<button type="button" class="btn-ghost recons-cash-open" data-cash-open'
+    . ' title="' . te('recons.cash.open') . '" aria-label="' . te('recons.cash.open') . '">'
+    . '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
+    . ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    . '<rect x="4" y="2" width="16" height="20" rx="2"/>'
+    . '<line x1="8" y1="6" x2="16" y2="6"/>'
+    . '<line x1="8" y1="10" x2="8" y2="10.01"/>'
+    . '<line x1="12" y1="10" x2="12" y2="10.01"/>'
+    . '<line x1="16" y1="10" x2="16" y2="10.01"/>'
+    . '<line x1="8" y1="14" x2="8" y2="14.01"/>'
+    . '<line x1="12" y1="14" x2="12" y2="14.01"/>'
+    . '<line x1="16" y1="14" x2="16" y2="14.01"/>'
+    . '<line x1="8" y1="18" x2="8" y2="18.01"/>'
+    . '<line x1="12" y1="18" x2="16" y2="18"/>'
+    . '</svg></button>';
 
 $pagerAttrs = '';
 if ($urlPrev !== '') {
@@ -144,6 +158,7 @@ if ($urlNext !== '') {
               <input name="bank_balance" inputmode="decimal" size="12"
                      placeholder="<?= te('recons.day.bank_placeholder') ?>"
                      data-ledger-bank-normalize autocomplete="off">
+              <?= $cashOpenBtn ?>
               <button type="submit" class="btn-secondary"><?= te('recons.day.save') ?></button>
             </form>
           <?php else: ?>
@@ -154,6 +169,7 @@ if ($urlNext !== '') {
               <input name="bank_balance" inputmode="decimal" size="12"
                      value="<?= e(number_format((float)$row['bank_balance'], 2, '.', '')) ?>"
                      data-ledger-bank-normalize autocomplete="off">
+              <?= $cashOpenBtn ?>
               <button type="submit" class="btn-secondary"><?= te('recons.day.save') ?></button>
             </form>
           <?php endif; ?>
@@ -201,4 +217,52 @@ if ($urlNext !== '') {
   </tbody>
 </table>
 </div>
+<?php endif; ?>
+
+<?php if ($canEdit): ?>
+<?php
+$cashDenoms = [5000, 2000, 1000, 500, 200, 100, 50, 10, 5, 2, 1, 0.5];
+?>
+<section class="recons-cash-calc" data-recons-cash-calc hidden>
+  <div class="recons-cash-calc-head">
+    <h2 class="recons-cash-calc-title"><?= te('recons.cash.title') ?></h2>
+    <button type="button" class="btn-danger" data-cash-clear hidden><?= te('recons.cash.clear') ?></button>
+  </div>
+  <table class="recons-cash-table">
+    <thead>
+      <tr>
+        <th><?= te('recons.cash.col.denom') ?></th>
+        <th></th>
+        <th><?= te('recons.cash.col.qty') ?></th>
+        <th></th>
+        <th><?= te('recons.cash.col.line') ?></th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($cashDenoms as $denom): ?>
+        <?php
+          $denomLabel = $denom < 1
+              ? number_format((float)$denom, 2, '.', '')
+              : number_format((float)$denom, $denom == (int)$denom ? 0 : 2, '.', ' ');
+        ?>
+        <tr data-cash-row data-denom="<?= e((string)$denom) ?>">
+          <td class="recons-num"><?= e($denomLabel) ?></td>
+          <td class="recons-cash-op">×</td>
+          <td>
+            <input type="text" inputmode="numeric" value="0" size="6"
+                   data-cash-qty autocomplete="off" aria-label="<?= te('recons.cash.qty_aria', ['d' => $denomLabel]) ?>">
+          </td>
+          <td class="recons-cash-op">=</td>
+          <td class="recons-num" data-cash-line>0.00</td>
+        </tr>
+      <?php endforeach; ?>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" class="recons-cash-total-label"><?= te('recons.cash.total') ?></td>
+        <td class="recons-num recons-cash-total" data-cash-total>0.00</td>
+      </tr>
+    </tfoot>
+  </table>
+</section>
 <?php endif; ?>

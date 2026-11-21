@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-21T05:14:57+00:00",
+    "generated_at": "2026-11-21T12:24:39+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -2036,7 +2036,7 @@
         },
         {
             "id": "recons",
-            "version": "1.0.2",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "Reconciliations board",

@@ -44,7 +44,17 @@ return [
     'recons.day.err.not_today' => 'Править сверки можно только за сегодня',
     'recons.day.err.not_editable' => 'Править можно только сегодня или день последней сверки',
 
+    'recons.cash.title' => 'Калькулятор нала',
+    'recons.cash.open' => 'Посчитать нал',
+    'recons.cash.clear' => 'Очистить',
+    'recons.cash.col.denom' => 'Номинал',
+    'recons.cash.col.qty' => 'Кол-во',
+    'recons.cash.col.line' => 'Сумма',
+    'recons.cash.total' => 'Итого',
+    'recons.cash.qty_aria' => 'Количество купюр/монет {d}',
+
     'recons.setup.step.ready' => 'Открыть доску сверок',
+
     'recons.setup.step.ready_help' => 'Проверьте, что сотрудники открывают /recons/day и имеют ledger.reconcile, если должны править.',
     'recons.setup.ask.ready' => 'Открыть доску после включения?',
     'recons.setup.choice.open' => 'Открыть доску',

@@ -139,3 +139,87 @@
 .recons-disabled-account {
   opacity: 0.75;
 }
+
+.recons-cash-open {
+  padding: 0.2rem 0.35rem;
+  line-height: 1;
+  min-width: 0;
+  color: var(--muted, #666);
+}
+
+.recons-cash-open:hover,
+.recons-cash-open.is-active {
+  color: var(--accent, #0f766e);
+  background: var(--accent-soft, rgba(15, 118, 110, 0.12));
+}
+
+.recons-cash-open svg {
+  display: block;
+  vertical-align: middle;
+}
+
+.recons-cash-calc {
+  margin: 1.5rem 0 1rem;
+  max-width: 28rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border, #e5e5e5);
+  background: var(--surface-2, #fafafa);
+}
+
+.recons-cash-calc[hidden] {
+  display: none !important;
+}
+
+.recons-cash-calc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.recons-cash-calc-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.recons-cash-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.recons-cash-table th,
+.recons-cash-table td {
+  padding: 0.3rem 0.45rem;
+  border-bottom: 1px solid var(--border, #e5e5e5);
+  vertical-align: middle;
+}
+
+.recons-cash-table th {
+  font-weight: 600;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.recons-cash-op {
+  width: 1.5rem;
+  text-align: center;
+  color: var(--muted, #666);
+}
+
+.recons-cash-table input[data-cash-qty] {
+  width: 4.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.recons-cash-total-label {
+  text-align: right;
+  font-weight: 600;
+}
+
+.recons-cash-total {
+  font-weight: 700;
+}
+

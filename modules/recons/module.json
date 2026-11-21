@@ -2,7 +2,7 @@
     "id": "recons",
     "name": "recons.module.name",
     "description": "recons.module.description",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "type": "product",
     "catalog": {
         "categories": [
