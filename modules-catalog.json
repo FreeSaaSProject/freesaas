@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-21T12:44:31+00:00",
+    "generated_at": "2026-11-21T12:53:43+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -1499,7 +1499,7 @@
         },
         {
             "id": "ledger",
-            "version": "1.0.15",
+            "version": "1.0.16",
             "type": "product",
             "name": {
                 "en": "Account ledger",

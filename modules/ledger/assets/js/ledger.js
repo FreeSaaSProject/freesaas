@@ -136,18 +136,22 @@
       return;
     }
     var raw = String(dateEl.value || '').trim();
-    var muted = summary.querySelector('.muted');
+    // Only the date chip — never touch the legend text node / [data-ledger-promised-label].
+    var muted = summary.querySelector('[data-ledger-promised-date-label]');
     if (raw) {
       if (!muted) {
         muted = document.createElement('span');
         muted.className = 'muted';
+        muted.setAttribute('data-ledger-promised-date-label', '1');
         summary.appendChild(document.createTextNode(' '));
         summary.appendChild(muted);
       }
       muted.textContent = raw;
     } else if (muted) {
-      if (muted.previousSibling && muted.previousSibling.nodeType === 3) {
-        summary.removeChild(muted.previousSibling);
+      var prev = muted.previousSibling;
+      // Drop only the spacer before the chip, not the legend text.
+      if (prev && prev.nodeType === 3 && /^\s*$/.test(prev.textContent || '')) {
+        summary.removeChild(prev);
       }
       summary.removeChild(muted);
     }
@@ -159,6 +163,9 @@
     var details = form.querySelector('details[data-ledger-field="promised"]');
     if (dateEl) {
       dateEl.value = '';
+      if (typeof dateEl.setCustomValidity === 'function') {
+        dateEl.setCustomValidity('');
+      }
     }
     if (execWrap) {
       var cb = execWrap.querySelector('input[name="promise_executed"]');
@@ -168,7 +175,7 @@
       setHidden(execWrap, true);
     }
     if (details) {
-      details.open = false;
+      details.removeAttribute('open');
     }
     syncPromiseSummary(form);
   }
@@ -264,6 +271,7 @@
     if (clearBtn) {
       clearBtn.addEventListener('click', function (e) {
         e.preventDefault();
+        e.stopPropagation();
         clearPromise(form);
       });
     }

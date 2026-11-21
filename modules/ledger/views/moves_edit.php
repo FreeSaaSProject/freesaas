@@ -144,7 +144,10 @@ $postedTransferAccountTo = $convertOpen ? (int)($_POST['transfer_account_to'] ??
   </label>
 
   <details data-ledger-field="promised" class="ledger-promised-field"<?= $hasType ? '' : ' hidden' ?><?= $hasPromise ? ' open' : '' ?>>
-    <summary><?= te('ledger.moves.promised.legend') ?><?php if ($hasPromise): ?> <span class="muted"><?= e($dtPromisedValue) ?></span><?php endif; ?></summary>
+    <summary>
+      <span data-ledger-promised-label><?= te('ledger.moves.promised.legend') ?></span><?php if ($hasPromise): ?>
+      <span class="muted" data-ledger-promised-date-label><?= e($dtPromisedValue) ?></span><?php endif; ?>
+    </summary>
     <p class="muted"><?= te('ledger.moves.promised.hint') ?></p>
     <label><?= te('ledger.moves.field.dt_promised') ?>
       <input type="date" name="dt_promised" id="ledger-dt-promised" value="<?= e($dtPromisedValue) ?>" data-ledger-promised-date>
@@ -153,7 +156,8 @@ $postedTransferAccountTo = $convertOpen ? (int)($_POST['transfer_account_to'] ??
       <input type="checkbox" name="promise_executed" value="1"<?= !empty($row['promise_executed']) ? ' checked' : '' ?>>
       <?= te('ledger.moves.field.promise_executed') ?>
     </label>
-    <div class="page-actions ledger-promised-actions">
+    <?php /* Not .page-actions — that class is sticky and would cover Save while open. */ ?>
+    <div class="ledger-promised-actions">
       <button type="button" class="btn-secondary" data-ledger-promised-clear><?= te('ledger.moves.promised.clear') ?></button>
     </div>
   </details>

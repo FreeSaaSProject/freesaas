@@ -22,3 +22,8 @@ assets/uploads/logo/*
 #   https://github.com/ilcommm/freesaas-theme-balance
 themes/likespa/
 themes/balance/
+
+# Local Python envs and agent scratch (never deploy)
+.venv/
+**/.venv/
+.tmp/
