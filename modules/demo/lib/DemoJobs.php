@@ -51,7 +51,7 @@ final class DemoJobs
         $login = class_exists('DemoMode', false) ? DemoMode::autoLoginUser() : 'demo';
         DemoProvision::run([
             'login' => $login,
-            'password' => 'demodemo',
+            'password' => DemoProvision::guestPassword(),
         ]);
     }
 

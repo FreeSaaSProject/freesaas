@@ -6,6 +6,20 @@ declare(strict_types=1);
  */
 final class DemoProvision
 {
+    /** Public-stand default when [demo] guest_password is empty. */
+    public const DEFAULT_GUEST_PASSWORD = 'demodemo';
+
+    /**
+     * Password for the auto-login guest: [demo] guest_password, else {@see DEFAULT_GUEST_PASSWORD}.
+     * Closed stands must set guest_password so scheduled reseeds do not reset to the public default.
+     */
+    public static function guestPassword(): string
+    {
+        $password = trim((string)Config::get('demo', 'guest_password', ''));
+
+        return $password !== '' ? $password : self::DEFAULT_GUEST_PASSWORD;
+    }
+
     /**
      * @param array{login?:string,password?:string,name?:string} $opts
      * @return array<string,mixed>
@@ -21,7 +35,12 @@ final class DemoProvision
         require_once base_path('modules/core/lib/UsersRepository.php');
 
         $login = trim((string)($opts['login'] ?? 'demo'));
-        $password = (string)($opts['password'] ?? 'demodemo');
+        $password = array_key_exists('password', $opts)
+            ? (string)$opts['password']
+            : self::guestPassword();
+        if ($password === '') {
+            $password = self::DEFAULT_GUEST_PASSWORD;
+        }
         $defaultName = I18n::locale() === 'en'
             ? 'Demo Guest Viewer'
             : 'Демо Гость Просмотрович';
