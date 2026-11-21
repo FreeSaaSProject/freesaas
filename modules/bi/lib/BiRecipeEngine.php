@@ -67,6 +67,11 @@ final class BiRecipeEngine
             if ($as === '') {
                 throw new InvalidArgumentException('query_as_missing');
             }
+            if (!self::matchesWhen($q, $params)) {
+                ReportProgress::note('Skip query (when): ' . $as);
+                $frames[$as] = [];
+                continue;
+            }
             ReportProgress::note('Query: ' . $as);
             $frames[$as] = self::capRows(self::runQuery($q, $params), 'query:' . $as);
             ReportProgress::mark($as . ': ' . count($frames[$as]) . ' rows');
@@ -82,7 +87,15 @@ final class BiRecipeEngine
             self::tickBudget();
             $as = (string)($d['as'] ?? '');
             $from = (string)($d['from'] ?? '');
-            if ($as === '' || $from === '' || !isset($frames[$from])) {
+            if ($as === '' || $from === '') {
+                throw new InvalidArgumentException('derive_from_missing:' . $from);
+            }
+            if (!self::matchesWhen($d, $params)) {
+                ReportProgress::note('Skip derive (when): ' . $as);
+                $frames[$as] = [];
+                continue;
+            }
+            if (!isset($frames[$from])) {
                 throw new InvalidArgumentException('derive_from_missing:' . $from);
             }
             ReportProgress::note('Derive: ' . $as);
@@ -95,6 +108,9 @@ final class BiRecipeEngine
         $secList = is_array($recipe['sections'] ?? null) ? $recipe['sections'] : [];
         foreach ($secList as $sec) {
             self::tickBudget();
+            if (!self::matchesWhen($sec, $params)) {
+                continue;
+            }
             $type = (string)($sec['type'] ?? '');
             if ($type === 'metrics') {
                 $sections[] = self::sectionMetrics($sec, $frames);
@@ -118,7 +134,7 @@ final class BiRecipeEngine
         }
 
         $title = (string)($recipe['title'] ?? $recipe['id'] ?? 'Report');
-        $bounds = ReportParams::monthBounds((int)$params['year'], (int)$params['month']);
+        $bounds = ReportParams::periodBounds($params);
         return [
             'title' => $title,
             'sections' => $sections,
@@ -126,8 +142,31 @@ final class BiRecipeEngine
                 'recipe_id' => (string)($recipe['id'] ?? ''),
                 'recipe_v' => (int)($recipe['v'] ?? 1),
                 'period' => $bounds['label'],
+                'grain' => (string)($params['grain'] ?? 'month'),
             ],
         ];
+    }
+
+    /**
+     * Optional node.when = {grain: "month"|"year"} must match ReportParams.grain.
+     *
+     * @param array<string,mixed> $node
+     * @param array<string,mixed> $params
+     */
+    public static function matchesWhen(array $node, array $params): bool
+    {
+        $when = $node['when'] ?? null;
+        if (!is_array($when) || $when === []) {
+            return true;
+        }
+        if (isset($when['grain'])) {
+            $want = strtolower(trim((string)$when['grain']));
+            $have = strtolower(trim((string)($params['grain'] ?? 'month')));
+            if ($want !== '' && $want !== $have) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -347,11 +386,12 @@ final class BiRecipeEngine
             self::tickBudget();
         }
 
-        $bounds = ReportParams::monthBounds((int)$params['year'], (int)$params['month']);
+        $bounds = ReportParams::periodBounds($params);
         $periodCtx = [
             '_period_start' => (int)$bounds['start'],
             '_period_end' => (int)$bounds['end'],
             '_period_label' => (string)$bounds['label'],
+            '_period_grain' => (string)($params['grain'] ?? 'month'),
         ];
 
         $join = is_array($derive['join_frame'] ?? null) ? $derive['join_frame'] : null;
@@ -1338,6 +1378,8 @@ final class BiRecipeEngine
             if ($yAxis !== 'right') {
                 $yAxis = 'left';
             }
+            $pctOfField = self::pctOfFieldName($ser['pct_of'] ?? null);
+            $asPct = !empty($ser['as_pct']) || !empty($ser['as_percent']);
             $sid = 's' . $si;
             $seriesData[] = [
                 'id' => $sid,
@@ -1345,7 +1387,10 @@ final class BiRecipeEngine
                 'label' => $label !== '' ? $label : $field,
                 'chart_type' => $st,
                 'y_axis' => $yAxis,
+                'pct_of_field' => $pctOfField,
+                'as_pct' => $asPct && $pctOfField !== '',
                 'data' => [],
+                'pct' => [],
             ];
             $colDefs[] = ['id' => $sid, 'label' => $label !== '' ? $label : $field];
         }
@@ -1359,34 +1404,49 @@ final class BiRecipeEngine
             $labels[] = $label;
             $out = ['_x' => $label];
             foreach ($seriesData as $si => &$ser) {
-                $raw = $row[$ser['field']] ?? 0;
-                if (is_bool($raw)) {
-                    $num = $raw ? 1.0 : 0.0;
-                } elseif (is_int($raw) || is_float($raw)) {
-                    $num = (float)$raw;
-                } elseif (is_string($raw) && is_numeric($raw)) {
-                    $num = (float)$raw;
+                $num = self::toFloat($row[$ser['field']] ?? 0);
+                $pct = null;
+                if ($ser['pct_of_field'] !== '') {
+                    $pct = self::pctOf($num, self::toFloat($row[$ser['pct_of_field']] ?? 0));
+                }
+                if ($ser['as_pct']) {
+                    $plot = $pct !== null ? $pct : 0.0;
+                    $ser['data'][] = $plot;
+                    $out[$ser['id']] = $plot;
                 } else {
-                    $num = 0.0;
+                    $ser['data'][] = $num;
+                    $out[$ser['id']] = $num;
                 }
-                if (is_nan($num) || is_infinite($num)) {
-                    $num = 0.0;
+                $ser['pct'][] = $pct;
+                if ($pct !== null && !$ser['as_pct']) {
+                    $out[$ser['id'] . '_pct'] = $pct;
                 }
-                $ser['data'][] = $num;
-                $out[$ser['id']] = $num;
             }
             unset($ser);
             $outRows[] = $out;
         }
 
         $datasets = [];
+        $hasAsPctRight = false;
+        $hasAsPctLeft = false;
         foreach ($seriesData as $ser) {
-            $datasets[] = [
+            $ds = [
                 'label' => $ser['label'],
                 'data' => $ser['data'],
                 'chart_type' => $ser['chart_type'],
                 'y_axis' => $ser['y_axis'],
             ];
+            if ($ser['as_pct']) {
+                $ds['as_percent'] = true;
+                if ($ser['y_axis'] === 'right') {
+                    $hasAsPctRight = true;
+                } else {
+                    $hasAsPctLeft = true;
+                }
+            } elseif ($ser['pct_of_field'] !== '') {
+                $ds['pct'] = $ser['pct'];
+            }
+            $datasets[] = $ds;
         }
 
         return [
@@ -1397,6 +1457,10 @@ final class BiRecipeEngine
             'datasets' => $datasets,
             'columns' => $colDefs,
             'rows' => $outRows,
+            'percent_axis' => [
+                'left' => $hasAsPctLeft,
+                'right' => $hasAsPctRight,
+            ],
         ];
     }
 
@@ -1408,24 +1472,130 @@ final class BiRecipeEngine
     private static function sectionMetrics(array $sec, array $frames): array
     {
         $metrics = [];
+        $metricItems = [];
         $items = is_array($sec['items'] ?? null) ? $sec['items'] : [];
         foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
             $label = (string)($item['label'] ?? $item['field'] ?? '');
             $from = (string)($item['from'] ?? '');
             $field = (string)($item['field'] ?? '');
             $agg = strtolower((string)($item['agg'] ?? ''));
             $rows = $frames[$from] ?? [];
             if ($agg !== '' && in_array($agg, ['sum', 'avg', 'min', 'max', 'count'], true)) {
-                $metrics[$label] = self::aggRows($rows, $field, $agg);
+                $value = self::aggRows($rows, $field, $agg);
             } else {
-                $metrics[$label] = $rows[0][$field] ?? 0;
+                $value = $rows[0][$field] ?? 0;
             }
+            $metrics[$label] = $value;
+            $detail = [
+                'label' => $label,
+                'value' => $value,
+            ];
+            $pctSpec = $item['pct_of'] ?? null;
+            if ($pctSpec !== null) {
+                $base = self::resolvePctBase($pctSpec, $frames, $from, is_array($rows[0] ?? null) ? $rows[0] : []);
+                $pct = self::pctOf(self::toFloat($value), $base);
+                if ($pct !== null) {
+                    $detail['pct'] = $pct;
+                    $detail['pct_base'] = $base;
+                }
+            }
+            $metricItems[] = $detail;
         }
         return [
             'title' => (string)($sec['title'] ?? 'Metrics'),
             'type' => 'metrics',
             'metrics' => $metrics,
+            'metric_items' => $metricItems,
         ];
+    }
+
+    /**
+     * pct_of: "field" (same frame) or {from, field}|{field}.
+     *
+     * @param mixed $spec
+     */
+    private static function pctOfFieldName($spec): string
+    {
+        if (is_string($spec)) {
+            return trim($spec);
+        }
+        if (is_array($spec)) {
+            return trim((string)($spec['field'] ?? ''));
+        }
+        return '';
+    }
+
+    /**
+     * @param mixed $spec
+     * @param array<string,list<array<string,mixed>>> $frames
+     * @param array<string,mixed> $sameRow
+     */
+    private static function resolvePctBase($spec, array $frames, string $sameFrom, array $sameRow): float
+    {
+        if (is_string($spec)) {
+            $field = trim($spec);
+            return self::toFloat($sameRow[$field] ?? 0);
+        }
+        if (!is_array($spec)) {
+            return 0.0;
+        }
+        $field = trim((string)($spec['field'] ?? ''));
+        if ($field === '') {
+            return 0.0;
+        }
+        $from = trim((string)($spec['from'] ?? $sameFrom));
+        if ($from === '' || $from === $sameFrom) {
+            return self::toFloat($sameRow[$field] ?? 0);
+        }
+        $rows = $frames[$from] ?? [];
+        $agg = strtolower((string)($spec['agg'] ?? ''));
+        if ($agg !== '' && in_array($agg, ['sum', 'avg', 'min', 'max', 'count'], true)) {
+            return self::toFloat(self::aggRows($rows, $field, $agg));
+        }
+        return self::toFloat($rows[0][$field] ?? 0);
+    }
+
+    /**
+     * @param mixed $value
+     */
+    private static function toFloat($value): float
+    {
+        if (is_bool($value)) {
+            return $value ? 1.0 : 0.0;
+        }
+        if (is_int($value) || is_float($value)) {
+            $num = (float)$value;
+        } elseif (is_string($value) && is_numeric($value)) {
+            $num = (float)$value;
+        } else {
+            $num = 0.0;
+        }
+        if (is_nan($num) || is_infinite($num)) {
+            return 0.0;
+        }
+        return $num;
+    }
+
+    public static function pctOf(float $value, float $base): ?float
+    {
+        if (abs($base) < 1e-12) {
+            return null;
+        }
+        return round($value / $base * 1000) / 10;
+    }
+
+    public static function formatPct(?float $pct): string
+    {
+        if ($pct === null) {
+            return '';
+        }
+        if (abs($pct - round($pct)) < 0.05) {
+            return (string)(int)round($pct) . '%';
+        }
+        return rtrim(rtrim(number_format($pct, 1, '.', ''), '0'), '.') . '%';
     }
 
     /**
@@ -1466,6 +1636,11 @@ final class BiRecipeEngine
                         $def['suffix_field'] = $sf;
                         $extraFields[$sf] = true;
                     }
+                }
+                $pctOf = self::pctOfFieldName($c['pct_of'] ?? null);
+                if ($pctOf !== '') {
+                    $def['pct_of'] = $pctOf;
+                    $extraFields[$pctOf] = true;
                 }
                 $colDefs[] = $def;
                 $colIds[] = $id;

@@ -50,9 +50,23 @@ final class BiXlsxExport
                 $w->addRow([$secTitle], BiXlsxWriter::STYLE_BOLD);
             }
             $type = (string)($sec['type'] ?? 'table');
-            if ($type === 'metrics' && is_array($sec['metrics'] ?? null)) {
-                foreach ($sec['metrics'] as $label => $value) {
-                    $w->addRow([(string)$label, self::cell($value)]);
+            if ($type === 'metrics' && (is_array($sec['metric_items'] ?? null) || is_array($sec['metrics'] ?? null))) {
+                $items = is_array($sec['metric_items'] ?? null) ? $sec['metric_items'] : [];
+                if ($items !== []) {
+                    foreach ($items as $item) {
+                        if (!is_array($item)) {
+                            continue;
+                        }
+                        $row = [(string)($item['label'] ?? ''), self::cell($item['value'] ?? '')];
+                        if (isset($item['pct']) && class_exists('BiRecipeEngine', false)) {
+                            $row[] = BiRecipeEngine::formatPct((float)$item['pct']);
+                        }
+                        $w->addRow($row);
+                    }
+                } else {
+                    foreach ($sec['metrics'] as $label => $value) {
+                        $w->addRow([(string)$label, self::cell($value)]);
+                    }
                 }
             } elseif ($type === 'text' || $type === 'html') {
                 $body = (string)($sec['body'] ?? $sec['html'] ?? '');
@@ -134,7 +148,19 @@ final class BiXlsxExport
                     $cells[] = $text;
                     continue;
                 }
-                $cells[] = self::cell($row[$id] ?? '');
+                $val = self::cell($row[$id] ?? '');
+                $pctOf = trim((string)($col['pct_of'] ?? ''));
+                if ($pctOf !== '' && class_exists('BiRecipeEngine', false)) {
+                    $pct = BiRecipeEngine::pctOf(
+                        (float)(is_numeric($row[$id] ?? null) ? $row[$id] : 0),
+                        (float)(is_numeric($row[$pctOf] ?? null) ? $row[$pctOf] : 0)
+                    );
+                    $pctS = BiRecipeEngine::formatPct($pct);
+                    if ($pctS !== '') {
+                        $val = (is_int($val) || is_float($val) ? (string)$val : (string)$val) . ' (' . $pctS . ')';
+                    }
+                }
+                $cells[] = $val;
             }
             $w->addRow($cells);
         }
@@ -168,8 +194,11 @@ final class BiXlsxExport
      */
     private static function periodLabel(array $params): string
     {
-        $month = (int)($params['month'] ?? 0);
         $year = (int)($params['year'] ?? 0);
+        if (($params['grain'] ?? 'month') === 'year') {
+            return t('bi.run.period') . ': ' . $year;
+        }
+        $month = (int)($params['month'] ?? 0);
         $label = $month >= 1 && $month <= 12 ? t('bi.month.' . $month) . ' ' . $year : (string)$year;
         return t('bi.run.period') . ': ' . $label;
     }

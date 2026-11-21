@@ -83,6 +83,7 @@ final class BiRecipeValidator
                 $frameNames[$as] = true;
             }
             self::validateQuery($q, 'queries[' . $i . ']', $errors);
+            self::validateWhen($q['when'] ?? null, 'queries[' . $i . '].when', $errors);
         }
 
         $derive = is_array($recipe['derive'] ?? null) ? $recipe['derive'] : [];
@@ -150,6 +151,7 @@ final class BiRecipeValidator
                     }
                 }
             }
+            self::validateWhen($d['when'] ?? null, 'derive[' . $i . '].when', $errors);
             if (isset($d['filter'])) {
                 BiExpr::validate($d['filter'], 'derive[' . $i . '].filter', $errors);
             }
@@ -209,6 +211,7 @@ final class BiRecipeValidator
                 $errors[] = 'sections[' . $i . ']: not object';
                 continue;
             }
+            self::validateWhen($sec['when'] ?? null, 'sections[' . $i . '].when', $errors);
             $type = (string)($sec['type'] ?? '');
             if (!in_array($type, ['metrics', 'table', 'pivot', 'text', 'chart'], true)) {
                 $errors[] = 'sections[' . $i . '].type: bad';
@@ -230,6 +233,7 @@ final class BiRecipeValidator
                     if ($fmt !== '' && $fmt !== 'user_badge') {
                         $errors[] = 'sections[' . $i . '].columns[' . $ci . '].format: bad';
                     }
+                    self::validatePctOf($col['pct_of'] ?? null, 'sections[' . $i . '].columns[' . $ci . '].pct_of', $frameNames, $errors, false);
                 }
             }
             if ($type === 'chart') {
@@ -261,15 +265,20 @@ final class BiRecipeValidator
                     if (!in_array($ya, ['left', 'right'], true)) {
                         $errors[] = 'sections[' . $i . '].series[' . $si . '].y_axis: bad';
                     }
+                    self::validatePctOf($ser['pct_of'] ?? null, 'sections[' . $i . '].series[' . $si . '].pct_of', $frameNames, $errors, false);
                 }
             }
             if ($type === 'metrics') {
                 $items = is_array($sec['items'] ?? null) ? $sec['items'] : [];
                 foreach ($items as $ii => $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
                     $from = (string)($item['from'] ?? '');
                     if ($from === '' || !isset($frameNames[$from])) {
                         $errors[] = 'sections[' . $i . '].items[' . $ii . '].from: unknown';
                     }
+                    self::validatePctOf($item['pct_of'] ?? null, 'sections[' . $i . '].items[' . $ii . '].pct_of', $frameNames, $errors, true);
                 }
             }
             if ($type === 'pivot') {
@@ -380,8 +389,21 @@ final class BiRecipeValidator
                 if (!in_array($agg, ['count', 'sum', 'avg', 'min', 'max', 'count_distinct'], true)) {
                     $errors[] = $path . '.select[' . $si . '].agg: bad';
                 }
+                if (!empty($sel['field'])) {
+                    self::validateFieldRef((string)$sel['field'], $from, $joins, $path . '.select[' . $si . '].field', $errors);
+                }
+            } elseif (isset($sel['bucket'])) {
+                $bucket = strtolower((string)$sel['bucket']);
+                if ($bucket !== 'month') {
+                    $errors[] = $path . '.select[' . $si . '].bucket: bad';
+                }
+                if (!isset($sel['field'])) {
+                    $errors[] = $path . '.select[' . $si . ']: bucket needs field';
+                } else {
+                    self::validateFieldRef((string)$sel['field'], $from, $joins, $path . '.select[' . $si . '].field', $errors);
+                }
             } elseif (!isset($sel['field'])) {
-                $errors[] = $path . '.select[' . $si . ']: need field or agg';
+                $errors[] = $path . '.select[' . $si . ']: need field, agg, or bucket';
             } else {
                 self::validateFieldRef((string)$sel['field'], $from, $joins, $path . '.select[' . $si . '].field', $errors);
             }
@@ -397,6 +419,91 @@ final class BiRecipeValidator
                 $errors[] = $path . '.where[' . $wi . '].op: bad';
             }
             self::validateFieldRef((string)$w['field'], $from, $joins, $path . '.where[' . $wi . '].field', $errors);
+        }
+        $having = is_array($q['having'] ?? null) ? $q['having'] : [];
+        foreach ($having as $hi => $h) {
+            if (!is_array($h) || !isset($h['field'], $h['op'])) {
+                $errors[] = $path . '.having[' . $hi . ']: need field+op';
+                continue;
+            }
+            $op = (string)$h['op'];
+            if (!in_array($op, ['=', '!=', '>', '>=', '<', '<=', 'in', 'not_in'], true)) {
+                $errors[] = $path . '.having[' . $hi . '].op: bad';
+            }
+            // having.field may be a select alias (e.g. first_dt from agg min)
+            self::validateHavingValue($h['value'] ?? null, $path . '.having[' . $hi . '].value', $errors);
+        }
+    }
+
+    /**
+     * @param mixed $when
+     * @param list<string> $errors
+     */
+    private static function validateWhen($when, string $path, array &$errors): void
+    {
+        if ($when === null) {
+            return;
+        }
+        if (!is_array($when)) {
+            $errors[] = $path . ': need object';
+            return;
+        }
+        if (isset($when['grain'])) {
+            $g = strtolower(trim((string)$when['grain']));
+            if (!in_array($g, ['month', 'year'], true)) {
+                $errors[] = $path . '.grain: month|year';
+            }
+        }
+    }
+
+    /**
+     * @param mixed $value
+     * @param list<string> $errors
+     */
+    private static function validateHavingValue($value, string $path, array &$errors): void
+    {
+        if (!is_array($value) || !isset($value['period'])) {
+            return;
+        }
+        $which = strtolower(trim((string)$value['period']));
+        if ($which !== 'start' && $which !== 'end') {
+            $errors[] = $path . '.period: start|end';
+        }
+    }
+
+    /**
+     * pct_of: "field" or {field} or {from, field} (metrics may reference another frame).
+     *
+     * @param mixed $spec
+     * @param array<string,bool> $frameNames
+     * @param list<string> $errors
+     */
+    private static function validatePctOf($spec, string $path, array $frameNames, array &$errors, bool $allowFrom): void
+    {
+        if ($spec === null) {
+            return;
+        }
+        if (is_string($spec)) {
+            if (trim($spec) === '') {
+                $errors[] = $path . ': empty field';
+            }
+            return;
+        }
+        if (!is_array($spec)) {
+            $errors[] = $path . ': string|{field}|{from,field}';
+            return;
+        }
+        if (trim((string)($spec['field'] ?? '')) === '') {
+            $errors[] = $path . '.field: required';
+        }
+        if ($allowFrom && isset($spec['from'])) {
+            $from = (string)$spec['from'];
+            if ($from !== '' && !isset($frameNames[$from])) {
+                $errors[] = $path . '.from: unknown frame';
+            }
+        } elseif (!$allowFrom && isset($spec['from'])) {
+            // chart/table pct_of is same-row field only
+            $errors[] = $path . ': use field name string (same row)';
         }
     }
 

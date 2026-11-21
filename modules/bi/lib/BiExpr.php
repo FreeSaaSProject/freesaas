@@ -39,7 +39,7 @@ final class BiExpr
             'and', 'or', 'not',
             'if', 'coalesce', 'nullif',
             'min', 'max', 'floor', 'round', 'concat',
-            'in', 'date_label', 'day_start', 'day_label', 'format_ts', 'acronym', 'badge',
+            'in', 'date_label', 'day_start', 'day_label', 'month_start', 'month_label', 'format_ts', 'acronym', 'badge',
         ];
         foreach ($ops as $op) {
             if (!array_key_exists($op, $expr)) {
@@ -58,6 +58,21 @@ final class BiExpr
                 case 'day_label':
                     $ts = (int)self::eval(is_array($args) ? ($args[0] ?? 0) : $args, $row);
                     return $ts > 0 ? date('j.n.Y', $ts) : '';
+                case 'month_start':
+                    $ts = (int)self::eval(is_array($args) ? ($args[0] ?? 0) : $args, $row);
+                    if ($ts <= 0) {
+                        return 0;
+                    }
+                    return (int)mktime(0, 0, 0, (int)date('n', $ts), 1, (int)date('Y', $ts));
+                case 'month_label':
+                    $ts = (int)self::eval(is_array($args) ? ($args[0] ?? 0) : $args, $row);
+                    if ($ts <= 0) {
+                        return '';
+                    }
+                    $m = (int)date('n', $ts);
+                    $y = (int)date('Y', $ts);
+                    $name = function_exists('t') ? t('bi.month.' . $m) : sprintf('%02d', $m);
+                    return $name . ' ' . $y;
                 case 'badge':
                     // Safe token → UsersRepository::badgeHtml at render (see BiSafeHtml).
                     $id = (int)self::eval(is_array($args) ? ($args[0] ?? 0) : $args, $row);
@@ -236,7 +251,8 @@ final class BiExpr
             $found = true;
             $args = $expr[$op];
             if ($op === 'not' || $op === 'floor' || $op === 'date_label' || $op === 'day_start'
-                || $op === 'day_label' || $op === 'acronym' || $op === 'badge') {
+                || $op === 'day_label' || $op === 'month_start' || $op === 'month_label'
+                || $op === 'acronym' || $op === 'badge') {
                 if (is_array($args) && !isset($args['lit']) && !isset($args['field']) && !self::looksLikeOp($args)) {
                     self::validate($args[0] ?? $args, $path . '.' . $op, $errors);
                 } else {

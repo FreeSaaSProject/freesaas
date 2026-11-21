@@ -31,11 +31,30 @@
     sel.value = v;
   }
 
+  function currentGrain(form) {
+    var grainEl = qs('select[name="grain"]', form);
+    if (grainEl && grainEl.value === 'year') return 'year';
+    return form.getAttribute('data-bi-grain') === 'year' ? 'year' : 'month';
+  }
+
+  function syncGrainUi(form) {
+    var grain = currentGrain(form);
+    form.setAttribute('data-bi-grain', grain);
+    var monthWrap = qs('[data-bi-month-wrap]', form);
+    if (monthWrap) monthWrap.hidden = grain === 'year';
+  }
+
   function shiftMonth(form, dir) {
     var yearEl = qs('select[name="year"]', form);
     var monthEl = qs('select[name="month"]', form);
-    if (!yearEl || !monthEl) return;
+    if (!yearEl) return;
     var y = parseInt(yearEl.value, 10) || (new Date()).getFullYear();
+    if (currentGrain(form) === 'year') {
+      setSelectValue(yearEl, y + dir);
+      syncNavAttrs(form);
+      return;
+    }
+    if (!monthEl) return;
     var m = parseInt(monthEl.value, 10) || ((new Date()).getMonth() + 1);
     m += dir;
     if (m < 1) {
@@ -53,9 +72,10 @@
   function syncNavAttrs(form) {
     var yearEl = qs('select[name="year"]', form);
     var monthEl = qs('select[name="month"]', form);
-    if (!yearEl || !monthEl) return;
+    if (!yearEl) return;
+    syncGrainUi(form);
     var y = parseInt(yearEl.value, 10);
-    var m = parseInt(monthEl.value, 10);
+    var m = monthEl ? (parseInt(monthEl.value, 10) || 1) : 1;
     var prevM = m - 1;
     var prevY = y;
     if (prevM < 1) {
@@ -67,6 +87,12 @@
     if (nextM > 12) {
       nextM = 1;
       nextY += 1;
+    }
+    if (currentGrain(form) === 'year') {
+      prevY = y - 1;
+      nextY = y + 1;
+      prevM = m;
+      nextM = m;
     }
     form.setAttribute('data-prev-year', String(prevY));
     form.setAttribute('data-prev-month', String(prevM));
@@ -157,6 +183,7 @@
         var labels = payload.labels || [];
         var series = payload.datasets || [];
         var defaultType = payload.chart_type || 'line';
+        var percentAxis = payload.percent_axis || {};
         var hasRight = false;
         var datasets = series.map(function (ser, i) {
           var pal = biChartPalette[i % biChartPalette.length];
@@ -172,7 +199,9 @@
             borderWidth: 2,
             tension: 0.2,
             fill: t === 'line' ? false : true,
-            yAxisID: yAxis
+            yAxisID: yAxis,
+            asPercent: !!ser.as_percent,
+            pct: Array.isArray(ser.pct) ? ser.pct : null
           };
           if (t === 'line') {
             ds.pointRadius = 3;
@@ -181,6 +210,15 @@
           return ds;
         });
         var isDoughnut = defaultType === 'doughnut' && datasets.every(function (d) { return d.type === 'doughnut'; });
+        function pctTick(v) {
+          if (v == null || !isFinite(v)) return '';
+          var n = Math.round(v * 10) / 10;
+          return (Math.abs(n - Math.round(n)) < 0.05 ? String(Math.round(n)) : String(n)) + '%';
+        }
+        function formatPctTip(v) {
+          if (v == null || !isFinite(v)) return '';
+          return pctTick(v);
+        }
         var scales = isDoughnut ? {} : {
           x: {
             ticks: { color: mutedColor, maxRotation: 45, minRotation: 0 },
@@ -188,17 +226,25 @@
           },
           y: {
             position: 'left',
-            ticks: { color: mutedColor },
+            ticks: {
+              color: mutedColor,
+              callback: percentAxis.left ? function (v) { return pctTick(v); } : undefined
+            },
             grid: { color: gridColor },
-            beginAtZero: true
+            beginAtZero: true,
+            max: percentAxis.left ? 100 : undefined
           }
         };
         if (!isDoughnut && hasRight) {
           scales.y1 = {
             position: 'right',
-            ticks: { color: mutedColor },
+            ticks: {
+              color: mutedColor,
+              callback: percentAxis.right ? function (v) { return pctTick(v); } : undefined
+            },
             grid: { drawOnChartArea: false },
-            beginAtZero: true
+            beginAtZero: true,
+            max: percentAxis.right ? 100 : undefined
           };
         }
         var chart = new Chart(canvas.getContext('2d'), {
@@ -209,7 +255,28 @@
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-              legend: { labels: { color: textColor } }
+              legend: { labels: { color: textColor } },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    var ds = ctx.dataset || {};
+                    var label = ds.label || '';
+                    var raw = ctx.parsed;
+                    var val = raw && typeof raw === 'object'
+                      ? (raw.y != null ? raw.y : raw.r)
+                      : raw;
+                    var text = label ? (label + ': ') : '';
+                    if (ds.asPercent) {
+                      return text + formatPctTip(val);
+                    }
+                    text += (val == null ? '' : val);
+                    if (ds.pct && ds.pct[ctx.dataIndex] != null) {
+                      text += ' (' + formatPctTip(ds.pct[ctx.dataIndex]) + ')';
+                    }
+                    return text;
+                  }
+                }
+              }
             },
             scales: scales
           }
@@ -303,6 +370,8 @@
     if (stripStatus) {
       stripStatus.setAttribute('data-running', stripStatus.textContent || 'Running…');
     }
+
+    syncNavAttrs(form);
 
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();

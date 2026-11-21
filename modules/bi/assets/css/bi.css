@@ -235,6 +235,16 @@
 }
 .bi-metric dt { font-size: 0.8rem; opacity: 0.75; }
 .bi-metric dd { margin: 0.2rem 0 0; font-size: 1.15rem; font-weight: 600; }
+.bi-metric-pct {
+  margin-left: 0.35rem;
+  font-size: 0.85em;
+  font-weight: 500;
+  opacity: 0.72;
+}
+.bi-table .bi-metric-pct {
+  font-size: 0.9em;
+  white-space: nowrap;
+}
 .bi-table-wrap { overflow-x: auto; }
 .bi-table {
   width: 100%;

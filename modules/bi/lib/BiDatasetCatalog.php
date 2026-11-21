@@ -86,9 +86,14 @@ final class BiDatasetCatalog
                 'streaming_aggs' => 'group_by accumulates without storing member row lists',
                 'badge' => 'expr badge(user_id) → safe token; ReportRenderer expands via UsersRepository::badgeHtml. Column format user_badge + user_field also supported',
                 'contrib' => 'Product datasets/recipes/derive via EventBus bi.datasets, bi.recipes, bi.derive_steps',
+                'period_markers' => 'query having value {"period":"start"|"end"} injects run bounds (same format as dataset period_kind); use with period:false + GROUP BY for first-in-period',
+                'select_bucket' => 'select {"bucket":"month","field":"dtstart","as":"month_start"} → SQL month start (unix or Y-m-d); group_by the alias',
+                'when' => 'queries/derive/sections may set when:{grain:"month"|"year"} to match ReportParams.grain',
+                'pct_of' => 'metrics items / table columns / chart series: pct_of="base_field" or {from,field} (metrics). Shows value as % of base. Chart: keep absolute + tooltip %, or as_pct:true to plot 0–100',
             ],
             'column_formats' => ['user_badge'],
-            'run_params' => ['year', 'month', 'dayshow', 'id_operator', 'id_admin', 'id_good', 'variant'],
+            'run_params' => ['year', 'month', 'grain', 'dayshow', 'id_operator', 'id_admin', 'id_good', 'variant'],
+            'period_grains' => ['month', 'year'],
             'text_rules' => 'sections type=text body = plain UTF-8 (no HTML/PHP/event handlers); escaped on render via e_nl. badge tokens are expanded to user-badge HTML',
             'examples' => self::examples(),
             'ops' => [
@@ -286,7 +291,7 @@ final class BiDatasetCatalog
             'and', 'or', 'not',
             'if', 'coalesce', 'nullif',
             'min', 'max', 'floor', 'round', 'concat', 'in',
-            'date_label', 'day_start', 'day_label', 'format_ts', 'acronym', 'badge',
+            'date_label', 'day_start', 'day_label', 'month_start', 'month_label', 'format_ts', 'acronym', 'badge',
             'field', 'lit',
         ];
     }

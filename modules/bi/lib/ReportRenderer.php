@@ -23,11 +23,25 @@ final class ReportRenderer
             if ($title !== '') {
                 $html .= '<h2 class="bi-section-title">' . e($title) . '</h2>';
             }
-            if ($type === 'metrics' && is_array($sec['metrics'] ?? null)) {
+            if ($type === 'metrics' && (is_array($sec['metric_items'] ?? null) || is_array($sec['metrics'] ?? null))) {
                 $html .= '<dl class="bi-metrics">';
-                foreach ($sec['metrics'] as $k => $v) {
-                    $html .= '<div class="bi-metric"><dt>' . e((string)$k) . '</dt><dd>'
-                        . BiSafeHtml::expandCell($v) . '</dd></div>';
+                $items = is_array($sec['metric_items'] ?? null) ? $sec['metric_items'] : [];
+                if ($items !== []) {
+                    foreach ($items as $item) {
+                        if (!is_array($item)) {
+                            continue;
+                        }
+                        $label = (string)($item['label'] ?? '');
+                        $html .= '<div class="bi-metric"><dt>' . e($label) . '</dt><dd>'
+                            . BiSafeHtml::expandCell($item['value'] ?? '')
+                            . self::pctSuffixHtml(isset($item['pct']) ? (float)$item['pct'] : null)
+                            . '</dd></div>';
+                    }
+                } else {
+                    foreach ($sec['metrics'] as $k => $v) {
+                        $html .= '<div class="bi-metric"><dt>' . e((string)$k) . '</dt><dd>'
+                            . BiSafeHtml::expandCell($v) . '</dd></div>';
+                    }
                 }
                 $html .= '</dl>';
             } elseif ($type === 'chart') {
@@ -62,6 +76,7 @@ final class ReportRenderer
             'chart_type' => (string)($sec['chart_type'] ?? 'line'),
             'labels' => is_array($sec['labels'] ?? null) ? array_values($sec['labels']) : [],
             'datasets' => is_array($sec['datasets'] ?? null) ? array_values($sec['datasets']) : [],
+            'percent_axis' => is_array($sec['percent_axis'] ?? null) ? $sec['percent_axis'] : null,
         ];
         $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
         if ($json === false) {
@@ -71,6 +86,18 @@ final class ReportRenderer
             . '<canvas class="bi-chart-canvas" height="160" aria-label="' . e((string)($sec['title'] ?? 'Chart')) . '"></canvas>'
             . '<script type="application/json" class="bi-chart-data">' . $json . '</script>'
             . '</div>';
+    }
+
+    public static function pctSuffixHtml(?float $pct): string
+    {
+        if ($pct === null || !class_exists('BiRecipeEngine', false)) {
+            return '';
+        }
+        $s = BiRecipeEngine::formatPct($pct);
+        if ($s === '') {
+            return '';
+        }
+        return ' <span class="bi-metric-pct">' . e($s) . '</span>';
     }
 
     /**
@@ -109,7 +136,16 @@ final class ReportRenderer
                         $html .= '<td>' . $badge . ($suffix !== '' ? ' ' . $suffix : '') . '</td>';
                         continue;
                     }
-                    $html .= '<td>' . BiSafeHtml::expandCell($row[$id] ?? '') . '</td>';
+                    $cell = BiSafeHtml::expandCell($row[$id] ?? '');
+                    $pctOf = trim((string)($col['pct_of'] ?? ''));
+                    if ($pctOf !== '' && class_exists('BiRecipeEngine', false)) {
+                        $pct = BiRecipeEngine::pctOf(
+                            (float)(is_numeric($row[$id] ?? null) ? $row[$id] : 0),
+                            (float)(is_numeric($row[$pctOf] ?? null) ? $row[$pctOf] : 0)
+                        );
+                        $cell .= self::pctSuffixHtml($pct);
+                    }
+                    $html .= '<td>' . $cell . '</td>';
                 }
                 $html .= '</tr>';
             }

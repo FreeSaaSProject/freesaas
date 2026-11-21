@@ -3356,9 +3356,15 @@ label.check.perm-diff {
   gap: 0.5rem;
   margin-bottom: 0.25rem;
 }
-/* Sticky Save/Cancel on long admin forms (document scroll). */
+/* Sticky Save/Cancel on long admin forms (document scroll).
+   EntityDelete moves .page-actions out of the form (sibling after </form>) —
+   keep sticky there too, otherwise edit screens with Delete lose the bar. */
 form.form-grid .page-actions,
 form.form .page-actions,
+form.form-grid + .page-actions,
+form.form + .page-actions,
+form.form-grid + .entity-delete-flash + .page-actions,
+form.form + .entity-delete-flash + .page-actions,
 .page-actions-sticky {
   position: sticky;
   bottom: 0;

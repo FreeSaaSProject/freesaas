@@ -57,8 +57,13 @@ curl -sS "${H[@]}" -X POST 'https://example/agent/bi/family/save' \
 
 # 5) Run
 curl -sS "${H[@]}" -X POST 'https://example/agent/bi/run' \
-  -d '{"family":"my_report","year":2026,"month":10}'
+    -d '{"family":"my_report","year":2026,"month":10}'
+# Year grain (optional): "grain":"year" — bounds = full calendar year; month ignored for filters.
 ```
+
+Period helpers in recipes: query `"period": false` skips auto date filter; `having` values `{"period":"start"}` / `{"period":"end"}` inject run bounds (for first-in-period). Select `{"bucket":"month","field":"dtstart","as":"month_start"}` aggregates by month without loading raw rows. Queries/derive/sections may set `"when":{"grain":"month"|"year"}` to match `ReportParams.grain`.
+
+Percent of base: metrics/table/chart may set `"pct_of": "unique_patients"` (same frame/row) or metrics `"pct_of": {"from":"patients","field":"unique_patients"}`. UI shows `611 54%`. Chart series keep absolute points and add tooltip `%`; set `"as_pct": true` to plot 0–100 on that axis.
 
 ### Surface B — staff session
 

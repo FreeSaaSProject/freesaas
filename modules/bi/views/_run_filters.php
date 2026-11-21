@@ -15,13 +15,18 @@ $products = $products ?? [];
 $shareMode = !empty($shareMode);
 $shareToken = trim((string)($shareToken ?? ''));
 $years = range((int)date('Y') + 1, (int)date('Y') - 8);
+$grain = (($params['grain'] ?? 'month') === 'year') ? 'year' : 'month';
 $adj = BiFilterOptions::adjacentMonth((int)$params['year'], (int)$params['month']);
 $formAction = (string)($formAction ?? ($shareMode ? $workUrl : '/bi/run'));
 // Guest share must not expose staff/product roster; staff share + director UI may.
 $showEntityFilters = !$shareMode || (class_exists('Auth', false) && Auth::check());
+$prevTitle = $grain === 'year' ? t('bi.run.prev_year') : t('bi.run.prev_month');
+$nextTitle = $grain === 'year' ? t('bi.run.next_year') : t('bi.run.next_month');
+$navAria = $grain === 'year' ? t('bi.run.nav_aria_year') : t('bi.run.nav_aria');
 ?>
 <form id="bi-run-form" class="bi-run-form" method="get" action="<?= e($formAction) ?>"
       data-bi-nav
+      data-bi-grain="<?= e($grain) ?>"
       data-prev-year="<?= (int)$adj['prev_year'] ?>"
       data-prev-month="<?= (int)$adj['prev_month'] ?>"
       data-next-year="<?= (int)$adj['next_year'] ?>"
@@ -33,8 +38,14 @@ $showEntityFilters = !$shareMode || (class_exists('Auth', false) && Auth::check(
     <input type="hidden" name="share" value="<?= e($shareToken) ?>">
   <?php endif; ?>
 
-  <div class="bi-month-nav" role="group" aria-label="<?= te('bi.run.nav_aria') ?>">
-    <button type="button" class="btn-secondary bi-nav-btn" data-bi-nav-dir="-1" title="<?= te('bi.run.prev_month') ?>" aria-label="<?= te('bi.run.prev_month') ?>">«</button>
+  <div class="bi-month-nav" role="group" aria-label="<?= e($navAria) ?>">
+    <button type="button" class="btn-secondary bi-nav-btn" data-bi-nav-dir="-1" title="<?= e($prevTitle) ?>" aria-label="<?= e($prevTitle) ?>">«</button>
+    <label class="bi-nav-grain"><?= te('bi.run.grain') ?>
+      <select name="grain" data-bi-auto data-bi-grain-select>
+        <option value="month"<?= $grain === 'month' ? ' selected' : '' ?>><?= te('bi.run.grain_month') ?></option>
+        <option value="year"<?= $grain === 'year' ? ' selected' : '' ?>><?= te('bi.run.grain_year') ?></option>
+      </select>
+    </label>
     <label class="bi-nav-year"><?= te('bi.run.year') ?>
       <select name="year" data-bi-auto>
         <?php foreach ($years as $y): ?>
@@ -42,14 +53,14 @@ $showEntityFilters = !$shareMode || (class_exists('Auth', false) && Auth::check(
         <?php endforeach; ?>
       </select>
     </label>
-    <label class="bi-nav-month"><?= te('bi.run.month') ?>
+    <label class="bi-nav-month"<?= $grain === 'year' ? ' hidden' : '' ?> data-bi-month-wrap><?= te('bi.run.month') ?>
       <select name="month" data-bi-auto>
         <?php for ($m = 1; $m <= 12; $m++): ?>
           <option value="<?= $m ?>"<?= (int)$params['month'] === $m ? ' selected' : '' ?>><?= e(t('bi.month.' . $m)) ?></option>
         <?php endfor; ?>
       </select>
     </label>
-    <button type="button" class="btn-secondary bi-nav-btn" data-bi-nav-dir="1" title="<?= te('bi.run.next_month') ?>" aria-label="<?= te('bi.run.next_month') ?>">»</button>
+    <button type="button" class="btn-secondary bi-nav-btn" data-bi-nav-dir="1" title="<?= e($nextTitle) ?>" aria-label="<?= e($nextTitle) ?>">»</button>
     <span class="muted bi-nav-hint"><?= te('bi.run.keyboard') ?></span>
     <button type="button" class="btn-secondary bi-xlsx-btn" data-bi-xlsx><?= te('bi.run.xlsx') ?></button>
   </div>

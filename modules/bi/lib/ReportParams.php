@@ -16,7 +16,7 @@ final class ReportParams
     /**
      * @param array<string,mixed> $raw
      * @return array{
-     *   year:int,month:int,dayshow:int,
+     *   year:int,month:int,grain:string,dayshow:int,
      *   id_operator:int,id_admin:int,id_good:int,
      *   variant:string
      * }
@@ -31,6 +31,10 @@ final class ReportParams
         if ($month < 1 || $month > 12) {
             $month = (int)date('n');
         }
+        $grain = strtolower(trim((string)($raw['grain'] ?? 'month')));
+        if ($grain !== 'year') {
+            $grain = 'month';
+        }
         $variant = strtolower(trim((string)($raw['variant'] ?? '')));
         if ($variant !== '' && !in_array($variant, ['ppa', 'full'], true)) {
             $variant = 'full';
@@ -42,6 +46,7 @@ final class ReportParams
         return [
             'year' => $year,
             'month' => $month,
+            'grain' => $grain,
             'dayshow' => !empty($raw['dayshow']) ? 1 : 0,
             'id_operator' => max(0, (int)($raw['id_operator'] ?? 0)),
             'id_admin' => max(0, (int)($raw['id_admin'] ?? 0)),
@@ -89,6 +94,36 @@ final class ReportParams
             'end' => $end,
             'label' => sprintf('%04d-%02d', $year, $month),
         ];
+    }
+
+    /**
+     * @return array{start:int,end:int,label:string}
+     */
+    public static function yearBounds(int $year): array
+    {
+        $start = (int)mktime(0, 0, 0, 1, 1, $year);
+        $end = (int)mktime(23, 59, 59, 12, 31, $year);
+        return [
+            'start' => $start,
+            'end' => $end,
+            'label' => sprintf('%04d', $year),
+        ];
+    }
+
+    /**
+     * Period bounds from normalized run params (`grain` = month|year).
+     *
+     * @param array<string,mixed> $params
+     * @return array{start:int,end:int,label:string}
+     */
+    public static function periodBounds(array $params): array
+    {
+        $year = (int)($params['year'] ?? date('Y'));
+        if (($params['grain'] ?? 'month') === 'year') {
+            return self::yearBounds($year);
+        }
+        $month = (int)($params['month'] ?? date('n'));
+        return self::monthBounds($year, $month);
     }
 
     /**

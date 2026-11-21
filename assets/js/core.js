@@ -1475,9 +1475,13 @@
     var formId = ensureFormId(editForm);
     var bar = document.createElement('div');
     // Keep sticky/modifiers from the source row; ensure canonical page-actions.
+    // Outside the form sticky selectors need .page-actions-sticky (or form+ sibling CSS).
     var cls = (actions.className || 'page-actions').trim();
     if (!/\bpage-actions\b/.test(cls)) {
       cls += ' page-actions';
+    }
+    if (!/\bpage-actions-sticky\b/.test(cls)) {
+      cls += ' page-actions-sticky';
     }
     bar.className = cls.replace(/\s+/g, ' ').trim();
     while (actions.firstChild) {

@@ -140,6 +140,24 @@ final class BiQueryBuilder
                     $selectSql[] = $fn . '(' . $ref . ') AS `' . self::ident($as) . '`';
                 }
                 $aliases[] = $as;
+            } elseif (isset($sel['bucket'])) {
+                $bucket = strtolower((string)$sel['bucket']);
+                if ($bucket !== 'month') {
+                    throw new InvalidArgumentException('bad_bucket:' . $bucket);
+                }
+                $field = (string)($sel['field'] ?? '');
+                $as = self::aliasName((string)($sel['as'] ?? 'month_start'));
+                $ref = self::fieldSql($field, $fromId, $fromAlias, $ds, $joinMeta);
+                $meta = BiDatasetCatalog::fieldMeta($ds, $field);
+                $ftype = strtolower((string)($meta['type'] ?? 'datetime'));
+                if ($ftype === 'date' || $ftype === 'date_ymd') {
+                    $selectSql[] = 'DATE_FORMAT(' . $ref . ', \'%Y-%m-01\') AS `' . self::ident($as) . '`';
+                } else {
+                    // unix timestamp datetime (legacy likespa)
+                    $selectSql[] = 'UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(' . $ref . '), \'%Y-%m-01\')) AS `'
+                        . self::ident($as) . '`';
+                }
+                $aliases[] = $as;
             } else {
                 $field = (string)($sel['field'] ?? '');
                 $as = self::aliasName((string)($sel['as'] ?? self::defaultAlias($field)));
@@ -178,6 +196,7 @@ final class BiQueryBuilder
         $having = is_array($query['having'] ?? null) ? $query['having'] : [];
         if ($having !== []) {
             $hParts = [];
+            $havingPeriodKind = is_string($periodKind) && $periodKind !== '' ? $periodKind : 'inclusive_dt';
             foreach ($having as $h) {
                 $field = (string)($h['field'] ?? '');
                 $op = (string)($h['op'] ?? '=');
@@ -194,7 +213,7 @@ final class BiQueryBuilder
                     }
                 } else {
                     $hParts[] = '`' . self::ident($field) . '` ' . $op . ' ?';
-                    $args[] = $h['value'] ?? null;
+                    $args[] = self::resolvePeriodValue($h['value'] ?? null, $params, $havingPeriodKind);
                 }
             }
             $sql .= ' HAVING ' . implode(' AND ', $hParts);
@@ -233,10 +252,10 @@ final class BiQueryBuilder
         $day = (int)($params['_day'] ?? 0);
 
         if ($day > 0) {
-            $startTs = mktime(0, 0, 0, $month, $day, $year);
-            $endTs = mktime(23, 59, 59, $month, $day, $year);
+            $startTs = (int)mktime(0, 0, 0, $month, $day, $year);
+            $endTs = (int)mktime(23, 59, 59, $month, $day, $year);
         } else {
-            $b = ReportParams::monthBounds($year, $month);
+            $b = ReportParams::periodBounds($params);
             $startTs = (int)$b['start'];
             $endTs = (int)$b['end'];
         }
@@ -249,6 +268,29 @@ final class BiQueryBuilder
         }
         // inclusive_dt / half_open use unix timestamps (legacy likespa)
         return ['start' => $startTs, 'end' => $endTs];
+    }
+
+    /**
+     * Resolve having/where value; supports {"period":"start"|"end"} markers.
+     *
+     * @param mixed $value
+     * @param array<string,mixed> $params
+     * @return mixed
+     */
+    public static function resolvePeriodValue($value, array $params, string $periodKind)
+    {
+        if (!is_array($value) || !isset($value['period'])) {
+            return $value;
+        }
+        $which = strtolower(trim((string)$value['period']));
+        if ($which !== 'start' && $which !== 'end') {
+            throw new InvalidArgumentException('bad_period_marker:' . $which);
+        }
+        $bounds = self::boundsFor($params, $periodKind);
+        if ($bounds === null) {
+            throw new InvalidArgumentException('period_bounds_unavailable');
+        }
+        return $bounds[$which];
     }
 
     /**
