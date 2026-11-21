@@ -58,7 +58,7 @@ Live catalog with maturity and dependencies: [freesaas.ru/modules](https://frees
 
 Details: [docs/agents/agent-surfaces.md](docs/agents/agent-surfaces.md) · [connect-mcp.md](docs/agents/connect-mcp.md) · [client-mcp.md](docs/agents/client-mcp.md).
 
-Human architecture guide: [docs/GUIDE.md](docs/GUIDE.md).  
+Human architecture guide: [docs/GUIDE.md](docs/GUIDE.md) ([RU](docs/GUIDE.ru.md)).
 Agent rules: [AGENTS.md](AGENTS.md). Quick path: [docs/agents/QUICKSTART.md](docs/agents/QUICKSTART.md).
 
 ## Agent TL;DR (≈2 minutes after DB + config)
@@ -96,7 +96,7 @@ Compatible with Cursor, Claude Code, Codex, OpenCode and other skills-aware clie
 
 | Doc | Audience |
 |-----|----------|
-| [docs/GUIDE.md](docs/GUIDE.md) | Humans — architecture, modules |
+| [docs/GUIDE.md](docs/GUIDE.md) | Humans — architecture, modules ([RU](docs/GUIDE.ru.md)) |
 | [AGENTS.md](AGENTS.md) | Coding agents — hard rules |
 | [docs/agents/QUICKSTART.md](docs/agents/QUICKSTART.md) | Fast install + verify |
 | [docs/agents/](docs/agents/) | Runbooks (install, MCP, create module, debug, cases) |
