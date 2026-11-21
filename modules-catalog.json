@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-21T12:24:39+00:00",
+    "generated_at": "2026-11-21T12:44:31+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -1394,7 +1394,7 @@
         },
         {
             "id": "funds",
-            "version": "1.1.0",
+            "version": "1.1.1",
             "type": "product",
             "name": {
                 "en": "Funds",
@@ -1499,7 +1499,7 @@
         },
         {
             "id": "ledger",
-            "version": "1.0.14",
+            "version": "1.0.15",
             "type": "product",
             "name": {
                 "en": "Account ledger",

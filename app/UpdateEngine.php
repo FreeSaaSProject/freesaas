@@ -69,6 +69,12 @@ final class UpdateEngine
         return UpdateCatalog::restoreAvailable($id);
     }
 
+    /** @return array{ok:bool,dismissed:list<string>,count:int,http:int} */
+    public static function dismissAllAvailable(): array
+    {
+        return UpdateCatalog::dismissAllAvailable();
+    }
+
     public static function installModule(string $id): array
     {
         return UpdateCatalog::installModule($id);

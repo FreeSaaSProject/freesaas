@@ -173,6 +173,33 @@ final class UpdateCatalog
         return UpdateCatalog::setDismissed($id, false);
     }
 
+    /**
+     * Hide every currently visible "available to install" module in one write.
+     *
+     * @return array{ok:bool,dismissed:list<string>,count:int,http:int}
+     */
+    public static function dismissAllAvailable(): array
+    {
+        $ids = array_fill_keys(UpdateCatalog::dismissedIds(), true);
+        $added = 0;
+        foreach (UpdateCatalog::availableToInstall(false, false) as $row) {
+            $id = strtolower(trim((string)($row['id'] ?? '')));
+            if ($id === '' || $id === 'core' || !preg_match('/^[a-z][a-z0-9_]*$/', $id)) {
+                continue;
+            }
+            if (!isset($ids[$id])) {
+                $ids[$id] = true;
+                $added++;
+            }
+        }
+        $list = array_keys($ids);
+        sort($list);
+        $state = UpdateFs::readState();
+        $state['dismissed_available'] = $list;
+        UpdateFs::writeState($state);
+        return ['ok' => true, 'dismissed' => $list, 'count' => $added, 'http' => 200];
+    }
+
     /** @return array{ok:bool,id:string,dismissed:list<string>,error?:string,http:int} */
     private static function setDismissed(string $id, bool $dismissed): array
     {

@@ -74,6 +74,19 @@ final class ModulesAdmin
                 ))];
             }
 
+            if ($action === 'dismiss_all_available') {
+                if (!Auth::capability('SUPERADMIN_ACCESS')) {
+                    throw new RuntimeException(t('core.modules.err.superadmin'));
+                }
+                $report = UpdateEngine::dismissAllAvailable();
+                if (empty($report['ok'])) {
+                    throw new RuntimeException(t('core.modules.err.catalog'));
+                }
+                return ['redirect' => self::withQuery($ret, 'msg', t('core.modules.msg.dismissed_all', [
+                    'n' => (int)($report['count'] ?? 0),
+                ]))];
+            }
+
             if ($action === 'uninstall') {
                 if (!Auth::capability('SUPERADMIN_ACCESS')) {
                     throw new RuntimeException(t('core.modules.err.superadmin'));

@@ -124,8 +124,21 @@ $showNav = count($sections) > 1 || $installable !== [];
 <?php if ($installable !== []): ?>
   <section class="modules-section modules-section--installable" id="mod-installable">
     <header class="modules-section-head">
-      <h2 class="modules-section-title"><?= te('core.modules.section_installable') ?></h2>
-      <span class="muted"><?= te('core.modules.section_count', ['n' => count($installable)]) ?></span>
+      <div class="modules-section-head-main">
+        <h2 class="modules-section-title"><?= te('core.modules.section_installable') ?></h2>
+        <span class="muted"><?= te('core.modules.section_count', ['n' => count($installable)]) ?></span>
+      </div>
+      <?php if (!empty($canInstall)): ?>
+        <form method="post" action="/modules" class="inline-form"
+          onsubmit="return confirm(<?= tj('core.modules.confirm_dismiss_all', ['n' => count($installable)]) ?>);">
+          <input type="hidden" name="action" value="dismiss_all_available">
+          <input type="hidden" name="ret" value="<?= e($listPath) ?>">
+          <button class="btn-secondary btn-sm" type="submit"
+                  title="<?= te('core.modules.btn_dismiss_all_hint') ?>">
+            <?= te('core.modules.btn_dismiss_all') ?>
+          </button>
+        </form>
+      <?php endif; ?>
     </header>
     <p class="muted modules-section-lede"><?= te('core.modules.section_installable_help') ?></p>
     <div class="modules-grid">

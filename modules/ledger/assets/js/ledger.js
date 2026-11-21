@@ -57,10 +57,17 @@
     setHidden(form.querySelector('[data-ledger-field="act_not_req"]'), !(hasType && Number(meta.act_in_enabled) > 0));
     var metaGated = form.querySelectorAll('[data-ledger-requires-meta]');
     for (var mi = 0; mi < metaGated.length; mi++) {
-      var metaKey = metaGated[mi].getAttribute('data-ledger-requires-meta') || '';
+      var gateEl = metaGated[mi];
+      var metaKey = gateEl.getAttribute('data-ledger-requires-meta') || '';
       var metaOn = hasType && metaKey !== '' && Number(meta[metaKey]) > 0;
-      setHidden(metaGated[mi], !metaOn);
-      var gatedInputs = metaGated[mi].querySelectorAll('input, select, textarea');
+      if (metaKey === 'fund_link') {
+        var hasFundOpts = gateEl.getAttribute('data-ledger-fund-has-options') === '1';
+        var fundSel = gateEl.querySelector('select[name="fund_movement_id"]');
+        var hasFundVal = !!(fundSel && Number(fundSel.value) > 0);
+        metaOn = metaOn && (hasFundOpts || hasFundVal);
+      }
+      setHidden(gateEl, !metaOn);
+      var gatedInputs = gateEl.querySelectorAll('input, select, textarea');
       for (var gi = 0; gi < gatedInputs.length; gi++) {
         gatedInputs[gi].disabled = !metaOn;
       }
@@ -70,6 +77,7 @@
     setHidden(form.querySelector('[data-ledger-save]'), !hasType);
     setHidden(form.querySelector('[data-ledger-type-hint]'), hasType);
     syncPromiseExecuted(form);
+    syncPromiseSummary(form);
 
     var dirRadios = form.querySelectorAll('input[name="direction"]');
     for (var di = 0; di < dirRadios.length; di++) {
@@ -115,6 +123,54 @@
         cb.checked = false;
       }
     }
+  }
+
+  function syncPromiseSummary(form) {
+    var details = form.querySelector('details[data-ledger-field="promised"]');
+    var dateEl = form.querySelector('[data-ledger-promised-date]');
+    if (!details || !dateEl) {
+      return;
+    }
+    var summary = details.querySelector('summary');
+    if (!summary) {
+      return;
+    }
+    var raw = String(dateEl.value || '').trim();
+    var muted = summary.querySelector('.muted');
+    if (raw) {
+      if (!muted) {
+        muted = document.createElement('span');
+        muted.className = 'muted';
+        summary.appendChild(document.createTextNode(' '));
+        summary.appendChild(muted);
+      }
+      muted.textContent = raw;
+    } else if (muted) {
+      if (muted.previousSibling && muted.previousSibling.nodeType === 3) {
+        summary.removeChild(muted.previousSibling);
+      }
+      summary.removeChild(muted);
+    }
+  }
+
+  function clearPromise(form) {
+    var dateEl = form.querySelector('[data-ledger-promised-date]');
+    var execWrap = form.querySelector('[data-ledger-promised-executed]');
+    var details = form.querySelector('details[data-ledger-field="promised"]');
+    if (dateEl) {
+      dateEl.value = '';
+    }
+    if (execWrap) {
+      var cb = execWrap.querySelector('input[name="promise_executed"]');
+      if (cb) {
+        cb.checked = false;
+      }
+      setHidden(execWrap, true);
+    }
+    if (details) {
+      details.open = false;
+    }
+    syncPromiseSummary(form);
   }
 
   function prevFill(form, field, val) {
@@ -197,9 +253,18 @@
     if (promisedDate) {
       promisedDate.addEventListener('change', function () {
         syncPromiseExecuted(form);
+        syncPromiseSummary(form);
       });
       promisedDate.addEventListener('input', function () {
         syncPromiseExecuted(form);
+        syncPromiseSummary(form);
+      });
+    }
+    var clearBtn = form.querySelector('[data-ledger-promised-clear]');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        clearPromise(form);
       });
     }
   }

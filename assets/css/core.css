@@ -1430,6 +1430,12 @@ a.pager-chip:hover {
   padding-bottom: 0.4rem;
   border-bottom: 1px solid var(--line);
 }
+.modules-section-head-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-width: 0;
+}
 .modules-section-title {
   margin: 0;
   font-size: 1.2rem;

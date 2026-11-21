@@ -61,11 +61,8 @@
   max-width: 52rem;
 }
 
-.ledger-move-form .ledger-move-descr textarea {
-  min-height: 11rem;
-  resize: vertical;
-  line-height: 1.45;
-  font-family: inherit;
+.ledger-move-form .ledger-move-descr input[type="text"] {
+  width: 100%;
 }
 
 .ledger-balance-cell {
@@ -81,21 +78,42 @@
 .ledger-move-form [data-ledger-field][hidden],
 .ledger-move-form [data-ledger-save][hidden],
 .ledger-move-form [data-ledger-type-hint][hidden],
-.ledger-move-form [data-ledger-promised-executed][hidden] {
+.ledger-move-form [data-ledger-promised-executed][hidden],
+.ledger-move-form [data-ledger-requires-meta][hidden] {
   display: none !important;
 }
 
 .ledger-promised-field {
   border: 1px solid var(--line, #ddd);
   border-radius: 10px;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 1rem 0.75rem;
   margin: 0;
   grid-column: 1 / -1;
 }
 
-.ledger-promised-field legend {
+.ledger-promised-field > summary {
   font-weight: 600;
-  padding: 0 0.25rem;
+  cursor: pointer;
+  list-style: none;
+  padding: 0.25rem 0;
+}
+
+.ledger-promised-field > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ledger-promised-field > summary::before {
+  content: '▸ ';
+  font-weight: 400;
+  color: var(--muted, #888);
+}
+
+.ledger-promised-field[open] > summary::before {
+  content: '▾ ';
+}
+
+.ledger-promised-actions {
+  margin-top: 0.5rem;
 }
 
 .ledger-promised {

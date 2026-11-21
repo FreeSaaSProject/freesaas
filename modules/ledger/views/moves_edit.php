@@ -25,7 +25,8 @@ $canConvertToTransfer = !empty($canConvertToTransfer);
 $transferTypes = is_array($transferTypes ?? null) ? $transferTypes : [];
 $fromAccountId = (int)($row['account_id'] ?? 0);
 $dtPromisedValue = (string)($dtPromisedValue ?? '');
-$showPromiseExecuted = $dtPromisedValue !== '' && strtotime($dtPromisedValue . ' 00:00:00') !== false
+$hasPromise = $dtPromisedValue !== '';
+$showPromiseExecuted = $hasPromise && strtotime($dtPromisedValue . ' 00:00:00') !== false
     && strtotime($dtPromisedValue . ' 00:00:00') <= time();
 $types = [];
 foreach ($typeMeta as $tid => $meta) {
@@ -62,7 +63,7 @@ $postedTransferAccountTo = $convertOpen ? (int)($_POST['transfer_account_to'] ??
   </label>
   <label><?= te('ledger.moves.col.dt') ?><input type="datetime-local" name="dt" value="<?= e($dtValue) ?>" required></label>
   <label class="ledger-move-descr"><?= te('ledger.moves.col.descr') ?>
-    <textarea name="descr" rows="10"><?= e((string)($row['descr'] ?? '')) ?></textarea>
+    <input type="text" name="descr" value="<?= e((string)($row['descr'] ?? '')) ?>" autocomplete="on">
   </label>
 
   <label data-ledger-field="account"<?= $hasType ? '' : ' hidden' ?>><?= te('ledger.moves.col.account') ?><?php if (!empty($prevApplied['account_id'])): ?> <span class="muted"><?= te('ledger.moves.prev_mark') ?></span><?php endif; ?>
@@ -142,8 +143,8 @@ $postedTransferAccountTo = $convertOpen ? (int)($_POST['transfer_account_to'] ??
     <input type="checkbox" name="unconfirmed" value="1"<?= !empty($row['unconfirmed']) ? ' checked' : '' ?>> <?= te('ledger.moves.field.unconfirmed') ?>
   </label>
 
-  <fieldset data-ledger-field="promised" class="ledger-promised-field"<?= $hasType ? '' : ' hidden' ?>>
-    <legend><?= te('ledger.moves.promised.legend') ?></legend>
+  <details data-ledger-field="promised" class="ledger-promised-field"<?= $hasType ? '' : ' hidden' ?><?= $hasPromise ? ' open' : '' ?>>
+    <summary><?= te('ledger.moves.promised.legend') ?><?php if ($hasPromise): ?> <span class="muted"><?= e($dtPromisedValue) ?></span><?php endif; ?></summary>
     <p class="muted"><?= te('ledger.moves.promised.hint') ?></p>
     <label><?= te('ledger.moves.field.dt_promised') ?>
       <input type="date" name="dt_promised" id="ledger-dt-promised" value="<?= e($dtPromisedValue) ?>" data-ledger-promised-date>
@@ -152,7 +153,10 @@ $postedTransferAccountTo = $convertOpen ? (int)($_POST['transfer_account_to'] ??
       <input type="checkbox" name="promise_executed" value="1"<?= !empty($row['promise_executed']) ? ' checked' : '' ?>>
       <?= te('ledger.moves.field.promise_executed') ?>
     </label>
-  </fieldset>
+    <div class="page-actions ledger-promised-actions">
+      <button type="button" class="btn-secondary" data-ledger-promised-clear><?= te('ledger.moves.promised.clear') ?></button>
+    </div>
+  </details>
 
   <div class="ledger-dir-sum-row">
     <div data-ledger-field="direction" class="ledger-dir-switch-wrap"<?= $hasType ? '' : ' hidden' ?>>

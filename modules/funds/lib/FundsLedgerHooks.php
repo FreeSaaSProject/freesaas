@@ -56,15 +56,23 @@ final class FundsLedgerHooks
         $dt = is_numeric($row['dt'] ?? null) ? (int)$row['dt'] : (int)(strtotime((string)($row['dt'] ?? '')) ?: 0);
         $groups = FundMovementsRepository::optionsForDps($currentFm, $direction, $dt);
         $known = false;
+        $optionCount = 0;
         foreach ($groups as $g) {
-            if (isset($g['options'][$currentFm])) {
+            $opts = is_array($g['options'] ?? null) ? $g['options'] : [];
+            $optionCount += count($opts);
+            if ($currentFm > 0 && isset($opts[$currentFm])) {
                 $known = true;
             }
         }
+        // Hide when type does not link funds, or there is nothing to bind (unless already linked).
+        $hasBindable = $optionCount > 0 || $currentFm > 0;
+        $show = $on && $hasBindable;
         ob_start();
         ?>
-<label data-ledger-requires-meta="fund_link"<?= $on ? '' : ' hidden' ?>><?= te('funds.dps.field') ?>
-  <select name="fund_movement_id"<?= $on ? '' : ' disabled' ?>>
+<label data-ledger-requires-meta="fund_link"
+       data-ledger-fund-has-options="<?= $hasBindable ? '1' : '0' ?>"
+       <?= $show ? '' : ' hidden' ?>><?= te('funds.dps.field') ?>
+  <select name="fund_movement_id"<?= $show ? '' : ' disabled' ?>>
     <option value="0"><?= te('funds.dps.none') ?></option>
     <?php if ($currentFm > 0 && !$known): ?>
       <option value="<?= $currentFm ?>" selected><?= te('funds.dps.missing', ['id' => $currentFm]) ?></option>

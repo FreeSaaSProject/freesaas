@@ -49,7 +49,7 @@ $toId = (int)($toId ?? 0);
            value="<?= e((string)($row['summ'] ?? '0')) ?>" required>
   </label>
   <label class="ledger-move-descr"><?= te('ledger.moves.col.descr') ?>
-    <textarea name="descr" rows="10"><?= e((string)($row['descr'] ?? '')) ?></textarea>
+    <input type="text" name="descr" value="<?= e((string)($row['descr'] ?? '')) ?>" autocomplete="on">
   </label>
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
