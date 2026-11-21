@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-20T06:57:58+00:00",
+    "generated_at": "2026-11-21T04:55:03+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -1225,7 +1225,7 @@
         },
         {
             "id": "demo",
-            "version": "1.0.7",
+            "version": "1.0.8",
             "type": "product",
             "name": {
                 "en": "Demo stand",
