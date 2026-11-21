@@ -13,13 +13,17 @@ declare(strict_types=1);
  *
  * Gaps already present are frozen in docs/agents/agent-coverage-baseline.json. A new gap or a removed op fails.
  *
- * Usage: php bin/check-agent-coverage.php [--update-baseline] [--format=json]
+ * Instance packs — modules that are neither in the baseline nor in modules-catalog.json (own repo) —
+ * are skipped, so `bin/smoke.php` stays green on an instance. `--strict` (CI of the main repo) checks them too.
+ *
+ * Usage: php bin/check-agent-coverage.php [--update-baseline] [--strict] [--format=json]
  * Exit: 0 ok, 1 fail
  */
 $root = dirname(__DIR__);
 $baselinePath = $root . '/docs/agents/agent-coverage-baseline.json';
 $update = in_array('--update-baseline', $argv, true);
 $json = in_array('--format=json', $argv, true);
+$strict = in_array('--strict', $argv, true);
 
 /** @return array{ops:list<string>,uncovered_routes:list<string>,uncovered_actions:list<string>} */
 function coverage_scan_module(string $dir): array
@@ -107,9 +111,28 @@ if ($update) {
 $baseline = json_decode((string)@file_get_contents($baselinePath), true);
 $baseModules = is_array($baseline['modules'] ?? null) ? $baseline['modules'] : [];
 
+// Modules shipped by the main repo: core + everything in modules-catalog.json.
+$shipped = null;
+$catalog = json_decode((string)@file_get_contents($root . '/modules-catalog.json'), true);
+if (is_array($catalog) && is_array($catalog['modules'] ?? null)) {
+    $shipped = ['core' => true];
+    foreach ($catalog['modules'] as $key => $row) {
+        $cid = is_array($row) && isset($row['id']) ? (string)$row['id'] : (string)$key;
+        if ($cid !== '') {
+            $shipped[$cid] = true;
+        }
+    }
+}
+
 $errors = [];
 $improved = [];
+$skipped = [];
 foreach ($current as $id => $cur) {
+    if (!$strict && $shipped !== null && !isset($baseModules[$id]) && !isset($shipped[$id])) {
+        $skipped[] = (string)$id;
+        unset($current[$id]);
+        continue;
+    }
     $base = $baseModules[$id] ?? ['ops' => [], 'uncovered_routes' => [], 'uncovered_actions' => []];
     foreach (array_diff($base['ops'] ?? [], $cur['ops']) as $lost) {
         $errors[] = "$id: agent op removed: $lost";
@@ -131,10 +154,13 @@ foreach ($current as $id => $cur) {
 
 $ok = $errors === [];
 if ($json) {
-    echo json_encode(['ok' => $ok, 'errors' => $errors, 'improved' => $improved], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+    echo json_encode(['ok' => $ok, 'errors' => $errors, 'improved' => $improved, 'skipped' => $skipped], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
 } else {
     foreach ($errors as $e) {
         echo "FAIL  $e\n";
+    }
+    if ($skipped !== []) {
+        echo "NOTE  skipped (not in baseline or modules-catalog.json, instance pack): " . implode(', ', $skipped) . "\n";
     }
     if ($improved !== []) {
         echo "NOTE  coverage grew in: " . implode(', ', $improved) . " — run with --update-baseline and commit the baseline\n";

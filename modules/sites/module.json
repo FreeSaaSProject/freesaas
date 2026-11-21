@@ -2,7 +2,7 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -69,6 +69,8 @@
             "/sites/hosts/{id}/edit",
             "/sites/settings",
             "/sites/status",
+            "/agent/sites/hosts",
+            "/agent/sites/hosts/theme",
             "/sites/seo",
             "/sites/promopages",
             "/sites/promopages/new",

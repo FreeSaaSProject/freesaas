@@ -174,7 +174,7 @@ final class AudioAsrDiaLongJob
     /** @return list<int> */
     private static function fixtureOrDayIds(string $day): array
     {
-        $fixture = base_path('docs/agents/asr_dia_fixture_2026-11-16.json');
+        $fixture = base_path('docs/agents/asr_dia/fixture_2026-11-16.json');
         if ($day === '2026-11-16' && is_file($fixture)) {
             $data = json_decode((string)file_get_contents($fixture), true);
             if (is_array($data) && is_array($data['record_ids'] ?? null)) {

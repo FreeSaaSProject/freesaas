@@ -87,7 +87,7 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://www.example.com/agent/heal
 | `/promo/{code}` | Promo LP by code |
 | `/sitemap.xml`, `/robots.txt` | Current host. Sitemap = `/`, `/shop` (catalog on), enabled articles of the host, plus URLs from EventBus `sites.sitemap` (`urls[]`, paths or absolute) |
 | `/.well-known/ai-catalog.json` | Domain AI Catalog for agent discovery; entries from EventBus `sites.ai_catalog` (`identifier`, `type`, `url` or `data`); 404 when no module contributes (e.g. `client_mcp` adds its server card per host) |
-| `/llms.txt` | Site card for LLM readers ([llmstxt.org](https://llmstxt.org)): host name, summary, contacts, shop/cart links; modules append sections via EventBus `sites.llms_txt` (`sections[] = {title, lines[]}`) |
+| `/llms.txt` | Site card for LLM readers ([llmstxt.org](https://llmstxt.org)): host name, summary, contacts, shop/cart links; modules append sections via EventBus `sites.llms_txt` (`sections[] = {title, lines[]}`) and may replace the one-line `summary` (default: host META description) |
 
 **Theme-independent chrome:** `SiteTheme::render` emits `sites.page.inject` (`view`, `layout`, `head`, `body_end`) and inserts the returned trusted HTML before `</head>` / `</body>` of any theme, including private ones. Sites itself adds `<link rel="alternate" type="text/markdown" href="/llms.txt">`. Escape everything you inject.
 | unknown path | Redirects (scoped) then page-by-link then 404 |
@@ -95,7 +95,7 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://www.example.com/agent/heal
 
 ## Themes
 
-Folder `themes/<id>/` with `theme.json`, `layouts/`, `views/`, `partials/`, `assets/`. Per-host via `base_site_hosts.theme`.
+Folder `themes/<id>/` with `theme.json`, `layouts/`, `views/`, `partials/`, `assets/`. Per-host via `base_site_hosts.theme`. A theme can extend another one with `"parent": "<id>"` (missing files come from the parent) — handy for several visual variants of one site.
 
 Shipped skins: `default` (minimal), `likespa` (instance skin). Theme contract / port guide: [`themes.md`](themes.md).
 
@@ -170,6 +170,25 @@ UI twin: **Sites → Diagnostics** (`/sites/status`).
 Host write fields (POST body / form): `host`, `name`, `theme`, `locale`, `promo_id`, `catalog_root_ids[]` (multi; empty = entire catalog), `tel`, `enabled`, `is_default`, `num`. Extra host fields come from EventBus `sites.host_edit.sections` / `.save`.
 
 Cart booking meta for themes: EventBus `sites.cart.booking` (sites emits; product modules fill optional keys).
+
+### Hosts and theme switch with the agent token (Surface A)
+
+For an installer that holds only `app.agent_token` (no staff session). Admin host only; listed in `GET /agent` while `sites` is enabled.
+
+| Op | CLI | HTTP | Purpose |
+|----|-----|------|---------|
+| `sites.agent.hosts` | `php bin/freesaas.php sites hosts` | `GET /agent/sites/hosts` | `hosts[]` (`id`, `host`, `enabled`, `name`, `theme`, `locale`, `is_default`) + installed `themes[]` (`id`, `name`, `version`, `parent`, `parent_ok`) + `fallback_theme` |
+| `sites.agent.hosts.theme` | `php bin/freesaas.php sites theme --theme=<id> (--host=<domain\|id> \| --all)` | `POST /agent/sites/hosts/theme` | Switch one host or all hosts; answer lists `from` / `to` / `changed` per host |
+
+```bash
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://admin.example.com/agent/sites/hosts"
+
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"theme":"default","host":"shop.example.com"}' \
+  "https://admin.example.com/agent/sites/hosts/theme"
+```
+
+Refusals: `400` no `theme` / neither `host` nor `all`; `404` theme not installed (answer carries installed ids) or host not found; `409` child theme whose `parent` is not installed. Only the `theme` column is written — locale, phone, promo, catalog folders stay on the session op `sites.hosts.update`. Keep `from` from the answer to roll back.
 
 ### Storefront booking smoke
 

@@ -3,11 +3,17 @@ declare(strict_types=1);
 
 /**
  * Storefront theme loader: themes/<id>/{layouts,views,partials,assets}.
+ *
+ * A theme may declare `"parent": "<id>"` in theme.json (one level): any layout, view,
+ * partial, promo module or asset it does not ship is taken from the parent theme.
  */
 final class SiteTheme
 {
     /** @var array<string,mixed>|null */
     private static $manifest = null;
+
+    /** @var string|null '' = no parent */
+    private static $parent = null;
 
     public static function id(): string
     {
@@ -32,10 +38,47 @@ final class SiteTheme
         return base_path('themes/' . self::id());
     }
 
+    /**
+     * Absolute path inside the theme. A missing file falls back to the parent theme
+     * when it exists there; otherwise the own (possibly missing) path is returned.
+     */
     public static function path(string $rel = ''): string
     {
         $root = self::root();
-        return $rel === '' ? $root : $root . '/' . ltrim($rel, '/');
+        if ($rel === '') {
+            return $root;
+        }
+        $rel = ltrim($rel, '/');
+        $own = $root . '/' . $rel;
+        if (file_exists($own)) {
+            return $own;
+        }
+        $parent = self::parentId();
+        if ($parent !== '') {
+            $inherited = base_path('themes/' . $parent . '/' . $rel);
+            if (file_exists($inherited)) {
+                return $inherited;
+            }
+        }
+        return $own;
+    }
+
+    /** Parent theme id from theme.json `parent` ('' when none / invalid / missing on disk). */
+    public static function parentId(): string
+    {
+        if (self::$parent !== null) {
+            return self::$parent;
+        }
+        $parent = trim((string)(self::manifest()['parent'] ?? ''));
+        if (
+            $parent === ''
+            || $parent === self::id()
+            || !preg_match('/^[a-zA-Z0-9_-]+$/', $parent)
+            || !is_dir(base_path('themes/' . $parent))
+        ) {
+            return self::$parent = '';
+        }
+        return self::$parent = $parent;
     }
 
     /** @return array<string,mixed> */
@@ -44,7 +87,7 @@ final class SiteTheme
         if (self::$manifest !== null) {
             return self::$manifest;
         }
-        $file = self::path('theme.json');
+        $file = self::root() . '/theme.json';
         if (!is_file($file)) {
             return self::$manifest = ['id' => self::id(), 'name' => self::id()];
         }
@@ -55,7 +98,17 @@ final class SiteTheme
     /** Theme opts into the wider article allowlist (class/id, section, table…) — see page_html(). */
     public static function richHtml(): bool
     {
-        return !empty(self::manifest()['rich_html']);
+        $manifest = self::manifest();
+        if (array_key_exists('rich_html', $manifest)) {
+            return !empty($manifest['rich_html']);
+        }
+        // Not set on a child theme → inherit the parent's choice.
+        $parent = self::parentId();
+        if ($parent === '') {
+            return false;
+        }
+        $data = json_decode((string)@file_get_contents(base_path('themes/' . $parent . '/theme.json')), true);
+        return is_array($data) && !empty($data['rich_html']);
     }
 
     /** @return list<string> */
@@ -79,8 +132,17 @@ final class SiteTheme
     public static function assetUrl(string $file): string
     {
         $file = ltrim($file, '/');
-        $url = '/themes/' . rawurlencode(self::id()) . '/assets/' . $file;
-        $abs = self::path('assets/' . $file);
+        $owner = self::id();
+        $abs = self::root() . '/assets/' . $file;
+        $parent = self::parentId();
+        if ($file !== '' && $parent !== '' && !file_exists($abs)) {
+            $inherited = base_path('themes/' . $parent . '/assets/' . $file);
+            if (file_exists($inherited)) {
+                $owner = $parent;
+                $abs = $inherited;
+            }
+        }
+        $url = '/themes/' . rawurlencode($owner) . '/assets/' . $file;
         if (is_file($abs)) {
             $url .= '?v=' . (string)filemtime($abs);
         }

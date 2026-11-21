@@ -1256,6 +1256,8 @@
             ],
             "uncovered_routes": [
                 "/.well-known/ai-catalog.json",
+                "/agent/sites/hosts",
+                "/agent/sites/hosts/theme",
                 "/cart",
                 "/cart/checkout",
                 "/llms.txt",

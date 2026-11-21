@@ -412,6 +412,18 @@ final class SiteHostsRepository
         self::saveLocale($id, $data);
     }
 
+    /** Narrow write: switch only the skin of one host (agent ops / CLI); other fields untouched. */
+    public static function setTheme(int $id, string $theme): void
+    {
+        if ($id < 1) {
+            throw new InvalidArgumentException('Invalid host id');
+        }
+        if (!preg_match('/^[a-zA-Z0-9_-]+$/', $theme)) {
+            throw new InvalidArgumentException('Invalid theme id');
+        }
+        Database::pdo()->prepare('UPDATE base_site_hosts SET theme = ? WHERE id = ?')->execute([$theme, $id]);
+    }
+
     /**
      * @param mixed $raw
      * @return list<int>

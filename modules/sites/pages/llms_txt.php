@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 /**
  * /llms.txt for the current storefront host (https://llmstxt.org): site card for LLM readers.
- * Modules append sections via EventBus sites.llms_txt (title + markdown lines).
+ * Modules append sections via EventBus sites.llms_txt (title + markdown lines)
+ * and may replace the one-line `summary` (default: host META description).
  */
 $meta = SitesFront::siteMeta();
 $host = SitesHostContext::host();
@@ -37,8 +38,12 @@ $sections[] = ['title' => t('sites.llms.pages'), 'lines' => [
 $payload = EventBus::emit('sites.llms_txt', [
     'host' => $host,
     'base' => $base,
+    'summary' => $summary,
     'sections' => $sections,
 ]);
+if (is_array($payload) && isset($payload['summary']) && is_string($payload['summary'])) {
+    $summary = trim($payload['summary']);
+}
 
 $out = '# ' . ($name !== '' ? $oneLine($name) : $host) . "\n\n";
 if ($summary !== '') {

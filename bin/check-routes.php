@@ -159,6 +159,8 @@ $allowed = [
     '/agent/bi/family/save' => ['methods' => ['POST'], 'why' => 'agent_token BI family save'],
     '/agent/bi/family/delete' => ['methods' => ['POST'], 'why' => 'agent_token BI family delete'],
     '/agent/bi/run' => ['methods' => ['POST'], 'why' => 'agent_token BI report run'],
+    '/agent/sites/hosts' => ['methods' => ['GET'], 'why' => 'agent_token storefront hosts + themes'],
+    '/agent/sites/hosts/theme' => ['methods' => ['POST'], 'why' => 'agent_token switch host theme'],
     '/agent/gcal/status' => ['methods' => ['GET'], 'why' => 'agent_token gcal status'],
     '/agent/gcal/settings' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token gcal settings'],
     '/agent/gcal/queue/drain' => ['methods' => ['POST'], 'why' => 'agent_token gcal drain'],

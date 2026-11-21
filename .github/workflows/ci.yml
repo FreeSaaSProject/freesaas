@@ -153,10 +153,13 @@ jobs:
         run: php bin/check-routes.php
 
       - name: Agent coverage (routes/actions vs agent.ops baseline)
-        run: php bin/check-agent-coverage.php
+        run: php bin/check-agent-coverage.php --strict
 
       - name: Agent Skills (frontmatter + local refs)
         run: php bin/check-agent-skills.php
+
+      - name: Docs drift (AGENTS.md module table + TABLE_MAP.md)
+        run: php bin/check-docs-modules.php --strict
 
       # ubuntu-latest now ships Python 3.14; semgrep 1.110 wheels are
       # cp39–cp311 only, and 3.14 also crashes protobuf. Pin 3.11 for this step.

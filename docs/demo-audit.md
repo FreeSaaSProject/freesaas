@@ -1,8 +1,10 @@
 # Demo mutation audit
 
-Generated: 2026-10-23T20:21:14+04:00
+Generated: 2026-11-21T20:39:26+04:00
 
-Mutating routes inventoried: **352**
+Mutating routes inventoried: **480**
+
+Not covered (modules disabled on the generating instance): `amocrm`, `bitrix`, `bonuses`, `certificates`, `clientics`, `crm`, `demo`, `egisz`, `liquid_assets`, `medcard_audio`, `wellness`, `yclients`
 
 | Method | Path | Module | Allowlisted |
 |---|---|---|---|
@@ -12,11 +14,47 @@ Mutating routes inventoried: **352**
 | POST | `/accounts` | ledger |  |
 | POST | `/accounts/new` | ledger |  |
 | POST | `/accounts/{id}/edit` | ledger |  |
+| POST | `/acquiring/checkout` | acquiring |  |
+| POST | `/acquiring/settings` | acquiring |  |
+| POST | `/acquiring/webhook/{provider}` | acquiring |  |
+| POST | `/agent/asr/voice-queue/requeue` | asr | yes |
+| POST | `/agent/audio_dicts/key` | audio_dicts | yes |
+| POST | `/agent/audio_dicts/key/delete` | audio_dicts | yes |
+| POST | `/agent/audio_dicts/script` | audio_dicts | yes |
+| POST | `/agent/audio_dicts/script/open` | audio_dicts | yes |
+| POST | `/agent/audio_dicts/script/part` | audio_dicts | yes |
+| POST | `/agent/audio_dicts/script/part/delete` | audio_dicts | yes |
+| POST | `/agent/audio_dicts/script/publish` | audio_dicts | yes |
+| POST | `/agent/audio_dicts/script/restore` | audio_dicts | yes |
+| POST | `/agent/audio_dicts/script/valid-from` | audio_dicts | yes |
+| POST | `/agent/audio_pipeline/asr-push/config` | audio_pipeline | yes |
+| POST | `/agent/audio_pipeline/asr-push/sync` | audio_pipeline | yes |
+| POST | `/agent/audio_pipeline/asr-push/worker` | audio_pipeline | yes |
+| POST | `/agent/audio_pipeline/backfill-playtime` | audio_pipeline | yes |
+| POST | `/agent/audio_pipeline/day-reparse` | audio_pipeline | yes |
+| POST | `/agent/audio_pipeline/media-probe` | audio_pipeline | yes |
+| POST | `/agent/backups/cdc/install` | backups | yes |
+| POST | `/agent/backups/cdc/uninstall` | backups | yes |
+| POST | `/agent/backups/standby/sync` | backups | yes |
+| POST | `/agent/banks/certs` | banks | yes |
+| POST | `/agent/banks/csr` | banks | yes |
+| POST | `/agent/banks/integrations` | banks | yes |
+| POST | `/agent/banks/integrations/connect` | banks | yes |
+| POST | `/agent/banks/integrations/probe-scopes` | banks | yes |
+| POST | `/agent/banks/probe` | banks | yes |
+| POST | `/agent/banks/settings` | banks | yes |
+| POST | `/agent/banks/setup` | banks | yes |
+| POST | `/agent/bi/family/delete` | bi | yes |
+| POST | `/agent/bi/family/save` | bi | yes |
+| POST | `/agent/bi/family/validate` | bi | yes |
+| POST | `/agent/bi/run` | bi | yes |
 | POST | `/agent/bootstrap` | core | yes |
+| POST | `/agent/bootstrap-from-backup` | core | yes |
 | POST | `/agent/bots/link-code` | bots | yes |
 | POST | `/agent/bots/settings` | bots | yes |
 | POST | `/agent/bots/unlink` | bots | yes |
 | POST | `/agent/bots/webhook/subscribe` | bots | yes |
+| POST | `/agent/client-portal/password-reset` | client_portal | yes |
 | POST | `/agent/db/check` | core | yes |
 | POST | `/agent/db/data-migrate/run` | core | yes |
 | POST | `/agent/db/dump` | core | yes |
@@ -25,18 +63,29 @@ Mutating routes inventoried: **352**
 | POST | `/agent/db/optimize` | core | yes |
 | POST | `/agent/db/repair` | core | yes |
 | POST | `/agent/db/restore` | core | yes |
+| POST | `/agent/edge-hosts` | core | yes |
 | POST | `/agent/gcal/queue/drain` | gcal | yes |
 | POST | `/agent/gcal/settings` | gcal | yes |
 | POST | `/agent/llm/ping` | llm | yes |
 | POST | `/agent/llm/tokens` | llm | yes |
 | POST | `/agent/llm/tokens/delete` | llm | yes |
+| POST | `/agent/modules/{id}/activate` | core | yes |
 | POST | `/agent/modules/{id}/disable` | core | yes |
 | POST | `/agent/modules/{id}/enable` | core | yes |
 | POST | `/agent/modules/{id}/install` | core | yes |
 | POST | `/agent/modules/{id}/uninstall` | core | yes |
 | POST | `/agent/rescue` | core | yes |
+| POST | `/agent/sites/hosts/theme` | sites | yes |
 | POST | `/agent/update/apply` | core | yes |
 | POST | `/agent/update/resolve` | core | yes |
+| POST | `/agent/update/sources` | core | yes |
+| POST | `/agent/video-label/ingest` | video_label | yes |
+| POST | `/agent/video-label/project` | video_label | yes |
+| POST | `/agent/video-label/projects` | video_label | yes |
+| POST | `/agent/video/enqueue` | video | yes |
+| POST | `/agent/video/session` | video | yes |
+| POST | `/agent/video/settings` | video | yes |
+| POST | `/agent/video/setup` | video | yes |
 | PATCH | `/api1c.php` | likespa |  |
 | POST | `/api1c.php` | likespa |  |
 | PUT | `/api1c.php` | likespa |  |
@@ -55,11 +104,21 @@ Mutating routes inventoried: **352**
 | POST | `/assistant/feedback` | assistant |  |
 | POST | `/assistant/prefs` | assistant |  |
 | POST | `/audio` | audio |  |
+| POST | `/audio-diarize/settings` | audio_diarize |  |
 | POST | `/audio/api/badge` | audio |  |
 | POST | `/audio/api/dict` | audio |  |
+| POST | `/audio/api/voice-sample` | audio_diarize |  |
+| POST | `/audio/asr-dia/longjob` | audio_diarize |  |
+| POST | `/audio/asr/asr-dia-result` | audio_diarize |  |
+| POST | `/audio/asr/asr-dia-status` | audio_diarize |  |
 | POST | `/audio/asr/chunk-claim` | audio_pipeline |  |
 | POST | `/audio/asr/chunk-result` | audio_pipeline |  |
 | POST | `/audio/asr/claim` | audio_pipeline |  |
+| POST | `/audio/asr/diarize-claim` | audio_diarize |  |
+| POST | `/audio/asr/diarize-result` | audio_diarize |  |
+| POST | `/audio/asr/diarize-status` | audio_diarize |  |
+| POST | `/audio/asr/embed-sample-claim` | audio_diarize |  |
+| POST | `/audio/asr/embed-sample-result` | audio_diarize |  |
 | POST | `/audio/asr/result` | audio_pipeline |  |
 | POST | `/audio/assignments/new` | audio |  |
 | POST | `/audio/assignments/{id}/edit` | audio |  |
@@ -67,9 +126,12 @@ Mutating routes inventoried: **352**
 | POST | `/audio/calendar` | audio_reports |  |
 | POST | `/audio/calendar/reparse` | audio_reports |  |
 | POST | `/audio/collections` | audio_reports |  |
+| POST | `/audio/diarize/longjob` | audio_diarize |  |
 | POST | `/audio/dicts` | audio_dicts |  |
+| POST | `/audio/dicts/longjob` | audio_dicts |  |
 | POST | `/audio/dicts/new` | audio_dicts |  |
 | POST | `/audio/dicts/{id}/edit` | audio_dicts |  |
+| POST | `/audio/dicts/{id}/suggest-descr` | audio_dicts |  |
 | POST | `/audio/ingest` | audio |  |
 | POST | `/audio/jobs/collect` | audio_pipeline |  |
 | POST | `/audio/jobs/ingest` | audio_pipeline |  |
@@ -77,9 +139,11 @@ Mutating routes inventoried: **352**
 | POST | `/audio/jobs/stem` | audio_pipeline |  |
 | POST | `/audio/jobs/stem/run` | audio_pipeline |  |
 | POST | `/audio/keys` | audio_dicts |  |
+| POST | `/audio/keys/check-overlap` | audio_dicts |  |
 | POST | `/audio/keys/new` | audio_dicts |  |
 | POST | `/audio/keys/{id}/edit` | audio_dicts |  |
 | POST | `/audio/llm-studies` | audio_llm |  |
+| POST | `/audio/llm-studies/longjob` | audio_llm |  |
 | POST | `/audio/llm-studies/new` | audio_llm |  |
 | POST | `/audio/llm-studies/work` | audio_llm |  |
 | POST | `/audio/llm-studies/{id}` | audio_llm |  |
@@ -87,6 +151,7 @@ Mutating routes inventoried: **352**
 | POST | `/audio/phrases/day` | audio_phrases |  |
 | POST | `/audio/phrases/{id}/status` | audio_phrases |  |
 | POST | `/audio/review-moderate` | audio_llm |  |
+| POST | `/audio/reviews/mark` | audio |  |
 | POST | `/audio/script-coach/day` | audio_script_coach |  |
 | POST | `/audio/script-coach/proposal/{id}` | audio_script_coach |  |
 | POST | `/audio/script-coach/run/{id}` | audio_script_coach |  |
@@ -108,23 +173,42 @@ Mutating routes inventoried: **352**
 | POST | `/audio/trashes` | audio_dicts |  |
 | POST | `/audio/trashes/new` | audio_dicts |  |
 | POST | `/audio/trashes/{id}/edit` | audio_dicts |  |
+| POST | `/audio/voice-profiles` | audio_diarize |  |
+| POST | `/audio/voice-profiles/longjob` | audio_diarize |  |
+| POST | `/audio/voice-profiles/{id}/samples` | audio_diarize |  |
 | POST | `/audio/voice-transcribe/file` | asr |  |
 | POST | `/audio/voice-transcribe/worker` | asr |  |
 | POST | `/audio/{id}` | audio |  |
+| POST | `/backups/cancel` | backups |  |
+| POST | `/backups/cdc/longjob` | backups |  |
+| POST | `/backups/check` | backups |  |
+| POST | `/backups/notify/test` | backups |  |
+| POST | `/backups/replica` | backups |  |
+| POST | `/backups/replica/tick` | backups |  |
+| POST | `/backups/restore` | backups |  |
+| POST | `/backups/run` | backups |  |
+| POST | `/backups/settings` | backups |  |
+| POST | `/banks` | banks |  |
 | POST | `/banks/connections/{id}` | banks |  |
 | POST | `/banks/connections/{id}/sync` | banks |  |
+| POST | `/banks/file-link` | banks |  |
+| POST | `/banks/import-file` | banks |  |
+| POST | `/banks/integrations/{id}` | banks |  |
 | POST | `/banks/jobs/sync` | banks |  |
+| POST | `/banks/longjob` | banks |  |
+| POST | `/banks/relink-orphans` | banks |  |
 | POST | `/banks/settings` | banks |  |
+| POST | `/banks/settings/certs` | banks |  |
+| POST | `/banks/settings/csr` | banks |  |
+| POST | `/banks/settings/probe` | banks |  |
+| POST | `/banks/setup/{provider}` | banks |  |
+| POST | `/banks/sync-account` | banks |  |
 | POST | `/bi/families/new` | bi |  |
 | POST | `/bi/families/{id}` | bi |  |
 | POST | `/bi/run` | bi |  |
 | POST | `/bi/s/{token}` | bi |  |
 | POST | `/bi/shares` | bi |  |
 | POST | `/bi/work` | bi |  |
-| POST | `/bonuses` | bonuses |  |
-| POST | `/bonuses/events/{id}/apply` | bonuses |  |
-| POST | `/bonuses/new` | bonuses |  |
-| POST | `/bonuses/{id}/edit` | bonuses |  |
 | POST | `/booking/book` | booking |  |
 | POST | `/booking/cancel` | booking |  |
 | POST | `/booking/new` | booking |  |
@@ -135,6 +219,11 @@ Mutating routes inventoried: **352**
 | POST | `/bots/settings` | bots |  |
 | POST | `/bots/webhook/max/{channel}` | bots |  |
 | POST | `/bots/webhook/telegram/{channel}` | bots |  |
+| POST | `/cabinet` | client_portal |  |
+| POST | `/cabinet/login` | client_portal |  |
+| POST | `/cabinet/logout` | client_portal |  |
+| POST | `/cabinet/reset` | client_portal |  |
+| POST | `/cabinet/{section}` | client_portal |  |
 | POST | `/cabinets` | cabinets |  |
 | POST | `/cabinets/new` | cabinets |  |
 | POST | `/cabinets/{id}/edit` | cabinets |  |
@@ -152,6 +241,7 @@ Mutating routes inventoried: **352**
 | POST | `/categories/new` | catalog |  |
 | POST | `/categories/{id}/edit` | catalog |  |
 | POST | `/client-mcp/settings` | client_mcp |  |
+| POST | `/client-portal/settings` | client_portal |  |
 | POST | `/client-statuses/new` | clients |  |
 | POST | `/client-statuses/{id}/edit` | clients |  |
 | POST | `/client-tags` | clients |  |
@@ -163,19 +253,27 @@ Mutating routes inventoried: **352**
 | POST | `/contracts/action` | contracts |  |
 | POST | `/contracts/settings` | contracts |  |
 | POST | `/core/jobs/habits-reminders` | core |  |
+| POST | `/courses/enrollments/grant` | courses |  |
+| POST | `/courses/new` | courses |  |
+| POST | `/courses/settings` | courses |  |
+| POST | `/courses/{id}/edit` | courses |  |
+| POST | `/courses/{id}/lessons` | courses |  |
 | POST | `/cron` | core |  |
 | POST | `/cron/tick` | core | yes |
 | POST | `/dashboard` | core |  |
 | POST | `/db` | core |  |
+| POST | `/db/schema/longjob` | core |  |
 | POST | `/documents` | docs |  |
 | POST | `/documents/defs/import` | docs |  |
 | POST | `/documents/defs/new` | docs |  |
 | POST | `/documents/defs/{id}/edit` | docs |  |
+| POST | `/documents/fill-templates` | docs |  |
 | POST | `/documents/new` | docs |  |
 | POST | `/documents/qr/{hash}` | docs |  |
 | POST | `/documents/settings` | docs |  |
 | POST | `/documents/{id}/edit` | docs |  |
 | POST | `/documents/{id}/print` | docs |  |
+| POST | `/edge-hosts` | core |  |
 | POST | `/fund-movements` | funds |  |
 | POST | `/fund-movements/new` | funds |  |
 | POST | `/fund-movements/{id}/edit` | funds |  |
@@ -185,6 +283,7 @@ Mutating routes inventoried: **352**
 | POST | `/gcal/enqueue` | gcal |  |
 | POST | `/gcal/settings` | gcal |  |
 | POST | `/gcal/work` | gcal |  |
+| POST | `/laundry` | laundry |  |
 | POST | `/laundry/accept` | laundry |  |
 | POST | `/laundry/accounts` | laundry |  |
 | POST | `/laundry/accounts/new` | laundry |  |
@@ -223,7 +322,9 @@ Mutating routes inventoried: **352**
 | DELETE | `/mcp` | client_mcp |  |
 | POST | `/mcp` | client_mcp |  |
 | POST | `/modules` | core |  |
+| POST | `/modules/uninstall/longjob` | core |  |
 | POST | `/modules/{id}` | core |  |
+| POST | `/modules/{id}/activate` | core |  |
 | POST | `/news-statuses/new` | core |  |
 | POST | `/news-statuses/{id}/edit` | core |  |
 | POST | `/news/new` | core |  |
@@ -236,6 +337,7 @@ Mutating routes inventoried: **352**
 | POST | `/oauth/register` | llm |  |
 | POST | `/oauth/revoke` | llm |  |
 | POST | `/oauth/token` | llm |  |
+| POST | `/ops/access-extend` | core |  |
 | POST | `/orders` | orders |  |
 | POST | `/orders/settings` | orders |  |
 | POST | `/orders/{id}/edit` | orders |  |
@@ -243,12 +345,18 @@ Mutating routes inventoried: **352**
 | POST | `/payments/move-links/{moveId}` | payments |  |
 | POST | `/payments/new` | payments |  |
 | POST | `/payments/settings` | payments |  |
+| POST | `/payments/transfer/new` | payments |  |
 | POST | `/payments/{id}/edit` | payments |  |
 | POST | `/poll-invites` | poll_invites |  |
+| POST | `/poll-invites/longjob` | poll_invites |  |
 | POST | `/poll-invites/new` | poll_invites |  |
 | POST | `/poll-invites/oral-asked` | poll_invites |  |
+| POST | `/poll-invites/unviewed` | poll_invites |  |
 | POST | `/poll-invites/{id}/edit` | poll_invites |  |
 | POST | `/poll-invites/{id}/fill` | poll_invites |  |
+| POST | `/poll-invites/{id}/refill` | poll_invites |  |
+| POST | `/poll-speech/fill-day` | poll_speech |  |
+| POST | `/poll-speech/settings` | poll_speech |  |
 | POST | `/polls` | polls |  |
 | POST | `/polls/new` | polls |  |
 | POST | `/polls/settings` | polls |  |
@@ -258,14 +366,24 @@ Mutating routes inventoried: **352**
 | POST | `/procedure-types/{id}/edit` | procedures |  |
 | POST | `/procedures` | procedures |  |
 | POST | `/procedures/new` | procedures |  |
+| POST | `/procedures/set-admin` | procedures |  |
 | POST | `/procedures/{id}/edit` | procedures |  |
 | POST | `/products/new` | catalog |  |
 | POST | `/products/{id}/edit` | catalog |  |
+| POST | `/q/{code}` | poll_invites |  |
 | POST | `/qr2.php` | stickers |  |
 | POST | `/rates` | rates |  |
 | POST | `/rates/new` | rates |  |
 | POST | `/rates/skill` | rates |  |
 | POST | `/rates/{id}/edit` | rates |  |
+| POST | `/recons/day` | recons |  |
+| POST | `/remittances` | remittances |  |
+| POST | `/remittances/moves/{moveId}/action` | remittances |  |
+| POST | `/remittances/new` | remittances |  |
+| POST | `/remittances/{id}/edit` | remittances |  |
+| POST | `/resources` | resources |  |
+| POST | `/resources/new` | resources |  |
+| POST | `/resources/{id}/edit` | resources |  |
 | POST | `/settings` | core |  |
 | POST | `/shop` | sites |  |
 | POST | `/shop/c/{id}` | sites |  |
@@ -319,6 +437,9 @@ Mutating routes inventoried: **352**
 | POST | `/terminals/bracelets/new` | terminals |  |
 | POST | `/terminals/bracelets/{id}/edit` | terminals |  |
 | POST | `/terminals/floor` | terminals |  |
+| POST | `/terminals/fullstats/classify` | terminals |  |
+| POST | `/terminals/fullstats/longjob` | terminals |  |
+| POST | `/terminals/fullstats/oasis-backfill` | terminals |  |
 | POST | `/terminals/fullstats/{id}/edit` | terminals |  |
 | POST | `/terminals/jobs/load` | terminals |  |
 | POST | `/terminals/jobs/tickets` | terminals |  |
@@ -338,6 +459,7 @@ Mutating routes inventoried: **352**
 | POST | `/users/{id}/edit` | core |  |
 | POST | `/vacations` | vacations |  |
 | POST | `/vacations/new` | vacations |  |
+| POST | `/vacations/settings` | vacations |  |
 | POST | `/vacations/{id}/edit` | vacations |  |
 | POST | `/video-label/new` | video_label |  |
 | POST | `/video-label/{id}/edit` | video_label |  |
@@ -346,8 +468,16 @@ Mutating routes inventoried: **352**
 | POST | `/video/cameras/new` | video |  |
 | POST | `/video/cameras/{id}/edit` | video |  |
 | POST | `/video/models` | video |  |
+| POST | `/video/posts` | video |  |
+| POST | `/video/posts/new` | video |  |
+| POST | `/video/posts/{id}/edit` | video |  |
 | POST | `/video/settings` | video |  |
+| POST | `/video/train` | video |  |
+| POST | `/video/train/{id}` | video |  |
+| POST | `/video/wizard/setup` | video |  |
+| POST | `/video/wizard/train` | video |  |
 | POST | `/video/worker/claim` | video |  |
+| POST | `/video/worker/dataset-ingest` | video |  |
 | POST | `/video/worker/file` | video |  |
 | POST | `/video/worker/frame` | video |  |
 | POST | `/video/worker/hello` | video |  |

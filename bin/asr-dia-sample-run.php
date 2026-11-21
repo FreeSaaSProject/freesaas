@@ -158,6 +158,6 @@ $report = [
     'rows' => $rows,
     'note' => 'wall_sec = download+pipeline on edge; rtf = wall/playtime. Old cue-diarize is post-ASR only — compare pipeline_sec to diarize worker times, not full whisper.',
 ];
-$path = base_path('docs/agents/asr_dia_sample_run_' . preg_replace('/[^a-z0-9_-]+/i', '_', $model) . '.json');
+$path = base_path('docs/agents/asr_dia/sample_run_' . preg_replace('/[^a-z0-9_-]+/i', '_', $model) . '.json');
 file_put_contents($path, json_encode($report, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n");
 echo json_encode($report, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n";

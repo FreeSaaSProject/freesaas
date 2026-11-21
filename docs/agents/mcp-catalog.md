@@ -12,7 +12,7 @@ Separate **public client** MCP (`client_mcp`, no auth): one server per storefron
 
 ## Checklist before submitting a listing
 
-1. Public HTTPS demo or documented self-host path ([QUICKSTART.md](QUICKSTART.md), Docker Compose).
+1. Documented self-host path ([QUICKSTART.md](QUICKSTART.md), Docker Compose). The public stands [demoen.freesaas.ru](https://demoen.freesaas.ru) / [demoru.freesaas.ru](https://demoru.freesaas.ru) are a read-only UI tour with `llm` / `assistant` / MCP switched off ([demo.md](demo.md)) — link them as «see the product», not as the MCP endpoint.
 2. README tagline + [connect-mcp.md](connect-mcp.md) linked from the listing.
 3. Example first tools: `core__modules__list`, `core__doctor`, `core__health__detail`.
 4. Clear note: **lifecycle** (enable/migrate) uses `agent_token` / CLI — [agent-surfaces.md](agent-surfaces.md).
@@ -22,4 +22,4 @@ Separate **public client** MCP (`client_mcp`, no auth): one server per storefron
 
 > FreeSaaS — open-source business OS operated by AI agents. Connect MCP to your self-hosted instance for CRM/finance/booking tools; install and repair via CLI or `/agent/*`.
 
-Update this file with concrete catalog URLs once a demo host is stable.
+A public MCP endpoint needs a closed AI stand (`http_lock=auth`, see [demo.md](demo.md)); none is published yet. Add concrete catalog URLs here once listings exist.

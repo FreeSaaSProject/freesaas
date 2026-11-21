@@ -7,7 +7,7 @@ declare(strict_types=1);
 require_once base_path('modules/audio_diarize/lib/AsrDiaRunsRepository.php');
 
 $wantsJson = AgentHttp::wantsJson();
-$fixturePath = base_path('docs/agents/asr_dia_fixture_2026-11-16.json');
+$fixturePath = base_path('docs/agents/asr_dia/fixture_2026-11-16.json');
 $fixture = [];
 if (is_file($fixturePath)) {
     $decoded = json_decode((string)file_get_contents($fixturePath), true);

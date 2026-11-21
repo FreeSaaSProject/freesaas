@@ -26,7 +26,7 @@ foreach (array_slice($argv, 1) as $arg) {
     }
 }
 if ($admins === []) {
-    $fixture = base_path('docs/agents/asr_dia_fixture_2026-11-16.json');
+    $fixture = base_path('docs/agents/asr_dia/fixture_2026-11-16.json');
     if (is_file($fixture)) {
         $data = json_decode((string)file_get_contents($fixture), true);
         foreach (is_array($data['staff'] ?? null) ? $data['staff'] : [] as $s) {

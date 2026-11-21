@@ -88,6 +88,26 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_clients` / `base_procedures` / `base_events` / `base_records` (read) | docs | Merge context + spawn triggers; no medical columns added to these tables |
 | `base_video_workers`, `base_video_models`, `base_video_posts`, `base_video_cameras`, `base_video_jobs`, `base_video_alerts`, `base_video_detections`, `base_video_train_sessions` | video | Posts (N cams), schedule in SETTINGS_JSON, YOLO jobs, interactive train; media under `var/video/` |
 | `base_video_label_projects`, `base_video_label_images` | video_label | LabelForge-style projects; requires `video` for storage/infer |
+| `base_cron_job_state`, `base_cron_runs` | core | Platform cron: per-job state + run journal (`/cron/tick`, UI `/cron`) |
+| `base_likes` | core | News / comment likes (`LikesRepository`) |
+| `base_user_login_links` | core | One-time staff login links (`php bin/freesaas.php user login-link`) |
+| `base_oauth_clients`, `base_oauth_codes`, `base_oauth_tokens` | llm | OAuth2 clients / codes / tokens for MCP `/llm/mcp` and external agents |
+| `base_assistant_pending`, `base_assistant_dialog` | assistant | Pending write-tool confirmations; shared conversation per staff user (web + bots) |
+| `base_bot_webhook_updates`, `base_bot_link_codes`, `base_bot_link_throttle` | bots | Webhook update dedupe, one-time link codes, link attempt throttle |
+| `base_gcal_tokens`, `base_gcal_task_links`, `base_gcal_sync_queue` | gcal | Per-staff Google OAuth tokens, ticket ↔ calendar event links, sync queue |
+| `base_yclients_id_map`, `base_yclients_sync_state` | yclients | YClients pull bridge: external id map + sync cursor |
+| `base_bank_integrations` | banks | Per-environment bank integration credentials (sandbox / prod) |
+| `base_acquiring_payments`, `base_acquiring_webhook_log` | acquiring | Online payments by provider + raw webhook journal |
+| `base_client_portal_sessions`, `base_client_portal_resets` | client_portal | Client cabinet session journal + password reset tokens |
+| `base_course_programs`, `base_course_modules`, `base_course_lessons`, `base_course_assets`, `base_course_enrollments`, `base_course_progress`, `base_course_media_hits` | courses | LMS programs → modules → lessons, protected media, enrollments and progress |
+| `base_doc_fill_templates` | docs | Clinic and per-doctor default phrases for visit-sheet fields |
+| `base_egisz_outbox`, `base_egisz_client_ids`, `base_egisz_staff`, `base_egisz_icd10`, `base_egisz_worker_jobs` | egisz | SEMD outbox journal, patient / staff identity (SNILS, OID), ICD-10 dictionary, edge worker job queue |
+| `base_procedure_types` | procedures | Procedure type dictionary |
+| `base_laundry_shipment_lines`, `base_laundry_return_lines` | laundry | Lines of linen shipments / returns |
+| `base_qr_token_claims` | stickers | Atomic one-shot QR operation tokens (rolls back with the writeoff txn) |
+| `base_fitlogs` | wellness | Workout log (strict `ID_USER`) |
+| `base_backup_runs`, `base_backup_changes` | backups | Backup run journal + CDC change log for hourly increments |
+| `base_demo_stand` | demo | Demo stand marker (single row); seed/wipe refuse to run without it |
 
 Session keys: `user_id`, `login`, `user_name`, `permissions`, `status_id`, `status_flags`.
 

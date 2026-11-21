@@ -25,7 +25,7 @@ foreach (array_slice($argv, 1) as $arg) {
     }
 }
 if ($ids === []) {
-    $fixture = base_path('docs/agents/asr_dia_fixture_2026-11-16.json');
+    $fixture = base_path('docs/agents/asr_dia/fixture_2026-11-16.json');
     if (is_file($fixture)) {
         $data = json_decode((string)file_get_contents($fixture), true);
         if (is_array($data['record_ids'] ?? null)) {
@@ -120,6 +120,6 @@ $report = [
     ],
     'rows' => $rows,
 ];
-$outPath = base_path('docs/agents/asr_dia_quality_report.json');
+$outPath = base_path('docs/agents/asr_dia/quality_report.json');
 file_put_contents($outPath, json_encode($report, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n");
 echo json_encode($report, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n";

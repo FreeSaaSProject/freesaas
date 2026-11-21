@@ -5,7 +5,7 @@
 1. Open the FreeSaaS git root in Cursor.
 2. Read [AGENTS.md](../../AGENTS.md) and [QUICKSTART.md](QUICKSTART.md).
 3. Prefer CLI: `php bin/freesaas.php doctor --format=json`, `module enable`, `module create`.
-4. Skills: [docs/skills/](../skills/).
+4. Skills: portable [`.agents/skills/`](../../.agents/skills/) (Cursor picks them up from the repo); short command recipes in [docs/skills/](../skills/).
 
 ## Remote instance via MCP
 

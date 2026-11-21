@@ -16,7 +16,7 @@ Do **not** invent a second template engine. Views are plain PHP with `e()` / `sa
 
 ```
 themes/<id>/
-  theme.json          # id, name, version; optional source note
+  theme.json          # id, name, version; optional source note, parent, rich_html
   layouts/layout.php  # default chrome; wraps $content
   layouts/*.php       # optional named layouts (e.g. promo full-bleed)
   partials/           # header, footer, …
@@ -47,6 +47,24 @@ Render article bodies with `page_html($html)`. A theme may set `"rich_html": tru
 
 Use `I18n::locale()` for `<html lang>`; with a host `locale` set the storefront forces that language, so theme chrome via `t()` follows the domain.
 
+## Child themes (`parent`)
+
+A theme may declare `"parent": "<id>"` in `theme.json`. Whatever the child does not ship is taken from the parent, file by file:
+
+| Lookup | Order |
+|--------|-------|
+| `layouts/`, `views/`, `partials/`, `promo_modules/` (`SiteTheme::render` / `capture` / `partial` / `path`) | child → parent → `modules/sites/views/` fallbacks |
+| `SiteTheme::assetUrl('file')` | child `assets/file` if it exists, else the parent's (URL points to the theme that owns the file) |
+| `rich_html` | child value when the key is present, else the parent's |
+
+So a visual variant is a handful of files — typically `theme.json`, one partial and its own CSS/JS — while content, forms and SEO stay in one place:
+
+```json
+{ "id": "acme_dark", "name": "Acme (dark)", "version": "0.1.0", "parent": "acme" }
+```
+
+Rules: one level only (the parent's own `parent` is ignored); the parent folder must be installed next to the child, otherwise the child behaves as a standalone theme and `POST /agent/sites/hosts/theme` refuses to switch to it. `SiteTheme::root()` and `SiteTheme::id()` always describe the child. In a base theme meant to be extended, derive asset base URLs from a concrete file (`SiteTheme::assetUrl('site.js')`), not from `assetUrl('')`, which names the child folder.
+
 ## Port checklist (any legacy site)
 
 1. Inventory chrome (header/footer), CSS/JS actually used on public pages, fonts, logo.
@@ -55,7 +73,7 @@ Use `I18n::locale()` for `<html lang>`; with a host `locale` set the storefront 
 4. Rewrite chrome to FreeSaaS data: `$site['name'|'tel']`, `$nav`, `SiteTheme::assetUrl(...)`. Escape with `e()` / `safe_html()`.
 5. Implement every required view (start from `themes/default/`). Keep shop/cart form field names unchanged.
 6. If fonts use `ttf|otf|eot`, allow them in `.htaccess` and `cfg/htaccess.storefront.example`.
-7. Bind host: **Site → Hosts** → `theme=<id>` (ini `sites.theme` is fallback only).
+7. Bind host: **Site → Hosts** → `theme=<id>` (ini `sites.theme` is fallback only). With the agent token: `php bin/freesaas.php sites theme --host=<domain|id> --theme=<id>` or `POST /agent/sites/hosts/theme` — see [`sites.md`](sites.md).
 8. If admin and storefront are separate trees, rsync code (exclude live `cfg/*.ini`) and keep local config.
 9. Smoke: health `sites.storefront`, `/`, `/shop`, `/cart`, asset URL 200, one promo if used.
 
@@ -71,6 +89,7 @@ Admin stores a `MODULES` blob (`base_promopages`). Storefront renders via `Promo
 |----------|----------------|
 | `likespa` | https://github.com/ilcommm/freesaas-theme-likespa |
 | `balance` | https://github.com/ilcommm/freesaas-theme-balance |
+| `freesaas` + child variants `freesaas_*` | https://github.com/ilcommm/freesaas-site (project website pack: themes + `freesaas_site` module) |
 
 Clone or sync into `themes/<id>/` on the instance (or storefront tree), or let `/updates` pull them: add `[theme.<id>]` (repo, token, channel, optional `path_prefix`) to `cfg/updates.ini` — see [`update.md`](update.md). Bump `version` in `theme.json` to publish a theme update. Do not commit them to `FreeSaaSProject/freesaas`.
 

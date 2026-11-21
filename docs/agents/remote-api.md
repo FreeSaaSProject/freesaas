@@ -140,6 +140,14 @@ curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/bots/webhook/subscribe"
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/gcal/status"
+
+# Storefront hosts + theme switch (sites enabled) — see sites.md
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/sites/hosts"
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"theme":"default","host":"shop.example.com"}' \
+  "https://example.com/agent/sites/hosts/theme"
 curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"id":"main","api_key":"sk-…","set_default":true}' \

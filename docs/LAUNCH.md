@@ -13,7 +13,7 @@ FreeSaaS is a modular PHP business OS (CRM, shifts, finance, booking, banks, aud
 1. **GitHub Discussions** — category “Agent install reports”: paste `doctor` JSON + case name from `docs/agents/cases/`.
 2. **Hacker News / Reddit / dev.to** — lead with a reproducible case (“agent installs FreeSaaS + enables workweeks in N minutes”), not ERP screenshots. Link README + [docs/agents/QUICKSTART.md](agents/QUICKSTART.md) + [docs/agents/connect-mcp.md](agents/connect-mcp.md). Point at [showcase/](agents/showcase/) for “what staff already ask Max in chat”.
 3. **Agent Skills / skills.sh** — install from the public repo: `npx skills add FreeSaaSProject/freesaas` (canonical [`.agents/skills/`](../.agents/skills/)). Seed installs so skills appear on [skills.sh](https://skills.sh/). Status: [docs/agents/DISTRIBUTION_REPORT.md](agents/DISTRIBUTION_REPORT.md). Skills improve mid-funnel conversion; they do not replace cold discovery via GitHub/web/MCP directories.
-4. **MCP directories** — list Streamable HTTP endpoint pattern `https://<instance>/llm/mcp` (requires a public demo host). See [docs/agents/mcp-catalog.md](agents/mcp-catalog.md).
+4. **MCP directories** — list Streamable HTTP endpoint pattern `https://<instance>/llm/mcp`; the public read-only stands ([demoen.freesaas.ru](https://demoen.freesaas.ru) / [demoru.freesaas.ru](https://demoru.freesaas.ru)) show the UI but keep `llm` / `assistant` / MCP off, so a listing points at the self-host path. See [docs/agents/mcp-catalog.md](agents/mcp-catalog.md).
 
 Do not chase stars; chase agent transcripts and PRs.
 

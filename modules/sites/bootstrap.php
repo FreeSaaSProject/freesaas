@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/SitesGuest.php';
 require_once __DIR__ . '/lib/SitesBooking.php';
 require_once __DIR__ . '/lib/SitesCatalog.php';
 require_once __DIR__ . '/lib/SitesDiagnose.php';
+require_once __DIR__ . '/lib/SitesAgentOps.php';
 require_once __DIR__ . '/lib/SitesFront.php';
 require_once __DIR__ . '/lib/PageCategoriesRepository.php';
 require_once __DIR__ . '/lib/PromopageModules.php';
@@ -22,6 +23,11 @@ Assets::register('sites', [
 ]);
 
 ModuleManager::registerMenuGroup('sites.menu.group', 1450, '/sites/hosts', '🌐');
+
+// Surface A twin of host theme switching (agent_token); admin host only, like core /agent/*.
+if (!AppRuntime::isStorefront()) {
+    SitesAgentOps::register();
+}
 
 $adminPages = [
     '/sites/hosts' => [

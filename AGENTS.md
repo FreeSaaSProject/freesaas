@@ -172,6 +172,9 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `crm` | Sales CRM: companies, deals/leads + pipelines/stages, custom fields, notes (`base_crm_*`); requires `clients`; alpha |
 | `bitrix` | Bitrix24 dual-run bridge (id map / outbox / webhook) into `clients` + `crm`; alpha |
 | `amocrm` | AmoCRM/Kommo dual-run bridge into `clients` + `crm`; alpha |
+| `yclients` | YClients pull-only bridge: import clients by phone with an external id map (`base_yclients_*`); requires `clients`; beta — [`docs/agents/yclients.md`](docs/agents/yclients.md) |
+| `clientics` | Clientics dual-run bridge: clients, appointments, reference maps, outbox (`base_clientics_*`); configurable appointment SoT; requires `clients`; beta — [`docs/agents/clientics.md`](docs/agents/clientics.md) |
+| `gcal` | Google Calendar sync of staff «my tasks» tickets (`base_gcal_*`); per-staff OAuth; `/agent/gcal/*` diagnose/repair; beta — [`docs/agents/gcal.md`](docs/agents/gcal.md) |
 | `units` | Units of measure (`base_units`) |
 | `suppliers` | Suppliers (`base_suppliers`) |
 | `cabinets` | Rooms (`base_cabinets`); used by stocks `ID_CABINET` and staff `skin` |
@@ -209,18 +212,24 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `audio_reports` | Records calendar + summary reports; requires `audio` + `audio_dicts` + `workweeks` |
 | `llm` | OpenAI-compatible LLM client + token profiles UI (`cfg/modules/llm.ini`); shared by studies/bots/agents |
 | `bots` | Telegram/Max transport + `base_telegram_sends` queue + `base_bot_links` identities + webhooks; domain adapters via `BotPlugins` / `bots.send` |
+| `assistant` | In-system LLM assistant (chat for every staff user + bot; tools over `agent.ops`, confirm writes; `base_assistant_*`); requires `llm` — [`docs/agents/assistant.md`](docs/agents/assistant.md) |
+| `assistant_groups` | Assistant in Max staff groups: mention → draft → manager confirm; requires `assistant` + `bots` — [`docs/agents/assistant-groups.md`](docs/agents/assistant-groups.md) |
 | `audio_llm` | LLM studies (`base_records_llm_studies*`); cyclic templates + staff day-report spawn; requires `llm` + `audio` |
+| `audio_phrases` | Stable phrase discovery from transcripts (daily N-grams), classifier, export to dicts/keys (`base_records_phrases*`); requires `audio` + `audio_dicts` + `audio_pipeline`; alpha — [`docs/agents/audio_phrases.md`](docs/agents/audio_phrases.md) |
 | `audio_script_coach` | Day investigation → LLM proposals to enrich script dicts/keys (alpha; soft successor to `audio_phrases` for enrichment) |
 | `payments` | Staff settlements (`base_payments`); contracts pay CTA; auto-DPS when `ledger` on |
 | `bonuses` | Client loyalty ledger (`base_bonus_moves`) + event settle (allocate/apply); EventBus on calendar event edit |
+| `certificates` | Gift certificates and abonements with a money ledger (`base_certificates`, `base_certificate_ledger`); calendar apply + storefront redeem; requires `clients` + `catalog` + `procedures` — [`docs/agents/certificates.md`](docs/agents/certificates.md) |
 | `vacations` | Leave register (`base_vacations`) + sign workflow |
 | `ledger` | Accounts + move types + DPS (cash-flow moves) + transfers + reconciliations (`base_accounts*`) |
 | `backups` | Scheduled DB+files → FTP/FTPS (`base_backup_runs`); CDC hourly incr (`base_backup_changes`); encrypt optional; restore wizard; warm standby — [`docs/agents/backups.md`](docs/agents/backups.md) [`docs/agents/standby.md`](docs/agents/standby.md) |
+| `updates` | Self-update UI `/updates` + settings (`cfg/updates.ini`): core, private modules and themes; engine is `UpdateEngine` in `app/` — [`docs/agents/update.md`](docs/agents/update.md) |
 | `recons` | Day board of account reconciliations (`tables: []`, uses ledger `base_account_reconciliations`); `/recons/day` |
 | `remittances` | Agency/acquiring remittance agreements; parse DPS purpose; badges on `/ledger/moves`; expected via EventBus (likespa `spa_ops`); beta |
 | `funds` | Fund tree + CAPUSE/REFUND movements (`base_funds*`); requires `ledger` |
 | `finance` | Balance/ODDS report (no inflation, no amort schedule); soft `funds` for FUND_MATRIX |
 | `liquid_assets` | Liquid assets report + T-Invest accounts/sync (broker snapshots); requires `ledger`; soft `funds` for REVAL; disableable |
+| `wellness` | Personal food / workout / weight / wellbeing diary (`base_fit_*`, `base_healths_*`); strictly per-author data, no `SUPERADMIN_ACCESS` bypass; soft `asr` + `bots` — [`docs/agents/wellness.md`](docs/agents/wellness.md) |
 | `banks` | Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL) → link `base_accounts`, sync statements into DPS; soft `llm` classify; disableable |
 | `video` | Posts (N cameras), schedule gate, YOLO via edge worker, interactive train (person→class + coverage); soft `bots`/`video_label`; alpha — [`docs/agents/video.md`](docs/agents/video.md); edge host [`docs/agents/workers.md`](docs/agents/workers.md) |
 | `video_label` | YOLO labeling projects + workspace; requires `video`; alpha — [`docs/agents/video-label.md`](docs/agents/video-label.md) |
@@ -239,7 +248,7 @@ Prefer extending these via hooks before forking page logic.
 
 - After schema or module changes: `php bin/smoke.php` (system + locale + module validate + health + `check-safe-html` / `check-csrf` / `check-password` / `check-session` / `check-bots-webhook`).
 - Prefer CLI: `php bin/freesaas.php module validate <id>`, `health`, `locale validate`.
-- Before PR (also in `.github/workflows/ci.yml`): `php -l` on changed PHP, `declare(strict_types=1)` on every first-party tracked PHP file (CI skips `*/vendor/*` and bundled libs like `*/phpqrcode/*`), `bin/check-i18n.php`, `bin/check-routes.php` (public-route allow-list; enable all modules in `cfg/config.ini` first), `bin/check-agent-coverage.php` (every `routes.pages` path / POST `action` keeps an `agent.ops` entry; frozen gaps in `docs/agents/agent-coverage-baseline.json` — new gap or removed op fails; after closing gaps run `--update-baseline`), plus the `bin/check-*.php` helpers above.
+- Before PR (also in `.github/workflows/ci.yml`): `php -l` on changed PHP, `declare(strict_types=1)` on every first-party tracked PHP file (CI skips `*/vendor/*` and bundled libs like `*/phpqrcode/*`), `bin/check-i18n.php`, `bin/check-routes.php` (public-route allow-list; enable all modules in `cfg/config.ini` first), `bin/check-agent-coverage.php` (every `routes.pages` path / POST `action` keeps an `agent.ops` entry; frozen gaps in `docs/agents/agent-coverage-baseline.json` — new gap or removed op fails; after closing gaps run `--update-baseline`), `bin/check-docs-modules.php` (every module has a row in the «Existing modules» table below and every `tables[]` entry is in `docs/TABLE_MAP.md`), plus the `bin/check-*.php` helpers above. CI runs the last two with `--strict`; without it, instance-pack modules absent from `modules-catalog.json` are skipped so smoke stays green on instances with private modules.
 - Smoke the affected route in browser if UI changed.
 - Keep StageTiming marks only if already used on that page path.
 - Lifecycle: `module disable` leaves tables; `module uninstall --confirm` dumps **exclusively owned** `tables[]` then DROP (refused if `uninstall.strategy=leave_tables`). `tables[]` is ownership for DROP, not “tables used”; never list foreign tables you only ALTER. Code on disk remains; see agent-native-audit.

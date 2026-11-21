@@ -1,12 +1,62 @@
 # FreeSaaS
 
-**Open-source business operating system designed to be installed and operated by AI agents.**
+**Open-source, self-hosted business operating system that AI agents install, configure and operate.**
 
-Modular PHP platform: enable CRM, shifts, finance, booking, banks, audio analytics, and more as filesystem modules. Agents install, configure, verify, and extend the system via CLI, `/agent/*`, and MCP — without browser automation.
+Clients, booking, finance, warehouse, documents, audio and video analytics in one place. Your server, your data, no subscription plans. In real business since 2014, with 86,000+ clients in one database.
 
-- **Website:** [freesaas.ru](https://freesaas.ru) ([English](https://freesaas.ru/en/))
-- **Live demo:** [demoru.freesaas.ru](https://demoru.freesaas.ru) (Russian) · [demoen.freesaas.ru](https://demoen.freesaas.ru) (English) — opens already signed in, read-only, demo data is reset regularly
+- **Website:** [freesaas.ru](https://freesaas.ru) ([English](https://en.freesaas.ru/))
+- **Live demo:** [demoen.freesaas.ru](https://demoen.freesaas.ru) (English) · [demoru.freesaas.ru](https://demoru.freesaas.ru) (Russian) — opens already signed in, read-only, demo data is reset regularly
 - **Contacts:** [msms2003@mail.ru](mailto:msms2003@mail.ru) · Telegram [@starcomm](https://t.me/starcomm) · bugs and feature requests — [GitHub Issues](https://github.com/FreeSaaSProject/freesaas/issues/new/choose)
+
+![Home dashboard of the demo stand](docs/assets/readme/demo-home.png)
+
+| Calendar week | Financial reports |
+|---|---|
+| ![Calendar week view](docs/assets/readme/demo-calendar.png) | ![Cash-flow report](docs/assets/readme/demo-finance.png) |
+
+## Why it is different
+
+- **Agents are first-class operators.** Install, enable modules, migrate, diagnose, repair and update through a JSON CLI or HTTPS — no browser automation, works on shared hosting without SSH.
+- **A core plus 70+ modules.** Start with one or two, enable the rest when the business needs them. Dependencies are declared in `module.json` and resolved for you.
+- **700+ product operations** are exposed to agents as JSON and MCP tools — the same routes staff use in the UI, with the same permissions.
+- **Open and repairable.** Plain PHP + MySQL, no framework, no build step. When something breaks, an agent can read the code, fix it locally and send the patch upstream.
+
+## What is inside
+
+Unmarked modules are `release`; **β** = beta, **α** = alpha (enabling needs an explicit risk acknowledgement).
+
+| Area | Modules |
+|------|---------|
+| Clients | `clients`, `crm` α, `bonuses`, `certificates`, `contracts` |
+| Booking | `booking`, `orders`, `resources` α, `client_mcp` α |
+| Schedule | `calendar`, `workweeks` |
+| Team and payroll | `vacations`, `rates`, `procents`, `staff_reports` |
+| Finance | `ledger`, `finance`, `funds`, `payments`, `recons`, `remittances` β, `acquiring` α |
+| Banks | `banks` β (Tochka, Alfa, T-Bank, Sber statements → cash moves) |
+| Warehouse | `stocks`, `stickers`, `catalog`, `norms`, `units`, `suppliers` |
+| Procedures | `procedures`, `cabinets`, `tables`, `laundry`, `terminals`, `likespa` |
+| Documents | `docs` β (consents, medical cards, QR archive), `medcard_audio` α, `egisz` α |
+| Audio analytics | `audio`, `audio_dicts`, `audio_pipeline`, `audio_reports`, `asr`, `audio_llm` β, `audio_diarize` β, `audio_script_coach` α, `audio_phrases` α |
+| Video analytics | `video` α, `video_label` α |
+| Polls and feedback | `polls` β, `poll_invites` β, `poll_speech` α |
+| Reports | `bi` (JSON-recipe report constructor, share links) |
+| Sites | `sites` (storefront + CMS, multi-domain, themes), `client_portal` α, `courses` α |
+| Bots and AI | `bots` (Telegram, Max), `assistant`, `assistant_groups`, `llm` |
+| Integrations | `amocrm` α, `bitrix` α, `yclients` β, `clientics` β, `gcal` β |
+| Personal | `wellness`, `liquid_assets` |
+| Platform | `core`, `updates`, `backups` α, `comments`, `demo` |
+
+Live catalog with maturity and dependencies: [freesaas.ru/modules](https://freesaas.ru/modules/) · machine-readable: [`modules-catalog.json`](modules-catalog.json).
+
+## Three agent surfaces
+
+| Surface | Who | Auth | Use it for |
+|---------|-----|------|-----------|
+| **Platform ops** — `php bin/freesaas.php …` or HTTPS `/agent/*` | Installer / maintainer agent | `X-FreeSaaS-Agent-Token` | Bootstrap, enable modules, migrate, doctor, update, repair |
+| **Staff tools** — session JSON or MCP `/llm/mcp` | Agent acting as an employee | Session or OAuth 2.1 | CRM, calendar, finance, warehouse operations with that employee's permissions |
+| **Client tools** — MCP `/mcp` on each storefront domain | A customer's own AI agent | None (public, off by default) | Business info, free slots, booking, own bookings |
+
+Details: [docs/agents/agent-surfaces.md](docs/agents/agent-surfaces.md) · [connect-mcp.md](docs/agents/connect-mcp.md) · [client-mcp.md](docs/agents/client-mcp.md).
 
 Human architecture guide: [docs/GUIDE.md](docs/GUIDE.md).  
 Agent rules: [AGENTS.md](AGENTS.md). Quick path: [docs/agents/QUICKSTART.md](docs/agents/QUICKSTART.md).
@@ -50,6 +100,7 @@ Compatible with Cursor, Claude Code, Codex, OpenCode and other skills-aware clie
 | [AGENTS.md](AGENTS.md) | Coding agents — hard rules |
 | [docs/agents/QUICKSTART.md](docs/agents/QUICKSTART.md) | Fast install + verify |
 | [docs/agents/](docs/agents/) | Runbooks (install, MCP, create module, debug, cases) |
+| [docs/agents/showcase/](docs/agents/showcase/) | What staff already ask the built-in assistant in chat |
 | [docs/agent-native-audit.md](docs/agent-native-audit.md) | Agent-readiness standard |
 | [docs/TABLE_MAP.md](docs/TABLE_MAP.md) | `base_*` table ownership |
 
@@ -72,10 +123,7 @@ php bin/smoke.php --format=json
 
 5. Sign in at `/login`. Diagnose anytime: `php bin/freesaas.php doctor --format=json`.
 
-## Rules
-
-- Runtime tables: `base_*` only.
-- Modules live in `modules/<id>/` with `module.json`.
+Requirements: PHP 7.4+ / 8.x, MySQL, Apache with `.htaccess` (or the bundled Docker Compose).
 
 ## Contacts
 

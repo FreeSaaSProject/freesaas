@@ -99,6 +99,9 @@ try {
         case 'backups':
             freesaas_cmd_backups($sub, $opts);
             break;
+        case 'sites':
+            freesaas_cmd_sites($sub, $opts);
+            break;
         default:
             Cli::usage("Unknown command: {$cmd}\n\n" . freesaas_cli_help());
     }
@@ -153,7 +156,43 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   backups check|cdc-status|cdc-install|cdc-uninstall [--format=json]
   backups standby-status|standby-sync [--format=json]
   backups replica-check|replica-pull [--format=json]
+  sites hosts [--format=json]
+  sites theme --theme=<id> (--host=<domain|id> | --all) [--format=json]
 TXT;
+}
+
+/**
+ * Storefront hosts + theme switch (CLI twin of /agent/sites/hosts*).
+ *
+ * @param array<string, string|bool> $opts
+ */
+function freesaas_cmd_sites(string $sub, array $opts): void
+{
+    $usage = "Usage:\n  sites hosts [--format=json]\n"
+        . '  sites theme --theme=<id> (--host=<domain|id> | --all) [--format=json]';
+    if (!in_array($sub, ['hosts', 'theme'], true)) {
+        Cli::usage($usage);
+    }
+    if (!ModuleManager::isEnabled('sites')) {
+        Cli::fail('module sites is disabled; enable it first', Cli::EXIT_FAIL);
+    }
+    require_once base_path('modules/sites/lib/SitesAgentOps.php');
+
+    if ($sub === 'hosts') {
+        freesaas_emit_ops(SitesAgentOps::hosts());
+        return;
+    }
+    $theme = isset($opts['theme']) && is_string($opts['theme']) ? trim($opts['theme']) : '';
+    $host = isset($opts['host']) && is_string($opts['host']) ? trim($opts['host']) : '';
+    $all = !empty($opts['all']);
+    if ($theme === '' || ($host === '' && !$all)) {
+        Cli::usage($usage);
+    }
+    freesaas_emit_ops(SitesAgentOps::setTheme([
+        'theme' => $theme,
+        'host' => $host,
+        'all' => $all,
+    ]));
 }
 
 /**

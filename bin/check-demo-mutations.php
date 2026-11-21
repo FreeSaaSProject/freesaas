@@ -105,6 +105,17 @@ if ($base !== '') {
 $md = "# Demo mutation audit\n\n";
 $md .= 'Generated: ' . date('c') . "\n\n";
 $md .= 'Mutating routes inventoried: **' . count($rows) . "**\n\n";
+// Routes exist only for enabled modules — say which ones this run could not see.
+$skipped = [];
+foreach (ModuleManager::all() as $id => $meta) {
+    if (!ModuleManager::isEnabled((string)$id)) {
+        $skipped[] = (string)$id;
+    }
+}
+if ($skipped !== []) {
+    sort($skipped);
+    $md .= 'Not covered (modules disabled on the generating instance): `' . implode('`, `', $skipped) . "`\n\n";
+}
 if ($base !== '') {
     $md .= 'Live base: `' . $base . "` — failures expecting 403: **{$fail}**\n\n";
     $md .= "| Method | Path | HTTP | Note |\n|---|---|---|---|\n";

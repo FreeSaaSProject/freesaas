@@ -8,7 +8,7 @@ cd /path/to/freesaas
 php bin/freesaas.php doctor --format=json
 ```
 
-Hard rules: [AGENTS.md](../../AGENTS.md). Skills: [docs/skills/](../skills/).
+Hard rules: [AGENTS.md](../../AGENTS.md). Skills: portable [`.agents/skills/`](../../.agents/skills/) (`npx skills add FreeSaaSProject/freesaas`); short command recipes in [docs/skills/](../skills/).
 
 ## Remote MCP
 

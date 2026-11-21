@@ -45,6 +45,7 @@ Docs: [module-agent-api.md](module-agent-api.md), [assistant.md](assistant.md), 
 | Enable / install / migrate | **Yes** | **No** |
 | Health / doctor | **Yes** | Partial (module health checks if exposed as ops) |
 | bots/gcal/llm **ini secrets** + webhook subscribe | **Yes** (`/agent/bots|gcal|llm/…`) | UI twins (`/bots/settings`, …) — session SUPERADMIN |
+| Storefront hosts list + **theme switch** | **Yes** (`/agent/sites/hosts`, `/agent/sites/hosts/theme`; CLI `sites hosts\|theme`) | `sites.hosts.list` / `.update` (session SUPERADMIN; all host fields) |
 | CRM CRUD | No | **Yes** |
 
 MCP `tools/list` catalogs product tools (Surface B). Platform enable/install/repair stays on Surface A until an explicit admin OAuth scope exists (not shipped).

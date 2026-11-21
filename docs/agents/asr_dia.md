@@ -6,7 +6,7 @@ Apple Silicon pipeline for **speakers + text** when every on-shift staff with au
 
 ## Why
 
-Post-ASR WeSpeaker cue labeling was retired (fixture 2026-11-16 median matched cues **0%** — [`asr_dia_fixture_2026-11-16.json`](asr_dia_fixture_2026-11-16.json)). Dia-first Nemotron3 recovers speakers for assign / enrollment and for matched ID once profiles exist.
+Post-ASR WeSpeaker cue labeling was retired (fixture 2026-11-16 median matched cues **0%** — [`asr_dia/fixture_2026-11-16.json`](asr_dia/fixture_2026-11-16.json)). Dia-first Nemotron3 recovers speakers for assign / enrollment and for matched ID once profiles exist.
 
 **ASR mode (default `words_align`):** one full-file `whisper-cli -ojf` (same large-v3 sense as cabin) → map segment text onto Nemotron turns; word timestamps only split cues that clearly cross speakers. Manual record button prefers `reuse` (map existing cabin cues). Legacy `per_turn` (clip ASR) stays for A/B — avoid for quality.
 
@@ -55,14 +55,14 @@ Set `asr.model_id` in `workers/plugins/asr_dia/configs/local.json`. UI buttons e
 - ASR: dict hits / listen sample not worse than prod; pick large-v3 vs podlodka  
 - Stability: prod whisper/diarize claim unchanged  
 
-**Studio smoke (2026-11-19, Mac Studio, record 291361, 180 s):** Nemotron3 + CAM++ → **matched_pct 100%** (26/26 cues) vs baseline **0%**; staff ids 145/127/85. Podlodka-turbo same dia, **faster** (~24 s vs ~36 s). Decision: **continue_experiment** — see [`asr_dia_decision_2026-11-16.json`](asr_dia_decision_2026-11-16.json), [`asr_dia_studio_ab_180s.json`](asr_dia_studio_ab_180s.json).
+**Studio smoke (2026-11-19, Mac Studio, record 291361, 180 s):** Nemotron3 + CAM++ → **matched_pct 100%** (26/26 cues) vs baseline **0%**; staff ids 145/127/85. Podlodka-turbo same dia, **faster** (~24 s vs ~36 s). Decision: **continue_experiment** — see [`asr_dia/decision_2026-11-16.json`](asr_dia/decision_2026-11-16.json), [`asr_dia/studio_ab_180s.json`](asr_dia/studio_ab_180s.json).
 
-**Enabled on Mac Studio** alongside `whisper` / `diarize` / `egisz` (not replacing them). Edge-host service `asr_dia` on. Sample push (3×6 min, fixture ids): matched **60–83%**; **podlodka ~1.8× faster** than large-v3 (RTF mean 0.073 vs 0.132). Profiles rebuild **not** needed. Perf: [`asr_dia_perf_sample.json`](asr_dia_perf_sample.json). Runner: `php bin/asr-dia-sample-run.php --ids=… --model=podlodka-turbo`.
+**Enabled on Mac Studio** alongside `whisper` / `diarize` / `egisz` (not replacing them). Edge-host service `asr_dia` on. Sample push (3×6 min, fixture ids): matched **60–83%**; **podlodka ~1.8× faster** than large-v3 (RTF mean 0.073 vs 0.132). Profiles rebuild **not** needed. Perf: [`asr_dia/perf_sample.json`](asr_dia/perf_sample.json). Runner: `php bin/asr-dia-sample-run.php --ids=… --model=podlodka-turbo`.
 
 Mac Studio: `brew install speech`, whisper.cpp `~/Downloads/whisper.cpp`, models `ggml-large-v3.bin` + `ggml-podlodka-turbo-q8_0.bin`, plugin `/Users/lora/freesaas/workers/plugins/asr_dia`.
 
 ## Files
 
 - Plugin: [`workers/plugins/asr_dia/`](../../workers/plugins/asr_dia/)  
-- Fixture: [`asr_dia_fixture_2026-11-16.json`](asr_dia_fixture_2026-11-16.json)  
+- Fixture: [`asr_dia/fixture_2026-11-16.json`](asr_dia/fixture_2026-11-16.json)  
 - FreeSaaS: `AsrDiaRunsRepository`, `AsrDiaPushDispatcher`, `AudioAsrDiaLongJob`, `/audio/asr-dia`
