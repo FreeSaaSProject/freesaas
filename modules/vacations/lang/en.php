@@ -106,4 +106,6 @@ return [
     'vacations.flash.remind_test_ok' => 'Test queued (#{id})',
     'vacations.err.superadmin' => 'Superadmin access required',
     'vacations.cron.upcoming_remind' => 'Upcoming vacation group reminders',
+    'vacations.notify.event.remind' => 'Vacation: starts in N days (reminder)',
+    'vacations.notify.field.days' => 'Days before the start',
 ];

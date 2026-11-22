@@ -14,7 +14,8 @@
         "procedures": ">=1.0.0",
         "sites": ">=1.0.0",
         "booking": ">=1.0.0",
-        "bots": ">=1.0.0"
+        "bots": ">=1.0.0",
+        "notify": ">=0.1.0"
     },
     "provides": [
         "orders.list",
@@ -258,9 +259,15 @@
             "orders.client.arrived",
             "client_portal.sections",
             "client_portal.home",
-            "client_portal.render"
+            "client_portal.render",
+            "notify.catalog",
+            "notify.options",
+            "notify.scan",
+            "notify.task.resolved"
         ],
         "publish": [
+            "notify.event",
+            "orders.view.sections",
             "orders.created",
             "orders.cancelled",
             "orders.completed",

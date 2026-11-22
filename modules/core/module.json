@@ -1151,9 +1151,11 @@
         "subscribe": [
             "comments.form.ticket_controls",
             "comments.prepare_add",
-            "bi.datasets"
+            "bi.datasets",
+            "notify.catalog"
         ],
         "publish": [
+            "notify.event",
             "core.edge_host.deleted",
             "core.edge_host.unreachable",
             "core.edge_host.recovered",

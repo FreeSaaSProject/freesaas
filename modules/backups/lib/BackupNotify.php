@@ -68,10 +68,21 @@ final class BackupNotify
 
     public static function onFail(array $run): void
     {
+        $stats = self::runStats($run);
+        if (BackupsNotifyProvider::active()) {
+            BackupsNotifyProvider::emit('backups.failed', [
+                'id' => (string)($run['id'] ?? ''),
+                'kind' => $stats['kind'],
+                'error' => mb_substr((string)($run['error'] ?? ''), 0, 200),
+                'phase' => (string)($run['phase'] ?? ''),
+                'duration' => $stats['duration'],
+                'bytes' => $stats['bytes'],
+            ], (int)($run['id'] ?? 0));
+            return;
+        }
         if (!BackupConfig::notifyOnFail()) {
             return;
         }
-        $stats = self::runStats($run);
         self::sendBots(
             t('backups.notify.fail', [
                 'id' => (string)($run['id'] ?? ''),
@@ -87,10 +98,20 @@ final class BackupNotify
 
     public static function onSuccess(array $run): void
     {
+        $stats = self::runStats($run);
+        if (BackupsNotifyProvider::active()) {
+            BackupsNotifyProvider::emit('backups.succeeded', [
+                'id' => (string)($run['id'] ?? ''),
+                'kind' => $stats['kind'],
+                'bytes' => $stats['bytes'],
+                'duration' => $stats['duration'],
+                'remote' => (string)($run['remote_dir'] ?? ''),
+            ], (int)($run['id'] ?? 0));
+            return;
+        }
         if (!BackupConfig::notifyOnSuccess()) {
             return;
         }
-        $stats = self::runStats($run);
         self::sendBots(
             t('backups.notify.success', [
                 'id' => (string)($run['id'] ?? ''),
@@ -148,11 +169,17 @@ final class BackupNotify
 
     public static function checkStale(): void
     {
-        if (!BackupConfig::notifyOnStale() || !self::isStale()) {
+        $viaNotify = BackupsNotifyProvider::active();
+        if ((!$viaNotify && !BackupConfig::notifyOnStale()) || !self::isStale()) {
             return;
         }
         $last = BackupConfig::lastStaleNotifiedAt();
         if ($last > 0 && (time() - $last) < self::STALE_DEDUP_SEC) {
+            return;
+        }
+        if ($viaNotify) {
+            BackupsNotifyProvider::emit('backups.stale', ['hours' => (string)BackupConfig::notifyStaleHours()], 0, date('Ymd'));
+            BackupConfig::setLastStaleNotifiedAt(time());
             return;
         }
         self::sendBots(
@@ -166,6 +193,15 @@ final class BackupNotify
     public static function sendTest(): array
     {
         $text = t('backups.notify.test', ['at' => date('c')]);
+        if (BackupsNotifyProvider::active()) {
+            $n = BackupsNotifyProvider::emit('backups.test', ['at' => date('c')], 0, (string)time());
+            return [
+                'ok' => true,
+                'notify_bots' => true,
+                'queued' => $n > 0 ? array_fill(0, $n, 0) : [],
+                'text' => $text,
+            ];
+        }
         $queued = self::sendBots($text, 'backups.test.' . time());
         return [
             'ok' => true,

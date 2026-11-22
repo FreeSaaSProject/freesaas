@@ -770,6 +770,13 @@ final class BackupRunner
         if (!@copy($src, $dest)) {
             throw new RuntimeException('Cannot copy dump to work dir');
         }
+        // DbJobs leaves the dump in var/db_dumps/ (shown on /db). Light/full only need the
+        // copy inside the pack work dir — drop the original so nightly packs do not pile up.
+        try {
+            DbFs::deleteDump(basename($src));
+        } catch (Throwable $e) {
+            error_log('[backups] dump cleanup after copy: ' . $e->getMessage());
+        }
         $arts = is_array($state['artifacts'] ?? null) ? $state['artifacts'] : [];
         $arts[] = ['name' => $destName, 'path' => $dest, 'sha256' => hash_file('sha256', $dest), 'bytes' => (int)filesize($dest)];
         $state['artifacts'] = $arts;

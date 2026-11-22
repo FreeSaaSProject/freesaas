@@ -12,6 +12,7 @@ require_once __DIR__ . '/lib/BotPlugins.php';
 require_once __DIR__ . '/lib/BotMenuCatalog.php';
 require_once __DIR__ . '/lib/BotSend.php';
 require_once __DIR__ . '/lib/BotRecipients.php';
+require_once __DIR__ . '/lib/BotChatsRepository.php';
 require_once __DIR__ . '/lib/BotsAssistantPreview.php';
 require_once __DIR__ . '/lib/BotWebhook.php';
 require_once __DIR__ . '/lib/BotWebhookUpdatesRepository.php';
@@ -59,6 +60,12 @@ $pages = [
         'capability' => 'SUPERADMIN_ACCESS',
         'methods' => ['GET'],
         'file' => 'plugins.php',
+    ],
+    '/bots/chats' => [
+        'permission' => 'bots.manage',
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'chats.php',
     ],
     // Staff messaging for personal assistant (no SUPERADMIN gate).
     '/bots/recipients' => [

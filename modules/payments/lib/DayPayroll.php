@@ -661,13 +661,17 @@ final class DayPayroll
                 }
             }
 
+            $reqVars = [
+                'name' => self::userName($operatorId),
+                'sum' => $sum,
+                'date' => date('d.m.Y', $wantStart),
+            ];
             self::notifyIssuersOnDate(
                 $wantStart,
-                t('payments.bot.day_pay.notify_req', [
-                    'name' => self::userName($operatorId),
-                    'sum' => $sum,
-                    'date' => date('d.m.Y', $wantStart),
-                ])
+                t('payments.bot.day_pay.notify_req', $reqVars),
+                'payments.day_payroll_requested',
+                $reqVars,
+                (int)$paymentId
             );
 
             $issuerLine = $issuerId > 0 ? self::contactLine($issuerId) : t('payments.bot.day_pay.issuer_none');
@@ -736,13 +740,17 @@ final class DayPayroll
             throw $e;
         }
 
+        $cancelVars = [
+            'name' => self::userName($operatorId),
+            'sum' => (float)$row['sum'],
+            'date' => date('d.m.Y', (int)$row['dt']),
+        ];
         self::notifyIssuersOnDate(
             (int)$row['dt'],
-            t('payments.bot.day_pay.notify_cancel', [
-                'name' => self::userName($operatorId),
-                'sum' => (float)$row['sum'],
-                'date' => date('d.m.Y', (int)$row['dt']),
-            ])
+            t('payments.bot.day_pay.notify_cancel', $cancelVars),
+            'payments.day_payroll_cancelled',
+            $cancelVars,
+            (int)($row['id'] ?? 0)
         );
         return ['ok' => true, 'msg' => t('payments.bot.day_pay.cancelled')];
     }
@@ -1064,9 +1072,13 @@ final class DayPayroll
         $pdo->prepare('DELETE FROM base_payments WHERE ID = ?')->execute([$paymentId]);
     }
 
-    private static function notifyIssuersOnDate(int $dayTs, string $text): void
+    /**
+     * @param array<string,mixed> $vars ctx for the notify event (name, sum, date)
+     */
+    private static function notifyIssuersOnDate(int $dayTs, string $text, string $event = '', array $vars = [], int $paymentId = 0): void
     {
-        if (!class_exists('BotSend', false)) {
+        $viaNotify = $event !== '' && ModuleManager::isEnabled('notify');
+        if (!$viaNotify && !class_exists('BotSend', false)) {
             return;
         }
         $dayStart = self::dayStart($dayTs);
@@ -1092,6 +1104,21 @@ final class DayPayroll
         }
         if ($targets === []) {
             $targets = $admins;
+        }
+        if ($viaNotify) {
+            try {
+                EventBus::emit('notify.event', [
+                    'event' => $event,
+                    'ctx' => $vars,
+                    'subjects' => ['issuer' => ['user_ids' => $targets]],
+                    'entity' => 'day_payroll',
+                    'entity_id' => $paymentId,
+                    'dedupe_suffix' => (string)$dayStart,
+                ]);
+            } catch (Throwable $e) {
+                error_log('[payments.notify] ' . $e->getMessage());
+            }
+            return;
         }
         foreach ($targets as $aid) {
             try {

@@ -454,6 +454,8 @@
         },
         "bots": {
             "ops": [
+                "bots.chats.list",
+                "bots.chats.save",
                 "bots.message.send",
                 "bots.plugins.list",
                 "bots.queue.drain",
@@ -1058,6 +1060,20 @@
                 "rotate"
             ]
         },
+        "mail": {
+            "ops": [
+                "mail.queue.list",
+                "mail.send.test",
+                "mail.settings.get",
+                "mail.settings.save",
+                "mail.token.sends",
+                "mail.token.settings.get",
+                "mail.token.settings.save",
+                "mail.token.test"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
         "medcard_audio": {
             "ops": [
                 "medcard_audio.settings",
@@ -1072,6 +1088,42 @@
                 "norms.get",
                 "norms.list",
                 "norms.update"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "notify": {
+            "ops": [
+                "notify.journal.list",
+                "notify.rules.apply_preset",
+                "notify.rules.create",
+                "notify.rules.delete",
+                "notify.rules.get",
+                "notify.rules.list",
+                "notify.rules.test",
+                "notify.rules.toggle",
+                "notify.rules.update",
+                "notify.send",
+                "notify.settings.get",
+                "notify.settings.save",
+                "notify.tasks.list",
+                "notify.tasks.resolve",
+                "notify.token.catalog",
+                "notify.token.chats",
+                "notify.token.journal",
+                "notify.token.presets",
+                "notify.token.presets.apply",
+                "notify.token.rules.delete",
+                "notify.token.rules.get",
+                "notify.token.rules.list",
+                "notify.token.rules.save",
+                "notify.token.rules.test",
+                "notify.token.send",
+                "notify.token.settings",
+                "notify.token.settings.save",
+                "notify.token.status",
+                "notify.token.tasks",
+                "notify.token.tasks.resolve"
             ],
             "uncovered_routes": [],
             "uncovered_actions": []

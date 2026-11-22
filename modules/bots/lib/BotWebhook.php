@@ -99,17 +99,30 @@ final class BotWebhook
     {
         if (isset($update['callback_query']) && is_array($update['callback_query'])) {
             $cq = $update['callback_query'];
-            $chatId = (string)($cq['message']['chat']['id'] ?? $cq['from']['id'] ?? '');
+            $chat = is_array($cq['message']['chat'] ?? null) ? $cq['message']['chat'] : [];
+            $chatId = (string)($chat['id'] ?? $cq['from']['id'] ?? '');
+            $chatType = strtolower(trim((string)($chat['type'] ?? '')));
+            $isGroup = in_array($chatType, ['group', 'supergroup', 'channel'], true);
+            $fromUserId = (string)($cq['from']['id'] ?? '');
             $data = (string)($cq['data'] ?? '');
             $callbackId = (string)($cq['id'] ?? '');
-            $user = self::resolveUser($cfg['audience'], 'telegram', $chatId);
+            // Identity = clicker in groups; dialog chat id in private.
+            $identityId = $isGroup && $fromUserId !== '' ? $fromUserId : $chatId;
+            $user = self::resolveUser($cfg['audience'], 'telegram', $identityId);
             if ($callbackId !== '') {
                 BotClient::answerCallback('telegram', $cfg['token'], $callbackId);
             }
             $messageId = isset($cq['message']['message_id']) ? trim((string)$cq['message']['message_id']) : '';
+            if ($isGroup && $chatId !== '' && class_exists('BotChatsRepository', false)) {
+                $title = trim((string)($chat['title'] ?? ''));
+                BotChatsRepository::remember('telegram', $chatId, $title);
+            }
             self::processInbound($cfg, 'telegram', $chatId, $user, 'callback', [
                 'callback_data' => $data,
+                'callback_id' => $callbackId,
                 'message_id' => $messageId !== '' ? $messageId : null,
+                'from_user_id' => $fromUserId,
+                'is_group' => $isGroup,
                 'raw' => $cq,
             ]);
             return;
@@ -119,8 +132,28 @@ final class BotWebhook
         if ($msg === null) {
             return;
         }
-        $chatId = (string)($msg['chat']['id'] ?? '');
+        $chat = is_array($msg['chat'] ?? null) ? $msg['chat'] : [];
+        $chatId = (string)($chat['id'] ?? '');
         if ($chatId === '') {
+            return;
+        }
+        $chatType = strtolower(trim((string)($chat['type'] ?? '')));
+        $isGroup = in_array($chatType, ['group', 'supergroup', 'channel'], true);
+        $fromUserId = (string)($msg['from']['id'] ?? '');
+        if ($isGroup && class_exists('BotChatsRepository', false)) {
+            BotChatsRepository::remember('telegram', $chatId, trim((string)($chat['title'] ?? '')));
+        }
+
+        if ($isGroup) {
+            $identityId = $fromUserId !== '' ? $fromUserId : '';
+            $user = $identityId !== '' ? self::resolveUser($cfg['audience'], 'telegram', $identityId) : null;
+            $text = trim((string)($msg['text'] ?? ''));
+            self::processInbound($cfg, 'telegram', $chatId, $user, $text !== '' ? 'text' : 'message', [
+                'text' => $text,
+                'from_user_id' => $fromUserId,
+                'is_group' => true,
+                'raw' => $msg,
+            ]);
             return;
         }
 
@@ -218,6 +251,9 @@ final class BotWebhook
             if ($callbackId !== '') {
                 BotClient::answerCallback('max', $cfg['token'], $callbackId);
             }
+            if ($isGroup && $chatId !== '' && class_exists('BotChatsRepository', false)) {
+                BotChatsRepository::remember('max', $chatId, '');
+            }
             self::processInbound($cfg, 'max', $chatId, $user, 'callback', [
                 'callback_data' => $payload,
                 'callback_id' => $callbackId,
@@ -248,6 +284,9 @@ final class BotWebhook
 
         // Group messages: never run dialog link/cabinet UX here — group plugins decide.
         if ($isGroup) {
+            if (class_exists('BotChatsRepository', false)) {
+                BotChatsRepository::remember('max', $chatId, '');
+            }
             $linkMeta = class_exists('AssistantGroupsInbound', false) && is_array($msg)
                 ? AssistantGroupsInbound::extractReplyLink($msg)
                 : ['mid' => self::maxReplyToMid($msg), 'type' => '', 'sender_id' => '', 'sender_is_bot' => false];

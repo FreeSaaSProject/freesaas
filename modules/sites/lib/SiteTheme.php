@@ -15,22 +15,53 @@ final class SiteTheme
     /** @var string|null '' = no parent */
     private static $parent = null;
 
+    /** @var string|null per-request theme override */
+    private static $override = null;
+
+    /** @var string|null resolved theme id cache */
+    private static $resolvedId = null;
+
+    /** Override the active theme for this request (validated on read; null clears). */
+    public static function setOverride(?string $id): void
+    {
+        $id = $id !== null ? trim($id) : null;
+        self::$override = ($id !== null && $id !== '') ? $id : null;
+        self::$resolvedId = null;
+        self::$manifest = null;
+        self::$parent = null;
+    }
+
     public static function id(): string
     {
-        $id = '';
-        if (class_exists(SitesHostContext::class, false) || class_exists(SitesHostContext::class)) {
+        if (self::$resolvedId !== null) {
+            return self::$resolvedId;
+        }
+        $id = self::$override !== null ? self::$override : '';
+        if ($id === '' && (class_exists(SitesHostContext::class, false) || class_exists(SitesHostContext::class))) {
             $id = trim(SitesHostContext::theme());
         }
         if ($id === '') {
             $id = trim((string)Config::get('sites', 'theme', 'default'));
         }
+        if (self::$override === null && class_exists('EventBus', false)) {
+            $host = (class_exists(SitesHostContext::class, false) || class_exists(SitesHostContext::class))
+                ? SitesHostContext::host()
+                : '';
+            $res = EventBus::emit('sites.theme.resolve', [
+                'theme' => $id,
+                'host' => $host,
+            ]);
+            if (is_array($res) && isset($res['theme']) && is_string($res['theme']) && trim($res['theme']) !== '') {
+                $id = trim($res['theme']);
+            }
+        }
         if ($id === '' || !preg_match('/^[a-zA-Z0-9_-]+$/', $id)) {
-            return 'default';
+            return self::$resolvedId = 'default';
         }
         if (!is_dir(base_path('themes/' . $id))) {
-            return 'default';
+            return self::$resolvedId = 'default';
         }
-        return $id;
+        return self::$resolvedId = $id;
     }
 
     public static function root(): string

@@ -10,6 +10,7 @@
     "optionalRequires": {
         "ledger": ">=1.0.0",
         "bots": ">=1.0.0",
+        "notify": ">=0.1.0",
         "procents": ">=1.0.0",
         "procedures": ">=1.0.0",
         "contracts": ">=1.0.0",
@@ -161,9 +162,12 @@
             "ledger.moves.deleted",
             "ledger.moves.badges",
             "assistant.write.preview",
-            "assistant.system.hints"
+            "assistant.system.hints",
+            "notify.catalog"
         ],
-        "publish": []
+        "publish": [
+            "notify.event"
+        ]
     },
     "bulkActions": [
         {

@@ -251,6 +251,65 @@ final class BotClient
     }
 
     /**
+     * Edit message text and/or inline keyboard (Max + Telegram).
+     *
+     * @param array<string,mixed>|null $replyMarkup Telegram-style inline_keyboard; empty array clears buttons; null keeps current
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    public static function editMessage(
+        string $platform,
+        string $token,
+        string $chatId,
+        string $messageId,
+        ?string $text = null,
+        ?array $replyMarkup = null,
+        string $parseMode = 'HTML'
+    ): array {
+        $platform = strtolower(trim($platform));
+        $token = trim($token);
+        $chatId = trim($chatId);
+        $messageId = trim($messageId);
+        if ($token === '' || $messageId === '' || $chatId === '') {
+            return ['ok' => false, 'data' => null, 'error' => 'missing token, chat id or message id'];
+        }
+        if ($platform === 'max') {
+            $body = ['format' => 'html'];
+            if ($text !== null) {
+                $body['text'] = $text;
+            }
+            if ($replyMarkup !== null) {
+                if ($replyMarkup === [] || (isset($replyMarkup['inline_keyboard']) && $replyMarkup['inline_keyboard'] === [])) {
+                    $body['attachments'] = [];
+                } else {
+                    $body['attachments'] = self::maxConvertInlineKeyboard($replyMarkup);
+                }
+            }
+            return self::maxEditMessage($token, $messageId, $body, $chatId);
+        }
+        $fields = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+        ];
+        if ($text !== null) {
+            $fields['text'] = $text;
+            if ($parseMode !== '') {
+                $fields['parse_mode'] = $parseMode;
+            }
+            $fields['disable_web_page_preview'] = true;
+        }
+        if ($replyMarkup !== null) {
+            $fields['reply_markup'] = json_encode(
+                isset($replyMarkup['inline_keyboard']) ? $replyMarkup : ['inline_keyboard' => $replyMarkup],
+                JSON_UNESCAPED_UNICODE
+            );
+        }
+        if ($text !== null) {
+            return self::tgRequest($token, 'editMessageText', $fields);
+        }
+        return self::tgRequest($token, 'editMessageReplyMarkup', $fields);
+    }
+
+    /**
      * Strip inline keyboard (and optionally blank text) when delete fails.
      *
      * @return array{ok:bool,data:?array,error:string}
@@ -262,33 +321,14 @@ final class BotClient
         string $messageId,
         ?string $replacementText = null
     ): array {
-        $platform = strtolower(trim($platform));
-        $token = trim($token);
-        $chatId = trim($chatId);
-        $messageId = trim($messageId);
-        if ($token === '' || $messageId === '') {
-            return ['ok' => false, 'data' => null, 'error' => 'missing token or message id'];
-        }
-        if ($platform === 'max') {
-            $body = [
-                'attachments' => [],
-                'format' => 'html',
-            ];
-            if ($replacementText !== null) {
-                $body['text'] = $replacementText;
-            }
-            return self::maxEditMessage($token, $messageId, $body, $chatId);
-        }
-        $fields = [
-            'chat_id' => $chatId,
-            'message_id' => $messageId,
-            'reply_markup' => json_encode(['inline_keyboard' => []], JSON_UNESCAPED_UNICODE),
-        ];
-        if ($replacementText !== null) {
-            $fields['text'] = $replacementText;
-            return self::tgRequest($token, 'editMessageText', $fields);
-        }
-        return self::tgRequest($token, 'editMessageReplyMarkup', $fields);
+        return self::editMessage(
+            $platform,
+            $token,
+            $chatId,
+            $messageId,
+            $replacementText,
+            ['inline_keyboard' => []]
+        );
     }
 
     /**

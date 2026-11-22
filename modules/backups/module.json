@@ -2,7 +2,7 @@
     "id": "backups",
     "name": "backups.module.name",
     "description": "backups.module.description",
-    "version": "0.4.16",
+    "version": "0.4.17",
     "type": "product",
     "catalog": {
         "categories": [
@@ -20,6 +20,7 @@
     },
     "optionalRequires": {
         "bots": ">=1.0.0",
+        "notify": ">=0.1.0",
         "audio": ">=1.0.0",
         "video": ">=0.1.0"
     },
@@ -215,9 +216,12 @@
     "migrators": [],
     "hooks": {
         "subscribe": [
-            "core.notices.collect"
+            "core.notices.collect",
+            "notify.catalog",
+            "notify.options"
         ],
         "publish": [
+            "notify.event",
             "backups.sources",
             "bots.send"
         ]

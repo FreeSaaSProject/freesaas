@@ -60,6 +60,8 @@ CDC pack contents:
 
 Seq resets to `s001` after each successful light/full. Listing FTP shows missing numbers immediately (no time guessing).
 
+**Retention (`keep_incr` / `keep_light` / `keep_remote`):** prune keeps the **newest pack names** (stamp in the filename). Never sort CDC by `sNNN` alone — after a light, seq resets while older days still hold `s020+`, and a seq-desc prune would delete today's packs while the run journal still shows `done`.
+
 ## CDC hourly packs
 
 1. Run host check (`/backups/check`) — need `mysql.trigger_probe` ok.

@@ -6,6 +6,8 @@ declare(strict_types=1);
 /** @var bool $procedureMissing */
 /** @var bool $canEdit */
 /** @var string $listUrl */
+/** @var string $extraHtml */
+$extraHtml = isset($extraHtml) ? (string)$extraHtml : '';
 $oid = (int)$order['id'];
 $eventUseId = (int)($order['id_event_use'] ?? 0);
 $staffLabel = trim((string)($order['staff_name'] ?? ''));
@@ -194,3 +196,6 @@ $editHref = ListQuery::url('/orders/' . $oid . '/edit', ['ret' => $listUrl]);
     <?php endif; ?>
   </div>
 </div>
+<?php if ($extraHtml !== ""): ?>
+<?= $extraHtml ?>
+<?php endif; ?>

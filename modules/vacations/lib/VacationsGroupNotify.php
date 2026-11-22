@@ -25,7 +25,9 @@ final class VacationsGroupNotify
      */
     public static function cronRun(): array
     {
-        if (!self::ready()) {
+        // With the notify module the master switch stays remind_enabled; recipients come from notify rules.
+        $viaNotify = VacationsNotifyProvider::active();
+        if ($viaNotify ? !VacationsConfig::remindEnabled() : !self::ready()) {
             return [
                 'ok' => true,
                 'checked' => 0,
@@ -59,6 +61,15 @@ final class VacationsGroupNotify
                     $skipped++;
                     continue;
                 }
+                if ($viaNotify) {
+                    $n = VacationsNotifyProvider::emit($row, $days);
+                    if ($n > 0) {
+                        $queued += $n;
+                    } else {
+                        $skipped++;
+                    }
+                    continue;
+                }
                 $dedupe = self::dedupeKey($id, $days);
                 if (self::alreadyQueued($dedupe)) {
                     $skipped++;
@@ -90,7 +101,7 @@ final class VacationsGroupNotify
             }
         }
 
-        if ($queued > 0 && class_exists('BotDrain', false)) {
+        if ($queued > 0 && !$viaNotify && class_exists('BotDrain', false)) {
             try {
                 BotDrain::run(5);
             } catch (Throwable $e) {
@@ -122,7 +133,8 @@ final class VacationsGroupNotify
         if ($chatId === '') {
             return ['ok' => false, 'queued_id' => 0, 'error' => t('vacations.remind.err.no_chat'), 'text' => ''];
         }
-        if (!ModuleManager::isEnabled('bots') || !class_exists('BotSend', false)) {
+        $viaNotify = VacationsNotifyProvider::active() && class_exists('NotifySend', false);
+        if (!$viaNotify && (!ModuleManager::isEnabled('bots') || !class_exists('BotSend', false))) {
             return ['ok' => false, 'queued_id' => 0, 'error' => t('vacations.remind.err.bots_off'), 'text' => ''];
         }
         $sample = [
@@ -132,6 +144,20 @@ final class VacationsGroupNotify
             'dt_end' => (int)mktime(0, 0, 0, (int)date('n'), (int)date('j') + 18, (int)date('Y')),
         ];
         $text = self::formatMessage($sample, 5, true);
+        if ($viaNotify) {
+            // Test goes straight to the configured group (journaled by notify), independent of rules.
+            $r = NotifySend::send([
+                'chat_id' => $chatId,
+                'platform' => VacationsConfig::remindPlatform(),
+                'text' => $text,
+            ]);
+            return [
+                'ok' => !empty($r['ok']),
+                'queued_id' => 0,
+                'error' => !empty($r['ok']) ? '' : (string)($r['error'] ?? t('vacations.remind.err.enqueue')),
+                'text' => $text,
+            ];
+        }
         try {
             $qid = BotSend::enqueue([
                 'audience' => 'staff',
@@ -163,6 +189,28 @@ final class VacationsGroupNotify
      */
     public static function formatMessage(array $row, int $days, bool $test = false): string
     {
+        $vars = self::vars($row, $days, $test);
+        $override = VacationsConfig::remindMessage();
+        if ($override !== '') {
+            $text = $override;
+            foreach ($vars as $k => $v) {
+                $text = str_replace('{' . $k . '}', $v, $text);
+            }
+            return $text;
+        }
+
+        $key = $test ? 'vacations.remind.message_test' : 'vacations.remind.message';
+        return t($key, $vars);
+    }
+
+    /**
+     * Placeholder values for the reminder text (shared by the legacy path and notify.event ctx).
+     *
+     * @param array<string,mixed> $row
+     * @return array<string,string>
+     */
+    public static function vars(array $row, int $days, bool $test = false): array
+    {
         $userId = (int)($row['user_id'] ?? 0);
         $name = '';
         $acronym = 'ВТС';
@@ -182,25 +230,13 @@ final class VacationsGroupNotify
         $start = $startTs > 0 ? date('d.m.y', $startTs) : '—';
         $end = $endTs > 0 ? date('d.m.y', $endTs) : '—';
 
-        $vars = [
+        return [
             'acronym' => $acronym,
             'name' => $name !== '' ? $name : $acronym,
             'start' => $start,
             'end' => $end,
             'days' => (string)$days,
         ];
-
-        $override = VacationsConfig::remindMessage();
-        if ($override !== '') {
-            $text = $override;
-            foreach ($vars as $k => $v) {
-                $text = str_replace('{' . $k . '}', $v, $text);
-            }
-            return $text;
-        }
-
-        $key = $test ? 'vacations.remind.message_test' : 'vacations.remind.message';
-        return t($key, $vars);
     }
 
     public static function dedupeKey(int $vacationId, int $days): string

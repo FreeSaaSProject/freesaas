@@ -254,4 +254,6 @@ return [
     'payments.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
     'payments.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
     'payments.setup.choice.open' => 'Open settings',
+    'payments.notify.event.day_payroll_requested' => 'Payments: cash payout requested for a day',
+    'payments.notify.event.day_payroll_cancelled' => 'Payments: cash payout request cancelled',
 ];

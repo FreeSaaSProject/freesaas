@@ -370,4 +370,9 @@ return [
     'backups.ui.retrying' => 'Сбой запроса, повторяю…',
     'backups.ui.retry' => 'Повторить',
     'backups.ui.login' => 'Войти',
+    'backups.notify.event.failed' => 'Бэкап: запуск завершился ошибкой',
+    'backups.notify.event.succeeded' => 'Бэкап: запуск успешен',
+    'backups.notify.event.stale' => 'Бэкап: давно нет успешной копии',
+    'backups.notify.event.test' => 'Бэкап: тест уведомления',
+    'backups.notify.field.kind' => 'Тип запуска',
 ];

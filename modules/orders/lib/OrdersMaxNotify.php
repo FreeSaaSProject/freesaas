@@ -8,6 +8,10 @@ final class OrdersMaxNotify
 {
     public static function onCreated(int $orderId): void
     {
+        if ($orderId > 0 && class_exists(OrdersNotifyProvider::class, false) && OrdersNotifyProvider::active()) {
+            OrdersNotifyProvider::emitEvent('orders.created', $orderId);
+            return;
+        }
         if ($orderId < 1 || !self::ready()) {
             return;
         }
@@ -23,6 +27,14 @@ final class OrdersMaxNotify
      */
     public static function onCancelled(array $order, string $reason = ''): void
     {
+        if ((int)($order['id'] ?? 0) > 0 && class_exists(OrdersNotifyProvider::class, false) && OrdersNotifyProvider::active()) {
+            OrdersNotifyProvider::emitEvent('orders.cancelled', (int)$order['id'], [
+                'order' => $order,
+                'reason' => trim($reason),
+                'cancelled_by' => 'client',
+            ]);
+            return;
+        }
         if (!self::ready()) {
             return;
         }

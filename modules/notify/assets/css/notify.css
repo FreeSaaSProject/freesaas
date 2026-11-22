@@ -1,0 +1,119 @@
+/* Notify module — thin helpers on top of core form-grid / filters / buttons */
+
+.notify-tabs {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  border-bottom: 1px solid var(--line);
+}
+.notify-tabs a {
+  padding: 0.4rem 0.2rem;
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.7;
+}
+.notify-tabs a.is-active {
+  opacity: 1;
+  border-bottom: 2px solid currentColor;
+}
+
+.notify-row {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev, var(--bg1));
+}
+.notify-row label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  min-width: 8rem;
+  flex: 1 1 8rem;
+}
+.notify-row input,
+.notify-row select,
+.notify-row textarea {
+  border: 1px solid var(--line);
+  background: var(--bg-input);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.65rem 0.8rem;
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+.notify-row input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.notify-channels {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 10rem;
+}
+.notify-channels legend {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+  padding: 0;
+}
+.notify-channels .check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.2rem 0;
+  color: var(--text);
+}
+
+.form-grid > .check,
+.form-grid fieldset > .check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text);
+}
+
+.filters > label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.filters > .btn-secondary,
+.filters > .btn-primary {
+  align-self: end;
+}
+
+.notify-resolve {
+  margin: 0;
+  align-items: end;
+}
+.notify-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.notify-pre {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev, var(--bg1));
+  overflow: auto;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.notify-history {
+  margin-top: 1.5rem;
+}
+.notify-history table {
+  font-size: 0.9rem;
+}

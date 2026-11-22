@@ -235,4 +235,8 @@ return [
     'video.setup.step.wizard_help' => 'Walk through the wizard so the module can connect and run.',
     'video.setup.ask.wizard' => 'Walk through the wizard so the module can connect and run.',
     'video.setup.choice.open' => 'Open wizard',
+    'video.notify.event.alert' => 'Video: alert raised',
+    'video.notify.field.kind' => 'Alert kind',
+    'video.notify.field.camera_id' => 'Camera id',
+    'video.notify.tpl.alert' => '[video] {camera_name}: {message}',
 ];

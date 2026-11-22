@@ -86,32 +86,48 @@ final class BotDrain
         $okMax = false;
         $errTg = '';
         $errMax = '';
+        $resTg = null;
+        $resMax = null;
 
         if ($tgChat !== '') {
             $ch = BotsConfig::channel($audience, 'telegram');
             if ($ch && $ch['token'] !== '') {
-                $res = BotClient::sendMessage('telegram', $ch['token'], $tgChat, $text, $markup);
-                $okTg = !empty($res['ok']);
+                $resTg = BotClient::sendMessage('telegram', $ch['token'], $tgChat, $text, $markup);
+                $okTg = !empty($resTg['ok']);
                 if (!$okTg) {
-                    $errTg = (string)($res['error'] ?? 'tg error');
+                    $errTg = (string)($resTg['error'] ?? 'tg error');
                 }
             }
         }
         if ($maxChat !== '') {
             $ch = BotsConfig::channel($audience, 'max');
             if ($ch && $ch['token'] !== '') {
-                $res = BotClient::sendMessage('max', $ch['token'], $maxChat, $text, $markup);
-                $okMax = !empty($res['ok']);
+                $resMax = BotClient::sendMessage('max', $ch['token'], $maxChat, $text, $markup);
+                $okMax = !empty($resMax['ok']);
                 if (!$okMax) {
-                    $errMax = (string)($res['error'] ?? 'max error');
+                    $errMax = (string)($resMax['error'] ?? 'max error');
                 }
             }
         }
 
+        $platformMsgId = '';
+        if ($okMax && is_array($resMax)) {
+            $platformMsgId = (string)(BotClient::extractMessageId('max', $resMax['data'] ?? null) ?? '');
+        }
+        if ($platformMsgId === '' && $okTg && is_array($resTg)) {
+            $platformMsgId = (string)(BotClient::extractMessageId('telegram', $resTg['data'] ?? null) ?? '');
+        }
+
         if ($okTg || $okMax) {
             $where = ($okTg && $okMax) ? 'Telegram+Max' : ($okTg ? 'Telegram' : 'Max');
-            BotSendsRepository::mark($id, BotSendsRepository::STATUS_SENT, t('bots.send.sent', ['where' => $where]));
-            return ['id' => $id, 'name' => $name, 'status' => 'sent', 'via' => $where];
+            BotSendsRepository::mark(
+                $id,
+                BotSendsRepository::STATUS_SENT,
+                t('bots.send.sent', ['where' => $where]),
+                '',
+                $platformMsgId
+            );
+            return ['id' => $id, 'name' => $name, 'status' => 'sent', 'via' => $where, 'platform_msg_id' => $platformMsgId];
         }
         $err = $errTg !== '' ? $errTg : $errMax;
         if ($err === '') {
@@ -140,14 +156,16 @@ final class BotDrain
         $okMax = false;
         $errTg = '';
         $errMax = '';
+        $resTg = null;
+        $resMax = null;
 
         if ($wantTg) {
             $ch = BotsConfig::channel($audience, 'telegram');
             if ($ch && $ch['token'] !== '') {
-                $res = BotClient::sendMessage('telegram', $ch['token'], $chatId, $text, $markup);
-                $okTg = !empty($res['ok']);
+                $resTg = BotClient::sendMessage('telegram', $ch['token'], $chatId, $text, $markup);
+                $okTg = !empty($resTg['ok']);
                 if (!$okTg) {
-                    $errTg = (string)($res['error'] ?? 'tg error');
+                    $errTg = (string)($resTg['error'] ?? 'tg error');
                 }
             } else {
                 $errTg = t('bots.send.err_no_token');
@@ -156,20 +174,41 @@ final class BotDrain
         if ($wantMax) {
             $ch = BotsConfig::channel($audience, 'max');
             if ($ch && $ch['token'] !== '') {
-                $res = BotClient::sendMessage('max', $ch['token'], $chatId, $text, $markup);
-                $okMax = !empty($res['ok']);
+                $resMax = BotClient::sendMessage('max', $ch['token'], $chatId, $text, $markup);
+                $okMax = !empty($resMax['ok']);
                 if (!$okMax) {
-                    $errMax = (string)($res['error'] ?? 'max error');
+                    $errMax = (string)($resMax['error'] ?? 'max error');
                 }
             } else {
                 $errMax = t('bots.send.err_no_token');
             }
         }
 
+        $platformMsgId = '';
+        if ($okMax && is_array($resMax)) {
+            $platformMsgId = (string)(BotClient::extractMessageId('max', $resMax['data'] ?? null) ?? '');
+        }
+        if ($platformMsgId === '' && $okTg && is_array($resTg)) {
+            $platformMsgId = (string)(BotClient::extractMessageId('telegram', $resTg['data'] ?? null) ?? '');
+        }
+
         if ($okTg || $okMax) {
             $where = ($okTg && $okMax) ? 'Telegram+Max' : ($okTg ? 'Telegram' : 'Max');
-            BotSendsRepository::mark($id, BotSendsRepository::STATUS_SENT, t('bots.send.sent', ['where' => $where]));
-            return ['id' => $id, 'name' => $name, 'status' => 'sent', 'via' => $where, 'direct' => true];
+            BotSendsRepository::mark(
+                $id,
+                BotSendsRepository::STATUS_SENT,
+                t('bots.send.sent', ['where' => $where]),
+                '',
+                $platformMsgId
+            );
+            return [
+                'id' => $id,
+                'name' => $name,
+                'status' => 'sent',
+                'via' => $where,
+                'direct' => true,
+                'platform_msg_id' => $platformMsgId,
+            ];
         }
         $err = $errTg !== '' ? $errTg : $errMax;
         if ($err === '') {

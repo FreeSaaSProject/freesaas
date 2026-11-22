@@ -4,7 +4,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/OrdersRepository.php';
 require_once __DIR__ . '/lib/OrdersConfig.php';
 require_once __DIR__ . '/lib/OrdersMaxNotify.php';
+require_once __DIR__ . '/lib/OrdersNotifyProvider.php';
 require_once __DIR__ . '/lib/OrdersClientBotPlugin.php';
+
+// notify.catalog / notify.scan / notify.task.resolved (inert unless the notify module is enabled)
+OrdersNotifyProvider::register();
 
 $registerOrdersBots = static function (): void {
     OrdersClientBotPlugin::register();

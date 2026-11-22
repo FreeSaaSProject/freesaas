@@ -106,4 +106,6 @@ return [
     'vacations.flash.remind_test_ok' => 'Тест поставлен в очередь (#{id})',
     'vacations.err.superadmin' => 'Нужны права суперadmin',
     'vacations.cron.upcoming_remind' => 'Напоминания о скорых отпусках в группу',
+    'vacations.notify.event.remind' => 'Отпуск: начнётся через N дней (напоминание)',
+    'vacations.notify.field.days' => 'Дней до начала',
 ];

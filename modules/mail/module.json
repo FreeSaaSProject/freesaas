@@ -1,0 +1,260 @@
+{
+    "id": "mail",
+    "name": "mail.module.name",
+    "description": "mail.module.description",
+    "version": "0.1.2",
+    "type": "product",
+    "runtime": "both",
+    "requires": {
+        "core": ">=1.0.0"
+    },
+    "optionalRequires": {},
+    "provides": [
+        "mail.transport"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "mail.manage",
+            "label": "mail.perm.manage"
+        },
+        {
+            "id": "mail.view",
+            "label": "mail.perm.view"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/mail/settings",
+            "/mail/sends",
+            "/agent/mail/settings",
+            "/agent/mail/test",
+            "/agent/mail/sends"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/mail.md",
+        "ops": [
+            {
+                "id": "mail.settings.get",
+                "method": "GET",
+                "path": "/mail/settings",
+                "permission": "mail.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "SMTP settings from cfg/modules/mail.ini (password masked) + queue pending count. Token twin: GET /agent/mail/settings"
+            },
+            {
+                "id": "mail.settings.save",
+                "method": "POST",
+                "path": "/mail/settings",
+                "permission": "mail.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Save SMTP settings; body action=save + smtp_host, smtp_port, smtp_encryption (tls|ssl|none), smtp_user, smtp_pass, from_email, from_name, reply_to. A masked smtp_pass keeps the stored password. Token twin: POST /agent/mail/settings",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "save"
+                            ]
+                        },
+                        "smtp_host": {
+                            "type": "string"
+                        },
+                        "smtp_port": {
+                            "type": "integer"
+                        },
+                        "smtp_encryption": {
+                            "type": "string",
+                            "enum": [
+                                "tls",
+                                "ssl",
+                                "none"
+                            ]
+                        },
+                        "smtp_user": {
+                            "type": "string"
+                        },
+                        "smtp_pass": {
+                            "type": "string"
+                        },
+                        "from_email": {
+                            "type": "string"
+                        },
+                        "from_name": {
+                            "type": "string"
+                        },
+                        "reply_to": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "mail.send.test",
+                "method": "POST",
+                "path": "/mail/settings",
+                "permission": "mail.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Send a test email synchronously (action=test); body: to, subject?, text?. Token twin: POST /agent/mail/test",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "test"
+                            ]
+                        },
+                        "to": {
+                            "type": "string"
+                        },
+                        "subject": {
+                            "type": "string"
+                        },
+                        "text": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "action",
+                        "to"
+                    ]
+                }
+            },
+            {
+                "id": "mail.queue.list",
+                "method": "GET",
+                "path": "/mail/sends",
+                "permission": "mail.view",
+                "description": "List outbound email queue (base_mail_sends); filters: status (1 pending, 2 sent, 3 error, 100 skipped), q (address/subject/id). Token twin: GET /agent/mail/sends",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "status": {
+                            "type": "integer",
+                            "enum": [
+                                1,
+                                2,
+                                3,
+                                100
+                            ]
+                        },
+                        "q": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "mail.token.settings.get",
+                "method": "GET",
+                "path": "/agent/mail/settings",
+                "permission": "public",
+                "description": "Agent-token: SMTP settings (password masked)"
+            },
+            {
+                "id": "mail.token.settings.save",
+                "method": "POST",
+                "path": "/agent/mail/settings",
+                "permission": "public",
+                "description": "Agent-token: save SMTP settings",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "mail.token.test",
+                "method": "POST",
+                "path": "/agent/mail/test",
+                "permission": "public",
+                "description": "Agent-token: send test email",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "mail.token.sends",
+                "method": "GET",
+                "path": "/agent/mail/sends",
+                "permission": "public",
+                "description": "Agent-token: list outbound email queue"
+            }
+        ]
+    },
+    "jobs": [
+        "platform Cron::register mail.sends_drain → /cron/tick",
+        "POST /mail/settings action=test (session)"
+    ],
+    "menu": [
+        {
+            "group": "mail.menu.group",
+            "kind": "work",
+            "num": 10,
+            "path": "/mail/sends",
+            "icon": "✉️",
+            "title": "mail.menu.sends",
+            "permission": "mail.view"
+        },
+        {
+            "group": "mail.menu.group",
+            "kind": "settings",
+            "num": 20,
+            "path": "/mail/settings",
+            "icon": "⚙️",
+            "title": "mail.menu.settings",
+            "permission": "mail.manage",
+            "capability": "SUPERADMIN_ACCESS"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_mail_sends"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "mail.send",
+            "client_portal.password_reset.channels",
+            "client_portal.password_reset.notify"
+        ],
+        "publish": [
+            "mail.send"
+        ]
+    },
+    "catalog": {
+        "categories": [
+            "communications"
+        ],
+        "maturity": "alpha",
+        "tags": [],
+        "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "mail.setup.step.config",
+                "description": "mail.setup.step.config_help",
+                "href": "/mail/settings",
+                "ask_user": "mail.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "mail.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    }
+}

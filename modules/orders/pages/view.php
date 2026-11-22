@@ -57,7 +57,10 @@ if ($wantsJson) {
     return;
 }
 
+$sections = EventBus::emit('orders.view.sections', ['order' => $order, 'html' => '']);
+
 View::render('view', [
+    'extraHtml' => (string)($sections['html'] ?? ''),
     'title' => t('orders.view.title', ['id' => $id]),
     'order' => $order,
     'cart' => $cart,

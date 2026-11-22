@@ -233,7 +233,45 @@ Health::register('video.worker_token', 'video', static function (): array {
     ];
 });
 
+EventBus::on('notify.catalog', static function ($payload) {
+    $payload = is_array($payload) ? $payload : [];
+    $payload['events'][] = [
+        'id' => 'video.alert',
+        'module' => 'video',
+        'label' => 'video.notify.event.alert',
+        'entity' => 'video_alert',
+        'fields' => [
+            ['id' => 'kind', 'type' => 'text', 'op' => ['eq', 'neq', 'contains'], 'label' => 'video.notify.field.kind'],
+            ['id' => 'camera_id', 'type' => 'number', 'op' => ['eq', 'neq', 'in', 'nin'], 'label' => 'video.notify.field.camera_id'],
+        ],
+        'vars' => ['kind', 'message', 'camera_name', 'alert_id'],
+        'subjects' => [],
+        'anchor' => '',
+        'outcomes' => [],
+        'default_template' => 'video.notify.tpl.alert',
+    ];
+    return $payload;
+});
+
 EventBus::on('video.alert.created', static function (array $payload): array {
+    if (ModuleManager::isEnabled('notify')) {
+        $cameraId = (int)($payload['camera_id'] ?? 0);
+        $cam = $cameraId > 0 && class_exists('VideoCamerasRepository', false) ? VideoCamerasRepository::find($cameraId) : null;
+        EventBus::emit('notify.event', [
+            'event' => 'video.alert',
+            'ctx' => [
+                'kind' => (string)($payload['kind'] ?? ''),
+                'message' => (string)($payload['message'] ?? ''),
+                'camera_id' => $cameraId,
+                'camera_name' => is_array($cam) && trim((string)($cam['name'] ?? '')) !== '' ? (string)$cam['name'] : ('#' . $cameraId),
+                'alert_id' => (int)($payload['alert_id'] ?? 0),
+            ],
+            'subjects' => [],
+            'entity' => 'video_alert',
+            'entity_id' => (int)($payload['alert_id'] ?? 0),
+        ]);
+        return $payload;
+    }
     if (!class_exists(BotClient::class, false) && !class_exists(EventBus::class, false)) {
         return $payload;
     }

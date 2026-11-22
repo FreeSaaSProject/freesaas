@@ -422,6 +422,13 @@ final class OrdersRepository
                 ResourceBooking::syncOrder($fresh);
             }
         }
+
+        if (class_exists(OrdersNotifyProvider::class, false) && OrdersNotifyProvider::active()) {
+            $now = self::find($id);
+            if (is_array($now)) {
+                OrdersNotifyProvider::onChanged($prev, $now);
+            }
+        }
     }
 
     /**
@@ -1309,7 +1316,17 @@ final class OrdersRepository
             return ['ok' => false, 'cancelled' => 0, 'error' => 'not cancellable'];
         }
         $reason = trim($reason);
-        self::update($orderId, ['status' => 'userCancelPay']);
+        // OrdersMaxNotify::onCancelled below emits the notify event with the reason.
+        if (class_exists(OrdersNotifyProvider::class, false)) {
+            OrdersNotifyProvider::setQuiet(true);
+        }
+        try {
+            self::update($orderId, ['status' => 'userCancelPay']);
+        } finally {
+            if (class_exists(OrdersNotifyProvider::class, false)) {
+                OrdersNotifyProvider::setQuiet(false);
+            }
+        }
         EventBus::emit('orders.cancelled', [
             'order_id' => $orderId,
             'client_id' => $clientId,
@@ -1373,6 +1390,12 @@ final class OrdersRepository
             $comment = trim($comment . ' ' . $audit);
             $st->execute([$status, $comment, $now, $id]);
             $done++;
+            if (class_exists(OrdersNotifyProvider::class, false) && OrdersNotifyProvider::active()) {
+                $after = self::find($id);
+                if (is_array($after)) {
+                    OrdersNotifyProvider::onChanged($row, $after);
+                }
+            }
         }
         return ['done' => $done, 'skipped' => $skipped];
     }

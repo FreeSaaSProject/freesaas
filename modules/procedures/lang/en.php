@@ -169,4 +169,11 @@ return [
     'procedures.portal.sum' => 'Sum',
     'procedures.bot.visits_title' => '🩺 Your visits:',
     'procedures.bot.visits_empty' => '🩺 No visits yet.',
+    'procedures.notify.event.created' => 'Procedure: created',
+    'procedures.notify.event.updated' => 'Procedure: updated',
+    'procedures.notify.event.cancelled' => 'Procedure: deleted',
+    'procedures.notify.field.type' => 'Procedure type',
+    'procedures.notify.field.product_category' => 'Product category',
+    'procedures.notify.field.operator_hidden' => 'Specialist is hidden (0/1)',
+    'procedures.notify.field.is_today' => 'Starts today (0/1)',
 ];

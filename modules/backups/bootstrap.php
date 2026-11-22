@@ -8,7 +8,10 @@ require_once __DIR__ . '/lib/BackupFtpTarget.php';
 require_once __DIR__ . '/lib/BackupTarWriter.php';
 require_once __DIR__ . '/lib/BackupCrypto.php';
 require_once __DIR__ . '/lib/BackupSources.php';
+require_once __DIR__ . '/lib/BackupsNotifyProvider.php';
 require_once __DIR__ . '/lib/BackupNotify.php';
+
+BackupsNotifyProvider::register();
 require_once __DIR__ . '/lib/BackupRunner.php';
 require_once __DIR__ . '/lib/BackupRestore.php';
 require_once __DIR__ . '/lib/BackupDoctor.php';

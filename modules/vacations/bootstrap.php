@@ -3,8 +3,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/VacationsRepository.php';
 require_once __DIR__ . '/lib/VacationsConfig.php';
+require_once __DIR__ . '/lib/VacationsNotifyProvider.php';
 require_once __DIR__ . '/lib/VacationsGroupNotify.php';
 require_once __DIR__ . '/lib/VacationsBiContrib.php';
+
+VacationsNotifyProvider::register();
 
 EventBus::on('bi.datasets', [VacationsBiContrib::class, 'onDatasets']);
 

@@ -10,6 +10,7 @@
     "optionalRequires": {
         "bi": ">=1.0.0",
         "bots": ">=1.0.0",
+        "notify": ">=0.1.0",
         "assistant_groups": ">=0.1.0"
     },
     "provides": [
@@ -143,9 +144,11 @@
         "subscribe": [
             "core.notices.collect",
             "bi.datasets",
-            "assistant.write.preview"
+            "assistant.write.preview",
+            "notify.catalog"
         ],
         "publish": [
+            "notify.event",
             "bots.send"
         ]
     },

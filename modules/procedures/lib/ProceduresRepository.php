@@ -680,7 +680,9 @@ final class ProceduresRepository
             $data['restored'],
         ]);
         $newId = (int)Database::pdo()->lastInsertId();
-        if (class_exists('ProcedureBotNotify', false)) {
+        $notifyOwns = class_exists('ProceduresNotifyProvider', false)
+            && ProceduresNotifyProvider::dispatch('procedures.created', $newId, $data);
+        if (!$notifyOwns && class_exists('ProcedureBotNotify', false)) {
             ProcedureBotNotify::onSaved($newId, $data, 'new');
         }
         if (class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
@@ -725,7 +727,9 @@ final class ProceduresRepository
             $data['restored'],
             $id,
         ]);
-        if (class_exists('ProcedureBotNotify', false)) {
+        $notifyOwns = class_exists('ProceduresNotifyProvider', false)
+            && ProceduresNotifyProvider::dispatch('procedures.updated', $id, $data);
+        if (!$notifyOwns && class_exists('ProcedureBotNotify', false)) {
             ProcedureBotNotify::onSaved($id, $data, 'update');
         }
         if (class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
@@ -746,9 +750,28 @@ final class ProceduresRepository
             return 0;
         }
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $snap = [];
+        if (class_exists('ProceduresNotifyProvider', false)) {
+            $sel = Database::pdo()->prepare(
+                "SELECT ID, DTSTART, ID_OPERATOR, ID_GOOD, ID_USER, TYPE FROM base_procedures WHERE ID IN ($placeholders)"
+            );
+            $sel->execute($ids);
+            $snap = $sel->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        }
         $st = Database::pdo()->prepare("DELETE FROM base_procedures WHERE ID IN ($placeholders)");
         $st->execute($ids);
         $done = $st->rowCount();
+        foreach ($snap as $row) {
+            $data = [
+                'dtstart' => (int)$row['DTSTART'],
+                'id_operator' => (int)$row['ID_OPERATOR'],
+                'id_good' => (int)$row['ID_GOOD'],
+                'id_user' => (int)$row['ID_USER'],
+                'type' => (int)$row['TYPE'],
+            ];
+            // Legacy ProcedureBotNotify never announced deletes; only the notify module does.
+            ProceduresNotifyProvider::dispatch('procedures.cancelled', (int)$row['ID'], $data);
+        }
         if ($done > 0 && class_exists('ResourceBooking', false) && ResourceBooking::ready()) {
             ResourceAllocationsRepository::releaseMany(
                 ResourceAllocationsRepository::SOURCE_PROCEDURE,

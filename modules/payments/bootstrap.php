@@ -10,6 +10,31 @@ require_once __DIR__ . '/lib/ShiftSalaryBotPlugin.php';
 require_once __DIR__ . '/lib/DayPayrollBotPlugin.php';
 require_once __DIR__ . '/lib/PaymentsAssistantPreview.php';
 
+// Day payroll (cash payout) requests/cancels notify the issuers on shift via the notify module.
+EventBus::on('notify.catalog', static function ($payload) {
+    $payload = is_array($payload) ? $payload : [];
+    $base = [
+        'module' => 'payments',
+        'entity' => 'day_payroll',
+        'fields' => [],
+        'vars' => ['name', 'sum', 'date'],
+        'subjects' => ['issuer'],
+        'anchor' => '',
+        'outcomes' => [],
+    ];
+    $payload['events'][] = $base + [
+        'id' => 'payments.day_payroll_requested',
+        'label' => 'payments.notify.event.day_payroll_requested',
+        'default_template' => 'payments.bot.day_pay.notify_req',
+    ];
+    $payload['events'][] = $base + [
+        'id' => 'payments.day_payroll_cancelled',
+        'label' => 'payments.notify.event.day_payroll_cancelled',
+        'default_template' => 'payments.bot.day_pay.notify_cancel',
+    ];
+    return $payload;
+});
+
 // Invite to clear unread gate on calendar day footers (salary bits already gated via can_money).
 EventBus::on('calendar.day.stats', static function ($payload) {
     if (!is_array($payload) || SalaryVisibility::canSeeSalary()) {

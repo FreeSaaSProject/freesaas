@@ -8,12 +8,15 @@ require_once __DIR__ . '/lib/ProceduresChain.php';
 require_once __DIR__ . '/lib/ProceduresEditAcl.php';
 require_once __DIR__ . '/lib/ProceduresDayLoad.php';
 require_once __DIR__ . '/lib/ProcedureBotNotify.php';
+require_once __DIR__ . '/lib/ProceduresNotifyProvider.php';
 require_once __DIR__ . '/lib/AssignedProceduresBotPlugin.php';
 require_once __DIR__ . '/lib/VisitsClientBotPlugin.php';
 require_once __DIR__ . '/lib/ProceduresAssistantPreview.php';
 require_once __DIR__ . '/lib/ProceduresAssignPreflight.php';
 require_once __DIR__ . '/lib/ProceduresBiContrib.php';
 require_once __DIR__ . '/lib/ProcedureCreatedCollect.php';
+
+ProceduresNotifyProvider::register();
 
 EventBus::on('bi.datasets', [ProceduresBiContrib::class, 'onDatasets']);
 EventBus::on('bi.recipes', [ProceduresBiContrib::class, 'onRecipes']);

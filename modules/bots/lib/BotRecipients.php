@@ -166,6 +166,21 @@ final class BotRecipients
             }
         };
 
+        if (class_exists('BotChatsRepository', false) && BotChatsRepository::tableReady()) {
+            foreach (BotChatsRepository::list(['enabled' => 1, 'limit' => 200])['items'] as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $add(
+                    (string)($row['chat_id'] ?? ''),
+                    (string)($row['platform'] ?? 'max'),
+                    trim((string)($row['title'] ?? '')),
+                    'bot_chats',
+                    trim((string)($row['description'] ?? ''))
+                );
+            }
+        }
+
         if (class_exists('AssistantGroupsConfig', false) && ModuleManager::isEnabled('assistant_groups')) {
             foreach (AssistantGroupsConfig::groupChatsDetailed() as $row) {
                 if (!is_array($row)) {

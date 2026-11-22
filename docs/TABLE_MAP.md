@@ -66,6 +66,11 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_telegram_sends` | bots | Outbound TG/Max queue (`BOT_SOURCE` 1=client, 2=staff) |
 | `base_bot_links` | bots | Messenger chat ids for staff/clients (no ALTER `base_users` / `base_clients`) |
 | `base_bot_chat_state` | bots | Per-chat FSM pending mode for bot plugins |
+| `base_mail_sends` | mail | Outbound email queue (`STATUS` 1 pending, 2 sent, 3 error, 100 skipped) |
+| `base_bot_chats` | bots | Known messenger group chats (targets for notify / staff bots) |
+| `base_notify_rules` | notify | Notification/confirm rules (conditions, targets, stages, template) |
+| `base_notify_deliveries` | notify | Delivery journal (`CLIENT_ID` about / `RCPT_KIND`+`RCPT_ID` to whom) |
+| `base_notify_tasks` | notify | Confirmation tasks (stages, outcomes, bot message edit) |
 | `base_fit_recipes` / `base_fit_recipe_items` | wellness | Own recipes + composition; synthetic food via `base_fit_foods.ID_SOURCE_RECIPE` |
 | `base_vacations` | vacations | Leave register |
 | `base_fit_*` / `base_healths_*` | wellness | Personal food/workouts/weight/goals + health diaries (strict `ID_USER`) |

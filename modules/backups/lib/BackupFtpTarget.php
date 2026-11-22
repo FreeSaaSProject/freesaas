@@ -272,15 +272,10 @@ final class BackupFtpTarget implements BackupTarget
                 'seq' => 0,
             ];
         }
+        // Newest stamp first. Do NOT sort CDC by seq: after a light/full, seq resets to s001
+        // while older days still hold s020+ — seq-desc prune would delete today's packs and keep
+        // stale high-seq files (runs stay "done" in the journal with a missing FTP object).
         usort($out, static function (array $a, array $b): int {
-            // Prefer higher seq among CDC packs when stamps collide; else name desc.
-            $sa = (int)($a['seq'] ?? 0);
-            $sb = (int)($b['seq'] ?? 0);
-            if ($sa > 0 && $sb > 0 && $sa !== $sb
-                && (($a['kind'] ?? '') === 'incr') && (($b['kind'] ?? '') === 'incr')
-            ) {
-                return $sb <=> $sa;
-            }
             return strcmp((string)$b['name'], (string)$a['name']);
         });
         return $out;
@@ -343,6 +338,10 @@ final class BackupFtpTarget implements BackupTarget
             }
             $complete[] = $set;
         }
+        // Keep newest by pack name (Y-m-d_H-i-s stamp), never by CDC seq.
+        usort($complete, static function (array $a, array $b): int {
+            return strcmp((string)$b['name'], (string)$a['name']);
+        });
         if (count($complete) > $keep) {
             $drop = array_slice($complete, $keep);
             foreach ($drop as $set) {

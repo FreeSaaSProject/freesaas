@@ -235,4 +235,8 @@ return [
     'video.setup.step.wizard_help' => 'Мастер нужен, чтобы подключить сервис и начать работу.',
     'video.setup.ask.wizard' => 'Мастер нужен, чтобы подключить сервис и начать работу.',
     'video.setup.choice.open' => 'Открыть мастер',
+    'video.notify.event.alert' => 'Видео: сработала тревога',
+    'video.notify.field.kind' => 'Тип тревоги',
+    'video.notify.field.camera_id' => 'ID камеры',
+    'video.notify.tpl.alert' => '[video] {camera_name}: {message}',
 ];

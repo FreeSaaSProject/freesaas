@@ -9,6 +9,7 @@
     },
     "optionalRequires": {
         "bots": ">=1.0.0",
+        "notify": ">=0.1.0",
         "video_label": ">=0.1.0"
     },
     "provides": [
@@ -473,9 +474,11 @@
     "migrators": [],
     "hooks": {
         "subscribe": [
-            "backups.sources"
+            "backups.sources",
+            "notify.catalog"
         ],
         "publish": [
+            "notify.event",
             "video.alert.created"
         ]
     },

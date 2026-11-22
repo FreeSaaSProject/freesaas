@@ -9,7 +9,14 @@ final class ProcedureBotNotify
      */
     public static function onSaved(int $procedureId, array $data, string $kind = 'new'): void
     {
-        if ($procedureId < 1 || !ModuleManager::isEnabled('bots') || !class_exists('BotSend', false)) {
+        if ($procedureId < 1) {
+            return;
+        }
+        // When notify is enabled, ProceduresRepository::dispatch owns delivery.
+        if (ModuleManager::isEnabled('notify') && class_exists('ProceduresNotifyProvider', false)) {
+            return;
+        }
+        if (!ModuleManager::isEnabled('bots') || !class_exists('BotSend', false)) {
             return;
         }
         $operatorId = (int)($data['id_operator'] ?? 0);

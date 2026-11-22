@@ -212,6 +212,8 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `audio_reports` | Records calendar + summary reports; requires `audio` + `audio_dicts` + `workweeks` |
 | `llm` | OpenAI-compatible LLM client + token profiles UI (`cfg/modules/llm.ini`); shared by studies/bots/agents |
 | `bots` | Telegram/Max transport + `base_telegram_sends` queue + `base_bot_links` identities + webhooks; domain adapters via `BotPlugins` / `bots.send` |
+| `mail` | SMTP email transport: queue `base_mail_sends`, `mail.send` EventBus enqueue, cron `mail.sends_drain`, settings `/mail/settings` (`cfg/modules/mail.ini`), `/agent/mail/*`; alpha — [`docs/agents/mail.md`](docs/agents/mail.md) |
+| `notify` | Notification + confirmation rules (`base_notify_*`): catalog/`notify.event`, bot/email/inapp, journal, confirm tasks + `nt:` bot callbacks; soft `bots`/`mail`; alpha — [`docs/agents/notify.md`](docs/agents/notify.md) |
 | `assistant` | In-system LLM assistant (chat for every staff user + bot; tools over `agent.ops`, confirm writes; `base_assistant_*`); requires `llm` — [`docs/agents/assistant.md`](docs/agents/assistant.md) |
 | `assistant_groups` | Assistant in Max staff groups: mention → draft → manager confirm; requires `assistant` + `bots` — [`docs/agents/assistant-groups.md`](docs/agents/assistant-groups.md) |
 | `audio_llm` | LLM studies (`base_records_llm_studies*`); cyclic templates + staff day-report spawn; requires `llm` + `audio` |

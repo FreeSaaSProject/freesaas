@@ -370,4 +370,9 @@ return [
     'backups.ui.retrying' => 'Request failed, retrying…',
     'backups.ui.retry' => 'Retry',
     'backups.ui.login' => 'Log in',
+    'backups.notify.event.failed' => 'Backup: run failed',
+    'backups.notify.event.succeeded' => 'Backup: run succeeded',
+    'backups.notify.event.stale' => 'Backup: no successful copy for too long',
+    'backups.notify.event.test' => 'Backup: test notification',
+    'backups.notify.field.kind' => 'Run kind',
 ];

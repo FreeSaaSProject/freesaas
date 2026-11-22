@@ -41,6 +41,8 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [recons.md](recons.md) | Day board of account reconciliations (`recons`) |
 | [ledger-chart.md](ledger-chart.md) | Agent-led chart seeding (interview, FOT + act_in, no hardcoded tree) |
 | [bots.md](bots.md) | Telegram/Max transport, queue, webhooks, BotPlugins; `/agent/bots/*` repair |
+| [mail.md](mail.md) | SMTP email transport, queue, `mail.send`; `/agent/mail/*` |
+| [notify.md](notify.md) | Rules, confirmations, journal; `/agent/notify/*` |
 | [gcal.md](gcal.md) | Google Calendar sync; `/agent/gcal/*` diagnose/repair |
 | [likespa-restores.md](likespa-restores.md) | Spa instance pack: legacy cutover, restores, FREE_TICKET, settlement JSON |
 | [terminals.md](terminals.md) | Terminals/therms: registry, occupancy, sync jobs + JSON |
@@ -77,6 +79,8 @@ Staff/MCP how-to uses these via `core.help.search` / `core.help.get`. Keep **Hum
 | [bonuses.md](bonuses.md) | `bonuses` |
 | [booking.md](booking.md) | `booking` |
 | [bots.md](bots.md) | `bots` |
+| [mail.md](mail.md) | `mail` |
+| [notify.md](notify.md) | `notify` |
 | [cabinets.md](cabinets.md) | `cabinets` |
 | [calendar.md](calendar.md) | `calendar` |
 | [catalog.md](catalog.md) | `catalog` |

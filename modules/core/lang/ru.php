@@ -1193,4 +1193,8 @@ return [
     'core.perm.statuses_delete' => 'Удаление должностей',
     'core.perm.news_delete' => 'Удаление / скрытие новостей',
     'core.perm.news_statuses_delete' => 'Удаление статусов заявок',
+    'core.edge_hosts.notify.event.down' => 'Edge-хост: потеряна связь',
+    'core.edge_hosts.notify.event.up' => 'Edge-хост: связь восстановлена',
+    'core.edge_hosts.notify.event.test' => 'Edge-хост: тест уведомления',
+    'core.edge_hosts.notify.field.host_id' => 'ID edge-хоста',
 ];

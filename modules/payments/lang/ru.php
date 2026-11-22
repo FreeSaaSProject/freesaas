@@ -254,4 +254,6 @@ return [
     'payments.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
     'payments.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
     'payments.setup.choice.open' => 'Открыть настройки',
+    'payments.notify.event.day_payroll_requested' => 'Выплаты: запрошена выдача наличных на день',
+    'payments.notify.event.day_payroll_cancelled' => 'Выплаты: запрос выдачи отменён',
 ];

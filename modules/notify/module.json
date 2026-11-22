@@ -1,0 +1,521 @@
+{
+    "id": "notify",
+    "name": "notify.module.name",
+    "description": "notify.module.description",
+    "version": "0.1.3",
+    "type": "product",
+    "runtime": "both",
+    "requires": {
+        "core": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "bots": ">=1.0.0",
+        "mail": ">=0.1.0",
+        "orders": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "clients": ">=1.0.0",
+        "workweeks": ">=1.0.0",
+        "vacations": ">=1.0.0",
+        "backups": ">=1.0.0",
+        "video": ">=0.1.0",
+        "payments": ">=1.0.0"
+    },
+    "provides": [
+        "notify.engine"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "notify.manage",
+            "label": "notify.perm.manage"
+        },
+        {
+            "id": "notify.tasks.view",
+            "label": "notify.perm.tasks_view"
+        },
+        {
+            "id": "notify.tasks.resolve",
+            "label": "notify.perm.tasks_resolve"
+        },
+        {
+            "id": "notify.journal",
+            "label": "notify.perm.journal"
+        },
+        {
+            "id": "notify.send",
+            "label": "notify.perm.send"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/notify/rules",
+            "/notify/rules/new",
+            "/notify/rules/{id}/edit",
+            "/notify/rules/{id}/test",
+            "/notify/journal",
+            "/notify/tasks",
+            "/notify/settings",
+            "/notify/send",
+            "/agent/notify/status",
+            "/agent/notify/catalog",
+            "/agent/notify/rules",
+            "/agent/notify/rules/get",
+            "/agent/notify/rules/save",
+            "/agent/notify/rules/delete",
+            "/agent/notify/rules/test",
+            "/agent/notify/settings",
+            "/agent/notify/chats",
+            "/agent/notify/journal",
+            "/agent/notify/tasks",
+            "/agent/notify/tasks/resolve",
+            "/agent/notify/send",
+            "/agent/notify/presets",
+            "/agent/notify/presets/apply"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/notify.md",
+        "ops": [
+            {
+                "id": "notify.rules.list",
+                "method": "GET",
+                "path": "/notify/rules",
+                "permission": "notify.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "List notification rules"
+            },
+            {
+                "id": "notify.rules.toggle",
+                "method": "POST",
+                "path": "/notify/rules",
+                "permission": "notify.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Enable or disable a rule; body action=toggle, id, enabled (0|1)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "toggle"
+                            ]
+                        },
+                        "id": {
+                            "type": "integer"
+                        },
+                        "enabled": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ]
+                        }
+                    },
+                    "required": [
+                        "action",
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "notify.rules.delete",
+                "method": "POST",
+                "path": "/notify/rules",
+                "permission": "notify.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Delete a rule; body action=delete, id",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "delete"
+                            ]
+                        },
+                        "id": {
+                            "type": "integer"
+                        }
+                    },
+                    "required": [
+                        "action",
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "notify.rules.get",
+                "method": "GET",
+                "path": "/notify/rules/{id}/edit",
+                "permission": "notify.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Get one rule with event catalog def"
+            },
+            {
+                "id": "notify.rules.create",
+                "method": "POST",
+                "path": "/notify/rules/new",
+                "permission": "notify.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Create a notification/confirm rule"
+            },
+            {
+                "id": "notify.rules.update",
+                "method": "POST",
+                "path": "/notify/rules/{id}/edit",
+                "permission": "notify.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Update a rule (patch via form fields)"
+            },
+            {
+                "id": "notify.rules.test",
+                "method": "POST",
+                "path": "/notify/rules/{id}/test",
+                "permission": "notify.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Dry-run a rule against sample or posted ctx"
+            },
+            {
+                "id": "notify.journal.list",
+                "method": "GET",
+                "path": "/notify/journal",
+                "permission": "notify.journal",
+                "description": "Delivery journal; filters client_id, scope=to_client|about_client, event, status"
+            },
+            {
+                "id": "notify.tasks.list",
+                "method": "GET",
+                "path": "/notify/tasks",
+                "permission": "notify.tasks.view",
+                "description": "Confirmation tasks list"
+            },
+            {
+                "id": "notify.tasks.resolve",
+                "method": "POST",
+                "path": "/notify/tasks",
+                "permission": "notify.tasks.resolve",
+                "side_effect": "write",
+                "description": "Resolve pending task; body action=resolve, task_id, outcome, comment?"
+            },
+            {
+                "id": "notify.settings.get",
+                "method": "GET",
+                "path": "/notify/settings",
+                "permission": "notify.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Notify module settings (quiet hours)"
+            },
+            {
+                "id": "notify.settings.save",
+                "method": "POST",
+                "path": "/notify/settings",
+                "permission": "notify.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Save notify settings"
+            },
+            {
+                "id": "notify.send",
+                "method": "POST",
+                "path": "/notify/send",
+                "permission": "notify.send",
+                "side_effect": "write",
+                "description": "One-shot send to client_id|user_id|chat_id"
+            },
+            {
+                "id": "notify.rules.apply_preset",
+                "method": "POST",
+                "path": "/notify/rules",
+                "permission": "notify.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Apply a ready-made rule pack; body action=apply_preset, pack, chat_id?, bot_chat_id?, platform?, staff_ids?, enabled?",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "apply_preset"
+                            ]
+                        },
+                        "pack": {
+                            "type": "string"
+                        },
+                        "chat_id": {
+                            "type": "string"
+                        },
+                        "bot_chat_id": {
+                            "type": "integer"
+                        },
+                        "platform": {
+                            "type": "string"
+                        },
+                        "staff_ids": {
+                            "type": "string"
+                        },
+                        "enabled": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ]
+                        }
+                    },
+                    "required": [
+                        "action",
+                        "pack"
+                    ]
+                }
+            },
+            {
+                "id": "notify.token.status",
+                "method": "GET",
+                "path": "/agent/notify/status",
+                "permission": "public",
+                "description": "Agent-token: notify health (tables, counts, transports)"
+            },
+            {
+                "id": "notify.token.catalog",
+                "method": "GET",
+                "path": "/agent/notify/catalog",
+                "permission": "public",
+                "description": "Agent-token: event catalog"
+            },
+            {
+                "id": "notify.token.rules.list",
+                "method": "GET",
+                "path": "/agent/notify/rules",
+                "permission": "public",
+                "description": "Agent-token: list rules"
+            },
+            {
+                "id": "notify.token.rules.get",
+                "method": "GET",
+                "path": "/agent/notify/rules/get",
+                "permission": "public",
+                "description": "Agent-token: get rule by id"
+            },
+            {
+                "id": "notify.token.rules.save",
+                "method": "POST",
+                "path": "/agent/notify/rules/save",
+                "permission": "public",
+                "description": "Agent-token: create/update rule",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "notify.token.rules.delete",
+                "method": "POST",
+                "path": "/agent/notify/rules/delete",
+                "permission": "public",
+                "description": "Agent-token: delete rule",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "notify.token.rules.test",
+                "method": "POST",
+                "path": "/agent/notify/rules/test",
+                "permission": "public",
+                "description": "Agent-token: dry-run rule",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "notify.token.settings",
+                "method": "GET",
+                "path": "/agent/notify/settings",
+                "permission": "public",
+                "description": "Agent-token: read notify settings"
+            },
+            {
+                "id": "notify.token.settings.save",
+                "method": "POST",
+                "path": "/agent/notify/settings",
+                "permission": "public",
+                "description": "Agent-token: save notify settings",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "notify.token.chats",
+                "method": "GET",
+                "path": "/agent/notify/chats",
+                "permission": "public",
+                "description": "Agent-token: known bot chats"
+            },
+            {
+                "id": "notify.token.journal",
+                "method": "GET",
+                "path": "/agent/notify/journal",
+                "permission": "public",
+                "description": "Agent-token: delivery journal"
+            },
+            {
+                "id": "notify.token.tasks",
+                "method": "GET",
+                "path": "/agent/notify/tasks",
+                "permission": "public",
+                "description": "Agent-token: confirmation tasks"
+            },
+            {
+                "id": "notify.token.tasks.resolve",
+                "method": "POST",
+                "path": "/agent/notify/tasks/resolve",
+                "permission": "public",
+                "description": "Agent-token: resolve confirmation task",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "notify.token.send",
+                "method": "POST",
+                "path": "/agent/notify/send",
+                "permission": "public",
+                "description": "Agent-token: one-shot send",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "notify.token.presets",
+                "method": "GET",
+                "path": "/agent/notify/presets",
+                "permission": "public",
+                "description": "Agent-token: list rule preset packs"
+            },
+            {
+                "id": "notify.token.presets.apply",
+                "method": "POST",
+                "path": "/agent/notify/presets/apply",
+                "permission": "public",
+                "description": "Agent-token: apply rule preset pack",
+                "side_effect": "write",
+                "assistant": false
+            }
+        ]
+    },
+    "jobs": [
+        "platform Cron::register notify.tick → /cron/tick"
+    ],
+    "menu": [
+        {
+            "group": "notify.menu.group",
+            "kind": "work",
+            "num": 10,
+            "path": "/notify/tasks",
+            "icon": "✅",
+            "title": "notify.menu.tasks",
+            "permission": "notify.tasks.view"
+        },
+        {
+            "group": "notify.menu.group",
+            "kind": "work",
+            "num": 20,
+            "path": "/notify/journal",
+            "icon": "📒",
+            "title": "notify.menu.journal",
+            "permission": "notify.journal"
+        },
+        {
+            "group": "notify.menu.group",
+            "kind": "crud",
+            "num": 30,
+            "path": "/notify/rules",
+            "icon": "📋",
+            "title": "notify.menu.rules",
+            "permission": "notify.manage",
+            "capability": "SUPERADMIN_ACCESS"
+        },
+        {
+            "group": "notify.menu.group",
+            "kind": "settings",
+            "num": 40,
+            "path": "/notify/settings",
+            "icon": "⚙️",
+            "title": "notify.menu.settings",
+            "permission": "notify.manage",
+            "capability": "SUPERADMIN_ACCESS"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_notify_rules",
+        "base_notify_deliveries",
+        "base_notify_tasks"
+    ],
+    "migrators": [
+        {
+            "id": "legacy_settings",
+            "mode": "transform",
+            "source": [
+                "cfg/modules/orders.ini",
+                "cfg/modules/vacations.ini",
+                "cfg/modules/backups.ini",
+                "cfg/modules/core.ini"
+            ],
+            "target": [
+                "base_notify_rules"
+            ],
+            "description": "notify.migrator.legacy"
+        }
+    ],
+    "hooks": {
+        "subscribe": [
+            "notify.event",
+            "notify.catalog",
+            "notify.scan",
+            "notify.options",
+            "bots.inbound",
+            "bots.ready",
+            "clients.view.profile",
+            "core.notices.collect",
+            "orders.view.sections"
+        ],
+        "publish": [
+            "notify.event",
+            "notify.catalog",
+            "notify.scan",
+            "notify.options",
+            "notify.task.resolved"
+        ]
+    },
+    "catalog": {
+        "categories": [
+            "communications"
+        ],
+        "maturity": "alpha",
+        "tags": [],
+        "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "notify.setup.step.config",
+                "description": "notify.setup.step.config_help",
+                "href": "/notify/settings",
+                "ask_user": "notify.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "notify.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    }
+}

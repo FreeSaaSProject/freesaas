@@ -1193,4 +1193,8 @@ return [
     'core.perm.statuses_delete' => 'Delete positions',
     'core.perm.news_delete' => 'Delete / hide news',
     'core.perm.news_statuses_delete' => 'Delete news statuses',
+    'core.edge_hosts.notify.event.down' => 'Edge host: link lost',
+    'core.edge_hosts.notify.event.up' => 'Edge host: link restored',
+    'core.edge_hosts.notify.event.test' => 'Edge host: test notification',
+    'core.edge_hosts.notify.field.host_id' => 'Edge host id',
 ];

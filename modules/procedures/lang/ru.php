@@ -169,4 +169,11 @@ return [
     'procedures.portal.sum' => 'Сумма',
     'procedures.bot.visits_title' => '🩺 Ваши визиты:',
     'procedures.bot.visits_empty' => '🩺 Визитов пока нет.',
+    'procedures.notify.event.created' => 'Процедура: создана',
+    'procedures.notify.event.updated' => 'Процедура: изменена',
+    'procedures.notify.event.cancelled' => 'Процедура: удалена',
+    'procedures.notify.field.type' => 'Тип процедуры',
+    'procedures.notify.field.product_category' => 'Категория товара',
+    'procedures.notify.field.operator_hidden' => 'Мастер скрыт (0/1)',
+    'procedures.notify.field.is_today' => 'Начало сегодня (0/1)',
 ];

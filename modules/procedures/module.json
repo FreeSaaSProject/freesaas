@@ -13,6 +13,7 @@
     "optionalRequires": {
         "tables": ">=1.0.0",
         "bots": ">=1.0.0",
+        "notify": ">=0.1.0",
         "procents": ">=1.0.0",
         "workweeks": ">=1.0.0",
         "assistant": ">=1.0.0",
@@ -269,9 +270,15 @@
             "audio_reports.day_quality.part_metric",
             "client_portal.sections",
             "client_portal.home",
-            "client_portal.render"
+            "client_portal.render",
+            "notify.catalog",
+            "notify.options"
         ],
         "publish": [
+            "notify.event",
+            "procedures.created",
+            "procedures.updated",
+            "procedures.cancelled",
             "bots.send",
             "procedures.list.row",
             "procedures.edit.sections"

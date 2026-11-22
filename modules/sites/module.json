@@ -302,7 +302,8 @@
             "sites.ai_catalog",
             "sites.llms_txt",
             "sites.page.inject",
-            "sites.sitemap"
+            "sites.sitemap",
+            "sites.theme.resolve"
         ]
     },
     "bulkActions": [

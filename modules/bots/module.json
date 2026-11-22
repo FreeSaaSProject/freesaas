@@ -2,7 +2,7 @@
     "id": "bots",
     "name": "bots.module.name",
     "description": "bots.module.description",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -41,6 +41,7 @@
             "/bots/sends/work",
             "/bots/sends/test",
             "/bots/plugins",
+            "/bots/chats",
             "/bots/recipients",
             "/bots/message",
             "/bots/webhook/telegram/{channel}",
@@ -128,6 +129,21 @@
                 "path": "/bots/plugins",
                 "permission": "bots.manage",
                 "description": "Registered BotPlugins ids, priorities, handler flags"
+            },
+            {
+                "id": "bots.chats.list",
+                "method": "GET",
+                "path": "/bots/chats",
+                "permission": "bots.manage",
+                "description": "List known messenger group chats (base_bot_chats); filter q"
+            },
+            {
+                "id": "bots.chats.save",
+                "method": "POST",
+                "path": "/bots/chats",
+                "permission": "bots.manage",
+                "side_effect": "write",
+                "description": "Create/update group chat registry row; body: chat_id, platform, title?, purpose?, description?, enabled?; or action=toggle|delete with id"
             }
         ]
     },
@@ -158,6 +174,16 @@
         },
         {
             "group": "bots.menu.group",
+            "kind": "crud",
+            "num": 35,
+            "path": "/bots/chats",
+            "icon": "💬",
+            "title": "bots.menu.chats",
+            "permission": "bots.manage",
+            "capability": "SUPERADMIN_ACCESS"
+        },
+        {
+            "group": "bots.menu.group",
             "kind": "settings",
             "num": 40,
             "path": "/bots/settings",
@@ -174,7 +200,8 @@
         "base_bot_chat_state",
         "base_bot_webhook_updates",
         "base_bot_link_codes",
-        "base_bot_link_throttle"
+        "base_bot_link_throttle",
+        "base_bot_chats"
     ],
     "migrators": [],
     "hooks": {

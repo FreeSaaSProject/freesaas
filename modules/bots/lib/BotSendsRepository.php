@@ -233,9 +233,22 @@ final class BotSendsRepository
         return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
-    public static function mark(int $id, int $status, string $descr = '', string $error = ''): void
+    public static function mark(int $id, int $status, string $descr = '', string $error = '', string $platformMsgId = ''): void
     {
         if ($id < 1 || !self::tableReady()) {
+            return;
+        }
+        if ($platformMsgId !== '' && Database::columnExists('base_telegram_sends', 'PLATFORM_MSG_ID')) {
+            $st = Database::pdo()->prepare(
+                'UPDATE base_telegram_sends SET STATUS = ?, STATUS_DESCR = ?, ERROR = ?, PLATFORM_MSG_ID = ? WHERE ID = ?'
+            );
+            $st->execute([
+                $status,
+                $descr !== '' ? substr($descr, 0, 255) : null,
+                $error !== '' ? substr($error, 0, 512) : null,
+                substr($platformMsgId, 0, 128),
+                $id,
+            ]);
             return;
         }
         $st = Database::pdo()->prepare(
@@ -247,6 +260,18 @@ final class BotSendsRepository
             $error !== '' ? substr($error, 0, 512) : null,
             $id,
         ]);
+    }
+
+    public static function setPlatformMsgId(int $id, string $platformMsgId): void
+    {
+        if ($id < 1 || $platformMsgId === '' || !self::tableReady()) {
+            return;
+        }
+        if (!Database::columnExists('base_telegram_sends', 'PLATFORM_MSG_ID')) {
+            return;
+        }
+        $st = Database::pdo()->prepare('UPDATE base_telegram_sends SET PLATFORM_MSG_ID = ? WHERE ID = ?');
+        $st->execute([substr($platformMsgId, 0, 128), $id]);
     }
 
     public static function setChatId(int $id, string $chatId): void
