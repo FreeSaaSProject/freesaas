@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-23T15:27:29+00:00",
+    "generated_at": "2026-11-23T15:32:49+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -2777,7 +2777,7 @@
         },
         {
             "id": "workweeks",
-            "version": "1.0.6",
+            "version": "1.0.7",
             "type": "product",
             "name": {
                 "en": "Shifts",
