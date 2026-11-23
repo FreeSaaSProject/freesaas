@@ -195,8 +195,9 @@ $phoneDigits = EventsRepository::normalizeEventPhone((string)($row['phone'] ?? '
           <input type="hidden" name="content[]" value="<?= $gid ?>">
           <span class="calendar-selected-name">
             <?= e((string)$it['name']) ?>
-            <?php if ($procId > 0): ?>
-              <a class="calendar-selected-proc" href="/procedures/<?= $procId ?>/edit"><?= te('calendar.event.proc_link', ['id' => $procId]) ?></a>
+            <?php if ($procId > 0 && Auth::can('procedures.view')): ?>
+              <a class="calendar-selected-proc" href="/procedures/<?= $procId ?>/edit"
+                 title="<?= te('calendar.event.item_locked_proc') ?>"><?= te('calendar.event.proc_link', ['id' => $procId]) ?></a>
             <?php elseif ($canMakeProcedures && !$isNew): ?>
               <button type="submit" class="btn-secondary btn-sm calendar-selected-start"
                       name="action" value="create_procedures"
@@ -212,7 +213,9 @@ $phoneDigits = EventsRepository::normalizeEventPhone((string)($row['phone'] ?? '
           </label>
           <?php if ($timeSec > 0): ?>
             <input type="hidden" name="content_qty[<?= $gid ?>]" value="1">
-            <span class="calendar-selected-qty muted" title="<?= te('calendar.event.qty_locked_hint') ?>">×1</span>
+            <?php if ((int)$it['qty'] > 1): ?>
+              <span class="calendar-selected-qty muted" title="<?= te('calendar.event.qty_locked_hint') ?>">×<?= (int)$it['qty'] ?></span>
+            <?php endif; ?>
           <?php else: ?>
             <label class="calendar-selected-qty"><?= te('calendar.event.col_qty') ?>
               <input type="number" min="1" step="1" name="content_qty[<?= $gid ?>]"
@@ -221,8 +224,6 @@ $phoneDigits = EventsRepository::normalizeEventPhone((string)($row['phone'] ?? '
           <?php endif; ?>
           <?php if (!$readonly && $procId < 1): ?>
             <button type="button" class="btn-secondary btn-sm calendar-selected-remove" aria-label="<?= te('calendar.event.remove_item') ?>">×</button>
-          <?php elseif ($procId > 0): ?>
-            <span class="calendar-selected-locked muted" title="<?= te('calendar.event.item_locked_proc') ?>"><?= te('calendar.event.item_locked_mark') ?></span>
           <?php endif; ?>
         </div>
       <?php endforeach; ?>

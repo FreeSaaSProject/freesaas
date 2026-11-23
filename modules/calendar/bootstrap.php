@@ -168,7 +168,9 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
         $events = CalendarWidgets::eventsTodayActive($staffId, false);
         // Board also shows earlier-today finished? User asked ongoing + future — use active filter.
         // But board visual of "today" might want all of today's remaining; already have that.
-        $procedures = CalendarWidgets::proceduresTodayActive($staffId);
+        $procedures = CalendarWidgets::canSeeProcedures()
+            ? CalendarWidgets::proceduresTodayActive($staffId)
+            : [];
         $orders = [];
         if (class_exists('OrdersRepository', false) && Database::tableExists('base_orders')) {
             $allow = array_fill_keys(OrdersRepository::NEW_STATUSES, true);

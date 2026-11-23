@@ -382,10 +382,7 @@
         hid.name = 'content_qty[' + id + ']';
         hid.value = '1';
         row.insertBefore(hid, remBtn);
-        var qtyMark = document.createElement('span');
-        qtyMark.className = 'calendar-selected-qty muted';
-        qtyMark.textContent = '×1';
-        row.insertBefore(qtyMark, remBtn);
+        // qty is always 1 for timed services — no "×1" chrome
       } else {
         var qtyLab = document.createElement('label');
         qtyLab.className = 'calendar-selected-qty';

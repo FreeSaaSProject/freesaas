@@ -11,6 +11,7 @@ declare(strict_types=1);
  */
 $canPrint = Auth::can('docs.print');
 $canMedical = Auth::can('docs.medical');
+$canOpenDoc = Auth::can('docs.edit') || Auth::can('docs.view');
 ?>
 <fieldset class="docs-event-block">
   <legend><?= te('docs.event.sec') ?></legend>
@@ -38,7 +39,11 @@ $canMedical = Auth::can('docs.medical');
           ?>
         <tr>
           <td class="docs-event-name">
-            <a href="/documents/<?= (int)$inst['id'] ?>/edit"><?= e($label) ?></a>
+            <?php if ($canOpenDoc): ?>
+              <a href="/documents/<?= (int)$inst['id'] ?>/edit"><?= e($label) ?></a>
+            <?php else: ?>
+              <?= e($label) ?>
+            <?php endif; ?>
           </td>
           <td class="docs-event-meta">
             <span class="docs-status docs-status--<?= e((string)$inst['status']) ?>"><?= te('docs.status.' . $inst['status']) ?></span>

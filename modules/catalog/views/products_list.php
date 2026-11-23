@@ -74,7 +74,11 @@ $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filter
         <td class="muted"><?= (int)$p['id'] ?></td>
         <td><?= (int)$p['num'] ?></td>
         <td>
-          <a href="/products/<?= (int)$p['id'] ?>/edit"><?= e((string)$p['name']) ?></a>
+          <?php if (!empty($canEdit)): ?>
+            <a href="/products/<?= (int)$p['id'] ?>/edit"><?= e((string)$p['name']) ?></a>
+          <?php else: ?>
+            <?= e((string)$p['name']) ?>
+          <?php endif; ?>
           <?php if (empty($p['enabled'])): ?>
             <span class="pill off"><?= te('core.common.off') ?></span>
           <?php endif; ?>

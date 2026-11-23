@@ -12,6 +12,7 @@ declare(strict_types=1);
 /** @var array<string,int> $rolePackPerms */
 /** @var int $roleStatusId */
 /** @var list<array{id:int,login:string,name:string}> $copyUsers */
+/** @var int $copyFrom */
 /** @var string $genPass */
 /** @var int $favoritesCount */
 /** @var string $extraHtml */
@@ -19,6 +20,7 @@ declare(strict_types=1);
 
 $isNew = !empty($isNew);
 $uid = (int)($user['id'] ?? 0);
+$copyFrom = (int)($copyFrom ?? 0);
 $extraHtml = (string)($extraHtml ?? '');
 $extraAccessHtml = (string)($extraAccessHtml ?? '');
 $color = trim((string)($user['color'] ?? ''));
@@ -71,6 +73,9 @@ $hasShowBdayCol = Database::columnExists('base_users', 'show_bday_in_cal');
 <?php endif; ?>
 
 <form method="post" class="form-grid form-wide user-edit-form" id="user-edit-form" autocomplete="off">
+  <?php if ($isNew && !empty($copyFrom)): ?>
+  <input type="hidden" name="copyFrom" value="<?= (int)$copyFrom ?>">
+  <?php endif; ?>
 
   <h2 class="form-section-title"><?= te('core.user_edit.sec_personal') ?></h2>
   <label><?= te('core.user_edit.login') ?>

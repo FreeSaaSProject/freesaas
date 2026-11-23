@@ -77,9 +77,10 @@ final class PriceListPrinter
             $strike = 'none';
         }
 
-        $kind = (int)($get['kind'] ?? self::KIND_HOUSEHOLD);
+        // Default «all» so medical/cosmo services are not hidden behind household filter.
+        $kind = (int)($get['kind'] ?? self::KIND_ALL);
         if (!in_array($kind, [self::KIND_ALL, self::KIND_MEDICAL, self::KIND_HOUSEHOLD], true)) {
-            $kind = self::KIND_HOUSEHOLD;
+            $kind = self::KIND_ALL;
         }
         if (!self::proceduresAvailable() && $kind !== self::KIND_ALL) {
             $kind = self::KIND_ALL;
@@ -268,7 +269,7 @@ final class PriceListPrinter
             'title' => (string)($merged['title'] ?? ''),
             'roots' => implode(',', array_map('intval', $merged['roots'] ?? [])),
             'host' => (int)($merged['host_id'] ?? 0),
-            'kind' => (int)($merged['kind'] ?? self::KIND_HOUSEHOLD),
+            'kind' => (int)($merged['kind'] ?? self::KIND_ALL),
             'main' => (string)($merged['main_col'] ?? 'price'),
             'strike' => (string)($merged['strike_col'] ?? 'none'),
             'cols' => (int)($merged['cols'] ?? 2),

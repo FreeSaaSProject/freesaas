@@ -142,7 +142,11 @@ $colCount = 4 + ($searchGlobal ? 1 : 0) + count($priceCols) + 1 + ($canEdit ? 1 
           <td class="muted"><?= (int)$p['id'] ?></td>
           <td><?= (int)$p['num'] ?></td>
           <td>
-            <a href="/products/<?= (int)$p['id'] ?>/edit"><?= e((string)$p['name']) ?></a>
+            <?php if ($canEdit): ?>
+              <a href="/products/<?= (int)$p['id'] ?>/edit"><?= e((string)$p['name']) ?></a>
+            <?php else: ?>
+              <?= e((string)$p['name']) ?>
+            <?php endif; ?>
           </td>
           <?php if ($searchGlobal): ?>
             <td class="muted">

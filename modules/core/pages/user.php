@@ -7,6 +7,20 @@ require_once base_path('modules/core/lib/LoginLinksRepository.php');
 $wantsJson = AgentHttp::wantsJson();
 
 $id = (int)(Router::param('id') ?? 0);
+$isSelf = $id > 0 && $id === Auth::userId();
+if (!Auth::can('core.users') && !$isSelf) {
+    $message = t('core.user.err.forbidden_other');
+    if ($wantsJson) {
+        AgentHttp::error($message, 403, ['error_code' => 'forbidden', 'permission' => 'core.users']);
+    }
+    http_response_code(403);
+    View::render('error', [
+        'title' => t('core.common.forbidden'),
+        'message' => $message,
+        'hint' => t('core.router.err.tech_id', ['id' => 'core.users']),
+    ]);
+    return;
+}
 $user = UsersRepository::findForEdit($id);
 if (!$user) {
     if ($wantsJson) {
@@ -195,7 +209,9 @@ View::render('user', [
     'profileSiteHtml' => is_array($profile) ? (string)($profile['html_site'] ?? '') : '',
     'menuPreview' => $menuPreview,
     'breadcrumbs' => Breadcrumbs::withHome([
-        ['label' => t('core.menu.users'), 'href' => '/users'],
+        Auth::can('core.users')
+            ? ['label' => t('core.menu.users'), 'href' => '/users']
+            : ['label' => t('core.menu.users')],
         ['label' => $displayName, 'current' => true],
     ]),
 ]);

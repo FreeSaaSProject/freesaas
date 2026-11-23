@@ -54,18 +54,18 @@ final class DocsConfig
         Config::set('docs', 'qr_archive', $on ? '1' : '0');
     }
 
-    /** Medcard kinds are gated by docs.medical on top of view/edit. */
+    /** Medcard kinds: medical staff, or desk print (labels + print buttons only). */
     public static function canSeeKind(string $kind): bool
     {
         if (!DocsDefsRepository::isMedicalKind($kind)) {
             return true;
         }
-        return Auth::can('docs.medical');
+        return Auth::can('docs.medical') || Auth::can('docs.print');
     }
 
     public static function canSeeEventDocs(): bool
     {
-        if (!Auth::can('docs.view')) {
+        if (!Auth::can('docs.view') && !Auth::can('docs.print')) {
             return false;
         }
         return Auth::capability('EVT_DOC_LINKS') || Auth::capability('SUPERADMIN_ACCESS');

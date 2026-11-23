@@ -331,7 +331,7 @@ final class CalendarTimeline
                 'restored' => $restored ? 1 : 0,
                 'notice' => (string)($pr['notice'] ?? ''),
                 'class' => $procClass,
-                'href' => '/procedures/' . (int)$pr['id'] . '/edit',
+                'href' => CalendarWidgets::procedureHref($pr),
                 'top' => $pos['top'],
                 'height' => $pos['height'],
                 'left' => $lefts[$op] ?? 0.0,

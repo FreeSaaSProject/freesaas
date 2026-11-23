@@ -18,11 +18,11 @@ $detail = (string)($detail ?? '');
       <a class="btn-secondary" href="/modules"><?= te('core.error.schema_goto_modules') ?></a>
     </div>
     <p class="muted"><?= te('core.error.schema_cli') ?></p>
-    <?php if ($detail !== ''): ?>
-      <p class="muted"><code><?= e($detail) ?></code></p>
-    <?php endif; ?>
   <?php elseif (!empty($hint)): ?>
-    <p class="muted"><?= e($hint) ?></p>
+    <p class="muted"><?= e((string)$hint) ?></p>
+  <?php endif; ?>
+  <?php if ($detail !== ''): ?>
+    <p class="muted"><code><?= e($detail) ?></code></p>
   <?php endif; ?>
   <p><a href="/">← <?= te('core.menu.home') ?></a></p>
 </section>

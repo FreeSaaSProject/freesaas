@@ -359,6 +359,31 @@ final class UsersRepository
         return $grouped;
     }
 
+    /**
+     * Human label for a screen permission id (module.json → i18n), or the raw id.
+     */
+    public static function permissionLabel(string $id): string
+    {
+        $id = trim($id);
+        if ($id === '') {
+            return '';
+        }
+        foreach (self::availablePermissionKeys() as $g) {
+            foreach ($g['keys'] as $key) {
+                $pid = is_array($key) ? (string)($key['id'] ?? '') : (string)$key;
+                if ($pid !== $id) {
+                    continue;
+                }
+                $labelKey = is_array($key) ? trim((string)($key['label'] ?? '')) : '';
+                if ($labelKey === '') {
+                    return $id;
+                }
+                return t($labelKey);
+            }
+        }
+        return $id;
+    }
+
     /** @return array<string,string> request sort key => SQL expression */
     public static function listSortMap(): array
     {

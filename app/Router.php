@@ -219,29 +219,54 @@ final class Router
         // permission/capability always enforce Auth::can — never skip for anonymous
         // even if a route was mistakenly marked public => true.
         if ($perm && !Auth::can($perm)) {
+            $permId = (string)$perm;
+            $label = class_exists('UsersRepository', false)
+                ? UsersRepository::permissionLabel($permId)
+                : $permId;
+            $message = t('core.router.err.missing_perm', ['label' => $label]);
             if ($wantJson) {
-                $probe = Auth::accessProbe((string)$perm);
+                $probe = Auth::accessProbe($permId);
                 AgentHttp::error(
-                    'Missing permission: ' . $perm . ' (' . (string)($probe['why'] ?? '') . ')',
+                    $message,
                     403,
-                    ['error_code' => 'forbidden', 'probe' => $probe]
+                    [
+                        'error_code' => 'forbidden',
+                        'permission' => $permId,
+                        'permission_label' => $label,
+                        'probe' => $probe,
+                    ]
                 );
             }
             http_response_code(403);
             View::render('error', [
-                'title' => 'Forbidden',
-                'message' => 'Missing permission: ' . $perm,
+                'title' => t('core.common.forbidden'),
+                'message' => $message,
+                'hint' => t('core.router.err.tech_id', ['id' => $permId]),
             ]);
             return;
         }
         if (is_string($capability) && $capability !== '' && !Auth::capability($capability)) {
+            $capId = (string)$capability;
+            $label = class_exists('StatusesRepository', false)
+                ? StatusesRepository::capabilityLabel($capId)
+                : $capId;
+            $message = t('core.router.err.missing_cap', ['label' => $label]);
             if ($wantJson) {
-                AgentHttp::error('Missing capability: ' . $capability, 403, ['error_code' => 'forbidden']);
+                AgentHttp::error(
+                    $message,
+                    403,
+                    [
+                        'error_code' => 'forbidden',
+                        'capability' => $capId,
+                        'capability_label' => $label,
+                    ]
+                );
             }
             http_response_code(403);
             View::render('error', [
-                'title' => 'Forbidden',
-                'message' => 'Missing capability: ' . $capability,
+                'title' => t('core.common.forbidden'),
+                'message' => $message,
+                'hint' => t('core.router.err.tech_id', ['id' => $capId]),
             ]);
             return;
         }

@@ -985,14 +985,72 @@ final class ModuleManager
     /** Resolve route permission for a menu href (query string ignored). */
     private static function routePermissionForPath(string $href): ?string
     {
-        $path = parse_url($href, PHP_URL_PATH);
-        $path = is_string($path) && $path !== '' ? $path : $href;
-        $route = self::$routes[$path] ?? null;
-        if (!is_array($route)) {
+        $route = self::routeForPath($href);
+        if ($route === null) {
             return null;
         }
         $perm = $route['permission'] ?? null;
         return is_string($perm) && $perm !== '' ? $perm : null;
+    }
+
+    /**
+     * Exact route row for a path (query ignored), or null.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function routeForPath(string $href): ?array
+    {
+        $path = parse_url($href, PHP_URL_PATH);
+        $path = is_string($path) && $path !== '' ? $path : $href;
+        $path = rtrim($path, '/') ?: '/';
+        $route = self::$routes[$path] ?? self::$routes[$href] ?? null;
+        return is_array($route) ? $route : null;
+    }
+
+    /**
+     * Whether the current user may open this path (permission + capability).
+     * Auth-only routes (no permission) pass when logged in. Unknown paths: false.
+     */
+    public static function canAccessPath(string $href): bool
+    {
+        if (!class_exists('Auth', false) || !Auth::check()) {
+            return false;
+        }
+        $path = parse_url($href, PHP_URL_PATH);
+        $path = is_string($path) && $path !== '' ? $path : $href;
+        $path = rtrim($path, '/') ?: '/';
+        if ($path === '/') {
+            return Auth::can('core.home') || Auth::isSuperAdmin();
+        }
+        $route = self::routeForPath($path);
+        if ($route === null) {
+            // Parameterized routes: try menu ACL (already filtered).
+            foreach (self::menuItems() as $item) {
+                $itemPath = parse_url((string)$item['path'], PHP_URL_PATH);
+                $itemPath = is_string($itemPath) && $itemPath !== '' ? $itemPath : (string)$item['path'];
+                $itemPath = rtrim($itemPath, '/') ?: '/';
+                if ($itemPath === $path) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (!empty($route['public'])) {
+            return true;
+        }
+        $moduleId = $route['module'] ?? null;
+        if (is_string($moduleId) && $moduleId !== '' && !self::isEnabled($moduleId)) {
+            return false;
+        }
+        $capability = $route['capability'] ?? null;
+        if (is_string($capability) && $capability !== '' && !Auth::capability($capability)) {
+            return false;
+        }
+        $perm = $route['permission'] ?? null;
+        if (is_string($perm) && $perm !== '' && !Auth::can($perm)) {
+            return false;
+        }
+        return true;
     }
 
     /** @return array<string, list<array>> */

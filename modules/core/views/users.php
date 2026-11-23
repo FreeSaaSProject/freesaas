@@ -16,13 +16,14 @@ $path = '/users';
 $showAll = !empty($showAll);
 $extraColumns = is_array($extraColumns ?? null) ? $extraColumns : [];
 $hasNum = Database::columnExists('base_users', 'num');
+$canClone = Auth::capability('SUPERADMIN_ACCESS');
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
-$colSpan = 5 + ($hasNum ? 1 : 0) + count($extraColumns);
+$colSpan = 5 + ($hasNum ? 1 : 0) + count($extraColumns) + ($canClone ? 1 : 0);
 ?>
 <section class="page-head">
   <p class="lede"><?= t('core.users.lede', ['total' => (int)$total]) ?></p>
-  <?php if (Auth::capability('SUPERADMIN_ACCESS')): ?>
-  <p><a class="btn" href="<?= e(NavContext::withReturn('/users/new')) ?>"><?= te('core.users.add') ?></a></p>
+  <?php if ($canClone): ?>
+  <p><a class="btn-primary" href="<?= e(NavContext::withReturn('/users/new')) ?>"><?= te('core.users.add') ?></a></p>
   <?php endif; ?>
 </section>
 
@@ -53,6 +54,9 @@ $colSpan = 5 + ($hasNum ? 1 : 0) + count($extraColumns);
         <?php foreach ($extraColumns as $col): ?>
           <th><?= e((string)($col['label'] ?? $col['key'] ?? '')) ?></th>
         <?php endforeach; ?>
+        <?php if ($canClone): ?>
+          <th><?= te('core.users.col_actions') ?></th>
+        <?php endif; ?>
       </tr>
     </thead>
     <tbody>
@@ -61,13 +65,14 @@ $colSpan = 5 + ($hasNum ? 1 : 0) + count($extraColumns);
         $uid = (int)$u['id'];
         $isOn = (string)($u['enabled'] ?? '') === '1';
         $canToggle = UsersRepository::canToggleEnabled($uid, $u);
+        $rowIsSuper = UsersRepository::statusIsSuperadmin((int)($u['ID_STATUS'] ?? 0));
       ?>
       <tr<?= !$isOn ? ' class="is-disabled"' : '' ?>>
         <?php if ($hasNum): ?>
           <?php $ord = (int)($u['num'] ?? 0); ?>
           <td class="muted"><?= $ord > 0 ? $ord : '—' ?></td>
         <?php endif; ?>
-        <td class="muted"><?php if (Auth::capability('SUPERADMIN_ACCESS')): ?><a href="/users/<?= $uid ?>/edit"><?= $uid ?></a><?php else: ?><?= $uid ?><?php endif; ?></td>
+        <td class="muted"><?php if ($canClone): ?><a href="/users/<?= $uid ?>/edit"><?= $uid ?></a><?php else: ?><?= $uid ?><?php endif; ?></td>
         <td>
           <a href="/users/<?= $uid ?>">
             <?= UsersRepository::badgeHtml($uid, false) ?>
@@ -112,6 +117,16 @@ $colSpan = 5 + ($hasNum ? 1 : 0) + count($extraColumns);
           ?>
           <td class="muted"><?= $val !== '' ? '<code>' . e($val) . '</code>' : '—' ?></td>
         <?php endforeach; ?>
+        <?php if ($canClone): ?>
+          <td>
+            <?php if (!$rowIsSuper): ?>
+              <a class="btn-ghost btn-sm" href="<?= e(NavContext::withReturn('/users/new?copyFrom=' . $uid)) ?>"
+                 title="<?= te('core.users.copy_title') ?>"><?= te('core.users.copy') ?></a>
+            <?php else: ?>
+              <span class="muted">—</span>
+            <?php endif; ?>
+          </td>
+        <?php endif; ?>
       </tr>
     <?php endforeach; ?>
     <?php if (!$items): ?>

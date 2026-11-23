@@ -76,6 +76,30 @@ final class CalendarWidgets
         return $out;
     }
 
+    /** Whether the current user may see procedure rows (view or edit). */
+    public static function canSeeProcedures(): bool
+    {
+        return Auth::can('procedures.view') || Auth::can('procedures.edit');
+    }
+
+    /**
+     * Procedure chip/list href: edit when allowed, else parent event or day view.
+     *
+     * @param array<string,mixed> $pr
+     */
+    public static function procedureHref(array $pr): string
+    {
+        $id = (int)($pr['id'] ?? 0);
+        if ($id > 0 && Auth::can('procedures.edit')) {
+            return '/procedures/' . $id . '/edit';
+        }
+        $eventId = (int)($pr['id_event_parent'] ?? 0);
+        if ($eventId > 0 && Auth::can('calendar.edit')) {
+            return '/calendar/events/' . $eventId . '/edit';
+        }
+        return EventsRepository::dayUrl((int)($pr['dtstart'] ?? 0));
+    }
+
     /**
      * Merge procedures + events for list widget, sorted by start.
      *
@@ -85,17 +109,19 @@ final class CalendarWidgets
     {
         $now = DemoMode::now();
         $items = [];
-        foreach (self::proceduresTodayActive($staffId) as $pr) {
-            $items[] = [
-                'kind' => 'proc',
-                'id' => (int)($pr['id'] ?? 0),
-                'dtstart' => (int)($pr['dtstart'] ?? 0),
-                'dtend' => (int)($pr['dtend'] ?? 0),
-                'label' => self::procedureLabel($pr),
-                'operator_name' => (string)($pr['operator_name'] ?? ''),
-                'ongoing' => (int)($pr['dtstart'] ?? 0) <= $now && (int)($pr['dtend'] ?? 0) > $now,
-                'href' => '/procedures/' . (int)($pr['id'] ?? 0) . '/edit',
-            ];
+        if (self::canSeeProcedures()) {
+            foreach (self::proceduresTodayActive($staffId) as $pr) {
+                $items[] = [
+                    'kind' => 'proc',
+                    'id' => (int)($pr['id'] ?? 0),
+                    'dtstart' => (int)($pr['dtstart'] ?? 0),
+                    'dtend' => (int)($pr['dtend'] ?? 0),
+                    'label' => self::procedureLabel($pr),
+                    'operator_name' => (string)($pr['operator_name'] ?? ''),
+                    'ongoing' => (int)($pr['dtstart'] ?? 0) <= $now && (int)($pr['dtend'] ?? 0) > $now,
+                    'href' => self::procedureHref($pr),
+                ];
+            }
         }
         foreach (self::eventsTodayActive($staffId, false) as $ev) {
             $id = (int)($ev['id'] ?? 0);

@@ -256,10 +256,14 @@ final class ClinicDemoStructure
                     $data[$col] = (int)$val;
                 }
             }
+            // Keep role screen-permission pack in sync (apply_role_pack / new hires).
+            if (Database::columnExists('base_admin_statuses', 'PERMISSIONS')) {
+                $data['PERMISSIONS'] = StatusesRepository::encodePermissions($this->permissionsFor($key));
+            }
             if ($id < 1) {
                 $id = StatusesRepository::create($data);
-                StatusesRepository::update($id, $data);
             }
+            StatusesRepository::update($id, $data);
             $this->m->add('statuses', $id);
             $out[$key] = $id;
         }
@@ -322,39 +326,51 @@ final class ClinicDemoStructure
     /** @return array<string,bool> */
     private function permissionsFor(string $role): array
     {
+        // Desk: book + print + own settlements. Cabin audio / BI / ledger — not for reception.
+        // Clinical: fill procedures/medcards (no print). Raw /audio — director (SUPERADMIN) only.
         $doctor = [
-            'core.home' => 1, 'calendar.view' => 1, 'calendar.edit' => 1,
+            'core.home' => 1, 'core.news' => 1, 'calendar.view' => 1, 'calendar.edit' => 1,
             'clients.view' => 1, 'clients.edit' => 1,
             'procedures.view' => 1, 'procedures.edit' => 1,
             'workweeks.view' => 1, 'catalog.view' => 1,
-            'docs.view' => 1, 'docs.edit' => 1, 'docs.print' => 1, 'docs.medical' => 1,
-            'audio.view' => 1, 'audio_reports.view' => 1, 'staff_reports.view' => 1,
-            'orders.view' => 1, 'crm.view' => 1, 'bi.manage' => 1,
+            'docs.view' => 1, 'docs.edit' => 1, 'docs.medical' => 1,
+            'audio_reports.view' => 1, 'staff_reports.view' => 1,
+            'orders.view' => 1, 'crm.view' => 1,
+            'medcard_audio.view' => 1,
         ];
         $admin = [
-            'core.home' => 1, 'calendar.view' => 1, 'calendar.edit' => 1, 'calendar.delete' => 1,
+            'core.home' => 1, 'core.news' => 1,
+            'calendar.view' => 1, 'calendar.edit' => 1, 'calendar.delete' => 1,
             'clients.view' => 1, 'clients.edit' => 1, 'clients.statuses' => 1, 'clients.tags' => 1,
-            'procedures.view' => 1, 'procedures.edit' => 1,
             'workweeks.view' => 1, 'catalog.view' => 1, 'cabinets.view' => 1,
             'orders.view' => 1, 'orders.edit' => 1,
             'payments.view' => 1, 'payments.edit' => 1,
-            'ledger.view' => 1, 'finance.view' => 1,
-            'docs.view' => 1, 'docs.edit' => 1, 'docs.print' => 1,
-            'audio.view' => 1, 'audio_reports.view' => 1,
-            'crm.view' => 1, 'bi.manage' => 1, 'bots.view' => 1,
+            'docs.print' => 1,
+            'booking.view' => 1, 'booking.edit' => 1,
+            // Analytics calendars/ratings — not raw cabin /audio.
+            'audio_reports.view' => 1, 'staff_reports.view' => 1,
         ];
         $manager = $admin + [
-            'core.users' => 1, 'core.statuses' => 1, 'core.news' => 1, 'core.settings' => 1,
+            'core.users' => 1, 'core.statuses' => 1, 'core.settings' => 1,
+            'procedures.view' => 1,
+            'docs.view' => 1, 'docs.print' => 1,
+            'ledger.view' => 1, 'finance.view' => 1,
             'rates.view' => 1, 'rates.edit' => 1, 'procents.view' => 1,
             'stocks.view' => 1, 'stocks.edit' => 1, 'stickers.view' => 1,
             'suppliers.view' => 1, 'units.view' => 1, 'norms.view' => 1,
             'audio_dicts.view' => 1, 'audio_dicts.edit' => 1,
-            'audio_pipeline.view' => 1, 'booking.view' => 1, 'booking.edit' => 1,
-            'staff_reports.view' => 1, 'crm.edit' => 1, 'bitrix.view' => 1,
+            'audio_pipeline.view' => 1, 'audio_reports.view' => 1,
+            'staff_reports.view' => 1, 'crm.view' => 1, 'crm.edit' => 1, 'bitrix.view' => 1,
+            'bi.manage' => 1, 'bots.view' => 1,
         ];
         switch ($role) {
             case 'director':
-                return $manager + ['core.modules' => 1, 'core.db' => 1, 'ledger.edit' => 1, 'ledger.types' => 1];
+                return $manager + [
+                    'core.modules' => 1, 'core.db' => 1, 'ledger.edit' => 1, 'ledger.types' => 1,
+                    'procedures.edit' => 1, 'docs.edit' => 1, 'docs.medical' => 1,
+                    'audio.view' => 1, 'audio.edit' => 1,
+                    'medcard_audio.view' => 1, 'medcard_audio.edit' => 1,
+                ];
             case 'manager':
                 return $manager;
             case 'admin':
@@ -363,9 +379,9 @@ final class ClinicDemoStructure
                 return $doctor;
             case 'nurse':
                 return [
-                    'core.home' => 1, 'calendar.view' => 1, 'calendar.edit' => 1,
+                    'core.home' => 1, 'core.news' => 1, 'calendar.view' => 1, 'calendar.edit' => 1,
                     'clients.view' => 1, 'procedures.view' => 1, 'procedures.edit' => 1,
-                    'workweeks.view' => 1, 'docs.view' => 1, 'docs.edit' => 1, 'audio.view' => 1,
+                    'workweeks.view' => 1, 'docs.view' => 1, 'docs.edit' => 1,
                 ];
         }
         return ['core.home' => 1];

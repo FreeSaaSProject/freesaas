@@ -125,7 +125,34 @@ final class Breadcrumbs
     public static function resolve(string $pageTitle = ''): array
     {
         $items = self::$items !== null ? self::$items : self::auto($pageTitle);
-        return self::normalizeListRoot($items);
+        return self::stripInaccessibleHrefs(self::normalizeListRoot($items));
+    }
+
+    /**
+     * Drop ancestor hrefs the current user cannot open (avoid Forbidden from crumbs).
+     *
+     * @param list<array{label:string, href?:?string, current?:bool}> $items
+     * @return list<array{label:string, href?:?string, current?:bool}>
+     */
+    private static function stripInaccessibleHrefs(array $items): array
+    {
+        if (!class_exists('ModuleManager', false)) {
+            return $items;
+        }
+        foreach ($items as $i => $item) {
+            if (empty($item['href'])) {
+                continue;
+            }
+            $href = (string)$item['href'];
+            $path = self::normalizePath($href);
+            if ($path === '/') {
+                continue;
+            }
+            if (!ModuleManager::canAccessPath($href)) {
+                unset($items[$i]['href']);
+            }
+        }
+        return array_values($items);
     }
 
     public static function ariaLabel(): string

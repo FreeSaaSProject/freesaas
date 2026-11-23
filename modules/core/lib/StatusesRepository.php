@@ -144,6 +144,27 @@ final class StatusesRepository
         return $out;
     }
 
+    /**
+     * Human label for a role capability flag (status field i18n), or the raw flag name.
+     */
+    public static function capabilityLabel(string $flag): string
+    {
+        $flag = trim($flag);
+        if ($flag === '') {
+            return '';
+        }
+        foreach (array_merge(self::fieldGroups(), self::$registeredGroups) as $g) {
+            foreach ($g['fields'] as $f) {
+                if ((string)($f['key'] ?? '') !== $flag) {
+                    continue;
+                }
+                $labelKey = trim((string)($f['label'] ?? ''));
+                return $labelKey !== '' ? t($labelKey) : $flag;
+            }
+        }
+        return $flag;
+    }
+
     /** @return array<string,string> request sort key => SQL expression */
     public static function listSortMap(): array
     {

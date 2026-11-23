@@ -55,6 +55,15 @@ $menuPreview = is_array($menuPreview ?? null) ? $menuPreview : null;
         <button type="submit" class="btn-secondary"><?= te('core.user.bot_link_code') ?></button>
       </form>
       <?php endif; ?>
+      <?php
+        $canClone = Auth::capability('SUPERADMIN_ACCESS')
+          && !UsersRepository::statusIsSuperadmin((int)($user['ID_STATUS'] ?? 0))
+          && !UsersRepository::statusIsSuperadmin((int)($user['ID_STATUS2'] ?? 0));
+      ?>
+      <?php if ($canClone): ?>
+      <a class="btn-secondary" href="<?= e(NavContext::withReturn('/users/new?copyFrom=' . $uid)) ?>"
+         title="<?= te('core.users.copy_title') ?>"><?= te('core.users.copy') ?></a>
+      <?php endif; ?>
       <?php if ($canEdit): ?>
       <a class="btn-primary" href="/users/<?= $uid ?>/edit"><?= te('core.common.edit') ?></a>
       <?php endif; ?>

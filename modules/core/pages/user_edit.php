@@ -58,21 +58,54 @@ $copyFrom = (int)($_GET['copyFrom'] ?? $_POST['copyFrom'] ?? 0);
 $userPerms = UsersRepository::decodePermissions($user['status'] ?? null);
 if ($copyFrom > 0 && ($isNew || $copyFrom !== $id)) {
     $src = UsersRepository::findForEdit($copyFrom);
-    if ($src) {
+    if ($src === null) {
+        $copyFrom = 0;
+        if ($error === '') {
+            $error = t('core.user_edit.err.copy_not_found', ['id' => (int)($_GET['copyFrom'] ?? 0)]);
+        }
+    } elseif (UsersRepository::statusIsSuperadmin((int)($src['ID_STATUS'] ?? 0))
+        || UsersRepository::statusIsSuperadmin((int)($src['ID_STATUS2'] ?? 0))
+    ) {
+        $copyFrom = 0;
+        if ($error === '') {
+            $error = t('core.user_edit.err.copy_superadmin');
+        }
+    } else {
         $userPerms = UsersRepository::decodePermissions($src['status'] ?? null);
         if (!$isNew || empty($_POST)) {
-            $message = t('core.user_edit.perms_copied', ['id' => $copyFrom]);
+            $message = $isNew
+                ? t('core.user_edit.cloned', ['id' => $copyFrom])
+                : t('core.user_edit.perms_copied', ['id' => $copyFrom]);
         }
-        // Prefill role from template when creating
+        // Prefill role/ACL template when creating; identity fields stay empty.
         if ($isNew && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET')) {
-            $user['ID_STATUS'] = (int)($src['ID_STATUS'] ?? 0);
-            $user['ID_STATUS2'] = (int)($src['ID_STATUS2'] ?? 0);
-            $user['ASSIST_TEAM'] = (int)($src['ASSIST_TEAM'] ?? 0);
-            $user['NOT_IN_TEAM'] = (int)($src['NOT_IN_TEAM'] ?? 0);
-            $user['IS_HIDDEN'] = (int)($src['IS_HIDDEN'] ?? 0);
-            $user['color'] = (string)($src['color'] ?? '');
-            $user['color_text'] = (string)($src['color_text'] ?? '');
-            $user['skin'] = (string)($src['skin'] ?? '');
+            $user = [
+                'id' => 0,
+                'login' => '',
+                'name' => '',
+                'mail' => '',
+                'tel' => '',
+                'enabled' => '1',
+                'ID_STATUS' => (int)($src['ID_STATUS'] ?? 0),
+                'ID_STATUS2' => (int)($src['ID_STATUS2'] ?? 0),
+                'ASSIST_TEAM' => (int)($src['ASSIST_TEAM'] ?? 0),
+                'NOT_IN_TEAM' => (int)($src['NOT_IN_TEAM'] ?? 0),
+                'IS_HIDDEN' => (int)($src['IS_HIDDEN'] ?? 0),
+                'color' => (string)($src['color'] ?? ''),
+                'color_text' => (string)($src['color_text'] ?? ''),
+                'skin' => (string)($src['skin'] ?? ''),
+                'locale' => I18n::locale(),
+                'bday' => 0,
+                'show_bday_in_cal' => 1,
+                'num' => 0,
+                'expire' => 0,
+                'retries' => 0,
+                'photo' => '',
+                'site_descr' => '',
+                'link_ok' => '',
+                'favorites' => '',
+                'showNewsAfter' => 0,
+            ];
             $curRole = (int)$user['ID_STATUS'];
             if ($isSuper && $curRole > 0 && !isset($adminStatuses[$curRole]) && isset($allStatuses[$curRole])) {
                 $adminStatuses[$curRole] = $allStatuses[$curRole];
@@ -569,6 +602,7 @@ View::render('user_edit', [
     'rolePackPerms' => $rolePackPerms,
     'roleStatusId' => $roleStatusId,
     'copyUsers' => $copyUsers,
+    'copyFrom' => $copyFrom,
     'genPass' => $genPass,
     'favoritesCount' => $isNew ? 0 : count(UsersRepository::favoriteIds($id)),
     'extraHtml' => $extraHtml,
