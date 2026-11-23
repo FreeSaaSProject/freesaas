@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-23T15:26:57+00:00",
+    "generated_at": "2026-11-23T15:27:29+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -1436,44 +1436,6 @@
             },
             "agent": {
                 "docs": "docs/agents/finance.md"
-            }
-        },
-        {
-            "id": "fp_berd",
-            "version": "0.2.4",
-            "type": "product",
-            "name": {
-                "en": "Berdnikova FP",
-                "ru": "ФП Бердникова"
-            },
-            "description": {
-                "en": "Private financial plan: articles↔DPS, scenarios, week envelopes, break-even.",
-                "ru": "Приватный финплан: статьи↔ДПС, сценарии, недельные конверты, точка безубыточности."
-            },
-            "summary": {
-                "en": "Instance pack for Berdnikova methodology. Soft ledger. Does not use funds % envelopes. Enable after ledger + marketing DPS types exist.",
-                "ru": "Instance-pack методики Бердниковой. Soft ledger. Не использует % конверты funds. Включать после ledger и типов ДПС маркетинга."
-            },
-            "requires": {
-                "core": ">=1.0.0",
-                "ledger": ">=1.0.0"
-            },
-            "optionalRequires": {
-                "rates": ">=1.0.0",
-                "notify": ">=0.1.0"
-            },
-            "catalog": {
-                "categories": [
-                    "finance"
-                ],
-                "maturity": "alpha",
-                "tags": [
-                    "report",
-                    "settings"
-                ]
-            },
-            "agent": {
-                "docs": "docs/agents/fp_berd.md"
             }
         },
         {

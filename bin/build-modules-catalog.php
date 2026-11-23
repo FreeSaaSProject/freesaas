@@ -11,13 +11,14 @@ declare(strict_types=1);
  *   php bin/build-modules-catalog.php --out=dist/freesaas-catalog.json
  *
  * Writes repo-root modules-catalog.json by default (Contents API path).
- * Default: no private modules (likespa product module is public; themes are separate).
+ * Default private denylist: instance packs gitignored from the monorepo (fp_berd).
+ * Extra via PRIVATE_MODULES=id1,id2. Themes stay out of modules/ entirely.
  */
 
 $root = dirname(__DIR__);
 $privateEnv = getenv('PRIVATE_MODULES');
 $privateList = is_string($privateEnv) ? $privateEnv : '';
-$private = [];
+$private = ['fp_berd' => true];
 foreach (explode(',', $privateList) as $p) {
     $p = trim($p);
     if ($p !== '' && preg_match('/^[a-z][a-z0-9_]*$/', $p)) {
