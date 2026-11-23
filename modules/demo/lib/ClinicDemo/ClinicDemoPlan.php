@@ -265,6 +265,184 @@ final class ClinicDemoPlan
         ];
     }
 
+    /**
+     * Desk registration commission (content_terminal) for reception admins — flat fraction
+     * applied to procedure SUMM where ID_ADMIN = that staff. Kept in the 5–10% band.
+     *
+     * @return array<string,float> staff key => rate
+     */
+    public static function adminTerminalRates(): array
+    {
+        return [
+            'admin1' => 0.08,
+            'admin2' => 0.07,
+            'admin3' => 0.05,
+        ];
+    }
+
+    /**
+     * Promo channels for acquisition seed (berdnikova-seed list).
+     *
+     * @return list<array{name:string,description:string}>
+     */
+    public static function acquisitionSources(): array
+    {
+        if (self::locale() === 'en') {
+            return [
+                ['name' => 'Website / online booking', 'description' => 'Storefront, MCP'],
+                ['name' => 'Avito / aggregators', 'description' => ''],
+                ['name' => 'Yandex / context ads', 'description' => ''],
+                ['name' => 'Referral', 'description' => ''],
+                ['name' => '2GIS / maps', 'description' => ''],
+                ['name' => 'Instagram / social', 'description' => ''],
+                ['name' => 'Cold call', 'description' => ''],
+                ['name' => 'Unknown', 'description' => 'Catch-all'],
+            ];
+        }
+        return [
+            ['name' => 'Сайт / онлайн-запись', 'description' => 'Витрина, MCP'],
+            ['name' => 'Авито / агрегаторы', 'description' => ''],
+            ['name' => 'Яндекс / контекст', 'description' => ''],
+            ['name' => 'Рекомендация', 'description' => ''],
+            ['name' => '2ГИС / карты', 'description' => ''],
+            ['name' => 'Instagram / соцсети', 'description' => ''],
+            ['name' => 'Холодный обзвон', 'description' => ''],
+            ['name' => 'Неизвестно', 'description' => 'catch-all'],
+        ];
+    }
+
+    /**
+     * Staff month plans for performers (differentiated).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function staffPlans(): array
+    {
+        $months = self::financeMonths();
+        $m2 = $months[1] ?? date('Y-m');
+        $m3 = $months[2] ?? $m2;
+        $rows = [];
+        $defs = [
+            't_a' => [920000, 2800, "500000:5\n800000:8"],
+            't_b' => [780000, 2600, "450000:5\n700000:8"],
+            'cardio' => [650000, 3200, "400000:5\n600000:8"],
+            'neuro' => [520000, 3000, "350000:5\n550000:8"],
+            'uzi' => [480000, 2700, "300000:5\n500000:8"],
+            'cosmo' => [710000, 3500, "450000:5\n700000:10"],
+        ];
+        foreach ([$m2, $m3] as $ym) {
+            $factor = $ym === $m3 ? 1.05 : 1.0;
+            foreach ($defs as $key => $d) {
+                $rows[] = [
+                    'staff' => $key,
+                    'period_ym' => $ym,
+                    'plan_sum' => round($d[0] * $factor),
+                    'norm_rub_hour' => $d[1],
+                    'bonus_tiers' => $d[2],
+                    'note' => self::org(),
+                ];
+            }
+        }
+        return $rows;
+    }
+
+    /**
+     * FP articles: code => def with type_names for NAME resolution on the instance.
+     *
+     * @return array<string,array<string,mixed>>
+     */
+    public static function fpBerdArticles(): array
+    {
+        $fin = self::finance();
+        $months = self::financeMonths();
+        $m2 = $months[1] ?? date('Y-m');
+        $exp = (array)($fin['expenses'][$m2] ?? []);
+        $L = self::moneyLabels();
+        return [
+            'REV' => [
+                'name' => 'Выручка операционная', 'kind' => 'rev', 'amount' => 0,
+                'type_names' => [(string)($L['revenue'] ?? 'Выручка от услуг'), 'Выручка'],
+            ],
+            'MKT' => [
+                'name' => 'Маркетинг / реклама', 'kind' => 'mkt',
+                'amount' => (float)($exp['ads'] ?? 60000),
+                'type_names' => [
+                    (string)($L['ads'] ?? 'Реклама и маркетинг'),
+                    'Реклама и продв', 'Реклама', 'Маркетинг',
+                ],
+            ],
+            'FOT' => [
+                'name' => 'ФОТ врачи / себестоимость', 'kind' => 'fot',
+                'amount' => (float)($exp['doctor_payroll'] ?? 650000),
+                'type_names' => [
+                    (string)($L['salary_doc'] ?? 'ФОТ врачи (банк)'),
+                    'ФОТ врачи', 'Оплата труда врачи',
+                ],
+            ],
+            'FOTA' => [
+                'name' => 'ФОТ АУП', 'kind' => 'fot',
+                'amount' => (float)($exp['admin_payroll'] ?? 336000),
+                'type_names' => [
+                    (string)($L['salary_aup'] ?? 'ФОТ АУП (банк)'),
+                    'ФОТ АУП', 'Оплата труда АУП',
+                ],
+            ],
+            'RENT' => [
+                'name' => 'Аренда', 'kind' => 'opex',
+                'amount' => (float)($exp['rent'] ?? 120000),
+                'type_names' => [(string)($L['rent'] ?? 'Аренда'), 'Аренда'],
+            ],
+            'MAT' => [
+                'name' => 'Материалы', 'kind' => 'opex',
+                'amount' => (float)($exp['supplies'] ?? 40000),
+                'type_names' => [
+                    (string)($L['supplies'] ?? 'Расходные материалы'),
+                    'Расходн', 'материалы',
+                ],
+            ],
+            'IT' => [
+                'name' => 'IT и телеком', 'kind' => 'opex',
+                'amount' => (float)($exp['it'] ?? 25000),
+                'type_names' => [
+                    (string)($L['it'] ?? 'IT и телеком'), 'IT и телеком', 'IT',
+                ],
+            ],
+            'HR' => [
+                'name' => 'Персонал и обучение', 'kind' => 'opex',
+                'amount' => (float)($exp['hr'] ?? 15000),
+                'type_names' => [
+                    (string)($L['hr'] ?? 'Персонал и обучение'), 'Персонал и обучение',
+                ],
+            ],
+            'OPEX' => [
+                'name' => 'Прочие операционные', 'kind' => 'opex',
+                'amount' => (float)($exp['other'] ?? 20000),
+                'type_names' => [(string)($L['other'] ?? 'Прочие операционные расходы'), 'Прочее'],
+            ],
+            'CAPEX' => [
+                'name' => 'Кап. оборудование', 'kind' => 'capex',
+                'amount' => (float)($exp['equipment'] ?? 0),
+                'type_names' => [
+                    (string)($L['equipment'] ?? 'Оборудование и лизинг'),
+                    'оборудование', 'Капитальн',
+                ],
+            ],
+            'DIV' => [
+                'name' => 'Вывод прибыли учредителям', 'kind' => 'own',
+                'amount' => (float)($exp['owner_draw'] ?? 150000),
+                'type_names' => [
+                    (string)($L['owner_draw'] ?? 'Вывод прибыли учредителям'),
+                    'Дивиденды', 'учредитель', 'Owner profit',
+                ],
+            ],
+        ];
+    }
+
+    public static function fpBerdBeRevenue(): float
+    {
+        return 3000000.0;
+    }
+
     /** @return array<string,array<string,int>> */
     public static function serviceMix(): array
     {
@@ -307,15 +485,18 @@ final class ClinicDemoPlan
             'expenses' => [
                 $m1 => [
                     'rent' => 120000, 'ads' => 30000, 'supplies' => 70000,
-                    'equipment' => 0, 'admin_payroll' => 325000, 'other' => 40000,
+                    'equipment' => 0, 'admin_payroll' => 325000, 'doctor_payroll' => 520000,
+                    'it' => 25000, 'hr' => 15000, 'other' => 40000, 'owner_draw' => 100000,
                 ],
                 $m2 => [
                     'rent' => 120000, 'ads' => 150000, 'supplies' => 110000,
-                    'equipment' => 70000, 'admin_payroll' => 336000, 'other' => 50000,
+                    'equipment' => 70000, 'admin_payroll' => 336000, 'doctor_payroll' => 720000,
+                    'it' => 25000, 'hr' => 15000, 'other' => 50000, 'owner_draw' => 150000,
                 ],
                 $m3 => [
                     'rent' => 120000, 'ads' => 60000, 'supplies' => 40000,
-                    'equipment' => 0, 'admin_payroll' => 336000, 'other' => 20000,
+                    'equipment' => 0, 'admin_payroll' => 336000, 'doctor_payroll' => 650000,
+                    'it' => 25000, 'hr' => 15000, 'other' => 20000, 'owner_draw' => 120000,
                 ],
             ],
             'receivable_share' => [$m1 => 0.04, $m2 => 0.13, $m3 => 0.10],
@@ -509,6 +690,7 @@ final class ClinicDemoPlan
             'copy' => [
                 'catalog_descr' => 'Синтетический демо-каталог «{org}»',
                 'rates_descr' => 'Ставки «{org}» с {from}',
+                'acquisition_call_request' => 'Запись / вопрос по услугам клиники',
                 'booking_descr' => 'Предварительная запись: {service}',
                 'order_comment' => 'Заявка с сайта клиники (демо)',
                 'patient_fallback' => 'Пациент',
@@ -649,6 +831,7 @@ final class ClinicDemoPlan
             'copy' => [
                 'catalog_descr' => 'Synthetic demo catalog «{org}»',
                 'rates_descr' => 'Rates for «{org}» from {from}',
+                'acquisition_call_request' => 'Booking / question about clinic services',
                 'booking_descr' => 'Advance booking: {service}',
                 'order_comment' => 'Clinic website request (demo)',
                 'patient_fallback' => 'Patient',
@@ -841,7 +1024,12 @@ final class ClinicDemoPlan
             'revenue' => 'Выручка от услуг', 'rent' => 'Аренда', 'ads' => 'Реклама и маркетинг',
             'supplies' => 'Расходные материалы', 'equipment' => 'Оборудование и лизинг',
             'salary' => 'Оплата труда (банк)', 'salary_cash' => 'Оплата труда (касса)',
-            'other' => 'Прочие операционные расходы', 'capital' => 'Вклад собственника',
+            // Split FOT for Berdnikova week envelopes (specialists = cost; AUP = admin fund).
+            'salary_doc' => 'ФОТ врачи (банк)', 'salary_aup' => 'ФОТ АУП (банк)',
+            'it' => 'IT и телеком', 'hr' => 'Персонал и обучение',
+            'other' => 'Прочие операционные расходы',
+            'owner_draw' => 'Вывод прибыли учредителям',
+            'capital' => 'Вклад собственника',
             'transfer' => 'Перевод между счетами',
             'ledger_descr' => 'Синтетический демо-учёт «{org}»',
             'folder_descr' => 'Группа статей демо-учёта',
@@ -853,6 +1041,7 @@ final class ClinicDemoPlan
             'cash_sweep' => 'Инкассация кассы',
             'rent_tpl' => 'Аренда помещения, %s',
             'equipment_tpl' => 'Лизинг диагностического оборудования, %s',
+            'owner_draw_tpl' => 'Вывод прибыли учредителям, %s',
         ];
     }
 
@@ -865,7 +1054,11 @@ final class ClinicDemoPlan
             'revenue' => 'Service revenue', 'rent' => 'Rent', 'ads' => 'Ads and marketing',
             'supplies' => 'Consumables', 'equipment' => 'Equipment and leasing',
             'salary' => 'Payroll (bank)', 'salary_cash' => 'Payroll (cash)',
-            'other' => 'Other operating expenses', 'capital' => 'Owner contribution',
+            'salary_doc' => 'Payroll doctors (bank)', 'salary_aup' => 'Payroll admin (bank)',
+            'it' => 'IT and telecom', 'hr' => 'HR and training',
+            'other' => 'Other operating expenses',
+            'owner_draw' => 'Owner profit draw',
+            'capital' => 'Owner contribution',
             'transfer' => 'Transfer between accounts',
             'ledger_descr' => 'Synthetic demo ledger «{org}»',
             'folder_descr' => 'Demo ledger group',
@@ -877,6 +1070,7 @@ final class ClinicDemoPlan
             'cash_sweep' => 'Cash desk remittance',
             'rent_tpl' => 'Premises rent, %s',
             'equipment_tpl' => 'Diagnostic equipment lease, %s',
+            'owner_draw_tpl' => 'Owner profit draw, %s',
         ];
     }
 

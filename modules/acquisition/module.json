@@ -1,0 +1,192 @@
+{
+    "id": "acquisition",
+    "name": "acquisition.module.name",
+    "description": "acquisition.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "runtime": "admin",
+    "catalog": {
+        "categories": [
+            "crm",
+            "communications"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "journal",
+            "crm"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=1.0.0",
+        "clients": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "calendar": ">=1.0.0",
+        "ledger": ">=1.0.0",
+        "orders": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "bi": ">=1.0.0"
+    },
+    "provides": [
+        "acquisition.sources",
+        "acquisition.calls"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "drop_owned"
+    },
+    "permissions": [
+        {
+            "id": "acquisition.view",
+            "label": "acquisition.perm.view"
+        },
+        {
+            "id": "acquisition.edit",
+            "label": "acquisition.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/acquisition/calls",
+            "/acquisition/calls/new",
+            "/acquisition/calls/{id}/edit",
+            "/acquisition/sources",
+            "/acquisition/sources/new",
+            "/acquisition/sources/{id}/edit",
+            "/acquisition/ingest"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/acquisition.md",
+        "ops": [
+            {
+                "id": "acquisition.calls.list",
+                "method": "GET",
+                "path": "/acquisition/calls",
+                "permission": "acquisition.view",
+                "description": "List inquiries/calls; filters: unmarked, q, result, day"
+            },
+            {
+                "id": "acquisition.calls.get",
+                "method": "GET",
+                "path": "/acquisition/calls/{id}/edit",
+                "permission": "acquisition.view",
+                "description": "Inquiry edit payload; new at /acquisition/calls/new"
+            },
+            {
+                "id": "acquisition.calls.save",
+                "method": "POST",
+                "path": "/acquisition/calls/new",
+                "permission": "acquisition.edit",
+                "side_effect": "write",
+                "description": "Create/update inquiry; also POST /acquisition/calls/{id}/edit"
+            },
+            {
+                "id": "acquisition.sources.list",
+                "method": "GET",
+                "path": "/acquisition/sources",
+                "permission": "acquisition.view",
+                "description": "List promo sources; filter: q, enabled"
+            },
+            {
+                "id": "acquisition.sources.get",
+                "method": "GET",
+                "path": "/acquisition/sources/{id}/edit",
+                "permission": "acquisition.view",
+                "description": "Source edit payload; new at /acquisition/sources/new"
+            },
+            {
+                "id": "acquisition.sources.save",
+                "method": "POST",
+                "path": "/acquisition/sources/new",
+                "permission": "acquisition.edit",
+                "side_effect": "write",
+                "description": "Create/update source; also POST /acquisition/sources/{id}/edit; action=delete"
+            },
+            {
+                "id": "acquisition.ingest",
+                "method": "POST",
+                "path": "/acquisition/ingest",
+                "permission": "acquisition.edit",
+                "side_effect": "write",
+                "description": "Idempotent call stub ingest (VATS/webhook); provider + provider_call_id"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "acquisition.menu.group",
+            "num": 10,
+            "path": "/acquisition/calls",
+            "icon": "📞",
+            "title": "acquisition.menu.calls",
+            "kind": "work"
+        },
+        {
+            "group": "acquisition.menu.group",
+            "num": 20,
+            "path": "/acquisition/calls/new",
+            "icon": "➕",
+            "title": "acquisition.menu.new_call",
+            "kind": "work"
+        },
+        {
+            "group": "acquisition.menu.group",
+            "num": 30,
+            "path": "/acquisition/sources",
+            "icon": "📣",
+            "title": "acquisition.menu.sources",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_promo_sources",
+        "base_calls"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "clients.edit.sections",
+            "clients.edit.save",
+            "clients.view.profile",
+            "core.notices.collect",
+            "ledger.moves.form.fields",
+            "ledger.moves.validate",
+            "orders.created",
+            "calendar.event.saved",
+            "bi.datasets",
+            "bi.recipes"
+        ],
+        "publish": []
+    },
+    "bulkActions": [],
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "acquisition.setup.step.ready",
+                "description": "acquisition.setup.step.ready_help",
+                "href": "/acquisition/sources",
+                "ask_user": "acquisition.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "acquisition.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
+    }
+}

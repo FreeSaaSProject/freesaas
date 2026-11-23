@@ -2,7 +2,7 @@
     "id": "rates",
     "name": "rates.module.name",
     "description": "rates.module.description",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -35,7 +35,10 @@
             "/rates",
             "/rates/new",
             "/rates/{id}/edit",
-            "/rates/skill"
+            "/rates/skill",
+            "/rates/plans",
+            "/rates/plans/new",
+            "/rates/plans/{id}/edit"
         ]
     },
     "agent": {
@@ -89,7 +92,7 @@
                 "path": "/rates/skill",
                 "permission": "rates.edit",
                 "side_effect": "write",
-                "description": "Enable skill (галочка записи): set % (explicit or suggest from own/peer), clear ban_booking/online, clear ban_procs for good_id. Body: action=grant, operator_id, type_id|good_id, optional percent, dry_run=1"
+                "description": "Enable skill (галочка записи): set % (explicit or suggest from own/peer), clear ban_booking/online, clear ban_procs for good_id. Body: action=grant|enable|on, operator_id, type_id|good_id, optional percent, dry_run=1"
             },
             {
                 "id": "rates.skill.revoke",
@@ -97,7 +100,29 @@
                 "path": "/rates/skill",
                 "permission": "rates.edit",
                 "side_effect": "write",
-                "description": "Disable skill: good_id → ban that product (ban_procs); type_id only → ban_booking+ban_online (keeps %). Body: action=revoke, operator_id, type_id|good_id, dry_run=1"
+                "description": "Disable skill: good_id → ban that product (ban_procs); type_id only → ban_booking+ban_online (keeps %). Body: action=revoke|disable|off|remove, operator_id, type_id|good_id, dry_run=1"
+            },
+            {
+                "id": "rates.plans.list",
+                "method": "GET",
+                "path": "/rates/plans",
+                "permission": "rates.view",
+                "description": "List staff month plans / hour norms / bonus tiers; filters: operator_id, period_ym"
+            },
+            {
+                "id": "rates.plans.get",
+                "method": "GET",
+                "path": "/rates/plans/{id}/edit",
+                "permission": "rates.view",
+                "description": "Staff plan edit payload; new at /rates/plans/new"
+            },
+            {
+                "id": "rates.plans.save",
+                "method": "POST",
+                "path": "/rates/plans/new",
+                "permission": "rates.edit",
+                "side_effect": "write",
+                "description": "Create/update staff plan; also POST /rates/plans/{id}/edit; action=delete"
             }
         ]
     },
@@ -109,11 +134,20 @@
             "path": "/rates",
             "icon": "📈",
             "title": "rates.menu.list"
+        },
+        {
+            "group": "core.menu.group.accounting",
+            "num": 15,
+            "path": "/rates/plans",
+            "icon": "🎯",
+            "title": "rates.menu.plans",
+            "kind": "settings"
         }
     ],
     "configSchema": [],
     "tables": [
-        "base_procent_history"
+        "base_procent_history",
+        "base_staff_plans"
     ],
     "migrators": [
         {

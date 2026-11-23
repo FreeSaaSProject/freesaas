@@ -96,9 +96,16 @@ final class ClinicDemoMoney
             'ads' => [(string)($L['ads'] ?? 'Ads'), -1, 1, 0, $accounts['bank'], 30, 0, 0, $folderOps],
             'supplies' => [(string)($L['supplies'] ?? 'Supplies'), -1, 1, 0, $accounts['bank'], 40, 0, 0, $folderOps],
             'equipment' => [(string)($L['equipment'] ?? 'Equipment'), -1, 1, 0, $accounts['bank'], 50, 0, 0, $folderOps],
-            'salary' => [(string)($L['salary'] ?? 'Payroll bank'), -1, 1, 0, $accounts['bank'], 60, 1, 1, $folderOps],
+            // Legacy catch-all (kept for old rows); new payroll goes to salary_doc / salary_aup.
+            'salary' => [(string)($L['salary'] ?? 'Payroll bank'), -1, 1, 0, $accounts['bank'], 60, 0, 1, $folderOps],
             'salary_cash' => [(string)($L['salary_cash'] ?? 'Payroll cash'), -1, 1, 0, $accounts['cash'], 61, 2, 1, $folderOps],
+            'salary_doc' => [(string)($L['salary_doc'] ?? 'Payroll doctors'), -1, 1, 0, $accounts['bank'], 62, 1, 1, $folderOps],
+            'salary_aup' => [(string)($L['salary_aup'] ?? 'Payroll admin'), -1, 1, 0, $accounts['bank'], 63, 0, 1, $folderOps],
+            'it' => [(string)($L['it'] ?? 'IT'), -1, 1, 0, $accounts['bank'], 68, 0, 0, $folderOps],
+            'hr' => [(string)($L['hr'] ?? 'HR'), -1, 1, 0, $accounts['bank'], 69, 0, 0, $folderOps],
             'other' => [(string)($L['other'] ?? 'Other'), -1, 1, 0, $accounts['bank'], 70, 0, 0, $folderOps],
+            // Owner draw lives under financing folder (not operating opex), but is a spend.
+            'owner_draw' => [(string)($L['owner_draw'] ?? 'Owner draw'), -1, 3, 0, $accounts['bank'], 85, 0, 0, $folderFin],
             'capital' => [(string)($L['capital'] ?? 'Capital'), +1, 3, 1, $accounts['bank'], 80, 0, 0, $folderFin],
             'transfer' => [(string)($L['transfer'] ?? 'Transfer'), -1, 3, 1, $accounts['bank'], 90, 0, 0, $folderFin],
         ];
@@ -126,6 +133,13 @@ final class ClinicDemoMoney
                     'act_in_enabled' => $key === 'supplies' ? 1 : 0,
                     'exclude_pl' => $excludePl,
                 ]);
+            } elseif (in_array($key, ['salary_doc', 'salary_aup', 'salary'], true)
+                && Database::columnExists('base_account_move_types', 'FOT_KIND')) {
+                // Keep settlement default on salary_doc; legacy salary loses FOT_KIND.
+                $wantFot = $key === 'salary_doc' ? 1 : 0;
+                Database::pdo()->prepare(
+                    'UPDATE base_account_move_types SET FOT_KIND = ? WHERE ID = ?'
+                )->execute([$wantFot, $id]);
             }
             $this->m->add('move_types', $id);
             $out[$key] = $id;
@@ -273,8 +287,14 @@ final class ClinicDemoMoney
                 ['Расходные материалы: МедСнаб', 0.60],
                 ['Расходные материалы: ФармЛогистик', 0.40],
             ],
+            'it' => [
+                ['IT и телеком: связь / 1С / хостинг', 1.0],
+            ],
+            'hr' => [
+                ['Обучение персонала и аттестация', 1.0],
+            ],
             'other' => [
-                ['Коммунальные платежи и связь', 0.50],
+                ['Коммунальные платежи', 0.50],
                 ['Клининг, охрана и хозяйственные нужды', 0.50],
             ],
         ];
@@ -282,13 +302,15 @@ final class ClinicDemoMoney
         $single = [
             'rent' => (string)($L['rent_tpl'] ?? '%s'),
             'equipment' => (string)($L['equipment_tpl'] ?? '%s'),
-            'admin_payroll' => '', // handled by payroll stage
+            'owner_draw' => (string)($L['owner_draw_tpl'] ?? 'Owner draw, %s'),
+            'admin_payroll' => '', // handled by payroll stage → salary_aup
+            'doctor_payroll' => '', // plan-only; fact from commissions/nurse оклады
         ];
         foreach ($plan as $month => $lines) {
             $monthName = $this->formatMonth((string)$month);
             foreach ($lines as $key => $sum) {
                 $sum = (float)$sum;
-                if ($sum <= 0 || $key === 'admin_payroll') {
+                if ($sum <= 0 || $key === 'admin_payroll' || $key === 'doctor_payroll') {
                     continue;
                 }
                 if (isset($single[$key])) {
@@ -372,6 +394,7 @@ final class ClinicDemoMoney
 
         $salaries = (array)(ClinicDemoPlan::finance()['salaries'] ?? []);
         $L = ClinicDemoPlan::moneyLabels();
+        $aupKeys = ['director', 'manager', 'admin1', 'admin2', 'admin3'];
         $months = array_keys($salaries);
         $payments = 0;
         foreach ($months as $ym) {
@@ -383,7 +406,8 @@ final class ClinicDemoMoney
                     continue;
                 }
                 $label = str_replace('{month}', $this->formatMonth($ym), (string)$L['salary_label']);
-                $payments += $this->payout($uid, $sum, $ym, $label, $accounts, $types);
+                $bucket = in_array((string)$staffKey, $aupKeys, true) ? 'salary_aup' : 'salary_doc';
+                $payments += $this->payout($uid, $sum, $ym, $label, $accounts, $types, $bucket);
             }
             foreach ($commission[$ym] ?? [] as $opId => $sum) {
                 $sum = round((float)$sum, 2);
@@ -397,7 +421,8 @@ final class ClinicDemoMoney
                     $ym,
                     $label,
                     $accounts,
-                    $types
+                    $types,
+                    'salary_doc'
                 );
             }
         }
@@ -409,8 +434,17 @@ final class ClinicDemoMoney
      *
      * @param array{bank:int,cash:int} $accounts
      * @param array<string,int> $types
+     * @param 'salary_doc'|'salary_aup'|'salary' $typeKey
      */
-    private function payout(int $userId, float $sum, string $ym, string $label, array $accounts, array $types): int
+    private function payout(
+        int $userId,
+        float $sum,
+        string $ym,
+        string $label,
+        array $accounts,
+        array $types,
+        string $typeKey = 'salary_doc'
+    ): int
     {
         $lastDay = date('Y-m-t', (int)strtotime($ym . '-01 12:00:00'));
         $dt = (int)strtotime($lastDay . ' 17:00:00');
@@ -458,9 +492,13 @@ final class ClinicDemoMoney
         ]);
         $this->m->add('payments', $payoutId);
 
+        $typeId = (int)($types[$typeKey] ?? 0);
+        if ($typeId < 1) {
+            $typeId = (int)($types['salary'] ?? 0);
+        }
         $moveId = LedgerMovesRepository::create([
             'account_id' => $accounts['bank'],
-            'type_id' => $types['salary'],
+            'type_id' => $typeId,
             'direction' => -1,
             'summ' => $sum,
             'descr' => $label . ' — ' . $this->userName($userId),

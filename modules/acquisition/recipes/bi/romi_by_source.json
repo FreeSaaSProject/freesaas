@@ -1,0 +1,69 @@
+{
+  "v": 1,
+  "id": "romi_by_source",
+  "title": "Marketing spend by source (ROMI)",
+  "requires": ["promo_sources", "account_moves_src"],
+  "queries": [
+    {
+      "as": "spend_raw",
+      "from": "account_moves_src",
+      "where": [
+        {"field": "source_id", "op": ">", "value": 0},
+        {"field": "deleted", "op": "=", "value": 0}
+      ],
+      "select": [
+        {"field": "source_id", "as": "source_id"},
+        {"field": "summ", "as": "summ"},
+        {"field": "id", "as": "move_id"}
+      ],
+      "limit": 50000
+    },
+    {
+      "as": "sources",
+      "from": "promo_sources",
+      "select": [
+        {"field": "id", "as": "source_id"},
+        {"field": "name", "as": "source_name"}
+      ],
+      "limit": 5000
+    }
+  ],
+  "derive": [
+    {
+      "as": "spend_by_src",
+      "from": "spend_raw",
+      "group_by": ["source_id"],
+      "aggs": [
+        {"op": "sum", "field": "summ", "as": "spend"},
+        {"op": "count", "field": "move_id", "as": "moves"}
+      ]
+    },
+    {
+      "as": "romi_rows",
+      "from": "spend_by_src",
+      "join_frame": {
+        "frame": "sources",
+        "type": "left",
+        "left": "source_id",
+        "right": "source_id"
+      }
+    }
+  ],
+  "sections": [
+    {
+      "type": "table",
+      "title": "Spend by channel",
+      "from": "romi_rows",
+      "columns": [
+        {"id": "source_name", "label": "Channel"},
+        {"id": "spend", "label": "Spend"},
+        {"id": "moves", "label": "Moves"}
+      ]
+    },
+    {
+      "type": "text",
+      "title": "Note",
+      "body": "Mark marketing DPS with acquisition channel (ID_SOURCE). Revenue join by client source is a later slice."
+    }
+  ]
+}

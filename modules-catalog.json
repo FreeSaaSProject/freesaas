@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-23T10:32:32+00:00",
+    "generated_at": "2026-11-23T15:26:57+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -39,6 +39,48 @@
             },
             "agent": {
                 "docs": "docs/agents/acquiring.md"
+            }
+        },
+        {
+            "id": "acquisition",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Acquisition",
+                "ru": "Привлечение"
+            },
+            "description": {
+                "en": "First-touch sources, inquiry/call journal, markup without bloating clients core.",
+                "ru": "Источники первички, журнал обращений/звонков, разметка без раздувания clients."
+            },
+            "summary": {
+                "en": "Enable when you need acquisition channel on the client card and an inquiry journal (PBX/site/manual). Soft clients+ledger+orders+bi. With the module off, primary-source fields stay hidden on the client form.",
+                "ru": "Включайте, когда нужны канал привлечения на клиенте и журнал обращений (ВАТС/сайт/ручной ввод). Soft clients+ledger+orders+bi. Без модуля поля первички в карточке клиента не показываются."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "calendar": ">=1.0.0",
+                "ledger": ">=1.0.0",
+                "orders": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "bi": ">=1.0.0"
+            },
+            "catalog": {
+                "categories": [
+                    "crm",
+                    "communications"
+                ],
+                "maturity": "beta",
+                "tags": [
+                    "journal",
+                    "crm"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/acquisition.md"
             }
         },
         {
@@ -1226,7 +1268,7 @@
         },
         {
             "id": "demo",
-            "version": "1.0.11",
+            "version": "1.0.15",
             "type": "product",
             "name": {
                 "en": "Demo stand",
@@ -1244,6 +1286,7 @@
                 "core": ">=1.0.0"
             },
             "optionalRequires": {
+                "acquisition": ">=0.1.0",
                 "audio": ">=1.0.0",
                 "audio_dicts": ">=1.0.0",
                 "audio_pipeline": ">=1.0.0",
@@ -1253,7 +1296,9 @@
                 "calendar": ">=1.0.0",
                 "catalog": ">=1.0.0",
                 "clients": ">=1.0.0",
+                "comments": ">=1.0.0",
                 "docs": ">=0.1.0",
+                "fp_berd": ">=0.1.0",
                 "funds": ">=1.0.0",
                 "ledger": ">=1.0.0",
                 "orders": ">=1.0.0",
@@ -1391,6 +1436,44 @@
             },
             "agent": {
                 "docs": "docs/agents/finance.md"
+            }
+        },
+        {
+            "id": "fp_berd",
+            "version": "0.2.4",
+            "type": "product",
+            "name": {
+                "en": "Berdnikova FP",
+                "ru": "ФП Бердникова"
+            },
+            "description": {
+                "en": "Private financial plan: articles↔DPS, scenarios, week envelopes, break-even.",
+                "ru": "Приватный финплан: статьи↔ДПС, сценарии, недельные конверты, точка безубыточности."
+            },
+            "summary": {
+                "en": "Instance pack for Berdnikova methodology. Soft ledger. Does not use funds % envelopes. Enable after ledger + marketing DPS types exist.",
+                "ru": "Instance-pack методики Бердниковой. Soft ledger. Не использует % конверты funds. Включать после ledger и типов ДПС маркетинга."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "ledger": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "rates": ">=1.0.0",
+                "notify": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "finance"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "report",
+                    "settings"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/fp_berd.md"
             }
         },
         {
@@ -2038,7 +2121,7 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.32",
+            "version": "1.0.33",
             "type": "product",
             "name": {
                 "en": "Treatments",
@@ -2118,7 +2201,7 @@
         },
         {
             "id": "rates",
-            "version": "1.0.1",
+            "version": "1.1.0",
             "type": "product",
             "name": {
                 "en": "Specialist rates",
@@ -2732,7 +2815,7 @@
         },
         {
             "id": "workweeks",
-            "version": "1.0.5",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "Shifts",

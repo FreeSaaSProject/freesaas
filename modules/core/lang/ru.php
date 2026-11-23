@@ -814,6 +814,7 @@ return [
     'core.user_edit.email' => 'Электронная почта',
     'core.user_edit.phone' => 'Мобильный телефон',
     'core.user_edit.bday' => 'День рождения',
+    'core.user_edit.bday_hint' => 'Год набирается с клавиатуры (1900–сегодня).',
     'core.user_edit.show_bday_in_cal' => 'Показывать ДР в календаре',
     'core.user_edit.num' => 'Порядок в списке',
     'core.user_edit.num_hint' => 'Меньше число — выше в списке сотрудников. 0 — без приоритета.',

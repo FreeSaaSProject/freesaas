@@ -59,6 +59,7 @@ mirror -R --only-newer --verbose=1 \\
   -X UserFiles -X UserFiles/** \\
   -X themes/likespa -X themes/likespa/** \\
   -X themes/balance -X themes/balance/** \\
+  -X modules/fp_berd -X modules/fp_berd/** \\
   -X workers/var -X workers/var/** \\
   -X workers/host.local.json \\
   . .

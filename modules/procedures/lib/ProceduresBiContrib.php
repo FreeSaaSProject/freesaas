@@ -67,7 +67,7 @@ final class ProceduresBiContrib
         }
         $list = is_array($payload['recipes'] ?? null) ? $payload['recipes'] : [];
         $dir = base_path('modules/procedures/recipes/bi');
-        foreach (['demo_counts', 'staff_kpi'] as $id) {
+        foreach (['demo_counts', 'staff_kpi', 'doctor_rebook', 'doctor_avg_check'] as $id) {
             $path = $dir . '/' . $id . '.json';
             if (is_file($path)) {
                 $list[] = ['id' => $id, 'module' => 'procedures', 'path' => $path];

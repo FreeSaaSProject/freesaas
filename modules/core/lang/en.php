@@ -814,6 +814,7 @@ return [
     'core.user_edit.email' => 'Email',
     'core.user_edit.phone' => 'Mobile phone',
     'core.user_edit.bday' => 'Birthday',
+    'core.user_edit.bday_hint' => 'Type the year on the keyboard (1900–today).',
     'core.user_edit.show_bday_in_cal' => 'Show birthday in calendar',
     'core.user_edit.num' => 'List order',
     'core.user_edit.num_hint' => 'Lower number appears higher in the staff list. 0 means no priority.',

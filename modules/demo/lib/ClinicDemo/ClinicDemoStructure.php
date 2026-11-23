@@ -345,11 +345,18 @@ final class ClinicDemoStructure
             'workweeks.view' => 1, 'catalog.view' => 1, 'cabinets.view' => 1,
             'orders.view' => 1, 'orders.edit' => 1,
             'payments.view' => 1, 'payments.edit' => 1,
+            // Own registration % (content_terminal) + month accruals on /payments.
+            'procents.view' => 1,
             'docs.print' => 1,
             'booking.view' => 1, 'booking.edit' => 1,
             // Analytics calendars/ratings — not raw cabin /audio.
             'audio_reports.view' => 1, 'staff_reports.view' => 1,
         ];
+        // Soft product modules: grant only when present on disk (fp_berd is private overlay).
+        if (ModuleManager::get('acquisition') !== null) {
+            $admin['acquisition.view'] = 1;
+            $admin['acquisition.edit'] = 1;
+        }
         $manager = $admin + [
             'core.users' => 1, 'core.statuses' => 1, 'core.settings' => 1,
             'procedures.view' => 1,
@@ -363,6 +370,10 @@ final class ClinicDemoStructure
             'staff_reports.view' => 1, 'crm.view' => 1, 'crm.edit' => 1, 'bitrix.view' => 1,
             'bi.manage' => 1, 'bots.view' => 1,
         ];
+        if (ModuleManager::get('fp_berd') !== null) {
+            $manager['fp_berd.view'] = 1;
+            $manager['fp_berd.edit'] = 1;
+        }
         switch ($role) {
             case 'director':
                 return $manager + [
@@ -397,6 +408,10 @@ final class ClinicDemoStructure
         require_once base_path('modules/rates/lib/RatesRepository.php');
         $out = [];
         $effective = (int)strtotime(ClinicDemoPlan::historyFrom() . ' 00:00:00') - 86400;
+        $descr = ClinicDemoPlan::copyStr('rates_descr', [
+            'org' => ClinicDemoPlan::org(),
+            'from' => ClinicDemoPlan::historyFrom(),
+        ]);
         foreach (ClinicDemoPlan::rates() as $key => $map) {
             $operatorId = (int)($staffIds[$key] ?? 0);
             if ($operatorId < 1) {
@@ -420,10 +435,7 @@ final class ClinicDemoStructure
             $id = RatesRepository::create([
                 'operator_id' => $operatorId,
                 'dt' => $effective,
-                'descr' => ClinicDemoPlan::copyStr('rates_descr', [
-                    'org' => ClinicDemoPlan::org(),
-                    'from' => ClinicDemoPlan::historyFrom(),
-                ]),
+                'descr' => $descr,
                 'content' => $content,
                 'content_sales' => $content,
                 'content_income' => [],
@@ -440,6 +452,55 @@ final class ClinicDemoStructure
             $out[$key] = $id;
             $this->m->add('rates', $id);
         }
+
+        // Reception: registration % only (content_terminal). Not bookable as operators.
+        foreach (ClinicDemoPlan::adminTerminalRates() as $key => $pct) {
+            $operatorId = (int)($staffIds[$key] ?? 0);
+            if ($operatorId < 1) {
+                continue;
+            }
+            $existing = (int)Database::pdo()->query(
+                'SELECT ID FROM base_procent_history WHERE ID_OPERATOR = ' . $operatorId
+                . ' ORDER BY DT DESC, ID DESC LIMIT 1'
+            )->fetchColumn();
+            if ($existing > 0) {
+                $out[$key] = $existing;
+                continue;
+            }
+            $terminal = [];
+            $ban = [];
+            foreach (array_keys(ClinicDemoPlan::procedureTypes()) as $typeKey) {
+                $tid = (int)($typeIds[$typeKey] ?? 0);
+                if ($tid < 1) {
+                    continue;
+                }
+                $terminal[$tid] = (float)$pct;
+                $ban[$tid] = 1;
+            }
+            if ($terminal === []) {
+                continue;
+            }
+            $id = RatesRepository::create([
+                'operator_id' => $operatorId,
+                'dt' => $effective,
+                'descr' => $descr,
+                'content' => [],
+                'content_sales' => [],
+                'content_income' => [],
+                'content_terminal' => $terminal,
+                'ban_booking' => $ban,
+                'ban_online' => $ban,
+                'ban_procs' => [],
+                'loss' => 0.0,
+                'loss_fix' => 0.0,
+                'offers' => 0,
+                'audio_hour_rate' => 0.0,
+                'script_score_rate' => 0.0,
+            ]);
+            $out[$key] = $id;
+            $this->m->add('rates', $id);
+        }
+
         $this->m->set('index.rates', $out);
         return $out;
     }

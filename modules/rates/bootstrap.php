@@ -5,6 +5,7 @@ require_once __DIR__ . '/lib/RatesRepository.php';
 require_once __DIR__ . '/lib/ServiceAccessParity.php';
 require_once __DIR__ . '/lib/RatesSkill.php';
 require_once __DIR__ . '/lib/RatesAssistantPreview.php';
+require_once __DIR__ . '/lib/StaffPlansRepository.php';
 
 Assets::register('rates', [
     'css' => ['assets/css/rates.css'],
@@ -15,6 +16,9 @@ $pages = [
     '/rates/new' => ['permission' => 'rates.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/rates/{id}/edit' => ['permission' => 'rates.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/rates/skill' => ['permission' => 'rates.edit', 'methods' => ['GET', 'POST'], 'file' => 'skill.php'],
+    '/rates/plans' => ['permission' => 'rates.view', 'methods' => ['GET'], 'file' => 'plans_list.php'],
+    '/rates/plans/new' => ['permission' => 'rates.edit', 'methods' => ['GET', 'POST'], 'file' => 'plans_edit.php'],
+    '/rates/plans/{id}/edit' => ['permission' => 'rates.edit', 'methods' => ['GET', 'POST'], 'file' => 'plans_edit.php'],
 ];
 
 foreach ($pages as $path => $def) {

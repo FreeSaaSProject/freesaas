@@ -66,6 +66,7 @@ if (preg_match_all('/`(base_[a-z0-9_]*)(\*?)`/', $tableMap, $mm, PREG_SET_ORDER)
 }
 
 $modules = [];
+$onDisk = [];
 $missingModules = [];
 $missingTables = [];
 $skipped = [];
@@ -75,11 +76,32 @@ foreach (glob($root . '/modules/*/module.json') ?: [] as $file) {
         continue;
     }
     $id = (string)$data['id'];
+    $onDisk[$id] = true;
     if ($shipped !== null && !isset($shipped[$id])) {
         if ($strict) {
             $errors[] = "modules-catalog.json: no entry for `{$id}` — run php bin/build-modules-catalog.php";
         } else {
             $skipped[] = $id;
+            // Instance pack: still require TABLE_MAP for owned tables when documented.
+            if ($documented !== [] && !isset($documented[$id])) {
+                // Optional AGENTS row for private packs — not required.
+            }
+            foreach ((array)($data['tables'] ?? []) as $table) {
+                $table = (string)$table;
+                if ($table === '' || isset($exact[$table])) {
+                    continue;
+                }
+                $covered = false;
+                foreach ($prefixes as $prefix => $_) {
+                    if (strpos($table, (string)$prefix) === 0) {
+                        $covered = true;
+                        break;
+                    }
+                }
+                if (!$covered) {
+                    $missingTables[$id][] = $table;
+                }
+            }
             continue;
         }
     }
@@ -104,7 +126,14 @@ foreach (glob($root . '/modules/*/module.json') ?: [] as $file) {
         }
     }
 }
-$stale = array_values(array_diff(array_keys($documented), array_keys($modules)));
+// Stale AGENTS rows: documented but neither shipped nor present on disk as an instance pack.
+$stale = [];
+foreach (array_keys($documented) as $id) {
+    if (isset($modules[$id]) || isset($onDisk[$id])) {
+        continue;
+    }
+    $stale[] = $id;
+}
 
 foreach ($missingModules as $id) {
     $errors[] = "AGENTS.md: no row for module `{$id}` in «Existing modules»";

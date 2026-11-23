@@ -11,6 +11,7 @@ require_once __DIR__ . '/ClinicDemoForward.php';
 require_once __DIR__ . '/ClinicDemoAudio.php';
 require_once __DIR__ . '/ClinicDemoFeed.php';
 require_once __DIR__ . '/ClinicDemoShowcase.php';
+require_once __DIR__ . '/ClinicDemoFpPack.php';
 
 /**
  * Orchestrator: DemoStand safety, stage dispatch, manifest lifecycle, cleanup.
@@ -22,7 +23,9 @@ final class ClinicDemo
         'calendar', 'procedures', 'clients', 'catalog', 'workweeks', 'ledger', 'payments', 'rates',
     ];
 
-    private const STAGES = ['structure', 'clinical', 'money', 'forward', 'docs', 'audio', 'feed', 'showcase'];
+    private const STAGES = [
+        'structure', 'clinical', 'money', 'forward', 'docs', 'audio', 'feed', 'showcase', 'fp_pack',
+    ];
 
     private const STAGE_MODULES = [
         'structure' => ['units', 'cabinets'],
@@ -30,6 +33,8 @@ final class ClinicDemo
         'docs' => ['docs'],
         'audio' => ['audio', 'audio_dicts'],
         'showcase' => ['docs'],
+        // Soft: stage runs anyway and skips missing modules inside ClinicDemoFpPack.
+        'fp_pack' => [],
     ];
 
     private ClinicDemoManifest $manifest;
@@ -261,6 +266,13 @@ final class ClinicDemo
             $this->manifest->save();
         }
 
+        if ($should('fp_pack')) {
+            $fp = new ClinicDemoFpPack($this->manifest);
+            $result['stages']['fp_pack'] = $fp->run();
+            $mark('fp_pack');
+            $this->manifest->save();
+        }
+
         foreach (self::STAGES as $stage) {
             if (in_array($stage, (array)($opts['only'] ?? [$stage]), true) && !isset($result['stages'][$stage])) {
                 $result['skipped'][] = $stage;
@@ -395,6 +407,29 @@ final class ClinicDemo
                 $del('DELETE FROM ' . $table . ' WHERE ID IN (' . $in($ids) . ')');
                 $deleted[$table] = true;
             }
+        }
+        foreach ([
+            'calls' => 'base_calls',
+            'promo_sources' => 'base_promo_sources',
+            'staff_plans' => 'base_staff_plans',
+            // Optional private FP overlay — tables may be absent on stock demomed.
+            'fp_berd_weeks' => 'base_fp_berd_week_envelopes',
+            'fp_berd_scenarios' => 'base_fp_berd_scenarios',
+            'fp_berd_articles' => 'base_fp_berd_articles',
+        ] as $bucket => $table) {
+            $ids = $this->manifest->ids($bucket);
+            if ($ids === [] || !Database::tableExists($table)) {
+                continue;
+            }
+            if ($bucket === 'fp_berd_scenarios'
+                && Database::tableExists('base_fp_berd_scenario_lines')) {
+                $del('DELETE FROM base_fp_berd_scenario_lines WHERE ID_SCENARIO IN (' . $in($ids) . ')');
+            }
+            $del('DELETE FROM ' . $table . ' WHERE ID IN (' . $in($ids) . ')');
+            $deleted[$table] = true;
+        }
+        if (Database::tableExists('base_calls')) {
+            $del("DELETE FROM base_calls WHERE CHANNEL = 'clinic_demo'");
         }
 
         foreach (['base_records_instances', 'base_records_collections_datas'] as $t) {

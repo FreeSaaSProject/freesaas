@@ -262,10 +262,17 @@ final class ClinicDemoClinical
             $this->m->add('events', $eventId);
             try {
                 $res = ProceduresRepository::createFromEvent($eventId);
-                $created = is_array($res['created'] ?? null)
-                    ? count($res['created'])
-                    : (int)($res['created'] ?? 0);
+                $createdIds = is_array($res['created'] ?? null)
+                    ? array_values(array_filter(array_map('intval', $res['created'])))
+                    : [];
+                $created = count($createdIds);
                 $procedures += $created;
+                // Seed runs as director/CLI — resolveDeskAdmin would stamp the actor.
+                // Attribute registration commission to an on-shift desk admin instead.
+                $deskAdmin = $this->pickDeskAdmin($dow);
+                if ($deskAdmin > 0 && $createdIds !== []) {
+                    ProceduresRepository::setAdminByIds($createdIds, $deskAdmin);
+                }
             } catch (Throwable $e) {
                 $created = 0;
             }
@@ -296,6 +303,30 @@ final class ClinicDemoClinical
         $noise = 0.88 + 0.24 * $this->rng->float();
         $n = (int)round($slots * $weekday * $season * $noise);
         return max(1, min($slots + 1, $n));
+    }
+
+    /** On-shift desk admin for registration commission (ID_ADMIN). */
+    private function pickDeskAdmin(int $dow): int
+    {
+        $staff = (array)$this->m->get('index.staff', []);
+        if ($staff === []) {
+            $staff = (array)$this->m->get('structure.staff', []);
+        }
+        $roster = ClinicDemoPlan::roster();
+        $onShift = [];
+        foreach (array_keys(ClinicDemoPlan::adminTerminalRates()) as $key) {
+            if (!in_array($dow, $roster[$key] ?? [], true)) {
+                continue;
+            }
+            $uid = (int)($staff[$key] ?? 0);
+            if ($uid > 0) {
+                $onShift[] = $uid;
+            }
+        }
+        if ($onShift === []) {
+            return 0;
+        }
+        return (int)$this->rng->pick($onShift);
     }
 
     /**

@@ -513,6 +513,9 @@ final class LedgerMovesRepository
         $order = trim((string)($opts['order'] ?? '')) ?: 'm.DT DESC, m.ID DESC';
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
+        $sourceCol = Database::columnExists('base_account_moves', 'ID_SOURCE')
+            ? ', m.ID_SOURCE AS source_id'
+            : ', 0 AS source_id';
         $sql = "SELECT m.ID AS id, m.ID_ACCOUNT AS account_id, m.ID_TYPE AS type_id,
                        m.DIRECTION AS direction, m.SUMM AS summ, m.DESCR AS descr,
                        m.DT AS dt, m.DT_CREATE AS dt_create, m.ID_USER_CREATE AS user_create,
@@ -523,6 +526,7 @@ final class LedgerMovesRepository
                        m.ID_USER_UPDATE AS user_update, m.DT_UPDATE AS dt_update,
                        m.ID_ACT2_IN AS act2_in, m.ACT2_NOT_REQ AS act2_not_req,
                        m.DT_PROMISED AS dt_promised, m.PROMISE_EXECUTED AS promise_executed
+                       $sourceCol
                 FROM base_account_moves m
                 WHERE $sqlWhere ORDER BY $order";
         if ($limit > 0) {
@@ -542,6 +546,9 @@ final class LedgerMovesRepository
         if ($id < 1 || !Database::tableExists('base_account_moves')) {
             return null;
         }
+        $sourceCol = Database::columnExists('base_account_moves', 'ID_SOURCE')
+            ? ', ID_SOURCE AS source_id'
+            : ', 0 AS source_id';
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, ID_ACCOUNT AS account_id, ID_TYPE AS type_id,
                     DIRECTION AS direction, SUMM AS summ, DESCR AS descr,
@@ -553,6 +560,7 @@ final class LedgerMovesRepository
                     ID_USER_UPDATE AS user_update, DT_UPDATE AS dt_update,
                     ID_ACT2_IN AS act2_in, ACT2_NOT_REQ AS act2_not_req,
                     DT_PROMISED AS dt_promised, PROMISE_EXECUTED AS promise_executed
+                    ' . $sourceCol . '
              FROM base_account_moves WHERE ID = ? LIMIT 1'
         );
         $st->execute([$id]);
@@ -680,6 +688,12 @@ final class LedgerMovesRepository
         $fundMovementId = array_key_exists('fund_movement_id', $post)
             ? max(0, (int)$post['fund_movement_id'])
             : (int)($existing['fund_movement_id'] ?? 0);
+        $sourceId = 0;
+        if (Database::columnExists('base_account_moves', 'ID_SOURCE')) {
+            $sourceId = array_key_exists('source_id', $post)
+                ? max(0, (int)$post['source_id'])
+                : (int)($existing['source_id'] ?? 0);
+        }
         $act2In = 0;
         $act2NotReq = 0;
         if (!empty($type['act_in_enabled']) && ModuleManager::isEnabled('stickers')) {
@@ -714,6 +728,7 @@ final class LedgerMovesRepository
             'supplier_id' => $supplierId,
             'user_payment' => $userPayment,
             'fund_movement_id' => $fundMovementId,
+            'source_id' => $sourceId,
             'act2_in' => $act2In,
             'act2_not_req' => $act2NotReq,
             'dt_promised' => $dtPromised,
@@ -726,7 +741,7 @@ final class LedgerMovesRepository
     }
 
     /** Keys of $data that ledger.moves.validate subscribers may change. */
-    private const VALIDATE_WRITABLE = ['fund_movement_id'];
+    private const VALIDATE_WRITABLE = ['fund_movement_id', 'source_id'];
 
     /**
      * @param array<string,mixed> $data
@@ -881,6 +896,7 @@ final class LedgerMovesRepository
             'ID_ACTIVE' => (int)($data['active_id'] ?? 0),
             'IS_VARIABLE' => (int)($data['is_variable'] ?? 0),
             'ID_COMMENT' => (int)($data['comment_id'] ?? 0),
+            'ID_SOURCE' => (int)($data['source_id'] ?? 0),
         ];
         foreach ($optionalZero as $col => $val) {
             if (Database::columnExists('base_account_moves', $col)) {
@@ -1053,6 +1069,12 @@ final class LedgerMovesRepository
             (int)($data['dt_promised'] ?? 0), (int)($data['promise_executed'] ?? 0),
             Auth::userId(), time(), $id,
         ]);
+        if (Database::columnExists('base_account_moves', 'ID_SOURCE')) {
+            $stSrc = Database::pdo()->prepare(
+                'UPDATE base_account_moves SET ID_SOURCE = ? WHERE ID = ? AND DELETED = 0'
+            );
+            $stSrc->execute([(int)($data['source_id'] ?? 0), $id]);
+        }
         LedgerReconciliationsRepository::refreshTodaySystemBalance((int)$data['account_id']);
     }
 
@@ -1729,7 +1751,7 @@ final class LedgerMovesRepository
         foreach ([
             'id', 'account_id', 'type_id', 'direction', 'dt', 'dt_create', 'user_create',
             'unconfirmed', 'deleted', 'payment_id', 'supplier_id', 'user_payment',
-            'linked_id', 'account_to', 'fund_movement_id', 'user_update', 'dt_update',
+            'linked_id', 'account_to', 'fund_movement_id', 'source_id', 'user_update', 'dt_update',
             'act2_in', 'act2_not_req', 'dt_promised', 'promise_executed',
         ] as $k) {
             if (array_key_exists($k, $row)) {

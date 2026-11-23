@@ -1,0 +1,41 @@
+{
+  "v": 1,
+  "id": "admin_funnel",
+  "title": "Inquiry funnel by result",
+  "requires": ["acquisition_calls"],
+  "queries": [
+    {
+      "as": "calls_raw",
+      "from": "acquisition_calls",
+      "select": [
+        {"field": "dt_call", "as": "dt_call"},
+        {"field": "result_id", "as": "result_id"},
+        {"field": "client_kind", "as": "client_kind"},
+        {"field": "admin_id", "as": "admin_id"},
+        {"field": "id", "as": "call_id"}
+      ],
+      "limit": 50000
+    }
+  ],
+  "derive": [
+    {
+      "as": "by_result",
+      "from": "calls_raw",
+      "group_by": ["result_id"],
+      "aggs": [
+        {"op": "count", "field": "call_id", "as": "n"}
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "type": "table",
+      "title": "By result",
+      "from": "by_result",
+      "columns": [
+        {"id": "result_id", "label": "Result"},
+        {"id": "n", "label": "Count"}
+      ]
+    }
+  ]
+}

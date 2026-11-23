@@ -100,8 +100,14 @@ $hasShowBdayCol = Database::columnExists('base_users', 'show_bday_in_cal');
   </label>
   <?php if ($hasBdayCol): ?>
   <label><?= te('core.user_edit.bday') ?>
-    <input type="date" name="bday" value="<?= e($bdayVal) ?>">
+    <input type="date"
+           name="bday"
+           value="<?= e($bdayVal) ?>"
+           min="1900-01-01"
+           max="<?= e(date('Y-m-d')) ?>"
+           data-no-date-tools>
   </label>
+  <p class="form-hint"><?= te('core.user_edit.bday_hint') ?></p>
   <?php endif; ?>
   <?php if ($hasShowBdayCol): ?>
   <label class="check">

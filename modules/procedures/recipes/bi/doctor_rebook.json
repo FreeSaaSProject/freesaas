@@ -1,0 +1,74 @@
+{
+  "v": 1,
+  "id": "doctor_rebook",
+  "title": "Doctor rebook (primary vs repeat)",
+  "requires": ["procedures"],
+  "queries": [
+    {
+      "as": "procs_raw",
+      "from": "procedures",
+      "where": [
+        {"field": "summ", "op": ">", "value": 0},
+        {"field": "enabled", "op": ">", "value": 0},
+        {"field": "id_user", "op": ">", "value": 0}
+      ],
+      "select": [
+        {"field": "id", "as": "proc_id"},
+        {"field": "dtstart", "as": "dtstart"},
+        {"field": "id_operator", "as": "id_operator"},
+        {"field": "id_user", "as": "id_user"},
+        {"field": "summ", "as": "summ"}
+      ],
+      "limit": 100000
+    }
+  ],
+  "derive": [
+    {
+      "as": "client_first",
+      "from": "procs_raw",
+      "group_by": ["id_user"],
+      "aggs": [
+        {"op": "min", "field": "dtstart", "as": "first_visit"}
+      ]
+    },
+    {
+      "as": "with_first",
+      "from": "procs_raw",
+      "join_frame": {
+        "frame": "client_first",
+        "type": "left",
+        "left": "id_user",
+        "right": "id_user"
+      },
+      "compute": [
+        {
+          "as": "is_primary",
+          "expr": {"op": "eq", "args": [{"field": "dtstart"}, {"field": "first_visit"}]}
+        }
+      ]
+    },
+    {
+      "as": "by_op",
+      "from": "with_first",
+      "group_by": ["id_operator"],
+      "aggs": [
+        {"op": "count", "field": "proc_id", "as": "visits"},
+        {"op": "count_where", "field": "proc_id", "as": "primary_n", "where": {"op": "eq", "args": [{"field": "is_primary"}, {"value": 1}]}},
+        {"op": "count_where", "field": "proc_id", "as": "repeat_n", "where": {"op": "neq", "args": [{"field": "is_primary"}, {"value": 1}]}}
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "type": "table",
+      "title": "Primary vs repeat by specialist",
+      "from": "by_op",
+      "columns": [
+        {"id": "id_operator", "label": "Operator", "format": "user_badge"},
+        {"id": "visits", "label": "Visits"},
+        {"id": "primary_n", "label": "Primary"},
+        {"id": "repeat_n", "label": "Repeat"}
+      ]
+    }
+  ]
+}

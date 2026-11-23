@@ -12,6 +12,9 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_users` procedure restricts (`RESTRICT_TYPES*`, `RESTRICT_PROCS`) | procedures (columns + UI) | Added by procedures migration; only when procedures enabled |
 | `base_staff_bracelets` | terminals | Staff NFC UID ↔ user (no column on `base_users`) |
 | `base_clients`, `base_client_statuses`, `base_shopusers_tags`, `base_client_tag_links`, `base_client_channels` | clients | CRM clients; login = phone (optional — any channel is enough); `base_client_channels` = Telegram/Max/WhatsApp/email/extra phones; `base_client_statuses.block_online` gates storefront booking |
+| `base_clients` source columns (`source_id`, `source_descr`, `referred_by_client_id`) | acquisition (ALTER + UI) | Soft; only when acquisition enabled; not in acquisition `tables[]` |
+| `base_promo_sources`, `base_calls` | acquisition | First-touch channels + inquiry/call journal |
+| `base_account_moves.ID_SOURCE` | acquisition (ALTER + UI) | Soft ROMI tag on DPS; not owned by acquisition |
 | `base_crm_companies`, `base_crm_company_contacts`, `base_crm_pipelines`, `base_crm_stages`, `base_crm_deals`, `base_crm_deal_contacts`, `base_crm_custom_fields`, `base_crm_custom_values`, `base_crm_notes`, `base_crm_stage_history`, `base_crm_links` | crm | Sales CRM (companies/deals/leads via pipeline kind); contacts stay in `base_clients`; `base_crm_links` = deal/company → foreign records (tickets in `base_news`). Not `base_suppliers` / `base_orders`. |
 | `base_bitrix_id_map`, `base_bitrix_sync_state`, `base_bitrix_outbox`, `base_bitrix_webhook_events` | bitrix | Bitrix24 dual-run bridge maps |
 | `base_amocrm_id_map`, `base_amocrm_sync_state`, `base_amocrm_outbox`, `base_amocrm_webhook_events` | amocrm | AmoCRM/Kommo dual-run bridge maps |
@@ -57,6 +60,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_resources` / `base_product_resources` / `base_resource_allocations` | resources | Shared bookable capacity; product requirements; order/event/procedure occupancy |
 | `base_workweeks` | workweeks | Shifts |
 | `base_procent_history` | rates | Specialist pay rates |
+| `base_staff_plans` | rates | Month plan ₽, norm ₽/hour, bonus tiers JSON |
+| `base_fp_berd_articles`, `base_fp_berd_scenarios`, `base_fp_berd_scenario_lines`, `base_fp_berd_week_envelopes` | fp_berd (private) | Berdnikova FP articles↔DPS, scenarios, week envelopes |
 | `base_procedures*` | procedures | Types + journal + `base_procedure_restores` schema; restore UI/settlement in likespa |
 | `base_media_attachments` / `base_media_requirements` | media | Image attachments by owner table+id; photo requirements on type/product scopes |
 | `base_payments` | payments | Staff settlements |

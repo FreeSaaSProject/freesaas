@@ -169,6 +169,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `comments` | Comment thread on news items; no own menu routes |
 | `contracts` | Offers/contracts; depends on `core` + `comments` |
 | `clients` | Client CRM (`base_clients`) + client statuses; login identity = phone |
+| `acquisition` | Soft first-touch sources + inquiry/call journal (`base_promo_sources`, `base_calls`); hooks clients/ledger/orders/calendar; beta — [`docs/agents/acquisition.md`](docs/agents/acquisition.md) |
 | `crm` | Sales CRM: companies, deals/leads + pipelines/stages, custom fields, notes (`base_crm_*`); requires `clients`; alpha |
 | `bitrix` | Bitrix24 dual-run bridge (id map / outbox / webhook) into `clients` + `crm`; alpha |
 | `amocrm` | AmoCRM/Kommo dual-run bridge into `clients` + `crm`; alpha |
@@ -202,7 +203,8 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `docs` | Document engine + medical cards (`base_doc_*`): versioned schema/template definitions, filled instances, frozen print, optional QR archive, fill templates (clinic/doctor), audio/LLM/bot autofill; URL prefix `/documents`; beta — [`docs/agents/docs.md`](docs/agents/docs.md) |
 | `medcard_audio` | Staff bot: voice → ASR → LLM → visit medcard (no cabin analytics); soft `bots`; alpha — [`docs/agents/medcard-audio.md`](docs/agents/medcard-audio.md) |
 | `egisz` | EGISZ/REMD prep: SEMD builders from medcards, SNILS/OID/ICD identity, outbox journal; IIS transport + UKEP later; alpha — [`docs/agents/egisz.md`](docs/agents/egisz.md) |
-| `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |
+| `rates` | Specialist commission rates (`base_procent_history`) + month plans/norms/bonus tiers (`base_staff_plans`); requires `procedures` |
+| `fp_berd` | Private Berdnikova FP: article↔DPS map, week envelopes, BE scenarios; soft `ledger`; gitignored instance pack — [`docs/agents/fp_berd.md`](docs/agents/fp_berd.md) |
 | `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
 | `asr` | Voice queue + shared Whisper worker token (`/asr/voice-transcribe/*`); requires `core` only; soft `bots` |
 | `audio` | Cabin records + badges + FileStorage; soft `workweeks`; badge USB loader = workers plugin `audioloader` ([`docs/agents/audioloader.md`](docs/agents/audioloader.md)) |

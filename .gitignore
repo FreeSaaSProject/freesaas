@@ -23,6 +23,10 @@ assets/uploads/logo/*
 themes/likespa/
 themes/balance/
 
+# Private Berdnikova FP pack (own repo; install via [module.fp_berd] in cfg/updates.ini)
+#   See docs/agents/fp_berd.md
+modules/fp_berd/
+
 # Local Python envs and agent scratch (never deploy)
 .venv/
 **/.venv/
