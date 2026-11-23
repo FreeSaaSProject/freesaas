@@ -8,9 +8,13 @@ declare(strict_types=1);
  *   - every table in module.json `tables[]` is mentioned in docs/TABLE_MAP.md
  *     (exact `base_x` or a `base_prefix*` wildcard).
  *
- * Instance packs (modules that live in their own repo and are absent from modules-catalog.json)
- * are skipped, so `bin/smoke.php` stays green on an instance. `--strict` (CI of the main repo)
- * turns a module missing from the catalog into a failure.
+ * Instance packs (own repo / gitignored from monorepo, absent from modules-catalog.json)
+ * are skipped for catalog membership, so smoke stays green on an instance and CI stays
+ * green when the pack is not checked out. AGENTS.md may still document them.
+ * `--strict` fails only for unknown on-disk modules missing from the catalog.
+ *
+ * Private denylist default: fp_berd (same as bin/build-modules-catalog.php). Extra via
+ * PRIVATE_MODULES=id1,id2.
  *
  * Usage: php bin/check-docs-modules.php [--strict] [--format=json]
  * Exit: 0 ok, 1 fail
@@ -18,6 +22,17 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 $json = in_array('--format=json', $argv, true) || in_array('--json', $argv, true);
 $strict = in_array('--strict', $argv, true);
+
+$private = ['fp_berd' => true];
+$privateEnv = getenv('PRIVATE_MODULES');
+if (is_string($privateEnv)) {
+    foreach (explode(',', $privateEnv) as $p) {
+        $p = trim($p);
+        if ($p !== '' && preg_match('/^[a-z][a-z0-9_]*$/', $p)) {
+            $private[$p] = true;
+        }
+    }
+}
 
 // Modules shipped by the main repo: core + everything in modules-catalog.json.
 $shipped = null;
@@ -77,15 +92,13 @@ foreach (glob($root . '/modules/*/module.json') ?: [] as $file) {
     }
     $id = (string)$data['id'];
     $onDisk[$id] = true;
+    $isPrivate = isset($private[$id]);
     if ($shipped !== null && !isset($shipped[$id])) {
-        if ($strict) {
+        if ($strict && !$isPrivate) {
             $errors[] = "modules-catalog.json: no entry for `{$id}` — run php bin/build-modules-catalog.php";
         } else {
             $skipped[] = $id;
-            // Instance pack: still require TABLE_MAP for owned tables when documented.
-            if ($documented !== [] && !isset($documented[$id])) {
-                // Optional AGENTS row for private packs — not required.
-            }
+            // Instance / private pack: still require TABLE_MAP for owned tables when on disk.
             foreach ((array)($data['tables'] ?? []) as $table) {
                 $table = (string)$table;
                 if ($table === '' || isset($exact[$table])) {
@@ -126,10 +139,10 @@ foreach (glob($root . '/modules/*/module.json') ?: [] as $file) {
         }
     }
 }
-// Stale AGENTS rows: documented but neither shipped nor present on disk as an instance pack.
+// Stale AGENTS rows: documented but neither shipped, on disk, nor a known private pack.
 $stale = [];
 foreach (array_keys($documented) as $id) {
-    if (isset($modules[$id]) || isset($onDisk[$id])) {
+    if (isset($modules[$id]) || isset($onDisk[$id]) || isset($private[$id])) {
         continue;
     }
     $stale[] = $id;
