@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-23T15:32:49+00:00",
+    "generated_at": "2026-11-23T17:07:53+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -1268,7 +1268,7 @@
         },
         {
             "id": "demo",
-            "version": "1.0.15",
+            "version": "1.0.16",
             "type": "product",
             "name": {
                 "en": "Demo stand",
@@ -1298,7 +1298,6 @@
                 "clients": ">=1.0.0",
                 "comments": ">=1.0.0",
                 "docs": ">=0.1.0",
-                "fp_berd": ">=0.1.0",
                 "funds": ">=1.0.0",
                 "ledger": ">=1.0.0",
                 "orders": ">=1.0.0",

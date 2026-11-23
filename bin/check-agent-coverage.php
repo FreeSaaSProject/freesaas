@@ -14,7 +14,8 @@ declare(strict_types=1);
  * Gaps already present are frozen in docs/agents/agent-coverage-baseline.json. A new gap or a removed op fails.
  *
  * Instance packs — modules that are neither in the baseline nor in modules-catalog.json (own repo) —
- * are skipped, so `bin/smoke.php` stays green on an instance. `--strict` (CI of the main repo) checks them too.
+ * are skipped, so `bin/smoke.php` stays green on an instance. `--strict` (CI) still checks unknown
+ * on-disk modules, except the private denylist (default `fp_berd`, extra via PRIVATE_MODULES).
  *
  * Usage: php bin/check-agent-coverage.php [--update-baseline] [--strict] [--format=json]
  * Exit: 0 ok, 1 fail
@@ -24,6 +25,17 @@ $baselinePath = $root . '/docs/agents/agent-coverage-baseline.json';
 $update = in_array('--update-baseline', $argv, true);
 $json = in_array('--format=json', $argv, true);
 $strict = in_array('--strict', $argv, true);
+
+$private = ['fp_berd' => true];
+$privateEnv = getenv('PRIVATE_MODULES');
+if (is_string($privateEnv)) {
+    foreach (explode(',', $privateEnv) as $p) {
+        $p = trim($p);
+        if ($p !== '' && preg_match('/^[a-z][a-z0-9_]*$/', $p)) {
+            $private[$p] = true;
+        }
+    }
+}
 
 /** @return array{ops:list<string>,uncovered_routes:list<string>,uncovered_actions:list<string>} */
 function coverage_scan_module(string $dir): array
@@ -128,7 +140,9 @@ $errors = [];
 $improved = [];
 $skipped = [];
 foreach ($current as $id => $cur) {
-    if (!$strict && $shipped !== null && !isset($baseModules[$id]) && !isset($shipped[$id])) {
+    if (isset($private[$id])
+        || (!$strict && $shipped !== null && !isset($baseModules[$id]) && !isset($shipped[$id]))
+    ) {
         $skipped[] = (string)$id;
         unset($current[$id]);
         continue;

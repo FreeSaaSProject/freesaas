@@ -61,7 +61,6 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_workweeks` | workweeks | Shifts |
 | `base_procent_history` | rates | Specialist pay rates |
 | `base_staff_plans` | rates | Month plan ₽, norm ₽/hour, bonus tiers JSON |
-| `base_fp_berd_articles`, `base_fp_berd_scenarios`, `base_fp_berd_scenario_lines`, `base_fp_berd_week_envelopes` | fp_berd (private) | Berdnikova FP articles↔DPS, scenarios, week envelopes |
 | `base_procedures*` | procedures | Types + journal + `base_procedure_restores` schema; restore UI/settlement in likespa |
 | `base_media_attachments` / `base_media_requirements` | media | Image attachments by owner table+id; photo requirements on type/product scopes |
 | `base_payments` | payments | Staff settlements |

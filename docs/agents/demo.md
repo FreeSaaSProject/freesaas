@@ -141,7 +141,7 @@ php bin/freesaas.php demo seed --profile=clinic --locale=ru --reset --format=jso
 
 Spa profile fills cabinets, catalog, clients, staff, calendar, ledger/finance, audio demo, rates/procents, etc. Clinic profile runs staged `ClinicDemo` (structure → clinical → money → forward → docs → audio → feed → showcase → `fp_pack`). `feed` fills the home feed (articles, tickets with threads, personal messages, likes, favorites; creates ticket statuses 1/2/3/99 if missing); `--only=feed --force` replaces only its own rows. `--reset` clears prior demo domain rows (spa wipe tables / clinic manifest clean). Domain dates follow `DemoMode::now()` (wall clock, or `frozen_at` when set).
 
-Soft stage `fp_pack`: when `acquisition` / `rates` are enabled — promo sources, 40–80 calls by history month, staff plans, and a ROMI DPS with `ID_SOURCE`. Private `fp_berd` (Berdnikova FP overlay) is **optional**: if the module is absent or disabled, the stage records `skipped: fp_berd_absent` and still finishes; articles/scenario/week envelopes run only when `ClinicDemoFpPack::fpBerdReady()`. Stock demomed without the overlay must seed cleanly.
+Soft stage `fp_pack`: when `acquisition` / `rates` are enabled — promo sources, 40–80 calls by history month, staff plans, and a ROMI DPS with `ID_SOURCE`. An optional private FP overlay module (if present on the instance) may add articles/scenarios/week envelopes; if absent, the stage skips that part and still finishes. Stock demomed without any overlay must seed cleanly.
 
 `bin/demo-restore.example.sh` (host crontab calling `demo seed`) remains as a CLI fallback; with `cron_token` + `demo.reseed` it is not needed.
 

@@ -2,7 +2,7 @@
     "id": "demo",
     "name": "demo.module.name",
     "description": "demo.module.description",
-    "version": "1.0.15",
+    "version": "1.0.16",
     "type": "product",
     "catalog": {
         "categories": [
@@ -30,7 +30,6 @@
         "clients": ">=1.0.0",
         "comments": ">=1.0.0",
         "docs": ">=0.1.0",
-        "fp_berd": ">=0.1.0",
         "funds": ">=1.0.0",
         "ledger": ">=1.0.0",
         "orders": ">=1.0.0",

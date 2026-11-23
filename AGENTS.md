@@ -204,7 +204,6 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `medcard_audio` | Staff bot: voice → ASR → LLM → visit medcard (no cabin analytics); soft `bots`; alpha — [`docs/agents/medcard-audio.md`](docs/agents/medcard-audio.md) |
 | `egisz` | EGISZ/REMD prep: SEMD builders from medcards, SNILS/OID/ICD identity, outbox journal; IIS transport + UKEP later; alpha — [`docs/agents/egisz.md`](docs/agents/egisz.md) |
 | `rates` | Specialist commission rates (`base_procent_history`) + month plans/norms/bonus tiers (`base_staff_plans`); requires `procedures` |
-| `fp_berd` | Private Berdnikova FP: article↔DPS map, week envelopes, BE scenarios; soft `ledger`; gitignored instance pack — [`docs/agents/fp_berd.md`](docs/agents/fp_berd.md) |
 | `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
 | `asr` | Voice queue + shared Whisper worker token (`/asr/voice-transcribe/*`); requires `core` only; soft `bots` |
 | `audio` | Cabin records + badges + FileStorage; soft `workweeks`; badge USB loader = workers plugin `audioloader` ([`docs/agents/audioloader.md`](docs/agents/audioloader.md)) |

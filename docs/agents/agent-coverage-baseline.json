@@ -922,29 +922,6 @@
             ],
             "uncovered_actions": []
         },
-        "fp_berd": {
-            "ops": [
-                "fp_berd.agent.articles",
-                "fp_berd.agent.be",
-                "fp_berd.agent.scenarios",
-                "fp_berd.agent.seed_demo",
-                "fp_berd.agent.status",
-                "fp_berd.agent.weeks",
-                "fp_berd.articles.get",
-                "fp_berd.articles.list",
-                "fp_berd.articles.save",
-                "fp_berd.be",
-                "fp_berd.scenarios.get",
-                "fp_berd.scenarios.list",
-                "fp_berd.scenarios.save",
-                "fp_berd.status",
-                "fp_berd.weeks.get",
-                "fp_berd.weeks.list",
-                "fp_berd.weeks.save"
-            ],
-            "uncovered_routes": [],
-            "uncovered_actions": []
-        },
         "funds": {
             "ops": [
                 "funds.accrual",

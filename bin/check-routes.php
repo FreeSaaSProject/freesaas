@@ -11,9 +11,23 @@ declare(strict_types=1);
  *
  * Enable all modules in cfg/config.ini before running (CI does this).
  *
+ * Public routes from private/gitignored packs (default: fp_berd; extra via PRIVATE_MODULES)
+ * are skipped — they are not part of the public monorepo surface.
+ *
  * Exit: 0 ok, 1 fail
  */
 require_once dirname(__DIR__) . '/app/bootstrap.php';
+
+$privateModules = ['fp_berd' => true];
+$privateEnv = getenv('PRIVATE_MODULES');
+if (is_string($privateEnv)) {
+    foreach (explode(',', $privateEnv) as $p) {
+        $p = trim($p);
+        if ($p !== '' && preg_match('/^[a-z][a-z0-9_]*$/', $p)) {
+            $privateModules[$p] = true;
+        }
+    }
+}
 
 /**
  * Allow-list of public routes. Key = path pattern as registered.
@@ -121,12 +135,6 @@ $allowed = [
     '/agent/mail/settings' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token mail settings'],
     '/agent/mail/test' => ['methods' => ['POST'], 'why' => 'agent_token mail test send'],
     '/agent/mail/sends' => ['methods' => ['GET'], 'why' => 'agent_token mail queue list'],
-    '/agent/fp-berd/status' => ['methods' => ['GET'], 'why' => 'agent_token fp_berd status'],
-    '/agent/fp-berd/articles' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token fp_berd articles'],
-    '/agent/fp-berd/scenarios' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token fp_berd scenarios'],
-    '/agent/fp-berd/weeks' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token fp_berd weeks'],
-    '/agent/fp-berd/be' => ['methods' => ['GET'], 'why' => 'agent_token fp_berd break-even'],
-    '/agent/fp-berd/seed-demo' => ['methods' => ['POST'], 'why' => 'agent_token fp_berd demo seed'],
     '/agent/notify/status' => ['methods' => ['GET'], 'why' => 'agent_token notify health'],
     '/agent/notify/catalog' => ['methods' => ['GET'], 'why' => 'agent_token notify catalog'],
     '/agent/notify/rules' => ['methods' => ['GET'], 'why' => 'agent_token notify rules list'],
@@ -344,8 +352,14 @@ foreach (['/bots/webhook/telegram/{channel}', '/bots/webhook/max/{channel}', '/a
 }
 
 $public = [];
+$skippedPrivate = 0;
 foreach ($routes as $path => $route) {
     if (!is_array($route) || empty($route['public'])) {
+        continue;
+    }
+    $mod = (string)($route['module'] ?? '');
+    if ($mod !== '' && isset($privateModules[$mod])) {
+        $skippedPrivate++;
         continue;
     }
     $methods = array_map('strtoupper', $route['methods'] ?? ['GET']);
@@ -384,6 +398,9 @@ foreach ($allowed as $path => $meta) {
 echo 'public routes: ' . count($public) . "\n";
 echo 'allow-list: ' . count($allowed) . "\n";
 echo 'violations: ' . count($violations) . "\n";
+if ($skippedPrivate > 0) {
+    echo 'skipped private-module public routes: ' . $skippedPrivate . "\n";
+}
 if ($stale !== []) {
     echo 'allow-list entries not currently public (module off or removed): ' . count($stale) . "\n";
     foreach (array_slice($stale, 0, 20) as $p) {

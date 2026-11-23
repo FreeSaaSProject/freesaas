@@ -97,24 +97,8 @@ foreach (glob($root . '/modules/*/module.json') ?: [] as $file) {
         if ($strict && !$isPrivate) {
             $errors[] = "modules-catalog.json: no entry for `{$id}` — run php bin/build-modules-catalog.php";
         } else {
+            // Instance / private pack: tables + AGENTS rows live with the private repo docs.
             $skipped[] = $id;
-            // Instance / private pack: still require TABLE_MAP for owned tables when on disk.
-            foreach ((array)($data['tables'] ?? []) as $table) {
-                $table = (string)$table;
-                if ($table === '' || isset($exact[$table])) {
-                    continue;
-                }
-                $covered = false;
-                foreach ($prefixes as $prefix => $_) {
-                    if (strpos($table, (string)$prefix) === 0) {
-                        $covered = true;
-                        break;
-                    }
-                }
-                if (!$covered) {
-                    $missingTables[$id][] = $table;
-                }
-            }
             continue;
         }
     }

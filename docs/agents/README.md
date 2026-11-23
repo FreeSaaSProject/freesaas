@@ -37,8 +37,6 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [llm.md](llm.md) | LLM tokens, OAuth/MCP adapter, chat op, audio studies |
 | [clients.md](clients.md) | Client CRM: list/get/create/update + statuses/tags JSON |
 | [acquisition.md](acquisition.md) | Soft first-touch sources + inquiry/call journal (beta) |
-| [fp_berd.md](fp_berd.md) | Private Berdnikova FP pack (articles↔DPS, week envelopes, BE) |
-| [berdnikova-instance.md](berdnikova-instance.md) | Instance bind checklist: acquisition + rates + fp_berd |
 | [bonuses.md](bonuses.md) | Client loyalty ledger + event apply (JSON) |
 | [ledger.md](ledger.md) | Company accounts / DPS (cash-flow moves) / recon / promised payments (JSON) |
 | [recons.md](recons.md) | Day board of account reconciliations (`recons`) |
