@@ -1,0 +1,85 @@
+.media-panel {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #e5e5e5);
+}
+.media-panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+.media-panel-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+.media-panel-grid li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 96px;
+}
+.media-panel-grid img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #eee;
+}
+.media-upload-form {
+  margin: 0.75rem 0 0;
+}
+.media-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.65rem 0.75rem;
+}
+.media-upload-kind {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  flex: 0 0 auto;
+}
+.media-upload-kind select {
+  width: auto;
+  min-width: 7rem;
+  max-width: 10rem;
+}
+.media-upload-pick {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  margin: 0;
+}
+.media-upload-pick input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+.media-upload-name {
+  flex: 1 1 8rem;
+  min-width: 6rem;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-bottom: 0.45rem;
+  font-size: 0.9rem;
+}
+.media-req-form .check {
+  margin: 0;
+}
+.media-req-table input[type="text"] {
+  width: 100%;
+  min-width: 12rem;
+}
+.media-req-table td {
+  vertical-align: middle;
+}
+

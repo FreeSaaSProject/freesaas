@@ -9,7 +9,11 @@ declare(strict_types=1);
 /** @var string $format */
 /** @var bool $autoPrint */
 $sample = !empty($sample);
-$backUrl = $sample ? (string)($backUrl ?? '/documents/defs') : '/documents/' . (int)($row['id'] ?? 0) . '/edit';
+$backUrl = $sample
+    ? (string)($backUrl ?? '/documents/defs')
+    : (string)($backUrl ?? ('/documents/' . (int)($row['id'] ?? 0) . '/edit'));
+$eventUrl = (string)($eventUrl ?? '');
+$dossierUrl = (string)($dossierUrl ?? '');
 $page = ($format === 'A5' ? 'A5' : 'A4') . ' ' . ($orientation === 'landscape' ? 'landscape' : 'portrait');
 ?><!DOCTYPE html>
 <html lang="<?= e(I18n::locale()) ?>">
@@ -55,6 +59,12 @@ body{font-family:"PT Serif","Times New Roman",serif;font-size:11.5pt;color:#000;
 <body>
 <div class="docs-print-toolbar">
   <a href="<?= e($backUrl) ?>">&larr; <?= te($sample ? 'docs.sample.back' : 'docs.print.back') ?></a>
+  <?php if ($eventUrl !== ''): ?>
+    <a href="<?= e($eventUrl) ?>"><?= te('docs.print.back_event') ?></a>
+  <?php endif; ?>
+  <?php if ($dossierUrl !== ''): ?>
+    <a href="<?= e($dossierUrl) ?>"><?= te('docs.print.full_025') ?></a>
+  <?php endif; ?>
   <?php if ($sample): ?>
     <button type="button" class="primary" onclick="window.print()"><?= te('docs.print.do') ?></button>
     <span class="muted"><?= te('docs.sample.hint') ?></span>
@@ -63,6 +73,9 @@ body{font-family:"PT Serif","Times New Roman",serif;font-size:11.5pt;color:#000;
     <span class="muted"><?= te('docs.print.frozen', ['date' => I18n::formatDate((int)$row['dt_print'], 'datetime')]) ?></span>
   <?php else: ?>
     <form method="post" style="display:inline">
+      <?php if (NavContext::returnUrl() !== ''): ?>
+        <input type="hidden" name="ret" value="<?= e(NavContext::returnUrl()) ?>">
+      <?php endif; ?>
       <button type="submit" class="primary"><?= te('docs.print.freeze') ?></button>
     </form>
     <span class="muted"><?= te('docs.print.preview_hint') ?></span>

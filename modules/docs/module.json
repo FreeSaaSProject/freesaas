@@ -2,7 +2,7 @@
     "id": "docs",
     "name": "docs.module.name",
     "description": "docs.module.description",
-    "version": "0.2.8",
+    "version": "0.2.11",
     "type": "product",
     "runtime": "admin",
     "requires": {
@@ -54,6 +54,7 @@
             "/documents/new",
             "/documents/{id}/edit",
             "/documents/{id}/print",
+            "/documents/event/{id}/print-all",
             "/documents/qr/{hash}",
             "/documents/defs",
             "/documents/defs/new",
@@ -125,6 +126,23 @@
                 "side_effect": "write",
                 "description": "Freeze the print snapshot and mark the document printed (irreversible; edits need a new revision)"
             },
+            {
+                "id": "docs.print.event_all",
+                "method": "GET",
+                "path": "/documents/event/{id}/print-all",
+                "permission": "docs.print",
+                "side_effect": "read",
+                "description": "Combined print preview for every non-void document of a visit (oper-style print-all)"
+            },
+            {
+                "id": "docs.print.event_all.freeze",
+                "method": "POST",
+                "path": "/documents/event/{id}/print-all",
+                "permission": "docs.print",
+                "side_effect": "write",
+                "description": "action=freeze: freeze selected unprinted docs (optional body ids[]); omit ids = all. Reopens with autoprint (+ ids[] to keep selection)"
+            },
+
             {
                 "id": "docs.defs.list",
                 "method": "GET",

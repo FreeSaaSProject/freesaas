@@ -15,8 +15,14 @@ declare(strict_types=1);
 /** @var list<array<string,mixed>> $linkedProcedures */
 /** @var bool $staffLocked */
 /** @var bool $visitsMode */
+/** @var bool $canMarkBlock */
+/** @var array<int,int> $procedureByGood */
+/** @var bool $canMakeProcedures */
 /** @var string $bonusExtraHtml */
 $visitsMode = !empty($visitsMode);
+$canMarkBlock = !empty($canMarkBlock);
+$canMakeProcedures = !empty($canMakeProcedures);
+$procedureByGood = is_array($procedureByGood ?? null) ? $procedureByGood : [];
 $selectedItems = is_array($selectedItems ?? null) ? $selectedItems : [];
 $frequentGoods = is_array($frequentGoods ?? null) ? $frequentGoods : [];
 
@@ -50,6 +56,7 @@ $phoneDigits = EventsRepository::normalizeEventPhone((string)($row['phone'] ?? '
 
 <form method="post" class="form-grid form-wide user-edit-form" id="event-edit-form"
       data-calendar-event-form="1"
+      data-can-mark-block="<?= $canMarkBlock ? '1' : '0' ?>"
       data-i18n-client-picked="<?= e(t('calendar.event.client_picked')) ?>"
       data-i18n-client-new="<?= e(t('calendar.event.client_walkin')) ?>"
       data-i18n-client-empty="<?= e(t('calendar.event.client_no_match')) ?>"
@@ -59,17 +66,30 @@ $phoneDigits = EventsRepository::normalizeEventPhone((string)($row['phone'] ?? '
       data-i18n-staff-goods="<?= e(t('calendar.event.staff_goods_hint')) ?>"
       data-i18n-duration="<?= e(t('calendar.event.duration_hint')) ?>">
   <input type="hidden" name="ret" value="<?= e($returnUrl) ?>">
-  <input type="hidden" name="action" value="save">
+  <input type="hidden" name="action" value="save" id="event-form-action">
+  <input type="hidden" name="good_id" value="0" id="event-start-good-id">
   <input type="hidden" name="auto_duration" id="event-auto-duration" value="1">
 
+  <?php
+  $dayPart = strlen($dtstart) >= 10 ? substr($dtstart, 0, 10) : '';
+  $tStart = strlen($dtstart) >= 16 ? substr($dtstart, 11, 5) : '';
+  $tEnd = strlen($dtend) >= 16 ? substr($dtend, 11, 5) : '';
+  ?>
   <fieldset>
     <legend><?= te('calendar.event.sec_time') ?></legend>
-    <label><?= te('calendar.event.col_dtstart') ?>
-      <input type="datetime-local" name="dtstart" value="<?= e($dtstart) ?>" required<?= $readonly ? ' disabled' : '' ?>>
-    </label>
-    <label><?= te('calendar.event.col_dtend') ?>
-      <input type="datetime-local" name="dtend" value="<?= e($dtend) ?>" required<?= $readonly ? ' disabled' : '' ?>>
-    </label>
+    <div class="form-row-inline">
+      <label><?= te('calendar.event.col_day') ?>
+        <input type="date" id="event-day" value="<?= e($dayPart) ?>" required<?= $readonly ? ' disabled' : '' ?>>
+      </label>
+      <label><?= te('calendar.event.col_tstart') ?>
+        <input type="time" id="event-tstart" value="<?= e($tStart) ?>" required<?= $readonly ? ' disabled' : '' ?>>
+      </label>
+      <label><?= te('calendar.event.col_tend') ?>
+        <input type="time" id="event-tend" value="<?= e($tEnd) ?>" required<?= $readonly ? ' disabled' : '' ?>>
+      </label>
+    </div>
+    <input type="hidden" name="dtstart" id="event-dtstart" value="<?= e($dtstart) ?>">
+    <input type="hidden" name="dtend" id="event-dtend" value="<?= e($dtend) ?>">
     <label><?= te('calendar.event.col_operator') ?>
       <select name="id_operator" id="event-operator" required<?= $readonly || $staffLocked ? ' disabled' : '' ?>>
         <option value="">—</option>
@@ -81,11 +101,13 @@ $phoneDigits = EventsRepository::normalizeEventPhone((string)($row['phone'] ?? '
         <input type="hidden" name="id_operator" id="event-operator-locked" value="<?= (int)($row['id_operator'] ?? 0) ?>">
       <?php endif; ?>
     </label>
-    <?php if ($visitsMode): ?>
-      <label class="check">
+    <?php if ($visitsMode && $canMarkBlock): ?>
+      <label class="check" id="event-is-block-wrap">
         <input type="checkbox" name="is_block" value="1" id="event-is-block"<?= $isBlock ? ' checked' : '' ?><?= $readonly ? ' disabled' : '' ?>>
         <?= te('calendar.event.col_is_block') ?>
       </label>
+    <?php elseif ($visitsMode): ?>
+      <input type="hidden" name="is_block" value="0" id="event-is-block-locked">
     <?php else: ?>
       <input type="hidden" name="is_block" value="1">
       <p class="form-hint"><?= te('calendar.event.col_is_block') ?></p>
@@ -159,31 +181,48 @@ $phoneDigits = EventsRepository::normalizeEventPhone((string)($row['phone'] ?? '
     <div id="event-selected-items" class="calendar-selected-items"
          data-readonly="<?= $readonly ? '1' : '0' ?>">
       <?php foreach ($selectedItems as $it):
+          $gid = (int)$it['id'];
           $timeSec = 0;
           if (class_exists('ProductsRepository', false)) {
-              $p = ProductsRepository::find((int)$it['id']);
+              $p = ProductsRepository::find($gid);
               $timeSec = $p ? max(0, (int)($p['time_sec'] ?? 0)) : 0;
           }
+          $procId = (int)($procedureByGood[$gid] ?? 0);
           ?>
-        <div class="calendar-selected-row" data-id="<?= (int)$it['id'] ?>" data-time="<?= $timeSec ?>"
-             data-qty-locked="<?= $timeSec > 0 ? '1' : '0' ?>">
-          <input type="hidden" name="content[]" value="<?= (int)$it['id'] ?>">
-          <span class="calendar-selected-name"><?= e((string)$it['name']) ?></span>
+        <div class="calendar-selected-row" data-id="<?= $gid ?>" data-time="<?= $timeSec ?>"
+             data-qty-locked="<?= $timeSec > 0 ? '1' : '0' ?>"
+             data-procedure-id="<?= $procId ?>">
+          <input type="hidden" name="content[]" value="<?= $gid ?>">
+          <span class="calendar-selected-name">
+            <?= e((string)$it['name']) ?>
+            <?php if ($procId > 0): ?>
+              <a class="calendar-selected-proc" href="/procedures/<?= $procId ?>/edit"><?= te('calendar.event.proc_link', ['id' => $procId]) ?></a>
+            <?php elseif ($canMakeProcedures && !$isNew): ?>
+              <button type="submit" class="btn-secondary btn-sm calendar-selected-start"
+                      name="action" value="create_procedures"
+                      data-good-id="<?= $gid ?>"
+                      onclick="var h=this.form.querySelector('#event-start-good-id'); if(h){h.value=String(this.getAttribute('data-good-id')||'0');}">
+                <?= te('calendar.event.proc_start') ?>
+              </button>
+            <?php endif; ?>
+          </span>
           <label class="calendar-selected-price"><?= te('calendar.event.col_price') ?>
-            <input type="number" min="0" step="1" name="content_price[<?= (int)$it['id'] ?>]"
+            <input type="number" min="0" step="1" name="content_price[<?= $gid ?>]"
                    value="<?= e((string)(int)round((float)$it['price'])) ?>"<?= $readonly ? ' disabled' : '' ?>>
           </label>
           <?php if ($timeSec > 0): ?>
-            <input type="hidden" name="content_qty[<?= (int)$it['id'] ?>]" value="1">
+            <input type="hidden" name="content_qty[<?= $gid ?>]" value="1">
             <span class="calendar-selected-qty muted" title="<?= te('calendar.event.qty_locked_hint') ?>">×1</span>
           <?php else: ?>
             <label class="calendar-selected-qty"><?= te('calendar.event.col_qty') ?>
-              <input type="number" min="1" step="1" name="content_qty[<?= (int)$it['id'] ?>]"
+              <input type="number" min="1" step="1" name="content_qty[<?= $gid ?>]"
                      value="<?= (int)$it['qty'] ?>"<?= $readonly ? ' disabled' : '' ?>>
             </label>
           <?php endif; ?>
-          <?php if (!$readonly): ?>
+          <?php if (!$readonly && $procId < 1): ?>
             <button type="button" class="btn-secondary btn-sm calendar-selected-remove" aria-label="<?= te('calendar.event.remove_item') ?>">×</button>
+          <?php elseif ($procId > 0): ?>
+            <span class="calendar-selected-locked muted" title="<?= te('calendar.event.item_locked_proc') ?>"><?= te('calendar.event.item_locked_mark') ?></span>
           <?php endif; ?>
         </div>
       <?php endforeach; ?>
@@ -210,44 +249,10 @@ $phoneDigits = EventsRepository::normalizeEventPhone((string)($row['phone'] ?? '
       <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
     <?php endif; ?>
     <a class="btn-secondary" href="<?= e($returnUrl) ?>"><?= te('core.common.cancel') ?></a>
-    <?php if (!empty($canMakeProcedures)): ?>
-      <button class="btn-secondary" type="submit" name="action" value="create_procedures"><?= te('calendar.event.btn_procedures') ?></button>
-    <?php endif; ?>
   </div>
 </form>
 <?php if (!$isNew): ?>
 <?= EntityDelete::form('calendar_events', (int)($row['id'] ?? 0), [
     'confirm' => 'calendar.event.confirm_delete',
 ]) ?>
-<?php endif; ?>
-
-<?php if (!$isNew && $visitsMode): ?>
-<section class="calendar-section">
-  <h2><?= te('calendar.event.sec_procedures') ?></h2>
-  <div class="table-wrap">
-    <table class="data">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th><?= te('calendar.day.col_product') ?></th>
-          <th><?= te('calendar.day.col_time') ?></th>
-          <th><?= te('calendar.day.col_sum') ?></th>
-        </tr>
-      </thead>
-      <tbody>
-      <?php foreach (($linkedProcedures ?? []) as $pr): ?>
-        <tr>
-          <td><a href="/procedures/<?= (int)$pr['id'] ?>/edit">#<?= (int)$pr['id'] ?></a></td>
-          <td>#<?= (int)($pr['id_good'] ?? 0) ?></td>
-          <td><?= e(EventsRepository::formatRange((int)($pr['dtstart'] ?? 0), (int)($pr['dtend'] ?? 0))) ?></td>
-          <td><?= e(number_format((float)($pr['summ'] ?? 0), 0, '.', ' ')) ?></td>
-        </tr>
-      <?php endforeach; ?>
-      <?php if (empty($linkedProcedures)): ?>
-        <tr><td colspan="4" class="muted"><?= te('calendar.event.empty_procedures') ?></td></tr>
-      <?php endif; ?>
-      </tbody>
-    </table>
-  </div>
-</section>
 <?php endif; ?>

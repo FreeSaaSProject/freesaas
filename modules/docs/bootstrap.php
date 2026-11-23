@@ -28,6 +28,7 @@ $pages = [
     '/documents/new' => ['permission' => 'docs.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/documents/{id}/edit' => ['permission' => 'docs.view', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/documents/{id}/print' => ['permission' => 'docs.print', 'methods' => ['GET', 'POST'], 'file' => 'print.php'],
+    '/documents/event/{id}/print-all' => ['permission' => 'docs.print', 'methods' => ['GET', 'POST'], 'file' => 'print_event.php'],
     '/documents/defs' => ['permission' => 'docs.manage', 'methods' => ['GET'], 'file' => 'defs.php'],
     '/documents/defs/new' => ['permission' => 'docs.manage', 'methods' => ['GET', 'POST'], 'file' => 'def_edit.php'],
     '/documents/defs/import' => ['permission' => 'docs.manage', 'methods' => ['GET', 'POST'], 'file' => 'def_import.php'],

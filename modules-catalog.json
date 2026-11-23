@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-23T07:33:58+00:00",
+    "generated_at": "2026-11-23T09:38:33+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -805,7 +805,7 @@
         },
         {
             "id": "calendar",
-            "version": "1.0.12",
+            "version": "1.0.16",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -1226,7 +1226,7 @@
         },
         {
             "id": "demo",
-            "version": "1.0.8",
+            "version": "1.0.10",
             "type": "product",
             "name": {
                 "en": "Demo stand",
@@ -1280,7 +1280,7 @@
         },
         {
             "id": "docs",
-            "version": "0.2.8",
+            "version": "0.2.11",
             "type": "product",
             "name": {
                 "en": "Documents & medical cards",
@@ -1727,6 +1727,45 @@
             }
         },
         {
+            "id": "media",
+            "version": "0.1.1",
+            "type": "product",
+            "name": {
+                "en": "Media",
+                "ru": "Медиа"
+            },
+            "description": {
+                "en": "Attachments and photo requirements for procedures and other owners.",
+                "ru": "Вложения и требования к фото для процедур и других сущностей."
+            },
+            "summary": {
+                "en": "Enable for before/after photos and the attachment journal. Alpha. File access follows the owner (procedure) ACL.",
+                "ru": "Включайте для фото до/после и журнала вложений. Alpha. Права на файлы — через владельца (процедуру)."
+            },
+            "requires": {
+                "core": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "procedures": ">=1.0.0",
+                "catalog": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "backups": ">=1.0.0"
+            },
+            "catalog": {
+                "categories": [
+                    "communications"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "journal",
+                    "settings"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/media.md"
+            }
+        },
+        {
             "id": "norms",
             "version": "1.0.2",
             "type": "product",
@@ -1999,7 +2038,7 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.26",
+            "version": "1.0.32",
             "type": "product",
             "name": {
                 "en": "Treatments",

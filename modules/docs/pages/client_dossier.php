@@ -29,8 +29,19 @@ $id = ($current !== null && (int)$current['dt_print'] === 0)
     ? (int)$current['id']
     : DocsInstancesRepository::create($def, ['client' => $clientId, 'source' => 'spawn']);
 
+$eventId = (int)($_GET['event'] ?? $_POST['event'] ?? 0);
+if ($eventId > 0 && NavContext::returnUrl() === '') {
+    NavContext::setReturnUrl('/calendar/events/' . $eventId . '/edit');
+}
+
 if (AgentHttp::wantsJson()) {
-    AgentHttp::emit(['ok' => true, 'client_id' => $clientId, 'id' => $id, 'print' => '/documents/' . $id . '/print']);
+    AgentHttp::emit([
+        'ok' => true,
+        'client_id' => $clientId,
+        'id' => $id,
+        'print' => NavContext::carryReturn('/documents/' . $id . '/print'),
+        'event_id' => $eventId > 0 ? $eventId : null,
+    ]);
     return;
 }
-redirect('/documents/' . $id . '/print');
+redirect(NavContext::carryReturn('/documents/' . $id . '/print'));

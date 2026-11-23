@@ -39,8 +39,16 @@ $fieldMap = DocsSchema::fieldMap($schema);
     <?php if ((int)$row['id_client'] > 0): ?>
       · <a href="/clients/<?= (int)$row['id_client'] ?>"><?= e($clientLabel !== '' ? $clientLabel : ('#' . (int)$row['id_client'])) ?></a>
     <?php endif; ?>
-    <?php if ((int)$row['id_event'] > 0): ?>
-      · <a href="/calendar/events/<?= (int)$row['id_event'] ?>/edit"><?= te('docs.edit.event', ['id' => (int)$row['id_event']]) ?></a>
+    <?php
+      $eventUrl = (string)($eventUrl ?? '');
+      $eventId = (int)($eventId ?? 0);
+      if ($eventUrl === '' && (int)$row['id_event'] > 0) {
+          $eventId = (int)$row['id_event'];
+          $eventUrl = '/calendar/events/' . $eventId . '/edit';
+      }
+    ?>
+    <?php if ($eventUrl !== ''): ?>
+      · <a href="<?= e($eventUrl) ?>"><?= te('docs.edit.event', ['id' => $eventId > 0 ? $eventId : (int)$row['id_event']]) ?></a>
     <?php endif; ?>
     <?php if ((int)$row['id_procedure'] > 0): ?>
       · <a href="/procedures/<?= (int)$row['id_procedure'] ?>/edit"><?= te('docs.edit.procedure', ['id' => (int)$row['id_procedure']]) ?></a>
@@ -231,6 +239,9 @@ $fieldMap = DocsSchema::fieldMap($schema);
     <?php endif; ?>
     <?php if (!$isNew && $canPrint && $row['status'] !== 'void'): ?>
       <a class="btn-secondary" href="/documents/<?= (int)$row['id'] ?>/print"><?= te((int)($row['dt_print'] ?? 0) > 0 ? 'docs.edit.open_print' : 'docs.edit.print') ?></a>
+    <?php endif; ?>
+    <?php if ($eventUrl !== ''): ?>
+      <a class="btn-secondary" href="<?= e($eventUrl) ?>"><?= te('docs.edit.back_event') ?></a>
     <?php endif; ?>
     <?php if (!$isNew && $hasSegments && !$readonly): ?>
       <button class="btn-secondary" type="submit" name="action" value="pull_segments" formnovalidate><?= te('docs.edit.pull_segments') ?></button>

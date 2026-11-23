@@ -56,6 +56,30 @@ if ($wantsJson) {
     return;
 }
 
+$editUrl = NavContext::carryReturn('/documents/' . $id . '/edit');
+$eventId = (int)($row['id_event'] ?? 0);
+$eventUrl = '';
+if ($eventId > 0) {
+    $eventUrl = '/calendar/events/' . $eventId . '/edit';
+} else {
+    $ret = NavContext::returnUrl();
+    if ($ret !== '' && preg_match('#^/calendar/events/(\d+)/edit#', $ret, $m)) {
+        $eventId = (int)$m[1];
+        $eventUrl = $ret;
+    }
+}
+$dossierUrl = '';
+if ((int)($row['id_client'] ?? 0) > 0
+    && (string)($row['kind'] ?? '') === 'medcard_visit'
+    && Auth::can('docs.medical')
+    && Auth::can('docs.print')
+) {
+    $dossierUrl = NavContext::carryReturn(
+        '/documents/clients/' . (int)$row['id_client'] . '/medcard'
+        . ($eventId > 0 ? '?event=' . $eventId : '')
+    );
+}
+
 View::render('print', [
     'title' => (string)$row['def_name'] . ' #' . $id,
     'row' => $row,
@@ -65,4 +89,7 @@ View::render('print', [
     'orientation' => (string)($version['orientation'] ?? 'portrait'),
     'format' => (string)($version['format'] ?? 'A4'),
     'autoPrint' => $printed && isset($_GET['autoprint']),
+    'backUrl' => $editUrl,
+    'eventUrl' => $eventUrl,
+    'dossierUrl' => $dossierUrl,
 ], '', 'docs');

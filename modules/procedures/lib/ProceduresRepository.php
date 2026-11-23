@@ -417,6 +417,8 @@ final class ProceduresRepository
             $idTable = self::normalizeTableId(0);
         }
 
+        $idAdmin = self::resolveDeskAdmin($dayStart, (int)$event['dtstart']);
+
         $created = [];
         $skipped = [];
         $cursor = (int)$event['dtstart'] > 0 ? (int)$event['dtstart'] : time();
@@ -467,7 +469,7 @@ final class ProceduresRepository
                 'dtend' => $dtend,
                 'dtend_plan' => $dtend,
                 'id_operator' => (int)$event['id_operator'],
-                'id_admin' => Auth::userId(),
+                'id_admin' => $idAdmin,
                 'id_good' => $gid,
                 'id_table' => $idTable,
                 'id_user' => (int)$event['id_user'],
@@ -475,7 +477,7 @@ final class ProceduresRepository
                 'type' => $typeId,
                 'summ' => max(0, $summ),
                 'summ_default' => max(0, $summ),
-                'notice' => t('procedures.notice.from_event', ['id' => $eventId]),
+                'notice' => '',
                 'enabled' => 1,
                 'token' => '',
                 'id_event_parent' => $eventId,
@@ -488,6 +490,80 @@ final class ProceduresRepository
         }
 
         return ['created' => $created, 'skipped' => $skipped];
+    }
+
+    /**
+     * Desk admin (ID_ADMIN) for a procedure started from a calendar event:
+     * prefer the acting SHOW_ADMINISTRATOR_DATA user, else a desk/assist staff
+     * on shift that day (ASSIST_TEAM or SHOW_ADMINISTRATOR_DATA without CAN_BE_ASSIGNED).
+     */
+    public static function resolveDeskAdmin(int $dayStart, int $atTs = 0): int
+    {
+        $authId = max(0, Auth::userId());
+        if ($authId > 0 && (
+            Auth::capability('SHOW_ADMINISTRATOR_DATA')
+            || Auth::capability('SUPERADMIN_ACCESS')
+        )) {
+            return $authId;
+        }
+
+        if ($dayStart > 0 && class_exists('WorkweeksRepository', false)) {
+            $shifts = WorkweeksRepository::listForDay($dayStart);
+            /** @var array<int,bool> $statusIsDesk */
+            $statusIsDesk = [];
+            $candidates = [];
+            foreach ($shifts as $sh) {
+                if (!is_array($sh)) {
+                    continue;
+                }
+                $op = (int)($sh['id_operator'] ?? 0);
+                if ($op < 1) {
+                    continue;
+                }
+                $assist = (int)($sh['assist_team'] ?? 0) > 0;
+                $isDesk = $assist;
+                if (!$isDesk) {
+                    $statusId = (int)($sh['ID_STATUS'] ?? 0);
+                    if ($statusId > 0 && !array_key_exists($statusId, $statusIsDesk)) {
+                        $st = class_exists('StatusesRepository', false)
+                            ? StatusesRepository::find($statusId)
+                            : null;
+                        $statusIsDesk[$statusId] = is_array($st)
+                            && !empty($st['SHOW_ADMINISTRATOR_DATA'])
+                            && empty($st['CAN_BE_ASSIGNED']);
+                    }
+                    $isDesk = $statusId > 0 && !empty($statusIsDesk[$statusId]);
+                }
+                if (!$isDesk) {
+                    continue;
+                }
+                $score = $assist ? 2 : 1;
+                if ($authId > 0 && $op === $authId) {
+                    $score += 10;
+                }
+                // $atTs reserved for shift-overlap preference when WW rows expose start/end.
+                if ($atTs > 0 && isset($sh['dt_start'], $sh['dt_end'])) {
+                    $from = (int)$sh['dt_start'];
+                    $to = (int)$sh['dt_end'];
+                    if ($from > 0 && $to > $from && $atTs >= $from && $atTs < $to) {
+                        $score += 3;
+                    }
+                }
+                $candidates[] = ['id' => $op, 'score' => $score];
+            }
+            if ($candidates !== []) {
+                usort(
+                    $candidates,
+                    static function (array $a, array $b): int {
+                        $byScore = $b['score'] <=> $a['score'];
+                        return $byScore !== 0 ? $byScore : ($a['id'] <=> $b['id']);
+                    }
+                );
+                return (int)$candidates[0]['id'];
+            }
+        }
+
+        return $authId;
     }
 
     public static function existsForEventGood(int $eventId, int $goodId): bool
@@ -633,7 +709,7 @@ final class ProceduresRepository
             'type' => $type,
             'summ' => max(0, (int)($post['summ'] ?? 0)),
             'summ_default' => max(0, (int)($post['summ_default'] ?? 0)),
-            'notice' => mb_substr(trim((string)($post['notice'] ?? '')), 0, 255),
+            'notice' => mb_substr(trim((string)($post['notice'] ?? '')), 0, 2000),
             'enabled' => !empty($post['enabled']) ? 1 : 0,
             'token' => $token,
             'id_event_parent' => max(0, (int)($post['id_event_parent'] ?? 0)),

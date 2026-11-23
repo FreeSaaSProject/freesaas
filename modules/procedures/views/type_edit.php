@@ -39,10 +39,6 @@ declare(strict_types=1);
     <?= te('procedures.type.multiwork') ?>
   </label>
   <label class="check">
-    <input type="checkbox" name="photo_req" value="1"<?= !empty($row['photo_req']) ? ' checked' : '' ?>>
-    <?= te('procedures.type.photo_req') ?>
-  </label>
-  <label class="check">
     <input type="checkbox" name="is_medical" value="1"<?= !empty($row['is_medical']) ? ' checked' : '' ?>>
     <?= te('procedures.type.is_medical') ?>
   </label>
@@ -50,6 +46,18 @@ declare(strict_types=1);
     <input type="checkbox" name="site_amo_show" value="1"<?= !empty($row['site_amo_show']) ? ' checked' : '' ?>>
     <?= te('procedures.type.site_amo_show') ?>
   </label>
+
+  <?php
+  $typeSections = EventBus::emit('procedures.type_edit.sections', [
+      'id' => (int)($row['id'] ?? 0),
+      'is_new' => !empty($isNew),
+      'row' => $row,
+      'html' => '',
+  ]);
+  if (!empty($typeSections['html'])) {
+      echo $typeSections['html'];
+  }
+  ?>
 
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>

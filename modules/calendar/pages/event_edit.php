@@ -126,18 +126,30 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if (!$canMakeProcedures) {
                 throw new RuntimeException(t('calendar.event.err.no_procedures'));
             }
-            $result = ProceduresRepository::createFromEvent($id);
+            $onlyGood = (int)($_POST['good_id'] ?? $_GET['good_id'] ?? 0);
+            $onlyGood = $onlyGood > 0 ? $onlyGood : null;
+            $result = ProceduresRepository::createFromEvent($id, $onlyGood);
             $n = count($result['created']);
             $s = count($result['skipped']);
+            $createdId = $n > 0 ? (int)$result['created'][0] : 0;
+            if ($createdId < 1 && $onlyGood !== null) {
+                $createdId = (int)(EventsRepository::procedureIdsByGood($id)[$onlyGood] ?? 0);
+            }
             if ($wantsJson) {
                 $row = EventsRepository::find($id) ?: $row;
                 AgentHttp::emit([
                     'ok' => true,
                     'id' => $id,
+                    'good_id' => $onlyGood,
+                    'procedure_id' => $createdId > 0 ? $createdId : null,
                     'procedures_created' => $n,
                     'procedures_skipped' => $s,
                     'item' => EventsRepository::forAgent($row),
                 ]);
+                return;
+            }
+            if ($createdId > 0) {
+                redirect('/procedures/' . $createdId . '/edit');
                 return;
             }
             if ($n < 1 && $s > 0) {
@@ -347,6 +359,10 @@ if ($dayBack === '/calendar' && $dtForBack > 0) {
 }
 
 $linkedProcedures = !$isNew ? ProceduresRepository::listByEventParent($id) : [];
+$procedureByGood = !$isNew ? EventsRepository::procedureIdsByGood($id) : [];
+$canMarkBlock = $visitsMode && (
+    !empty($row['is_block']) || !EventsRepository::hasVisitSubstance($row)
+);
 
 $bonusSections = EventBus::emit('calendar.event.sections', [
     'html' => '',
@@ -370,6 +386,7 @@ if ($wantsJson) {
         'can_delete' => $canDelete,
         'can_make_procedures' => $canMakeProcedures,
         'linked_procedures' => $linkedProcedures,
+        'procedure_by_good' => $procedureByGood,
         'staff_names' => $staffNames,
         'product_names' => $productNames,
         'product_prices' => $productPrices,
@@ -379,6 +396,7 @@ if ($wantsJson) {
         'staff_locked' => !empty(Auth::statusFlags()['EVT_MY_ONLY']),
         'event_mode' => CalendarConfig::eventMode(),
         'visits_mode' => $visitsMode,
+        'can_mark_block' => $canMarkBlock,
     ]);
     return;
 }
@@ -400,8 +418,11 @@ View::render('event_edit', [
     'canDelete' => $canDelete,
     'canMakeProcedures' => $canMakeProcedures,
     'linkedProcedures' => $linkedProcedures,
+    'procedureByGood' => $procedureByGood,
     'staffLocked' => !empty(Auth::statusFlags()['EVT_MY_ONLY']),
     'visitsMode' => $visitsMode,
+    'canMarkBlock' => $canMarkBlock,
+    'canMakeProcedures' => $canMakeProcedures,
     'bonusExtraHtml' => $bonusExtraHtml,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('calendar.menu.week'), 'href' => '/calendar'],

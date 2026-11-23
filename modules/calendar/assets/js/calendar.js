@@ -55,18 +55,62 @@
     form.setAttribute('data-event-form-bound', '1');
 
     var blockCb = form.querySelector('#event-is-block');
+    var blockWrap = form.querySelector('#event-is-block-wrap');
     var clientSec = form.querySelector('#event-client-sec');
     var contentSec = form.querySelector('#event-content-sec');
+    var allowMarkBlock = form.getAttribute('data-can-mark-block') !== '0';
+    function formHasVisitSubstance() {
+      var uid = parseInt((form.querySelector('#event-client-id') || {}).value || '0', 10) || 0;
+      if (uid > 0) return true;
+      var phoneEl = form.querySelector('#event-phone');
+      var nameEl = form.querySelector('#event-client-name');
+      var phoneDigits = String((phoneEl && phoneEl.value) || '').replace(/\D+/g, '');
+      if (phoneDigits.length >= 10) return true;
+      if (String((nameEl && nameEl.value) || '').trim() !== '') return true;
+      var selectedBox = form.querySelector('#event-selected-items') || form.querySelector('.calendar-selected');
+      if (selectedBox && selectedBox.querySelector('.calendar-selected-row')) return true;
+      return false;
+    }
     function syncBlock() {
-      if (!blockCb || !clientSec || !contentSec) return;
-      var on = blockCb.checked;
+      if (!clientSec || !contentSec) return;
+      var on = !!(blockCb && blockCb.checked && !blockCb.disabled && !(blockWrap && blockWrap.hidden));
       clientSec.hidden = on;
       contentSec.hidden = on;
     }
-    if (blockCb) {
-      blockCb.addEventListener('change', syncBlock);
+    function syncBlockAvailability() {
+      if (!allowMarkBlock || !blockCb || !blockWrap) {
+        syncBlock();
+        return;
+      }
+      var busy = formHasVisitSubstance();
+      var formReadonly = !!(form.querySelector('#event-day[disabled], input[name="dtstart"][disabled]'));
+      if (busy) {
+        blockCb.checked = false;
+        blockWrap.hidden = true;
+        blockCb.disabled = true;
+      } else {
+        blockWrap.hidden = false;
+        blockCb.disabled = formReadonly;
+      }
       syncBlock();
     }
+    if (blockCb) {
+      blockCb.addEventListener('change', syncBlock);
+    }
+    form.addEventListener('input', function (e) {
+      var t = e.target;
+      if (!t) return;
+      if (t.id === 'event-phone' || t.id === 'event-client-name' || t.id === 'event-client-id'
+          || (t.name && (t.name === 'content[]' || t.name.indexOf('content_') === 0))) {
+        syncBlockAvailability();
+      }
+    });
+    form.addEventListener('change', function () { syncBlockAvailability(); });
+    var selectedWatch = form.querySelector('#event-selected-items');
+    if (selectedWatch && window.MutationObserver) {
+      new MutationObserver(function () { syncBlockAvailability(); }).observe(selectedWatch, { childList: true, subtree: true });
+    }
+    syncBlockAvailability();
 
     var phone = form.querySelector('#event-phone');
     var clientId = form.querySelector('#event-client-id');
@@ -171,7 +215,50 @@
     var autoDurInp = form.querySelector('#event-auto-duration');
     var dtStartInp = form.querySelector('input[name="dtstart"]');
     var dtEndInp = form.querySelector('input[name="dtend"]');
+    var dayInp = form.querySelector('#event-day');
+    var tStartInp = form.querySelector('#event-tstart');
+    var tEndInp = form.querySelector('#event-tend');
     var operatorSel = form.querySelector('#event-operator') || form.querySelector('#event-operator-locked');
+    function syncCompactFromHidden() {
+      if (!dayInp || !dtStartInp) return;
+      var s = String(dtStartInp.value || '');
+      var e = String((dtEndInp && dtEndInp.value) || '');
+      if (s.length >= 10) dayInp.value = s.slice(0, 10);
+      if (tStartInp && s.length >= 16) tStartInp.value = s.slice(11, 16);
+      if (tEndInp && e.length >= 16) tEndInp.value = e.slice(11, 16);
+    }
+    function syncHiddenFromCompact() {
+      if (!dayInp || !dtStartInp || !tStartInp) return;
+      var day = String(dayInp.value || '');
+      var ts = String(tStartInp.value || '');
+      var te = tEndInp ? String(tEndInp.value || '') : '';
+      if (day.length === 10 && ts.length >= 4) {
+        dtStartInp.value = day + 'T' + ts.slice(0, 5);
+      }
+      if (dtEndInp && day.length === 10 && te.length >= 4) {
+        dtEndInp.value = day + 'T' + te.slice(0, 5);
+      }
+    }
+    if (dayInp && tStartInp) {
+      ['change', 'input'].forEach(function (ev) {
+        dayInp.addEventListener(ev, function () {
+          syncHiddenFromCompact();
+          applyDuration();
+        });
+        tStartInp.addEventListener(ev, function () {
+          syncHiddenFromCompact();
+          applyDuration();
+        });
+        if (tEndInp) {
+          tEndInp.addEventListener(ev, function () {
+            if (autoDurInp) autoDurInp.value = '0';
+            autoDuration = false;
+            syncHiddenFromCompact();
+          });
+        }
+      });
+      syncHiddenFromCompact();
+    }
     var frequentWrap = form.querySelector('#event-frequent-wrap');
     var frequentBox = form.querySelector('#event-frequent');
     var removeLabel = form.getAttribute('data-i18n-remove') || '×';
@@ -232,6 +319,7 @@
       }
       dtEndInp.value = toLocalInput(start + dur * 1000);
       if (autoDurInp) autoDurInp.value = '1';
+      syncCompactFromHidden();
       if (durationHint) {
         var mins = Math.round(dur / 60);
         durationHint.textContent = ' · ' + tpl(durationI18n, { mins: mins });

@@ -300,7 +300,9 @@ final class ClinicDemoDocs
     }
 
     /**
-     * Cosmetologist visit: specialty card + prescriptions + patient memo (no generic 025 sheet).
+     * Cosmetologist visit: specialty fill sheet (fields for the reception) + prescriptions + memo.
+     * Official form 025/u print is the client dossier; specialty sheet feeds {dossier.visits}.
+     * Generic CODE=medcard_visit is dropped so the visit is not duplicated in 025.
      *
      * @param array<string,array<string,mixed>> $defs
      * @return list<int>

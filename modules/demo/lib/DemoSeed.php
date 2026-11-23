@@ -421,7 +421,6 @@ final class DemoSeed
             'descr' => (string)($pack['proc_type_descr'] ?? ''),
             'bonus_procent' => 30,
             'multiwork' => 0,
-            'photo_req' => 0,
             'is_medical' => 0,
             'parallels' => 0,
             'bonus_procent_out' => 0,

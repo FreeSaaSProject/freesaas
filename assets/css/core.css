@@ -3578,6 +3578,11 @@ table.data tr.is-bulk-selected.is-disabled td {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+  align-items: end;
+}
+.form-row-inline > label {
+  flex: 1 1 7rem;
+  min-width: 6.5rem;
 }
 
 /* In-app navigation progress (MPA wait feedback) */

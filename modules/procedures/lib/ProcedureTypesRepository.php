@@ -31,7 +31,7 @@ final class ProcedureTypesRepository
         $st = Database::pdo()->query(
             'SELECT ID AS id, TYPE AS type, SUBTYPE AS subtype, DESCR AS descr,
                     BONUS_PROCENT AS bonus_procent, MULTIWORK AS multiwork,
-                    PHOTO_REQ AS photo_req, IS_MEDICAL AS is_medical,
+                    IS_MEDICAL AS is_medical,
                     PARALLELS AS parallels, BONUS_PROCENT_OUT AS bonus_procent_out,
                     SITE_AMO_SHOW AS site_amo_show, CONS_REQ_AMO AS cons_req_amo
              FROM base_procedure_types
@@ -69,7 +69,7 @@ final class ProcedureTypesRepository
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, TYPE AS type, SUBTYPE AS subtype, DESCR AS descr,
                     BONUS_PROCENT AS bonus_procent, MULTIWORK AS multiwork,
-                    PHOTO_REQ AS photo_req, IS_MEDICAL AS is_medical,
+                    IS_MEDICAL AS is_medical,
                     PARALLELS AS parallels, BONUS_PROCENT_OUT AS bonus_procent_out,
                     SITE_AMO_SHOW AS site_amo_show, CONS_REQ_AMO AS cons_req_amo
              FROM base_procedure_types WHERE ID = ? LIMIT 1'
@@ -95,7 +95,6 @@ final class ProcedureTypesRepository
             'descr' => mb_substr(trim((string)($post['descr'] ?? '')), 0, 255),
             'bonus_procent' => (float)($post['bonus_procent'] ?? 0),
             'multiwork' => !empty($post['multiwork']) ? 1 : 0,
-            'photo_req' => !empty($post['photo_req']) ? 1 : 0,
             'is_medical' => !empty($post['is_medical']) ? 1 : 0,
             'parallels' => max(0, (int)($post['parallels'] ?? 0)),
             'bonus_procent_out' => max(0.0, (float)($post['bonus_procent_out'] ?? 0)),
@@ -109,9 +108,9 @@ final class ProcedureTypesRepository
     {
         $st = Database::pdo()->prepare(
             'INSERT INTO base_procedure_types
-             (TYPE, SUBTYPE, DESCR, BONUS_PROCENT, MULTIWORK, PHOTO_REQ, IS_MEDICAL,
+             (TYPE, SUBTYPE, DESCR, BONUS_PROCENT, MULTIWORK, IS_MEDICAL,
               PARALLELS, BONUS_PROCENT_OUT, SITE_AMO_SHOW, CONS_REQ_AMO)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $st->execute([
             $data['type'],
@@ -119,7 +118,6 @@ final class ProcedureTypesRepository
             $data['descr'],
             $data['bonus_procent'],
             $data['multiwork'],
-            $data['photo_req'],
             $data['is_medical'],
             $data['parallels'],
             $data['bonus_procent_out'],
@@ -138,7 +136,7 @@ final class ProcedureTypesRepository
         $st = Database::pdo()->prepare(
             'UPDATE base_procedure_types SET
              TYPE = ?, SUBTYPE = ?, DESCR = ?, BONUS_PROCENT = ?, MULTIWORK = ?,
-             PHOTO_REQ = ?, IS_MEDICAL = ?, PARALLELS = ?, BONUS_PROCENT_OUT = ?,
+             IS_MEDICAL = ?, PARALLELS = ?, BONUS_PROCENT_OUT = ?,
              SITE_AMO_SHOW = ?, CONS_REQ_AMO = ?
              WHERE ID = ?'
         );
@@ -148,7 +146,6 @@ final class ProcedureTypesRepository
             $data['descr'],
             $data['bonus_procent'],
             $data['multiwork'],
-            $data['photo_req'],
             $data['is_medical'],
             $data['parallels'],
             $data['bonus_procent_out'],

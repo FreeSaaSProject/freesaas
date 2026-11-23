@@ -44,8 +44,19 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
     $dtendPlan = (string)$row['dtend_plan'];
 }
 ?>
+<?php
+$parentEventIdHead = (int)($row['id_event_parent'] ?? 0);
+$canLinkVisit = $parentEventIdHead > 0
+    && class_exists('ModuleManager', false)
+    && ModuleManager::isEnabled('calendar');
+?>
 <section class="page-head">
   <h1><?= $isNew ? te('procedures.edit.heading_new') : te('procedures.edit.title', ['id' => (int)($row['id'] ?? 0)]) ?></h1>
+  <?php if ($canLinkVisit): ?>
+    <div class="page-actions">
+      <a class="btn-secondary" href="/calendar/events/<?= $parentEventIdHead ?>/edit"><?= te('procedures.edit.to_visit', ['id' => $parentEventIdHead]) ?></a>
+    </div>
+  <?php endif; ?>
 </section>
 
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
@@ -58,18 +69,107 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
   <input type="hidden" name="ret" value="<?= e($returnUrl) ?>">
   <fieldset>
     <legend><?= te('procedures.edit.sec_main') ?></legend>
-    <label><?= te('procedures.col.dtstart') ?>
-      <input type="datetime-local" name="dtstart" value="<?= e($dtstart) ?>"<?= $can('dtstart') ? ' required' : '' ?><?= $ro('dtstart') ?>>
-      <?php if (!$can('dtstart')): ?><input type="hidden" name="dtstart" value="<?= e($dtstart) ?>"><?php endif; ?>
-    </label>
-    <label><?= te('procedures.col.dtend') ?>
-      <input type="datetime-local" name="dtend" value="<?= e($dtend) ?>"<?= $ro('dtend') ?>>
-      <?php if (!$can('dtend')): ?><input type="hidden" name="dtend" value="<?= e($dtend) ?>"><?php endif; ?>
-    </label>
+    <?php
+    $dayPart = strlen($dtstart) >= 10 ? substr($dtstart, 0, 10) : '';
+    $tStart = strlen($dtstart) >= 16 ? substr($dtstart, 11, 5) : '';
+    $tEnd = strlen($dtend) >= 16 ? substr($dtend, 11, 5) : '';
+    $durSec = 0;
+    if ($dtstart !== '' && $dtend !== '') {
+        $a = strtotime(str_replace('T', ' ', $dtstart));
+        $b = strtotime(str_replace('T', ' ', $dtend));
+        if ($a && $b && $b > $a) {
+            $durSec = $b - $a;
+        }
+    }
+    $durMin = (int)round($durSec / 60);
+    $lockEnd = !empty($acl['lock_dtend_timing']) && !$can('dtend');
+    $canStart = $can('dtstart');
+    ?>
+    <div class="form-row-inline" id="proc-time-row"
+         data-lock-end="<?= $lockEnd ? '1' : '0' ?>">
+      <label><?= te('procedures.edit.col_day') ?>
+        <input type="date" id="proc-day" value="<?= e($dayPart) ?>"<?= $canStart ? ' required' : ' disabled' ?>>
+      </label>
+      <label><?= te('procedures.edit.col_tstart') ?>
+        <input type="time" id="proc-tstart" value="<?= e($tStart) ?>"<?= $canStart ? ' required' : ' disabled' ?>>
+      </label>
+      <?php if ($lockEnd): ?>
+        <p class="muted" style="margin:0;padding-bottom:0.45rem">
+          <?= te('procedures.edit.col_tend') ?>:
+          <?= e($tEnd !== '' ? $tEnd : $dtend) ?>
+          <?php if ($durMin > 0): ?> (<?= (int)$durMin ?> <?= te('procedures.edit.duration_min') ?>)<?php endif; ?>
+        </p>
+      <?php else: ?>
+        <label><?= te('procedures.edit.col_tend') ?>
+          <input type="time" id="proc-tend" value="<?= e($tEnd) ?>"<?= $can('dtend') ? '' : ' disabled' ?>>
+        </label>
+      <?php endif; ?>
+    </div>
+    <input type="hidden" name="dtstart" id="proc-dtstart" value="<?= e($dtstart) ?>">
+    <input type="hidden" name="dtend" id="proc-dtend" value="<?= e($dtend) ?>">
+    <?php if ($can('dtend_plan')): ?>
     <label><?= te('procedures.view.dtend_plan') ?>
-      <input type="datetime-local" name="dtend_plan" value="<?= e($dtendPlan) ?>"<?= $ro('dtend_plan') ?>>
-      <?php if (!$can('dtend_plan')): ?><input type="hidden" name="dtend_plan" value="<?= e($dtendPlan) ?>"><?php endif; ?>
+      <input type="datetime-local" name="dtend_plan" value="<?= e($dtendPlan) ?>">
     </label>
+    <?php else: ?>
+      <input type="hidden" name="dtend_plan" value="<?= e($dtendPlan) ?>">
+    <?php endif; ?>
+    <script>
+    (function () {
+      var row = document.getElementById('proc-time-row');
+      if (!row) return;
+      var day = document.getElementById('proc-day');
+      var tStart = document.getElementById('proc-tstart');
+      var tEnd = document.getElementById('proc-tend');
+      var hStart = document.getElementById('proc-dtstart');
+      var hEnd = document.getElementById('proc-dtend');
+      var lockEnd = row.getAttribute('data-lock-end') === '1';
+      var baseDur = 0;
+      function parseLocal(v) {
+        var m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+        if (!m) return 0;
+        return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0, 0).getTime();
+      }
+      function toLocal(ts) {
+        var d = new Date(ts);
+        if (isNaN(d.getTime())) return '';
+        var pad = function (n) { return n < 10 ? '0' + n : String(n); };
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+          + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      }
+      if (hStart && hEnd) {
+        var a = parseLocal(hStart.value);
+        var b = parseLocal(hEnd.value);
+        if (a > 0 && b > a) baseDur = b - a;
+      }
+      function push() {
+        if (!day || !tStart || !hStart) return;
+        var d = String(day.value || '');
+        var ts = String(tStart.value || '');
+        if (d.length === 10 && ts.length >= 4) {
+          hStart.value = d + 'T' + ts.slice(0, 5);
+        }
+        if (lockEnd && hEnd && baseDur > 0) {
+          var start = parseLocal(hStart.value);
+          if (start > 0) hEnd.value = toLocal(start + baseDur);
+        } else if (tEnd && hEnd) {
+          var te = String(tEnd.value || '');
+          if (d.length === 10 && te.length >= 4) {
+            hEnd.value = d + 'T' + te.slice(0, 5);
+          }
+        }
+        if (hStart) {
+          hStart.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+      ['change', 'input'].forEach(function (ev) {
+        if (day) day.addEventListener(ev, push);
+        if (tStart) tStart.addEventListener(ev, push);
+        if (tEnd) tEnd.addEventListener(ev, push);
+      });
+      push();
+    })();
+    </script>
     <label><?= te('procedures.col.type') ?>
       <select name="type"<?= $can('type') ? ' required' : ' disabled' ?>>
         <option value=""><?= te('procedures.list.all_types') ?></option>
@@ -92,13 +192,20 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
       <input type="number" min="0" name="summ" value="<?= e((string)($row['summ'] ?? '0')) ?>"<?= $ro('summ') ?>>
       <?php if (!$can('summ')): ?><input type="hidden" name="summ" value="<?= e((string)($row['summ'] ?? '0')) ?>"><?php endif; ?>
     </label>
+    <?php if ($can('summ_default')): ?>
     <label><?= te('procedures.view.summ_default') ?>
-      <input type="number" min="0" name="summ_default" value="<?= e((string)($row['summ_default'] ?? '0')) ?>"<?= $ro('summ_default') ?>>
-      <?php if (!$can('summ_default')): ?><input type="hidden" name="summ_default" value="<?= e((string)($row['summ_default'] ?? '0')) ?>"><?php endif; ?>
+      <input type="number" min="0" name="summ_default" value="<?= e((string)($row['summ_default'] ?? '0')) ?>">
     </label>
+    <?php else: ?>
+      <input type="hidden" name="summ_default" value="<?= e((string)($row['summ_default'] ?? '0')) ?>">
+    <?php endif; ?>
     <label><?= te('procedures.col.notice') ?>
-      <input name="notice" maxlength="255" value="<?= e((string)($row['notice'] ?? '')) ?>"<?= $ro('notice') ?>>
-      <?php if (!$can('notice')): ?><input type="hidden" name="notice" value="<?= e((string)($row['notice'] ?? '')) ?>"><?php endif; ?>
+      <?php if ($can('notice')): ?>
+        <textarea name="notice" rows="4" maxlength="2000"><?= e((string)($row['notice'] ?? '')) ?></textarea>
+      <?php else: ?>
+        <textarea rows="4" readonly disabled><?= e((string)($row['notice'] ?? '')) ?></textarea>
+        <input type="hidden" name="notice" value="<?= e((string)($row['notice'] ?? '')) ?>">
+      <?php endif; ?>
     </label>
     <label class="check">
       <input type="checkbox" name="enabled" value="1"<?= !isset($row['enabled']) || !empty($row['enabled']) ? ' checked' : '' ?><?= $can('enabled') ? '' : ' disabled' ?>>
@@ -116,15 +223,25 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
     <?php endif; ?>
   </fieldset>
 
+  <?php
+  $parentEventId = (int)($row['id_event_parent'] ?? 0);
+  $showTerminal = ModuleManager::isEnabled('terminals');
+  $showOnec = $showTerminal || ModuleManager::isEnabled('likespa');
+  ?>
   <fieldset>
     <legend><?= te('procedures.edit.sec_people') ?></legend>
     <label><?= te('procedures.col.client') ?>
-      <input type="number" min="1" name="id_user" value="<?= e((string)((int)($row['id_user'] ?? 0) ?: '')) ?>"<?= $can('id_user') ? ' required' : '' ?><?= $ro('id_user') ?>>
-      <?php if (!$can('id_user')): ?><input type="hidden" name="id_user" value="<?= (int)($row['id_user'] ?? 0) ?>"><?php endif; ?>
+      <?php if ($can('id_user')): ?>
+        <input type="number" min="1" name="id_user" value="<?= e((string)((int)($row['id_user'] ?? 0) ?: '')) ?>" required>
+      <?php else: ?>
+        <input type="hidden" name="id_user" value="<?= (int)($row['id_user'] ?? 0) ?>">
+      <?php endif; ?>
       <?php if ($clientLabel !== ''): ?>
         <span class="muted"><?= e($clientLabel) ?> · <a href="/clients/<?= (int)$row['id_user'] ?>">#<?= (int)$row['id_user'] ?></a></span>
-      <?php else: ?>
+      <?php elseif ($can('id_user')): ?>
         <span class="muted"><?= te('procedures.edit.client_hint') ?></span>
+      <?php elseif ((int)($row['id_user'] ?? 0) > 0): ?>
+        <span class="muted">#<?= (int)$row['id_user'] ?></span>
       <?php endif; ?>
     </label>
     <label><?= te('procedures.col.admin') ?>
@@ -147,35 +264,45 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
     </label>
   </fieldset>
 
+  <?php
+  $showTable = class_exists('TablesRepository', false) && TablesRepository::isActive();
+  $showMeta = $showTable || $showTerminal || $showOnec;
+  $curTable = $showTable
+      ? ProceduresRepository::normalizeTableId((int)($row['id_table'] ?? 1))
+      : 1;
+  ?>
+  <input type="hidden" name="token" value="<?= e((string)($row['token'] ?? '')) ?>">
+  <input type="hidden" name="id_event_parent" value="<?= (int)$parentEventId ?>">
+  <?php if (!$showTable): ?>
+    <input type="hidden" name="id_table" value="1">
+  <?php endif; ?>
+  <?php if (!$showTerminal): ?>
+    <input type="hidden" name="id_terminal" value="<?= e((string)($row['id_terminal'] ?? '0')) ?>">
+  <?php endif; ?>
+  <?php if (!$showOnec): ?>
+    <input type="hidden" name="onec_id" value="<?= e((string)($row['onec_id'] ?? '')) ?>">
+    <input type="hidden" name="onec_bracelet" value="<?= e((string)($row['onec_bracelet'] ?? '')) ?>">
+  <?php endif; ?>
+  <?php if ($showMeta): ?>
   <fieldset>
     <legend><?= te('procedures.edit.sec_meta') ?></legend>
-    <label><?= te('procedures.col.token') ?>
-      <input name="token" maxlength="32" value="<?= e((string)($row['token'] ?? '')) ?>"<?= $ro('token') ?>>
-      <?php if (!$can('token')): ?><input type="hidden" name="token" value="<?= e((string)($row['token'] ?? '')) ?>"><?php endif; ?>
-    </label>
-    <?php if (class_exists('TablesRepository', false) && TablesRepository::isActive()): ?>
+    <?php if ($showTable): ?>
     <label><?= te('procedures.view.id_table') ?>
       <select name="id_table"<?= $can('id_table') ? '' : ' disabled' ?>>
-        <?php
-        $curTable = ProceduresRepository::normalizeTableId((int)($row['id_table'] ?? 1));
-        foreach (TablesRepository::names(true) as $tid => $tlabel):
-        ?>
+        <?php foreach (TablesRepository::names(true) as $tid => $tlabel): ?>
           <option value="<?= (int)$tid ?>"<?= $curTable === (int)$tid ? ' selected' : '' ?>><?= e($tlabel) ?></option>
         <?php endforeach; ?>
       </select>
       <?php if (!$can('id_table')): ?><input type="hidden" name="id_table" value="<?= (int)$curTable ?>"><?php endif; ?>
     </label>
-    <?php else: ?>
-      <input type="hidden" name="id_table" value="1">
     <?php endif; ?>
+    <?php if ($showTerminal): ?>
     <label><?= te('procedures.view.id_terminal') ?>
       <input type="number" min="0" name="id_terminal" value="<?= e((string)($row['id_terminal'] ?? '0')) ?>"<?= $ro('id_terminal') ?>>
       <?php if (!$can('id_terminal')): ?><input type="hidden" name="id_terminal" value="<?= e((string)($row['id_terminal'] ?? '0')) ?>"><?php endif; ?>
     </label>
-    <label><?= te('procedures.view.id_event_parent') ?>
-      <input type="number" min="0" name="id_event_parent" value="<?= e((string)($row['id_event_parent'] ?? '0')) ?>"<?= $ro('id_event_parent') ?>>
-      <?php if (!$can('id_event_parent')): ?><input type="hidden" name="id_event_parent" value="<?= e((string)($row['id_event_parent'] ?? '0')) ?>"><?php endif; ?>
-    </label>
+    <?php endif; ?>
+    <?php if ($showOnec): ?>
     <label><?= te('procedures.view.onec_id') ?>
       <input name="onec_id" maxlength="40" value="<?= e((string)($row['onec_id'] ?? '')) ?>"<?= $ro('onec_id') ?>>
       <?php if (!$can('onec_id')): ?><input type="hidden" name="onec_id" value="<?= e((string)($row['onec_id'] ?? '')) ?>"><?php endif; ?>
@@ -184,7 +311,9 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
       <input name="onec_bracelet" maxlength="32" value="<?= e((string)($row['onec_bracelet'] ?? '')) ?>"<?= $ro('onec_bracelet') ?>>
       <?php if (!$can('onec_bracelet')): ?><input type="hidden" name="onec_bracelet" value="<?= e((string)($row['onec_bracelet'] ?? '')) ?>"><?php endif; ?>
     </label>
+    <?php endif; ?>
   </fieldset>
+  <?php endif; ?>
 
   <?php if ($showChainMove): ?>
   <div id="proc-chain-move" class="proc-chain-move" hidden
@@ -236,9 +365,10 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
 })();
 </script>
 <?php endif; ?>
-<?php if (!empty($extraHtml)): ?>
-<?= $extraHtml ?>
-<?php endif; ?>
 <?php if (!$isNew): ?>
 <?= EntityDelete::form('procedures', (int)($row['id'] ?? 0)) ?>
 <?php endif; ?>
+<?php if (!empty($extraHtml)): ?>
+<?= $extraHtml ?>
+<?php endif; ?>
+

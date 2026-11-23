@@ -86,6 +86,20 @@ tr.is-block td { opacity: 0.75; }
   font-size: 0.92rem;
 }
 .calendar-selected-name { font-weight: 500; align-self: center; }
+.calendar-selected-proc,
+.calendar-selected-start {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-weight: 400;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+.calendar-selected-start { vertical-align: baseline; }
+.calendar-selected-locked {
+  align-self: center;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
 .calendar-selected-price input,
 .calendar-selected-qty input { width: 100%; }
 .calendar-selected-qty.muted { align-self: center; text-align: center; }

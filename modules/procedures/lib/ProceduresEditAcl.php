@@ -52,6 +52,7 @@ final class ProceduresEditAcl
         $isAdmin = Auth::capability('SHOW_ADMINISTRATOR_DATA');
 
         if ($isSuper) {
+            self::applyIntegrityLocks($editable, $row, true);
             return [
                 'allowed' => true,
                 'deny_reason' => '',
@@ -68,6 +69,7 @@ final class ProceduresEditAcl
                 foreach (self::ALL_FIELDS as $f) {
                     $editable[$f] = false;
                 }
+                self::applyIntegrityLocks($editable, $row, false);
                 return [
                     'allowed' => false,
                     'deny_reason' => t('procedures.edit.err.foreign'),
@@ -82,6 +84,7 @@ final class ProceduresEditAcl
                     $editable[$f] = false;
                 }
             }
+            self::applyIntegrityLocks($editable, $row, false);
             // New: can fill the form; timing lock still applies when product has duration.
             return [
                 'allowed' => true,
@@ -93,12 +96,11 @@ final class ProceduresEditAcl
             ];
         }
 
-        // Admin (not super) on existing rows: lock money / meta / client / product / type.
+        // Admin (not super) on existing rows: lock meta / client / product / type.
+        // Prices (summ*) — only SUPERADMIN, same as oper edit_procedure.inc.php.
         if (!$isNew) {
             $editable['dtend_plan'] = false;
             $editable['onec_id'] = false;
-            $editable['summ'] = false;
-            $editable['summ_default'] = false;
             $editable['id_terminal'] = false;
             $editable['enabled'] = false;
             $editable['restored'] = false;
@@ -125,6 +127,8 @@ final class ProceduresEditAcl
             $editable['onec_id'] = false;
         }
 
+        self::applyIntegrityLocks($editable, $row, false);
+
         return [
             'allowed' => true,
             'deny_reason' => '',
@@ -133,6 +137,37 @@ final class ProceduresEditAcl
             'time_sec' => $timeSec,
             'time_net' => $timeNet,
         ];
+    }
+
+    /**
+     * Event-driven integrity + money lock + hide integration fields when modules off.
+     *
+     * @param array<string,bool> $editable
+     * @param array<string,mixed> $row
+     */
+    private static function applyIntegrityLocks(array &$editable, array $row, bool $isSuper): void
+    {
+        // Oper: SUMM / SUMM_DEFAULT only for SUPERADMIN_ACCESS (admins get HIDDEN too).
+        if (!$isSuper) {
+            $editable['summ'] = false;
+            $editable['summ_default'] = false;
+        }
+
+        if ((int)($row['id_event_parent'] ?? 0) > 0) {
+            $editable['id_user'] = false;
+            $editable['id_event_parent'] = false;
+        }
+        // Parent link / token are system fields — never free-edited in UI.
+        $editable['id_event_parent'] = false;
+        $editable['token'] = false;
+
+        if (!ModuleManager::isEnabled('terminals')) {
+            $editable['id_terminal'] = false;
+        }
+        if (!ModuleManager::isEnabled('terminals') && !ModuleManager::isEnabled('likespa')) {
+            $editable['onec_id'] = false;
+            $editable['onec_bracelet'] = false;
+        }
     }
 
     public static function canEditField(array $acl, string $field): bool
@@ -168,6 +203,27 @@ final class ProceduresEditAcl
         }
 
         $data = ProceduresRepository::dataFromPost($merged);
+
+        // Non-super cannot invent prices: keep existing, or seed from catalog on create.
+        if (!self::canEditField($acl, 'summ')) {
+            if (array_key_exists('summ', $existing)) {
+                $data['summ'] = max(0, (int)$existing['summ']);
+            } elseif ((int)$data['summ'] < 1 && (int)$data['id_good'] > 0
+                && class_exists('ProductsRepository', false)
+            ) {
+                $product = ProductsRepository::find((int)$data['id_good']);
+                if (is_array($product)) {
+                    $data['summ'] = max(0, (int)round((float)($product['price'] ?? 0)));
+                }
+            }
+        }
+        if (!self::canEditField($acl, 'summ_default')) {
+            if (array_key_exists('summ_default', $existing)) {
+                $data['summ_default'] = max(0, (int)$existing['summ_default']);
+            } else {
+                $data['summ_default'] = (int)$data['summ'];
+            }
+        }
 
         // Timing: when product has time_sec, end = start + time_net (oper DoMoreChecks).
         if (!empty($acl['lock_dtend_timing'])) {

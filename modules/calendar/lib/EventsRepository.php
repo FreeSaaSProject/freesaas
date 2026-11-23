@@ -245,6 +245,17 @@ final class EventsRepository
         $blocksOnly = CalendarConfig::isBlocksMode();
         $isBlock = $blocksOnly ? 1 : (!empty($post['is_block']) ? 1 : 0);
 
+        // Block checkbox is only for empty slots — refuse when the form still has a visit payload.
+        if ($isBlock && !$blocksOnly) {
+            $probeItems = EventItemsRepository::itemsFromPost($post);
+            $probeUser = max(0, (int)($post['id_user'] ?? 0));
+            $probePhone = self::normalizeEventPhone((string)($post['phone'] ?? ''));
+            $probeName = mb_substr(trim((string)($post['name'] ?? '')), 0, 255);
+            if ($probeItems !== [] || $probeUser > 0 || $probePhone !== '' || $probeName !== '') {
+                throw new InvalidArgumentException(t('calendar.event.err.block_not_empty'));
+            }
+        }
+
         $items = [];
         if (!$isBlock) {
             $items = EventItemsRepository::itemsFromPost($post);
@@ -353,6 +364,10 @@ final class EventsRepository
             );
         }
         self::assertModeAllowsWrite($data, $existing);
+        self::assertBlockConversionAllowed($data, $existing);
+        if ($existing !== null) {
+            self::assertProcedureLinkedGoodsKept($data, $existing);
+        }
         self::assertTimelineFree(
             (int)$data['id_operator'],
             (int)$data['dtstart'],
@@ -363,6 +378,136 @@ final class EventsRepository
             $data,
             $existing !== null ? (int)($existing['id'] ?? 0) : 0
         );
+    }
+
+    /**
+     * Visit already has client / basket / docs / procedures — cannot become a block.
+     *
+     * @param array<string,mixed> $row normalized event or draft fields
+     */
+    public static function hasVisitSubstance(array $row): bool
+    {
+        foreach (is_array($row['content_ids'] ?? null) ? $row['content_ids'] : [] as $gid) {
+            if ((int)$gid > 0) {
+                return true;
+            }
+        }
+        $items = is_array($row['items'] ?? null) ? $row['items'] : [];
+        if ($items !== []) {
+            return true;
+        }
+        if ((int)($row['id_user'] ?? 0) > 0) {
+            return true;
+        }
+        if (self::normalizeEventPhone((string)($row['phone'] ?? '')) !== '') {
+            return true;
+        }
+        if (trim((string)($row['name'] ?? '')) !== '') {
+            return true;
+        }
+        $eventId = (int)($row['id'] ?? 0);
+        if ($eventId < 1) {
+            return false;
+        }
+        if (class_exists('ProceduresRepository', false)) {
+            $procs = ProceduresRepository::listByEventParent($eventId);
+            if ($procs !== []) {
+                return true;
+            }
+        }
+        if (class_exists('DocsInstancesRepository', false)
+            && DocsInstancesRepository::tableReady()
+            && DocsInstancesRepository::listForEvent($eventId) !== []
+        ) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @param array<string,mixed> $data
+     * @param array<string,mixed>|null $existing
+     */
+    private static function assertBlockConversionAllowed(array $data, ?array $existing = null): void
+    {
+        if (empty($data['is_block']) || CalendarConfig::isBlocksMode()) {
+            return;
+        }
+        if ($existing === null || !empty($existing['is_block'])) {
+            return;
+        }
+        if (self::hasVisitSubstance($existing)) {
+            throw new InvalidArgumentException(t('calendar.event.err.block_not_empty'));
+        }
+    }
+
+    /**
+     * Oper allowed dropping basket lines while procedures stayed (with a warning).
+     * FreeSaaS refuses: a service with a journal procedure cannot leave the event basket.
+     *
+     * @param array<string,mixed> $data
+     * @param array<string,mixed> $existing
+     */
+    private static function assertProcedureLinkedGoodsKept(array $data, array $existing): void
+    {
+        if (!empty($data['is_block']) || !class_exists('ProceduresRepository', false)) {
+            return;
+        }
+        $eventId = (int)($existing['id'] ?? 0);
+        if ($eventId < 1) {
+            return;
+        }
+        $keep = [];
+        foreach (is_array($data['items'] ?? null) ? $data['items'] : [] as $it) {
+            if (!is_array($it)) {
+                continue;
+            }
+            $gid = (int)($it['id_good'] ?? 0);
+            if ($gid > 0) {
+                $keep[$gid] = true;
+            }
+        }
+        $names = [];
+        foreach (ProceduresRepository::listByEventParent($eventId) as $pr) {
+            $gid = (int)($pr['id_good'] ?? 0);
+            if ($gid < 1 || isset($keep[$gid])) {
+                continue;
+            }
+            $label = '#' . $gid;
+            if (class_exists('ProductsRepository', false)) {
+                $p = ProductsRepository::find($gid);
+                if ($p && trim((string)($p['name'] ?? '')) !== '') {
+                    $label = (string)$p['name'];
+                }
+            }
+            $names[] = $label;
+        }
+        if ($names !== []) {
+            throw new InvalidArgumentException(t('calendar.event.err.item_has_procedure', [
+                'list' => implode(', ', $names),
+            ]));
+        }
+    }
+
+    /**
+     * id_good => procedure id for an event (first journal row per product).
+     *
+     * @return array<int,int>
+     */
+    public static function procedureIdsByGood(int $eventId): array
+    {
+        if ($eventId < 1 || !class_exists('ProceduresRepository', false)) {
+            return [];
+        }
+        $out = [];
+        foreach (ProceduresRepository::listByEventParent($eventId) as $pr) {
+            $gid = (int)($pr['id_good'] ?? 0);
+            $pid = (int)($pr['id'] ?? 0);
+            if ($gid > 0 && $pid > 0 && !isset($out[$gid])) {
+                $out[$gid] = $pid;
+            }
+        }
+        return $out;
     }
 
     /**
@@ -425,6 +570,7 @@ final class EventsRepository
     public static function create(array $data): int
     {
         self::assertModeAllowsWrite($data);
+        self::assertBlockConversionAllowed($data, null);
 
         self::assertTimelineFree(
             (int)$data['id_operator'],
@@ -490,6 +636,8 @@ final class EventsRepository
         }
 
         self::assertModeAllowsWrite($data, $old);
+        self::assertBlockConversionAllowed($data, $old);
+        self::assertProcedureLinkedGoodsKept($data, $old);
 
         self::assertTimelineFree(
             (int)$data['id_operator'],

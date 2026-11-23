@@ -275,9 +275,34 @@ if ((int)$row['id_client'] > 0 && class_exists('ClientsRepository', false)) {
     $clientLabel = $c ? trim((string)($c['name'] ?: $c['tel'] ?: '')) : '';
 }
 
+$eventId = (int)($row['id_event'] ?? 0);
+$eventUrl = '';
+if ($eventId > 0) {
+    $eventUrl = '/calendar/events/' . $eventId . '/edit';
+} else {
+    $ret = NavContext::returnUrl();
+    if ($ret !== '' && preg_match('#^/calendar/events/(\d+)/edit#', $ret, $m)) {
+        $eventId = (int)$m[1];
+        $eventUrl = $ret;
+    } elseif ((int)($_GET['event'] ?? 0) > 0) {
+        $eventId = (int)$_GET['event'];
+        $eventUrl = '/calendar/events/' . $eventId . '/edit';
+        if (NavContext::returnUrl() === '') {
+            NavContext::setReturnUrl($eventUrl);
+        }
+    }
+}
+
 $title = $isNew
     ? t('docs.edit.title_new', ['name' => (string)$row['def_name']])
     : t('docs.edit.title', ['id' => $id, 'name' => (string)$row['def_name']]);
+$crumbs = [];
+if ($eventUrl !== '') {
+    $crumbs[] = ['label' => t('docs.edit.event', ['id' => $eventId]), 'href' => $eventUrl];
+} else {
+    $crumbs[] = ['label' => t('docs.menu.list'), 'href' => '/documents'];
+}
+$crumbs[] = ['label' => $isNew ? (string)$row['def_name'] : ('#' . $id), 'current' => true];
 View::render('edit', [
     'title' => $title,
     'isNew' => $isNew,
@@ -297,8 +322,7 @@ View::render('edit', [
     'canConfirm' => $canEdit && DocsInstancesRepository::confirmReady(),
     'message' => $message,
     'error' => $error,
-    'breadcrumbs' => Breadcrumbs::withHome([
-        ['label' => t('docs.menu.list'), 'href' => '/documents'],
-        ['label' => $isNew ? (string)$row['def_name'] : ('#' . $id), 'current' => true],
-    ]),
+    'eventUrl' => $eventUrl,
+    'eventId' => $eventId,
+    'breadcrumbs' => Breadcrumbs::withHome($crumbs),
 ], 'layout', 'docs');

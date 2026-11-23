@@ -219,13 +219,12 @@ final class DocsInstancesRepository
         }
         $eventJoin = Database::tableExists('base_events') ? 'LEFT JOIN base_events e ON e.ID = i.ID_EVENT' : '';
         $orderTs = $eventJoin !== '' ? 'COALESCE(NULLIF(e.DTSTART, 0), i.DT_CREATE)' : 'i.DT_CREATE';
-        // Form 025/u aggregates only the platform seed def CODE=medcard_visit
-        // (skip other defs that also use kind medcard_visit, e.g. site-specific sheets).
+        // Form 025/u aggregates every visit sheet (platform medcard_visit + specialty packs
+        // such as medcard_cosmo). Duplicate empty generic sheets are dropped by ClinicDemo.
         $st = Database::pdo()->prepare(
             "SELECT i.ID FROM base_doc_instances i
-             INNER JOIN base_doc_defs d ON d.ID = i.ID_DEF
              {$eventJoin}
-             WHERE i.ID_CLIENT = ? AND i.KIND = 'medcard_visit' AND d.CODE = 'medcard_visit'
+             WHERE i.ID_CLIENT = ? AND i.KIND = 'medcard_visit'
                AND i.STATUS <> 'void'
              ORDER BY {$orderTs} ASC, i.ID ASC LIMIT 500"
         );

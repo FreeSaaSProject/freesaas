@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "1.0.12",
+    "version": "1.0.16",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -132,7 +132,7 @@
                 "method": "POST",
                 "path": "/calendar/events/{id}/edit",
                 "permission": "calendar.edit",
-                "description": "Update event (patch): required id; send only changed fields — omitted times, client, basket (content/prices/qty) and bonus settings keep stored values. Reassign = {id, id_operator}; moving dtstart keeps the duration. action=save|delete|create_procedures (procedures only in visits mode)"
+                "description": "Update event (patch): required id; send only changed fields — omitted times, client, basket (content/prices/qty) and bonus settings keep stored values. Reassign = {id, id_operator}; moving dtstart keeps the duration. action=save|delete|create_procedures (optional good_id = one service «Start», like oper edit_work; omit good_id for all missing)"
             },
             {
                 "id": "calendar.settings.get",

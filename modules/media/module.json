@@ -1,0 +1,179 @@
+{
+    "id": "media",
+    "name": "media.module.name",
+    "description": "media.module.description",
+    "version": "0.1.1",
+    "type": "product",
+    "runtime": "admin",
+    "requires": {
+        "core": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "procedures": ">=1.0.0",
+        "catalog": ">=1.0.0",
+        "audio": ">=1.0.0",
+        "backups": ">=1.0.0"
+    },
+    "provides": [
+        "media.attachments"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "media.manage",
+            "label": "media.perm.manage"
+        }
+    ],
+    "menu": [
+        {
+            "title": "media.menu.list",
+            "path": "/media",
+            "permission": "media.manage",
+            "group": "core.menu.group.system",
+            "kind": "settings",
+            "num": 55,
+            "icon": "🖼️"
+        },
+        {
+            "title": "media.menu.requirements",
+            "path": "/media/requirements",
+            "permission": "media.manage",
+            "group": "core.menu.group.system",
+            "kind": "settings",
+            "num": 56,
+            "icon": "📋"
+        },
+        {
+            "title": "media.menu.settings",
+            "path": "/media/settings",
+            "permission": "media.manage",
+            "group": "core.menu.group.system",
+            "kind": "settings",
+            "num": 57,
+            "icon": "⚙️"
+        }
+    ],
+    "tables": [
+        "base_media_attachments",
+        "base_media_requirements"
+    ],
+    "hooks": {
+        "publish": [
+            "media.owner.acl"
+        ],
+        "subscribe": [
+            "procedures.edit.sections",
+            "procedures.type_edit.sections",
+            "catalog.product_edit.sections"
+        ]
+    },
+    "routes": {
+        "pages": [
+            "/media",
+            "/media/settings",
+            "/media/file/{id}",
+            "/media/thumb/{id}",
+            "/media/upload",
+            "/media/requirements"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/media.md",
+        "ops": [
+            {
+                "id": "media.list",
+                "method": "GET",
+                "path": "/media",
+                "permission": "media.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "List media attachments (director). Filters: owner_table, owner_id, kind, id_user (via base_procedures), q"
+            },
+            {
+                "id": "media.delete",
+                "method": "POST",
+                "path": "/media",
+                "permission": "media.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Bulk delete attachments (BulkActions media_attachments delete or action=delete + ids[])"
+            },
+            {
+                "id": "media.settings.get",
+                "method": "GET",
+                "path": "/media/settings",
+                "permission": "media.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Media storage/resize settings (FTP pass masked)"
+            },
+            {
+                "id": "media.settings.save",
+                "method": "POST",
+                "path": "/media/settings",
+                "permission": "media.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Save settings (action=save) or copy FTP (action=copy_ftp_audio|copy_ftp_backups)"
+            },
+            {
+                "id": "media.upload",
+                "method": "POST",
+                "path": "/media/upload",
+                "permission": "procedures.edit",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Upload image for owner_table+owner_id+kind. Session required; owner ACL (procedures: canViewRow + procedures.edit). Multipart file=…"
+            },
+            {
+                "id": "media.file",
+                "method": "GET",
+                "path": "/media/file/{id}",
+                "permission": "procedures.view",
+                "description": "Stream master image if session user passes owner ACL"
+            },
+            {
+                "id": "media.thumb",
+                "method": "GET",
+                "path": "/media/thumb/{id}",
+                "permission": "procedures.view",
+                "description": "Stream thumb if session user passes owner ACL"
+            },
+            {
+                "id": "media.requirements.list",
+                "method": "GET",
+                "path": "/media/requirements",
+                "permission": "media.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Journal of all requirements (filters: scope_table, scope_id, kind, enabled, q). With scope_id also returns that scope (editor ACL)."
+            },
+
+            {
+                "id": "media.requirements.save",
+                "method": "POST",
+                "path": "/media/requirements",
+                "permission": "procedures.types",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Save or delete requirements for scope (action=save|delete; save body req[kind][on|min|label]; delete needs id)"
+            }
+        ]
+    },
+    "setup": {
+        "steps": []
+    },
+    "catalog": {
+        "categories": [
+            "communications"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "journal",
+            "settings"
+        ],
+        "screenshots": []
+    },
+    "uninstall": {
+        "strategy": "drop_owned"
+    }
+}

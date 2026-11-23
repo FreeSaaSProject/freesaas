@@ -81,6 +81,63 @@
 .docs-event-block, .docs-procedure-block { margin-top: 0.75rem; }
 .docs-event-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
 .docs-event-add { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin: 0.5rem 0 0; }
+.docs-event-table { width: 100%; border-collapse: collapse; margin: 0.25rem 0 0; }
+.docs-event-table td { padding: 0.25rem 0.4rem; border-bottom: 1px solid var(--line, #e5e7eb); vertical-align: middle; }
+.docs-event-table tr:last-child td { border-bottom: 0; }
+.docs-event-name { width: 55%; }
+.docs-event-meta { width: 35%; white-space: nowrap; }
+.docs-event-actions { width: 3rem; text-align: right; white-space: nowrap; }
+.docs-event-print {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--line, #d5d9de);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: inherit;
+}
+.docs-event-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: flex-start;
+  margin: 0.55rem 0 0;
+}
+.docs-event-create { position: relative; }
+.docs-event-create > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.docs-event-create > summary::-webkit-details-marker { display: none; }
+.docs-event-create-menu {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  top: calc(100% + 0.25rem);
+  min-width: 14rem;
+  max-width: 22rem;
+  padding: 0.35rem;
+  background: var(--bg-elev, #fff);
+  border: 1px solid var(--line, #d5d9de);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.docs-event-create-menu a {
+  display: block;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+}
+.docs-event-create-menu a:hover { background: var(--bg-input, #f3f4f6); }
 .docs-client-profile { margin: 0.35rem 0; }
 
 .docs-builder { display: flex; flex-direction: column; gap: 0.75rem; }

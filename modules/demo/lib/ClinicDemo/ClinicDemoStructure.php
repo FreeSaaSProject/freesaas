@@ -96,7 +96,6 @@ final class ClinicDemoStructure
                     'descr' => ClinicDemoPlan::copyStr('catalog_descr', ['org' => ClinicDemoPlan::org()]),
                     'bonus_procent' => 30,
                     'multiwork' => 0,
-                    'photo_req' => 0,
                     'is_medical' => in_array($key, ['consult_th', 'consult_cd', 'consult_nr', 'cosmo'], true) ? 1 : 0,
                     'parallels' => 0,
                     'bonus_procent_out' => 0,
@@ -297,11 +296,20 @@ final class ClinicDemoStructure
                 'password_plain' => ClinicDemoPlan::PASSWORD,
                 'locale' => 'ru',
             ];
+            $statusId = (int)($data['ID_STATUS'] ?? 0);
+            if ($statusId < 1) {
+                throw new RuntimeException('ClinicDemo: missing role status for staff key ' . $key . ' (role=' . $role . ')');
+            }
             if ($existing === null) {
                 $id = UsersRepository::create($data);
             } else {
                 $id = (int)$existing['id'];
                 UsersRepository::update($id, $data);
+            }
+            // Guard: some hosts left cosmo without ID_STATUS after partial re-seed.
+            $fresh = UsersRepository::find($id);
+            if ($fresh !== null && (int)($fresh['ID_STATUS'] ?? 0) !== $statusId) {
+                UsersRepository::update($id, ['ID_STATUS' => $statusId]);
             }
             $this->m->add('users', $id);
             $out[$key] = $id;

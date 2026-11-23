@@ -866,6 +866,8 @@
                 "docs.library.import",
                 "docs.list",
                 "docs.print",
+                "docs.print.event_all",
+                "docs.print.event_all.freeze",
                 "docs.print.freeze",
                 "docs.settings",
                 "docs.update"
@@ -1078,6 +1080,21 @@
             "ops": [
                 "medcard_audio.settings",
                 "medcard_audio.settings.save"
+            ],
+            "uncovered_routes": [],
+            "uncovered_actions": []
+        },
+        "media": {
+            "ops": [
+                "media.delete",
+                "media.file",
+                "media.list",
+                "media.requirements.list",
+                "media.requirements.save",
+                "media.settings.get",
+                "media.settings.save",
+                "media.thumb",
+                "media.upload"
             ],
             "uncovered_routes": [],
             "uncovered_actions": []

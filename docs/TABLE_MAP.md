@@ -58,6 +58,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_workweeks` | workweeks | Shifts |
 | `base_procent_history` | rates | Specialist pay rates |
 | `base_procedures*` | procedures | Types + journal + `base_procedure_restores` schema; restore UI/settlement in likespa |
+| `base_media_attachments` / `base_media_requirements` | media | Image attachments by owner table+id; photo requirements on type/product scopes |
 | `base_payments` | payments | Staff settlements |
 | `base_payment_move_links` | payments | Multi-allocation payments ↔ ledger moves |
 | `base_bonus_moves` | bonuses | Client loyalty ledger (credit/debit, event settle) |
