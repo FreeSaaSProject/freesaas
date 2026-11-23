@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-22T17:32:36+00:00",
+    "generated_at": "2026-11-23T07:33:58+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -427,7 +427,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "1.0.18",
+            "version": "1.0.19",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -1802,7 +1802,7 @@
         },
         {
             "id": "orders",
-            "version": "1.0.4",
+            "version": "1.0.5",
             "type": "product",
             "name": {
                 "en": "Orders",

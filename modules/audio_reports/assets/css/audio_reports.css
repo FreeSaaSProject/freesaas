@@ -1147,6 +1147,11 @@ textarea.mono {
   margin: 0 0 0.5rem;
 }
 
+.ar-col-cabin-note {
+  margin: 0 0 0.35rem;
+  line-height: 1.35;
+}
+
 .ar-col-transcript-cell {
   min-width: 18rem;
   max-width: 42rem;

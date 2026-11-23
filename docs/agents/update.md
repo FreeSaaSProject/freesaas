@@ -69,7 +69,7 @@ Updates are for versions of code already on the instance. A package that is not 
 
 1. Repo ships `modules-catalog.json` (build: `php bin/build-modules-catalog.php`; also attached as `freesaas-catalog.json` on releases).
 2. **`/modules`** section **Available to install** — cards with **Install** and **Hide**. Hidden modules move to a collapsed **Hidden** list (restorable) and stop counting in the `/updates` banner. State: `dismissed_available` in `cfg/updates.state.json`.
-3. Install → `UpdateEngine::installModule` writes `[modules] <id>=0` first (absent keys are *disabled*), then downloads the monorepo archive and overlays only `modules/<id>/`. Module stays **disabled**; continue via `/modules/{id}/activate` or `module activate` (enable + grants + setup.steps).
+3. Install → `UpdateEngine::installModule` writes `[modules] <id>=0` first (absent keys are *disabled*), then downloads the monorepo **codeload** zip and overlays only `modules/<id>/`. For public GitHub monorepo installs, version/URL come from the cached `modules-catalog.json` row (**no** Contents API / PAT required for that step; private `[module.x]` still needs a token). Module stays **disabled**; continue via `/modules/{id}/activate` or `module activate` (enable + grants + setup.steps).
 4. A full apply (`core` / `all`) **never creates** `modules/<id>/` for modules absent on this instance; they are reported in `skipped_new_modules[]`.
 5. `/updates` only shows a banner («N new modules → modules»).
 

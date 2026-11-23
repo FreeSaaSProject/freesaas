@@ -5,10 +5,12 @@ declare(strict_types=1);
  * @var string $path
  * @var array $filters
  * @var string $transcriptHtml
+ * @var bool $transcriptFromCabin
  * @var bool $canEdit
  */
 $item = is_array($item ?? null) ? $item : [];
 $transcriptHtml = (string)($transcriptHtml ?? '');
+$transcriptFromCabin = !empty($transcriptFromCabin);
 $listHref = ListQuery::url($path, $filters, []);
 $fmtDur = static function (int $sec): string {
     $sec = max(0, $sec);
@@ -57,6 +59,9 @@ $fmtDur = static function (int $sec): string {
     <h3><?= te('audio_reports.collections.col.transcript') ?></h3>
     <p class="muted small"><?= te('audio_reports.collections.transcript_hint_abs') ?></p>
     <?php if ($transcriptHtml !== ''): ?>
+      <?php if ($transcriptFromCabin): ?>
+        <p class="ar-col-cabin-note muted small"><?= te('audio_reports.collections.transcript_cabin_note') ?></p>
+      <?php endif; ?>
       <div class="ar-col-transcript-full" id="ar-col-transcript"><?= $transcriptHtml ?></div>
     <?php else: ?>
       <p class="muted"><?= te('audio_reports.collections.transcript_unavailable') ?></p>

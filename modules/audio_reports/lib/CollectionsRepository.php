@@ -164,9 +164,11 @@ final class CollectionsRepository
     /**
      * Highlighted transcript slices for collection rows (oper list parity).
      * Window = collection DT_START−15 … DT_END+15 against record DT_RECORDED + line offset.
+     * CRM-only / metric collections (no key instances) fall back to overlapping cabin records
+     * for the same admin (±90s) so the list still shows floor speech around the opener.
      *
      * @param list<array<string,mixed>> $items enriched collection rows
-     * @return array<int, array{html:string,was_intersect:bool}> keyed by collection id
+     * @return array<int, array{html:string,was_intersect:bool,from_cabin:bool}> keyed by collection id
      */
     public static function transcriptsForItems(array $items, bool $compact = true): array
     {
@@ -178,20 +180,73 @@ final class CollectionsRepository
             return $out;
         }
 
-        $recordIds = [];
+        /** @var array<int, list<int>> $idsByCollection */
+        $idsByCollection = [];
+        /** @var array<int, array{admin:int,from:int,to:int}> $cabinWindows */
+        $cabinWindows = [];
+        /** @var array<int,true> $allRecordIds */
+        $allRecordIds = [];
+        /** @var array<int,int> $padByCollection */
+        $padByCollection = [];
+        /** @var array<int,true> $cabinFallback */
+        $cabinFallback = [];
+
         foreach ($items as $item) {
+            $cid = (int)($item['id'] ?? 0);
+            if ($cid < 1) {
+                continue;
+            }
+            $linked = [];
             foreach ($item['record_ids'] ?? [] as $rid) {
                 $rid = (int)$rid;
                 if ($rid > 0) {
-                    $recordIds[$rid] = true;
+                    $linked[$rid] = true;
+                }
+            }
+            $linkedIds = array_keys($linked);
+            if ($linkedIds !== []) {
+                $idsByCollection[$cid] = $linkedIds;
+                $padByCollection[$cid] = 15;
+                foreach ($linkedIds as $rid) {
+                    $allRecordIds[$rid] = true;
+                }
+                continue;
+            }
+            $adminId = (int)($item['id_admin'] ?? 0);
+            $dtStart = (int)($item['dt_start'] ?? 0);
+            $dtEnd = (int)($item['dt_end'] ?? 0);
+            if ($dtEnd < $dtStart) {
+                $dtEnd = $dtStart;
+            }
+            if ($adminId < 1 || $dtStart < 1) {
+                $idsByCollection[$cid] = [];
+                continue;
+            }
+            // Wider pad: CRM create is often a point in time; ±15s is too thin to read.
+            $pad = 90;
+            $padByCollection[$cid] = $pad;
+            $cabinFallback[$cid] = true;
+            $cabinWindows[$cid] = [
+                'admin' => $adminId,
+                'from' => max(0, $dtStart - $pad),
+                'to' => max(0, $dtEnd + $pad),
+            ];
+        }
+
+        if ($cabinWindows !== []) {
+            foreach (self::cabinRecordIdsForWindows($cabinWindows) as $cid => $rids) {
+                $idsByCollection[$cid] = $rids;
+                foreach ($rids as $rid) {
+                    $allRecordIds[$rid] = true;
                 }
             }
         }
-        if ($recordIds === []) {
+
+        if ($allRecordIds === []) {
             return $out;
         }
 
-        $ids = array_keys($recordIds);
+        $ids = array_keys($allRecordIds);
         $rows = RecordsRepository::findByIds($ids);
         $instances = RecordsRepository::instancesForRecords($ids);
         $byRec = [];
@@ -205,11 +260,12 @@ final class CollectionsRepository
             if ($cid < 1) {
                 continue;
             }
-            $windowFrom = max(0, (int)($item['dt_start'] ?? 0) - 15);
-            $windowTo = max(0, (int)($item['dt_end'] ?? 0) + 15);
+            $pad = (int)($padByCollection[$cid] ?? 15);
+            $windowFrom = max(0, (int)($item['dt_start'] ?? 0) - $pad);
+            $windowTo = max(0, (int)($item['dt_end'] ?? 0) + $pad);
             $blocks = [];
             $wasIntersect = !empty($item['has_intersect']);
-            foreach ($item['record_ids'] ?? [] as $rid) {
+            foreach ($idsByCollection[$cid] ?? [] as $rid) {
                 $rid = (int)$rid;
                 if ($rid < 1 || !isset($rows[$rid])) {
                     continue;
@@ -260,7 +316,80 @@ final class CollectionsRepository
             $out[$cid] = [
                 'html' => $blocks !== [] ? implode('', $blocks) : '',
                 'was_intersect' => $wasIntersect,
+                'from_cabin' => isset($cabinFallback[$cid]) && $blocks !== [],
             ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Cabin records overlapping collection windows (CRM / metric openers without key instances).
+     *
+     * @param array<int, array{admin:int,from:int,to:int}> $windows keyed by collection id
+     * @return array<int, list<int>> collection id => record ids (≤3 each)
+     */
+    private static function cabinRecordIdsForWindows(array $windows): array
+    {
+        $out = [];
+        if ($windows === [] || !Database::tableExists('base_records')) {
+            return $out;
+        }
+
+        /** @var array<int, array<int, array{admin:int,from:int,to:int}>> $byAdmin */
+        $byAdmin = [];
+        foreach ($windows as $cid => $w) {
+            $adminId = (int)$w['admin'];
+            if ($adminId < 1) {
+                $out[$cid] = [];
+                continue;
+            }
+            $byAdmin[$adminId][$cid] = $w;
+        }
+
+        $pdo = Database::pdo();
+        $hasDisabled = Database::columnExists('base_records', 'DISABLED');
+        foreach ($byAdmin as $adminId => $cols) {
+            $minFrom = PHP_INT_MAX;
+            $maxTo = 0;
+            foreach ($cols as $w) {
+                $minFrom = min($minFrom, (int)$w['from']);
+                $maxTo = max($maxTo, (int)$w['to']);
+            }
+            // Records may start up to playtime before the window; pad 30 min.
+            $fetchFrom = max(0, $minFrom - 1800);
+            $sql = 'SELECT ID AS id, DT_RECORDED AS dt_recorded, PLAYTIME AS playtime
+                    FROM base_records
+                    WHERE ID_ADMIN = ?
+                      AND DT_RECORDED >= ?
+                      AND DT_RECORDED <= ?
+                      AND TRANSCRIPTION IS NOT NULL
+                      AND TRANSCRIPTION <> \'\'';
+            if ($hasDisabled) {
+                $sql .= ' AND (DISABLED IS NULL OR DISABLED < 1)';
+            }
+            $sql .= ' ORDER BY DT_RECORDED ASC';
+            $st = $pdo->prepare($sql);
+            $st->execute([(int)$adminId, $fetchFrom, $maxTo]);
+            $recs = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+            foreach ($cols as $cid => $w) {
+                $from = (int)$w['from'];
+                $to = (int)$w['to'];
+                $matched = [];
+                foreach ($recs as $r) {
+                    $rStart = (int)$r['dt_recorded'];
+                    $rEnd = $rStart + max(0, (int)$r['playtime']);
+                    if ($rEnd < $from || $rStart > $to) {
+                        continue;
+                    }
+                    $matched[] = (int)$r['id'];
+                    if (count($matched) >= 3) {
+                        break;
+                    }
+                }
+                $out[(int)$cid] = $matched;
+            }
         }
 
         return $out;

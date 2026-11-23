@@ -252,6 +252,10 @@ final class UpdateGithub
         if ($repo === '' || $ref === '') {
             return $remote;
         }
+        // Anonymous Commits/Contents API is rate-limited on shared hosting; keep floating ref URL.
+        if (trim((string)($pkg['token'] ?? '')) === '') {
+            return $remote;
+        }
         try {
             $sha = UpdateGithub::commitShaCached($repo, $ref, (string)($pkg['token'] ?? ''));
         } catch (Throwable $e) {
@@ -338,6 +342,39 @@ final class UpdateGithub
             return 'application/vnd.github+json';
         }
         return '*/*';
+    }
+
+    /**
+     * Build remote meta for monorepo install from modules-catalog.json (no Contents API).
+     * Version comes from the catalog row; archive is codeload zip of the channel/ref.
+     *
+     * @param array<string,mixed> $core UpdateConfig::coreSource()
+     * @param array<string,mixed> $catalogRow normalizeCatalogRow() + optional ref
+     * @return array{version:string,url:string,sha256:?string,artifact:string,ref:string}
+     */
+    public static function remoteMetaFromCatalog(array $core, array $catalogRow): array
+    {
+        $repo = trim((string)($core['repo'] ?? ''));
+        if ($repo === '' || !preg_match('#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $repo)) {
+            throw new RuntimeException('github provider requires repo=owner/name');
+        }
+        $ref = trim((string)($catalogRow['ref'] ?? ''));
+        if ($ref === '') {
+            $ref = UpdateGithub::resolveGitRef([
+                'repo' => $repo,
+                'channel' => (string)($core['channel'] ?? 'main'),
+                'ref' => (string)($core['ref'] ?? ''),
+                'token' => (string)($core['token'] ?? ''),
+            ]);
+        }
+        $version = trim((string)($catalogRow['version'] ?? ''));
+        return [
+            'version' => $version,
+            'url' => UpdateGithub::githubArchiveUrl($repo, $ref),
+            'sha256' => null,
+            'artifact' => 'zipball:' . $ref,
+            'ref' => $ref,
+        ];
     }
 
     /**

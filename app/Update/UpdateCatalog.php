@@ -93,6 +93,25 @@ final class UpdateCatalog
     }
 
     /**
+     * One available-to-install catalog row (includes dismissed when present in cache).
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function findAvailableRow(string $id, bool $forceRefresh = false): ?array
+    {
+        $id = strtolower(trim($id));
+        if ($id === '' || !preg_match('/^[a-z][a-z0-9_]*$/', $id)) {
+            return null;
+        }
+        foreach (UpdateCatalog::availableToInstall($forceRefresh, true) as $row) {
+            if ((string)($row['id'] ?? '') === $id) {
+                return $row;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Modules present in remote catalog but not on local disk.
      * Hidden ("dismissed") modules are excluded unless $includeDismissed.
      *
@@ -241,13 +260,10 @@ final class UpdateCatalog
             return ['ok' => false, 'id' => $id, 'error' => 'Module already on disk: ' . $id, 'http' => 409];
         }
 
-        $avail = UpdateCatalog::availableToInstall(true, true);
-        $found = null;
-        foreach ($avail as $row) {
-            if ((string)($row['id'] ?? '') === $id) {
-                $found = $row;
-                break;
-            }
+        // Prefer cached catalog (avoids Contents API 403 on shared hosting); refresh only if missing.
+        $found = UpdateCatalog::findAvailableRow($id, false);
+        if ($found === null) {
+            $found = UpdateCatalog::findAvailableRow($id, true);
         }
         if ($found === null) {
             return [
@@ -278,7 +294,17 @@ final class UpdateCatalog
             'token_set' => $core['token_set'],
             'token' => $core['token'],
             'bundle' => 'monorepo',
+            // Skip Contents API: version from catalog, zip from codeload.
+            'catalog_install' => true,
         ];
+        $provider = strtolower(trim((string)($core['provider'] ?? 'github')));
+        if ($provider === 'github' || $provider === '') {
+            try {
+                $pkg['_remote'] = UpdateGithub::remoteMetaFromCatalog($core, $found);
+            } catch (Throwable $e) {
+                return ['ok' => false, 'id' => $id, 'error' => $e->getMessage(), 'http' => 400];
+            }
+        }
 
         $lock = UpdateFs::acquireLock();
         if ($lock === null) {

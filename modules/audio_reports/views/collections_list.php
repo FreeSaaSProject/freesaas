@@ -23,7 +23,7 @@ declare(strict_types=1);
  * @var array<int,string> $scriptOptions
  * @var array<int,string> $adminOptions
  * @var array|null $dayNav
- * @var array<int, array{html:string,was_intersect:bool}> $transcripts
+ * @var array<int, array{html:string,was_intersect:bool,from_cabin?:bool}> $transcripts
  */
 $showAll = !empty($showAll);
 $tablesReady = !empty($tablesReady);
@@ -131,6 +131,7 @@ $fmtDur = static function (int $sec): string {
     }
     $href = e($href);
     $txHtml = (string)($transcripts[$cid]['html'] ?? '');
+    $txFromCabin = !empty($transcripts[$cid]['from_cabin']);
 ?>
 <tr class="ar-col-row<?= !empty($c['finished']) ? ' is-finished' : '' ?><?= !empty($c['has_intersect']) ? ' is-intersect' : '' ?>">
   <?= BulkActions::td($listId, $cid) ?>
@@ -161,6 +162,9 @@ $fmtDur = static function (int $sec): string {
   </td>
   <td class="ar-col-transcript-cell">
     <?php if ($txHtml !== ''): ?>
+      <?php if ($txFromCabin): ?>
+        <p class="ar-col-cabin-note muted small"><?= te('audio_reports.collections.transcript_cabin_note') ?></p>
+      <?php endif; ?>
       <?= $txHtml ?>
     <?php else: ?>
       <span class="muted"><?= te('audio_reports.collections.transcript_unavailable') ?></span>

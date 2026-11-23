@@ -148,8 +148,9 @@ final class OrdersNotifyProvider
             ['id' => 'operator_hidden', 'type' => 'bool', 'op' => ['eq'], 'label' => 'orders.notify.field.operator_hidden'],
             ['id' => 'lead_hours', 'type' => 'number', 'op' => ['gt', 'gte', 'lt', 'lte'], 'label' => 'orders.notify.field.lead_hours'],
             ['id' => 'sum', 'type' => 'number', 'op' => ['gt', 'gte', 'lt', 'lte'], 'label' => 'orders.notify.field.sum'],
+            ['id' => 'cancelled_by', 'type' => 'enum', 'op' => ['eq', 'neq', 'in', 'nin'], 'options' => ['client' => 'client', 'staff' => 'staff'], 'label' => 'orders.notify.field.cancelled_by'],
         ];
-        $vars = ['order_id', 'client_name', 'phone', 'service', 'source', 'when', 'master', 'sum', 'reason'];
+        $vars = ['order_id', 'client_name', 'phone', 'service', 'source', 'when', 'master', 'sum', 'reason', 'cancelled_by'];
         $subjects = ['client', 'operator'];
         $outcomes = ['confirmed', 'no_answer', 'client_cancelled'];
         $base = [
@@ -183,6 +184,12 @@ final class OrdersNotifyProvider
             return;
         }
         $ctx = self::contextFromOrder($order);
+        if (isset($extra['cancelled_by'])) {
+            $ctx['cancelled_by'] = (string)$extra['cancelled_by'];
+        }
+        if (isset($extra['reason'])) {
+            $ctx['reason'] = trim((string)$extra['reason']);
+        }
         $clientId = (int)($order['id_user'] ?? 0);
         $operatorId = (int)($order['id_cosmetolog'] ?? 0);
         $payload = [

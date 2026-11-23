@@ -65,6 +65,7 @@ if ($id > 0) {
     Assets::need('audio');
     $tx = CollectionsRepository::transcriptsForItems([$item], false);
     $transcriptHtml = (string)($tx[$id]['html'] ?? '');
+    $transcriptFromCabin = !empty($tx[$id]['from_cabin']);
     if (!empty($tx[$id]['was_intersect'])) {
         $item['has_intersect'] = true;
     }
@@ -83,6 +84,7 @@ if ($id > 0) {
         'path' => $path,
         'filters' => $filters,
         'transcriptHtml' => $transcriptHtml,
+        'transcriptFromCabin' => $transcriptFromCabin,
         'canEdit' => $canEdit,
     ], 'layout', 'audio_reports');
     return;

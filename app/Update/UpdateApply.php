@@ -98,7 +98,7 @@ final class UpdateApply
             );
             $kind = (string)$source['kind'];
             $bundle = (string)($source['bundle'] ?? '');
-            self::assertPayloadVersion($payloadRoot, $kind, $id, $source, $remote);
+            $remote['version'] = self::assertPayloadVersion($payloadRoot, $kind, $id, $source, $remote);
             $plan = UpdateOverlay::plan($payloadRoot, $kind, $id, $bundle, $source);
             $snap = UpdateRollback::snapshotBeforeOverlay(
                 UpdateOverlay::writePaths($plan),
@@ -164,19 +164,24 @@ final class UpdateApply
     /**
      * The archive must contain the version Check promised; a stale CDN/API snapshot must not be
      * installed and then reported as the new version. Runs before any file is written.
+     * Returns the version to record (payload wins when catalog_install tolerates lag).
      *
      * @param array<string,mixed> $source
      * @param array<string,mixed> $remote
      */
-    private static function assertPayloadVersion(string $payloadRoot, string $kind, string $id, array $source, array $remote): void
+    private static function assertPayloadVersion(string $payloadRoot, string $kind, string $id, array $source, array $remote): string
     {
-        if ((string)($source['provider'] ?? 'github') !== 'github') {
-            return;
-        }
         $want = trim((string)($remote['version'] ?? ''));
         $got = UpdateVersions::payloadVersion($payloadRoot, $kind);
+        if ((string)($source['provider'] ?? 'github') !== 'github') {
+            return $got !== '' ? $got : $want;
+        }
         if ($want === '' || $got === '' || $got === $want) {
-            return;
+            return $got !== '' ? $got : $want;
+        }
+        // Install from modules-catalog may lag the branch tip — trust the zip we downloaded.
+        if (!empty($source['catalog_install']) && $got !== '') {
+            return $got;
         }
         throw new RuntimeException(sprintf(
             'Downloaded archive for %s contains version %s, expected %s (GitHub cache lag%s). Nothing was installed — run Check again and retry in a minute.',
@@ -483,13 +488,15 @@ final class UpdateApply
                     (string)$source['kind'],
                     $sid
                 );
-                self::assertPayloadVersion(
+                $remoteWork = is_array($work['remote'] ?? null) ? $work['remote'] : [];
+                $remoteWork['version'] = self::assertPayloadVersion(
                     $payloadRoot,
                     (string)$source['kind'],
                     $sid,
                     $source,
-                    is_array($work['remote'] ?? null) ? $work['remote'] : []
+                    $remoteWork
                 );
+                $work['remote'] = $remoteWork;
                 $plan = UpdateOverlay::plan(
                     $payloadRoot,
                     (string)$source['kind'],
