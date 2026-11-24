@@ -15,6 +15,7 @@ require_once __DIR__ . '/lib/FreeTicket.php';
 require_once __DIR__ . '/lib/LikespaLegacyApi.php';
 require_once __DIR__ . '/lib/ProcedureFloorLinks.php';
 require_once __DIR__ . '/lib/StaffDebtsRunner.php';
+require_once __DIR__ . '/lib/LikespaTipStaff.php';
 
 Assets::register('likespa', [
     'css' => ['likespa.css'],
@@ -57,6 +58,12 @@ $pages = [
         'capability' => 'SUPERADMIN_ACCESS',
         'methods' => ['GET'],
         'file' => 'legacy_api_status.php',
+    ],
+    // Legacy likespa.ru/m QR target (trailing slash is normalized by request_path()).
+    '/m' => [
+        'public' => true,
+        'methods' => ['GET'],
+        'file' => 'm.php',
     ],
     // Always registered; handlers 503 when legacy_api_enabled=0 (check-routes / cutover).
     '/api_termy.php' => [

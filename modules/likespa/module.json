@@ -2,7 +2,7 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -60,6 +60,7 @@
             "/likespa/staff-debts",
             "/likespa/settings",
             "/likespa/legacy-api/status",
+            "/m",
             "/api_termy.php",
             "/api.php",
             "/api1c.php",

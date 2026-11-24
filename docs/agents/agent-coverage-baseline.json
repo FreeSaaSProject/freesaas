@@ -1018,7 +1018,8 @@
                 "/api1c.php",
                 "/api1c.php/{*path}",
                 "/api_termy.php",
-                "/likespa/term-scans"
+                "/likespa/term-scans",
+                "/m"
             ],
             "uncovered_actions": []
         },

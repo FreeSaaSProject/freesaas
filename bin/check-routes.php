@@ -323,6 +323,9 @@ $allowed = [
     '/acquiring/checkout' => ['methods' => ['GET', 'POST'], 'why' => 'create/stub online payment'],
     '/acquiring/webhook/{provider}' => ['methods' => ['POST'], 'why' => 'acquiring provider webhook'],
 
+    // LikeSpa legacy QR landing: messenger bots + staff tip links (storefront, read-only)
+    '/m' => ['methods' => ['GET'], 'why' => 'likespa /m messenger + staff tips (legacy QR)'],
+
     // Course media HMAC download (enrollment-gated in handler)
     '/courses/media/{assetId}' => ['methods' => ['GET'], 'why' => 'signed course media proxy'],
 ];
