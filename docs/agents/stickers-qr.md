@@ -50,7 +50,7 @@ Activation = `DT_PRINT` set; only activated stickers can be written off. `cfg/mo
 
 | Mode | Behavior |
 |------|----------|
-| `scan` (default) | Only QR scan on the stuck item activates (`STOCK_REVISION`). `activate` on `/stickers/ins/*` is ignored; CRM/bot writeoff of a non-activated sticker is refused. |
+| `scan` (default) | QR scan on the stuck item activates (`STOCK_REVISION`). The staff bot can also activate by ID+PIN when the user has `STOCK_REVISION` (on shift today, or superadmin). `activate` on `/stickers/ins/*` is ignored; CRM writeoff and bot writeoff of a sticker that was not activated this way are refused. |
 | `manual` | "Activate" checkbox on receipt allowed; CRM/bot writeoff soft-activates. |
 
 New stickers from an act (`/stickers/ins/new?id_act=`) keep the act fixed; product picker = consumables (`is_material=1`, fallback all) with `good_q` name search → `id_good`.

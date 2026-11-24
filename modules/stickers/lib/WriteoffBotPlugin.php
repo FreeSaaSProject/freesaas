@@ -27,11 +27,8 @@ final class WriteoffBotPlugin
                 if ($uid < 1) {
                     return [];
                 }
-                if (!class_exists('WorkweeksRepository', false) || !WorkweeksRepository::onShiftToday($uid)) {
-                    return [];
-                }
-                return Auth::runAs($uid, static function () {
-                    if (!StickerWriteoff::canUse()) {
+                return Auth::runAs($uid, static function () use ($uid) {
+                    if (!self::canOpen($uid)) {
                         return [];
                     }
                     return [[[
@@ -97,7 +94,7 @@ final class WriteoffBotPlugin
                 BotClient::replyUi($ctx, t('stickers.bot.writeoff.denied'), self::kbMenu());
                 return true;
             }
-            if (!class_exists('WorkweeksRepository', false) || !WorkweeksRepository::onShiftToday($uid)) {
+            if (!self::canOpen($uid)) {
                 BotClient::replyUi($ctx, t('stickers.bot.writeoff.need_shift'), self::kbMenu());
                 return true;
             }
@@ -167,6 +164,9 @@ final class WriteoffBotPlugin
                 'product' => $product !== '' ? $product : ('#' . (int)$row['id_good']),
                 'left' => $left,
             ]);
+            if ((int)$row['dt_print'] < 1) {
+                return self::activateFromToken($ctx, $uid, $sid, $header);
+            }
             if (abs($rate - 1.0) < 0.0001) {
                 self::setState($ctx, 'await_confirm', ['user_id' => $uid, 'sticker_id' => $sid]);
                 BotClient::replyUi($ctx, $header . "\n" . t('stickers.bot.writeoff.confirm_one'), [
@@ -179,6 +179,23 @@ final class WriteoffBotPlugin
             }
             self::setState($ctx, 'await_amount', ['user_id' => $uid, 'sticker_id' => $sid]);
             BotClient::replyUi($ctx, $header . "\n" . t('stickers.bot.writeoff.prompt_amount'), self::kbCancel());
+            return true;
+        }
+
+        if ($mode === 'await_activate_weight') {
+            $sid = (int)($data['sticker_id'] ?? 0);
+            $weight = (float)str_replace(',', '.', $text);
+            if ($sid < 1 || $weight <= 0) {
+                BotClient::replyUi($ctx, t('stickers.bot.writeoff.bad_weight'), self::kbCancel());
+                return true;
+            }
+            $res = StickerWriteoff::activate($uid, $sid, ['weight' => $weight]);
+            if (empty($res['success'])) {
+                BotClient::replyUi($ctx, (string)$res['message'], self::kbCancel());
+                return true;
+            }
+            self::clearState($ctx);
+            BotClient::replyUi($ctx, t('stickers.bot.writeoff.activated'), self::kbMenu());
             return true;
         }
 
@@ -206,6 +223,40 @@ final class WriteoffBotPlugin
         }
 
         return false;
+    }
+
+    /**
+     * Inactive sticker: activate (ask start weight when required), then ask for ID+PIN again.
+     *
+     * @param array<string,mixed> $ctx
+     */
+    private static function activateFromToken(array $ctx, int $uid, int $sid, string $header): bool
+    {
+        $res = StickerWriteoff::activate($uid, $sid, []);
+        if (!empty($res['details']['need_weight'])) {
+            self::setState($ctx, 'await_activate_weight', ['user_id' => $uid, 'sticker_id' => $sid]);
+            BotClient::replyUi($ctx, $header . "\n" . t('stickers.bot.writeoff.prompt_activate_weight'), self::kbCancel());
+            return true;
+        }
+        if (empty($res['success'])) {
+            BotClient::replyUi($ctx, (string)$res['message'], self::kbCancel());
+            return true;
+        }
+        self::clearState($ctx);
+        BotClient::replyUi($ctx, t('stickers.bot.writeoff.activated'), self::kbMenu());
+        return true;
+    }
+
+    /** Shift today, or superadmin. GOOD_USE (or superadmin) is required either way. */
+    private static function canOpen(int $uid): bool
+    {
+        if (!StickerWriteoff::canUse()) {
+            return false;
+        }
+        if (Auth::capability('SUPERADMIN_ACCESS')) {
+            return true;
+        }
+        return class_exists('WorkweeksRepository', false) && WorkweeksRepository::onShiftToday($uid);
     }
 
     /** @param array<string,mixed> $ctx */

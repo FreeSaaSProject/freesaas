@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 /**
- * Port of oper sticker_writeoff_engine — amount-based UI writeoff + cancel.
- * Weight-mode and bot/QR token flow deferred.
+ * Port of oper sticker_writeoff_engine — amount-based UI writeoff + cancel,
+ * plus bot activation (DT_PRINT). Weight-mode writeoff stays on the QR scanner.
  */
 final class StickerWriteoff
 {
@@ -15,6 +15,90 @@ final class StickerWriteoff
     public static function canCancelAnyDay(): bool
     {
         return Auth::capability('SUPERADMIN_ACCESS');
+    }
+
+    /**
+     * Activate a sticker from the staff bot (oper sticker_writeoff_activate).
+     * Sets DT_PRINT. Weighable goods need WEIGHT_START (passed or already stored).
+     *
+     * @param array{weight?:float|string} $options
+     * @return array{success:bool,message:string,details:array<string,mixed>}
+     */
+    public static function activate(int $userId, int $stickerId, array $options = []): array
+    {
+        $out = ['success' => false, 'message' => '', 'details' => []];
+        if ($userId < 1 || $stickerId < 1) {
+            $out['message'] = t('stickers.writeoff.err.params');
+            return $out;
+        }
+        if (!QrScanGate::canRevise()) {
+            $out['message'] = t('stickers.writeoff.err.activate_perm');
+            return $out;
+        }
+        $row = StickerInsRepository::find($stickerId);
+        if (!$row) {
+            $out['message'] = t('stickers.err.sticker_not_found', ['id' => $stickerId]);
+            return $out;
+        }
+        if ((int)$row['dt_print'] > 0) {
+            $out['success'] = true;
+            $out['message'] = t('stickers.writeoff.activate_already');
+            $out['details'] = ['already' => true];
+            return $out;
+        }
+
+        $weightReq = self::weightRequired($row);
+        $weight = isset($options['weight'])
+            ? (float)str_replace(',', '.', (string)$options['weight'])
+            : 0.0;
+        $hasStart = (float)$row['weight_start'] > 0;
+        if ($weightReq && !$hasStart && $weight <= 0) {
+            $out['message'] = t('stickers.writeoff.err.activate_weight');
+            $out['details'] = ['need_weight' => true];
+            return $out;
+        }
+
+        $wStart = ($weightReq && $weight > 0) ? $weight : (float)$row['weight_start'];
+        $log = StickerInsRepository::appendLog(
+            (string)$row['log'],
+            $userId,
+            t('stickers.writeoff.log.activated_bot')
+        );
+        if ($weightReq && $weight > 0) {
+            $log .= ' ' . t('stickers.qr.log.weight', ['w' => $wStart]);
+        }
+        try {
+            Database::pdo()->prepare(
+                'UPDATE base_good_sticker_ins
+                 SET LOG = ?, WEIGHT_START = ?, DT_PRINT = ?, TOKEN = ?
+                 WHERE ID = ? AND DT_PRINT = 0'
+            )->execute([$log, $wStart, time(), QrScanToken::mint(), $stickerId]);
+        } catch (Throwable $e) {
+            $out['message'] = t('stickers.writeoff.err.save');
+            return $out;
+        }
+
+        $out['success'] = true;
+        $out['message'] = t('stickers.writeoff.activate_ok');
+        if ($weightReq && $wStart > 0) {
+            $out['message'] .= ' ' . t('stickers.qr.log.weight', ['w' => $wStart]);
+        }
+        return $out;
+    }
+
+    /** @param array<string,mixed> $row */
+    private static function weightRequired(array $row): bool
+    {
+        if (!class_exists('ProductsRepository', false) || !class_exists('UnitsRepository', false)) {
+            return false;
+        }
+        $product = ProductsRepository::find((int)$row['id_good']);
+        $unitUseId = $product ? (int)($product['unit_use_id'] ?? 0) : 0;
+        if ($unitUseId < 1) {
+            return false;
+        }
+        $unit = UnitsRepository::find($unitUseId);
+        return $unit !== null && !empty($unit['weight_req']);
     }
 
     /**
