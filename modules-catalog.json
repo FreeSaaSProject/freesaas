@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-24T08:59:25+00:00",
+    "generated_at": "2026-11-24T10:23:25+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -199,7 +199,7 @@
         },
         {
             "id": "assistant_groups",
-            "version": "1.0.22",
+            "version": "1.0.23",
             "type": "product",
             "name": {
                 "en": "Assistant in groups",
@@ -2082,7 +2082,7 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.33",
+            "version": "1.0.34",
             "type": "product",
             "name": {
                 "en": "Treatments",

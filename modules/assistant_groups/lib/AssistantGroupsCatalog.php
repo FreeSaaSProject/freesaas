@@ -44,8 +44,11 @@ final class AssistantGroupsCatalog
             }
             $perm = (string)($op['permission'] ?? '');
             $cap = trim((string)($op['capability'] ?? ''));
-            // Capability-gated ops stay director-only even with unrestricted group reads.
-            if ($cap !== '' && !Auth::capability($cap)) {
+            // Capability-gated reads and director-only (SUPERADMIN_ACCESS) writes stay hidden.
+            // Other capability writes are drafts: confirm and execution both require the flag.
+            if ($cap !== '' && !Auth::capability($cap)
+                && ($side !== 'write' || $cap === 'SUPERADMIN_ACCESS')
+            ) {
                 continue;
             }
             // Strict mode: reads need the actor's permission (personal-assistant style).
