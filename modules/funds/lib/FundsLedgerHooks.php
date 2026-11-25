@@ -17,6 +17,109 @@ final class FundsLedgerHooks
         EventBus::on('ledger.moves.validate', [self::class, 'onValidate']);
         EventBus::on('ledger.moves.edit.sections', [self::class, 'onEditSections']);
         EventBus::on('ledger.moves.badges', [self::class, 'onBadges']);
+        EventBus::on('ledger.moves.saved', [self::class, 'onSaved']);
+        EventBus::on('ledger.moves.deleted', [self::class, 'onDeleted']);
+    }
+
+    /**
+     * Expense DPS of a mapped type (base_fund_type_map) → auto CAPUSE from the fund balance (SRC_DPS).
+     * A manually linked movement always wins; changing type/direction removes the auto movement.
+     *
+     * @param mixed $payload @return mixed
+     */
+    public static function onSaved($payload)
+    {
+        if (!is_array($payload) || !FundTypeMapRepository::tableReady() || !Database::tableExists('base_fund_movements')) {
+            return $payload;
+        }
+        $id = (int)($payload['id'] ?? 0);
+        if ($id < 1) {
+            return $payload;
+        }
+        try {
+            self::syncAutoMovement($id);
+        } catch (Throwable $e) {
+            // Never block a ledger save because of fund bookkeeping.
+            error_log('funds auto movement #' . $id . ': ' . $e->getMessage());
+        }
+        return $payload;
+    }
+
+    private static function syncAutoMovement(int $moveId): void
+    {
+        $row = LedgerMovesRepository::find($moveId);
+        if ($row === null || (int)$row['deleted'] > 0 || (int)$row['linked_id'] > 0) {
+            return;
+        }
+        $fmId = (int)$row['fund_movement_id'];
+        $existing = $fmId > 0 ? FundMovementsRepository::find($fmId) : null;
+        $isAuto = $existing !== null && (int)$existing['src'] === FundMovementsRepository::SRC_DPS;
+
+        $fundId = (int)$row['direction'] < 0 ? FundTypeMapRepository::fundForType((int)$row['type_id']) : 0;
+        $fund = $fundId > 0 ? (FundsRepository::allRows()[$fundId] ?? null) : null;
+        if ($fund === null || FundsRepository::isGroup($fundId)) {
+            if ($isAuto) {
+                LedgerMovesRepository::setFundMovement($moveId, 0);
+                FundMovementsRepository::deleteByIds([$fmId]);
+            }
+            return;
+        }
+        if ($existing !== null && !$isAuto) {
+            return; // manual link wins
+        }
+        $summ = round(abs((float)$row['summ']), 2);
+        if ($summ <= 0) {
+            return;
+        }
+        $descr = trim((string)$row['descr']);
+        $firstLine = trim((string)strtok($descr, "\n"));
+        $data = [
+            'fund_id' => $fundId,
+            'type_id' => FundMovementsRepository::TYPE_CAPUSE,
+            'direction' => -1,
+            'summ' => $summ,
+            'summ_out_cap' => 0.0,
+            'summ_out_fund' => $summ,
+            'summ_out_infl' => 0.0,
+            'summ_out_destroy' => 0.0,
+            'name' => mb_substr($firstLine !== '' ? $firstLine : t('funds.dps.default_name', ['id' => $moveId]), 0, 250),
+            'descr' => $descr,
+            'dt_amort_start' => (int)$row['dt'],
+            'amort_months' => 0,
+            'dt_create' => time(),
+            'user_create' => Auth::userId(),
+            'src' => FundMovementsRepository::SRC_DPS,
+        ];
+        if ($isAuto) {
+            FundMovementsRepository::update($fmId, $data);
+            return;
+        }
+        $newId = FundMovementsRepository::create($data);
+        LedgerMovesRepository::setFundMovement($moveId, $newId);
+    }
+
+    /** @param mixed $payload @return mixed */
+    public static function onDeleted($payload)
+    {
+        if (!is_array($payload) || !Database::tableExists('base_fund_movements')) {
+            return $payload;
+        }
+        $ids = array_values(array_filter(array_map('intval', (array)($payload['ids'] ?? []))));
+        if ($ids === []) {
+            return $payload;
+        }
+        try {
+            foreach (LedgerMovesRepository::fundMovementRefs($ids) as $moveId => $fmId) {
+                $fm = FundMovementsRepository::find((int)$fmId);
+                if ($fm !== null && (int)$fm['src'] === FundMovementsRepository::SRC_DPS) {
+                    LedgerMovesRepository::setFundMovement((int)$moveId, 0);
+                    FundMovementsRepository::deleteByIds([(int)$fmId]);
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('funds auto movement cleanup: ' . $e->getMessage());
+        }
+        return $payload;
     }
 
     /** @param array<string,mixed> $type */
@@ -100,7 +203,16 @@ final class FundsLedgerHooks
         $type = is_array($payload['type'] ?? null) ? $payload['type'] : [];
         $fmId = (int)($payload['data']['fund_movement_id'] ?? 0);
         if (!self::typeLinksFunds($type)) {
-            $payload['data']['fund_movement_id'] = 0;
+            // Keep an auto movement (type_map) on edit; syncAutoMovement() reconciles it on save.
+            $keep = 0;
+            $existingFm = (int)($payload['existing']['fund_movement_id'] ?? 0);
+            if ($existingFm > 0) {
+                $fm = FundMovementsRepository::find($existingFm);
+                if ($fm !== null && (int)$fm['src'] === FundMovementsRepository::SRC_DPS) {
+                    $keep = $existingFm;
+                }
+            }
+            $payload['data']['fund_movement_id'] = $keep;
             return $payload;
         }
         if ($fmId > 0 && FundMovementsRepository::find($fmId) === null) {

@@ -3,6 +3,7 @@ declare(strict_types=1);
 /** @var array<string,mixed> $fund */
 /** @var array<string,mixed>|null $parent */
 /** @var float $balance */
+/** @var list<array<string,mixed>> $rules */
 /** @var bool $isGroup */
 /** @var list<array<string,mixed>> $children */
 /** @var float $childrenTotal */
@@ -25,7 +26,21 @@ $fmt = static function (float $v): string {
         <?= e(FundsRepository::typeLabel((int)$fund['type'])) ?>
         <?php if ($parent !== null): ?> · <?= te('funds.col.parent') ?>: <a href="/funds/<?= (int)$parent['id'] ?>"><?= e((string)$parent['name']) ?></a><?php endif; ?>
         · <?= te('funds.col.balance') ?>: <strong><?= e($fmt($isGroup ? $childrenTotal : $balance)) ?></strong>
+        <?php if (!$isGroup && (int)$fund['type'] === 2 && $balance < -0.005): ?>
+          <span class="pill funds-pill-negative"><?= te('funds.statement.negative') ?></span>
+          <?php if ($canEdit): ?><a href="/funds/transfer?to=<?= $fid ?>"><?= te('funds.statement.cover') ?></a><?php endif; ?>
+        <?php endif; ?>
       </p>
+      <?php if (!empty($rules)): ?>
+        <p class="muted">
+          <?= te('funds.menu.rules') ?>:
+          <?php foreach ($rules as $i => $rule): ?>
+            <?= $i > 0 ? ', ' : '' ?><a href="/funds/rules/<?= (int)$rule['id'] ?>/edit"<?= empty($rule['enabled']) ? ' class="muted"' : '' ?>><?= $rule['kind'] === 'percent'
+                ? e(rtrim(rtrim(number_format((float)$rule['percent'], 3, '.', ''), '0'), '.')) . '%'
+                : e($fmt((float)$rule['fixed_sum'])) ?>, <?= te('funds.rules.period.' . $rule['period']) ?></a>
+          <?php endforeach; ?>
+        </p>
+      <?php endif; ?>
     </div>
     <div class="page-actions">
       <?php if (!$isGroup && $canEdit): ?>

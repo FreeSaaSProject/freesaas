@@ -921,6 +921,7 @@ final class LedgerMovesRepository
         $st->execute($params);
         $id = (int)Database::pdo()->lastInsertId();
         LedgerReconciliationsRepository::refreshTodaySystemBalance((int)$data['account_id']);
+        EventBus::emit('ledger.moves.saved', ['id' => $id, 'is_new' => true, 'source' => 'create']);
         return $id;
     }
 
@@ -1076,6 +1077,7 @@ final class LedgerMovesRepository
             $stSrc->execute([(int)($data['source_id'] ?? 0), $id]);
         }
         LedgerReconciliationsRepository::refreshTodaySystemBalance((int)$data['account_id']);
+        EventBus::emit('ledger.moves.saved', ['id' => $id, 'is_new' => false, 'source' => 'update']);
     }
 
     /**
@@ -1461,6 +1463,7 @@ final class LedgerMovesRepository
             $st->execute([$typeId, $uid, $now, $id]);
             if ($st->rowCount() > 0) {
                 $done++;
+                EventBus::emit('ledger.moves.saved', ['id' => $id, 'is_new' => false, 'source' => 'set_type']);
             } else {
                 $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.use_transfer_form')];
             }

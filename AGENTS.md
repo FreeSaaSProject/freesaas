@@ -230,7 +230,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `updates` | Self-update UI `/updates` + settings (`cfg/updates.ini`): core, private modules and themes; engine is `UpdateEngine` in `app/` — [`docs/agents/update.md`](docs/agents/update.md) |
 | `recons` | Day board of account reconciliations (`tables: []`, uses ledger `base_account_reconciliations`); `/recons/day` |
 | `remittances` | Agency/acquiring remittance agreements; parse DPS purpose; badges on `/ledger/moves`; expected via EventBus (likespa `spa_ops`); beta |
-| `funds` | Fund tree + CAPUSE/REFUND movements (`base_funds*`); requires `ledger` |
+| `funds` | Fund tree + CAPUSE/REFUND movements + accumulating funding: accrual rules, DPS-type auto expenses, transfers, statement, overdraft (`base_funds*`, `base_fund_*`); `/agent/funds/*`; requires `ledger` — [`docs/agents/funds.md`](docs/agents/funds.md) |
 | `finance` | Balance/ODDS report (no inflation, no amort schedule); soft `funds` for FUND_MATRIX |
 | `liquid_assets` | Liquid assets report + T-Invest accounts/sync (broker snapshots); requires `ledger`; soft `funds` for REVAL; disableable |
 | `wellness` | Personal food / workout / weight / wellbeing diary (`base_fit_*`, `base_healths_*`); strictly per-author data, no `SUPERADMIN_ACCESS` bypass; soft `asr` + `bots` — [`docs/agents/wellness.md`](docs/agents/wellness.md) |

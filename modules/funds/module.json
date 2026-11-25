@@ -2,7 +2,7 @@
     "id": "funds",
     "name": "funds.module.name",
     "description": "funds.module.description",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "type": "product",
     "catalog": {
         "categories": [
@@ -20,7 +20,9 @@
     },
     "optionalRequires": [],
     "provides": [
-        "funds.list"
+        "funds.list",
+        "funds.rules",
+        "funds.statement"
     ],
     "migrations": "migrations/",
     "permissions": [
@@ -43,9 +45,26 @@
             "/funds/new",
             "/funds/{id}",
             "/funds/{id}/edit",
+            "/funds/rules",
+            "/funds/rules/new",
+            "/funds/rules/{id}/edit",
+            "/funds/type-map",
+            "/funds/statement",
+            "/funds/transfer",
             "/fund-movements",
             "/fund-movements/new",
-            "/fund-movements/{id}/edit"
+            "/fund-movements/{id}/edit",
+            "/agent/funds/accrue",
+            "/agent/funds/movements",
+            "/agent/funds/rules",
+            "/agent/funds/rules/delete",
+            "/agent/funds/rules/toggle",
+            "/agent/funds/statement",
+            "/agent/funds/status",
+            "/agent/funds/transfer",
+            "/agent/funds/tree",
+            "/agent/funds/type-map",
+            "/agent/funds/type-map/delete"
         ]
     },
     "agent": {
@@ -185,6 +204,269 @@
                 "path": "/fund-movements/{id}/edit",
                 "permission": "funds.edit",
                 "description": "Update fund movement (full form: fund_id, type_id, summ, sources, dates, name, descr)"
+            },
+            {
+                "id": "funds.movements.delete",
+                "method": "POST",
+                "path": "/fund-movements/{id}/edit",
+                "permission": "funds.delete",
+                "description": "Delete a fund movement: POST action=delete on the edit route (agent delete must be allowed for the key)"
+            },
+            {
+                "id": "funds.delete",
+                "method": "POST",
+                "path": "/funds/{id}/edit",
+                "permission": "funds.delete",
+                "description": "Delete a fund: POST action=delete on the edit route (blocked while movements/children exist)"
+            },
+            {
+                "id": "funds.statement",
+                "method": "GET",
+                "path": "/funds/statement",
+                "permission": "funds.view",
+                "description": "Funds statement tree: opening, accrued, transfer_in, in_other, spent, transfer_out, out_other, closing, negative flag, active rules per leaf. Query: gran=week|month, date=YYYY-MM-DD (any day of the period) or from+to, fund_id (group includes children), fund_type=2|1|0 (default 2 debit), hide_empty=1. Returns period, rows[], totals, negative[]."
+            },
+            {
+                "id": "funds.rules.list",
+                "method": "GET",
+                "path": "/funds/rules",
+                "permission": "funds.view",
+                "description": "Accrual rules of accumulating funds (items: fund, kind percent|fixed, percent, fixed_sum, period week|month, base_mode all_income|types, base_types, dt_from, dt_to, enabled)"
+            },
+            {
+                "id": "funds.rules.toggle",
+                "method": "POST",
+                "path": "/funds/rules",
+                "permission": "funds.edit",
+                "description": "Enable/disable a rule: rules_action=toggle, id, enabled=1|0",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "rules_action": {"type": "string", "enum": ["toggle"]},
+                        "id": {"type": "integer"},
+                        "enabled": {"type": "integer", "description": "1 enable, 0 disable"}
+                    },
+                    "required": ["rules_action", "id"]
+                }
+            },
+            {
+                "id": "funds.rules.run",
+                "method": "POST",
+                "path": "/funds/rules",
+                "permission": "funds.edit",
+                "description": "Apply rules (idempotent ACCRUE per rule+period): rules_action=run; dry_run=1 previews; week=YYYY-MM-DD | month=YYYY-MM | from,to; rule_id; include_open=1 also accrues the unfinished period. Default window: last 40 days of finished periods. Returns created/updated/unchanged/deleted counters and rows[].",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "rules_action": {"type": "string", "enum": ["run"]},
+                        "dry_run": {"type": "integer"},
+                        "rule_id": {"type": "integer"},
+                        "week": {"type": "string"},
+                        "month": {"type": "string"},
+                        "from": {"type": "string"},
+                        "to": {"type": "string"},
+                        "include_open": {"type": "integer"}
+                    },
+                    "required": ["rules_action"]
+                }
+            },
+            {
+                "id": "funds.rules.delete",
+                "method": "POST",
+                "path": "/funds/rules",
+                "permission": "funds.delete",
+                "description": "Delete a rule (posted accruals stay): rules_action=delete, id",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "rules_action": {"type": "string", "enum": ["delete"]},
+                        "id": {"type": "integer"}
+                    },
+                    "required": ["rules_action", "id"]
+                }
+            },
+            {
+                "id": "funds.rules.get_edit",
+                "method": "GET",
+                "path": "/funds/rules/{id}/edit",
+                "permission": "funds.edit",
+                "description": "Rule edit payload with fund_options (debit leaves) and type_options; new rule at /funds/rules/new (fund_id= to preselect)"
+            },
+            {
+                "id": "funds.rules.create",
+                "method": "POST",
+                "path": "/funds/rules/new",
+                "permission": "funds.edit",
+                "description": "Create rule. Body: fund_id (debit leaf), name, kind=percent|fixed, percent, fixed_sum, period=week|month, base_mode=all_income|types, base_types[], dt_from, dt_to, enabled, note"
+            },
+            {
+                "id": "funds.rules.update",
+                "method": "POST",
+                "path": "/funds/rules/{id}/edit",
+                "permission": "funds.edit",
+                "description": "Update rule (same fields as create; omitted fields keep their value). POST action=delete removes the rule"
+            },
+            {
+                "id": "funds.type_map.list",
+                "method": "GET",
+                "path": "/funds/type-map",
+                "permission": "funds.view",
+                "description": "Ledger move type → fund map (expense DPS of a mapped type posts CAPUSE automatically). Also type_options and fund_options"
+            },
+            {
+                "id": "funds.type_map.save",
+                "method": "POST",
+                "path": "/funds/type-map",
+                "permission": "funds.edit",
+                "description": "Upsert mapping: map_action=save, type_id, fund_id, enabled=1|0; map_action=delete with id (or type_id) removes it",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "map_action": {"type": "string", "enum": ["save", "delete"]},
+                        "type_id": {"type": "integer"},
+                        "fund_id": {"type": "integer"},
+                        "id": {"type": "integer"},
+                        "enabled": {"type": "integer"}
+                    },
+                    "required": ["map_action"]
+                }
+            },
+            {
+                "id": "funds.transfer.get",
+                "method": "GET",
+                "path": "/funds/transfer",
+                "permission": "funds.edit",
+                "description": "Transfer helper: fund_options (leaves), balances, overdrawn funds with suggested cover amount"
+            },
+            {
+                "id": "funds.transfer.create",
+                "method": "POST",
+                "path": "/funds/transfer",
+                "permission": "funds.edit",
+                "description": "Move money between debit funds (paired TRANSFER_OUT/IN, no DPS). Body: from_fund_id, to_fund_id, summ, note, date",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "from_fund_id": {"type": "integer"},
+                        "to_fund_id": {"type": "integer"},
+                        "summ": {"type": "string"},
+                        "note": {"type": "string"},
+                        "date": {"type": "string"}
+                    },
+                    "required": ["from_fund_id", "to_fund_id", "summ"]
+                }
+            },
+            {
+                "id": "funds.token.status",
+                "method": "GET",
+                "path": "/agent/funds/status",
+                "permission": "public",
+                "description": "Agent-token: funds diagnose (tables, counts, overdrawn funds, issues[])"
+            },
+            {
+                "id": "funds.token.tree",
+                "method": "GET",
+                "path": "/agent/funds/tree",
+                "permission": "public",
+                "description": "Agent-token: fund tree with balances, negative flag, rules per leaf; query fund_type"
+            },
+            {
+                "id": "funds.token.rules",
+                "method": "GET",
+                "path": "/agent/funds/rules",
+                "permission": "public",
+                "description": "Agent-token: accrual rules; query fund_id, enabled"
+            },
+            {
+                "id": "funds.token.rules.save",
+                "method": "POST",
+                "path": "/agent/funds/rules",
+                "permission": "public",
+                "description": "Agent-token: create/update rule (id for update; fund_id, name, kind, percent, fixed_sum, period, base_mode, base_types[], dt_from, dt_to, enabled, note)",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "funds.token.rules.toggle",
+                "method": "POST",
+                "path": "/agent/funds/rules/toggle",
+                "permission": "public",
+                "description": "Agent-token: enable/disable a rule (id, enabled)",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "funds.token.rules.delete",
+                "method": "POST",
+                "path": "/agent/funds/rules/delete",
+                "permission": "public",
+                "description": "Agent-token: delete a rule (id)",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "funds.token.accrue",
+                "method": "POST",
+                "path": "/agent/funds/accrue",
+                "permission": "public",
+                "description": "Agent-token: apply rules, idempotent (dry_run, rule_id, week|month|from+to, include_open)",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "funds.token.type_map",
+                "method": "GET",
+                "path": "/agent/funds/type-map",
+                "permission": "public",
+                "description": "Agent-token: ledger type → fund map"
+            },
+            {
+                "id": "funds.token.type_map.save",
+                "method": "POST",
+                "path": "/agent/funds/type-map",
+                "permission": "public",
+                "description": "Agent-token: upsert map entry (type_id, fund_id, enabled)",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "funds.token.type_map.delete",
+                "method": "POST",
+                "path": "/agent/funds/type-map/delete",
+                "permission": "public",
+                "description": "Agent-token: delete map entry (id or type_id)",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "funds.token.statement",
+                "method": "GET",
+                "path": "/agent/funds/statement",
+                "permission": "public",
+                "description": "Agent-token: statement (gran, date|from+to, fund_id, fund_type, hide_empty)"
+            },
+            {
+                "id": "funds.token.transfer",
+                "method": "GET",
+                "path": "/agent/funds/transfer",
+                "permission": "public",
+                "description": "Agent-token: transfer helper + overdrawn funds with cover amounts"
+            },
+            {
+                "id": "funds.token.transfer.create",
+                "method": "POST",
+                "path": "/agent/funds/transfer",
+                "permission": "public",
+                "description": "Agent-token: move money between funds (from_fund_id, to_fund_id, summ, note, date)",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "funds.token.movements",
+                "method": "GET",
+                "path": "/agent/funds/movements",
+                "permission": "public",
+                "description": "Agent-token: fund movements (fund_id, type_id, year, month, limit, offset)"
             }
         ]
     },
@@ -203,12 +485,29 @@
             "path": "/fund-movements",
             "icon": "🔁",
             "title": "funds.menu.movements"
+        },
+        {
+            "group": "core.menu.group.finance",
+            "num": 41,
+            "path": "/funds/statement",
+            "icon": "📊",
+            "title": "funds.menu.statement"
+        },
+        {
+            "group": "core.menu.group.finance",
+            "num": 45,
+            "path": "/funds/rules",
+            "icon": "⚙️",
+            "title": "funds.menu.rules",
+            "kind": "crud"
         }
     ],
     "configSchema": [],
     "tables": [
         "base_funds",
-        "base_fund_movements"
+        "base_fund_movements",
+        "base_fund_rules",
+        "base_fund_type_map"
     ],
     "migrators": [],
     "hooks": {
@@ -217,7 +516,10 @@
             "ledger.moves.form.fields",
             "ledger.moves.validate",
             "ledger.moves.edit.sections",
-            "ledger.moves.badges"
+            "ledger.moves.badges",
+            "ledger.moves.saved",
+            "ledger.moves.deleted",
+            "core.notices.collect"
         ],
         "publish": []
     },

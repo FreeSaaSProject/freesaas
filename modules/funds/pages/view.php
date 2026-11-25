@@ -66,7 +66,13 @@ foreach ($movements as $m) {
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
-        'fund' => $fund + ['balance' => $balance, 'is_group' => $isGroup, 'type_label' => FundsRepository::typeLabel($fund['type'])],
+        'fund' => $fund + [
+            'balance' => $balance,
+            'is_group' => $isGroup,
+            'type_label' => FundsRepository::typeLabel($fund['type']),
+            'negative' => !$isGroup && (int)$fund['type'] === 2 && $balance < -0.005,
+        ],
+        'rules' => FundRulesRepository::list(['fund_id' => $id]),
         'parent' => $parent,
         'children' => $children,
         'children_balance' => round($childrenTotal, 2),
@@ -94,6 +100,7 @@ View::render('view', [
     'fund' => $fund,
     'parent' => $parent,
     'balance' => $balance,
+    'rules' => FundRulesRepository::list(['fund_id' => $id]),
     'isGroup' => $isGroup,
     'children' => $children,
     'childrenTotal' => $childrenTotal,

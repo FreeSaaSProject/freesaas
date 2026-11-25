@@ -2,6 +2,10 @@
 .funds-table tr.funds-group-row td { font-weight: 600; background: color-mix(in srgb, var(--text, #000) 4%, transparent); }
 .funds-table tr.funds-child-row td.funds-name { padding-left: 1.75rem; }
 .funds-table tr.funds-row-mismatch td { background: color-mix(in srgb, var(--danger, #c00) 7%, transparent); }
+.funds-table tr.funds-row-negative td { background: color-mix(in srgb, var(--danger, #c00) 9%, transparent); }
+.funds-table tr.funds-row-negative td.num { color: var(--danger, #c00); }
+.funds-table td.funds-closing { font-weight: 600; }
 .funds-table .funds-count { font-weight: 400; }
+.funds-pill-negative { background: color-mix(in srgb, var(--danger, #c00) 18%, transparent); color: var(--danger, #c00); }
 .funds-dps-section { margin-top: 1.5rem; }
 .funds-sources-total { margin-top: 0.5rem; }

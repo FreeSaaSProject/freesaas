@@ -7,7 +7,7 @@ declare(strict_types=1);
  * + check-safe-html / check-csrf / check-password / check-session / check-bots-webhook / check-agent-coverage
  * + check-terminals-floor / check-booking-procedures / check-certificates
  * + check-audio-queue / check-day-payroll / check-assistant-confirm / check-assistant-relations
- * + check-funds-agent / check-crm-agent / check-docs-modules.
+ * + check-funds-agent / check-funds-funding / check-crm-agent / check-docs-modules.
  * PHP lint (`php -l`) and public-route allow-list (`bin/check-routes.php`) run in
  * `.github/workflows/ci.yml` static job — not here (no need for a DB-less lint loop in smoke).
  *
@@ -240,6 +240,7 @@ $extraChecks = [
     'assistant_confirm' => 'check-assistant-confirm.php',
     'assistant_relations' => 'check-assistant-relations.php',
     'funds_agent' => 'check-funds-agent.php',
+    'funds_funding' => 'check-funds-funding.php',
     'crm_agent' => 'check-crm-agent.php',
     'docs_modules' => 'check-docs-modules.php',
 ];

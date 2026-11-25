@@ -18,11 +18,19 @@ foreach ($tree as $node) {
 }
 ?>
 <section class="page-head">
+  <div class="page-head-row">
+    <div></div>
+    <div class="page-actions">
+      <a class="btn-secondary" href="/funds/statement"><?= te('funds.menu.statement') ?></a>
+      <a class="btn-secondary" href="/funds/rules"><?= te('funds.menu.rules') ?></a>
+    </div>
+  </div>
   <?php if ($canEdit): ?>
   <div class="page-head-row">
     <div></div>
     <div class="page-actions">
       <a class="btn-primary" href="/funds/new"><?= te('core.common.add') ?></a>
+      <a class="btn-secondary" href="/funds/transfer"><?= te('funds.menu.transfer') ?></a>
       <form method="post" style="display:inline" onsubmit="return confirm(<?= tj('funds.accrual.confirm_calc') ?>)">
         <input type="hidden" name="funds_action" value="calculate">
         <button class="btn-secondary" type="submit"><?= te('funds.accrual.calculate') ?></button>
@@ -74,7 +82,7 @@ foreach ($tree as $node) {
 <thead><tr><?= BulkActions::th($listId) ?><th>ID</th><th><?= te('funds.col.name') ?></th><th><?= te('funds.col.type') ?></th><th class="num"><?= te('funds.col.balance') ?></th></tr></thead>
 <tbody>
 <?php foreach ($tree as $node): ?>
-<tr class="<?= $node['is_group'] ? 'funds-group-row' : '' ?>">
+<tr class="<?= $node['is_group'] ? 'funds-group-row' : '' ?><?= (!$node['is_group'] && (int)$node['type'] === 2 && (float)$node['balance'] < -0.005) ? ' funds-row-negative' : '' ?>">
   <?= BulkActions::td($listId, (int)$node['id']) ?>
   <td class="muted"><?php if ($canEdit): ?><a href="/funds/<?= (int)$node['id'] ?>/edit"><?= (int)$node['id'] ?></a><?php else: ?><?= (int)$node['id'] ?><?php endif; ?></td>
   <td><a href="/funds/<?= (int)$node['id'] ?>"><?= e((string)$node['name']) ?></a>
@@ -83,7 +91,7 @@ foreach ($tree as $node) {
   <td class="num"><?= e(FundMovementsRepository::fmt((float)$node['balance'])) ?></td>
 </tr>
 <?php foreach ($node['children'] as $c): ?>
-<tr class="funds-child-row">
+<tr class="funds-child-row<?= ((int)$c['type'] === 2 && (float)$c['balance'] < -0.005) ? ' funds-row-negative' : '' ?>">
   <?= BulkActions::td($listId, (int)$c['id']) ?>
   <td class="muted"><?php if ($canEdit): ?><a href="/funds/<?= (int)$c['id'] ?>/edit"><?= (int)$c['id'] ?></a><?php else: ?><?= (int)$c['id'] ?><?php endif; ?></td>
   <td class="funds-name"><a href="/funds/<?= (int)$c['id'] ?>"><?= e((string)$c['name']) ?></a></td>

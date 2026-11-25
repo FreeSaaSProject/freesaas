@@ -3,12 +3,24 @@ declare(strict_types=1);
 
 final class FundMovementsRepository
 {
-    /** CAPUSE=-1, REFUND=+1, REVAL=-1, DEVAL=+1, DESTROY=+1 */
+    /** CAPUSE=-1, REFUND=+1, REVAL=-1, DEVAL=+1, DESTROY=+1, ACCRUE=+1, TRANSFER_OUT=-1, TRANSFER_IN=+1 */
     public const TYPE_CAPUSE = 1;
     public const TYPE_REFUND = 2;
     public const TYPE_REVAL = 3;
     public const TYPE_DEVAL = 4;
     public const TYPE_DESTROY = 5;
+    /** Accumulating fund: accrual by rule or manual (no cash movement, DPS not required). */
+    public const TYPE_ACCRUE = 6;
+    /** Internal fund-to-fund transfer, outgoing side (no DPS). */
+    public const TYPE_TRANSFER_OUT = 7;
+    /** Internal fund-to-fund transfer, incoming side (no DPS). */
+    public const TYPE_TRANSFER_IN = 8;
+
+    /** base_fund_movements.SRC */
+    public const SRC_MANUAL = 0;
+    public const SRC_RULE = 1;
+    public const SRC_DPS = 2;
+    public const SRC_TRANSFER = 3;
 
     /** @return array<int,int> type => direction */
     public static function typeDirections(): array
@@ -19,7 +31,16 @@ final class FundMovementsRepository
             self::TYPE_REVAL => -1,
             self::TYPE_DEVAL => 1,
             self::TYPE_DESTROY => 1,
+            self::TYPE_ACCRUE => 1,
+            self::TYPE_TRANSFER_OUT => -1,
+            self::TYPE_TRANSFER_IN => 1,
         ];
+    }
+
+    /** Types that never correspond to a cash DPS (internal bookkeeping). */
+    public static function isInternalType(int $typeId): bool
+    {
+        return in_array($typeId, [self::TYPE_ACCRUE, self::TYPE_TRANSFER_OUT, self::TYPE_TRANSFER_IN], true);
     }
 
     /** @return array<string,string> */
@@ -124,7 +145,8 @@ final class FundMovementsRepository
         if ($direction > 0) {
             $day = $dt > 0 ? $dt : time();
             $start = mktime(0, 0, 0, (int)date('n', $day), (int)date('j', $day), (int)date('Y', $day)) ?: 0;
-            $where = '(DIRECTION > 0 AND DT_AMORT_START >= ? AND DT_AMORT_START <= ?)';
+            $where = '(DIRECTION > 0 AND ID_TYPE NOT IN (' . self::TYPE_ACCRUE . ',' . self::TYPE_TRANSFER_IN
+                . ') AND DT_AMORT_START >= ? AND DT_AMORT_START <= ?)';
             $params[] = $start;
             $params[] = $start + 86399;
         } else {
@@ -261,7 +283,8 @@ final class FundMovementsRepository
                        fm.ID_USER_CREATE AS user_create, fm.DT_AMORT_START AS dt_amort_start,
                        fm.SUMM_OUT_CAP AS summ_out_cap, fm.SUMM_OUT_FUND AS summ_out_fund,
                        fm.SUMM_OUT_INFL AS summ_out_infl, fm.SUMM_OUT_DESTROY AS summ_out_destroy,
-                       fm.AMORT_MONTHS AS amort_months
+                       fm.AMORT_MONTHS AS amort_months,
+                       fm.RULE_ID AS rule_id, fm.PERIOD_KEY AS period_key, fm.SRC AS src
                 FROM base_fund_movements fm $join WHERE $sqlWhere ORDER BY $order";
         if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
@@ -281,7 +304,8 @@ final class FundMovementsRepository
                     SUMM AS summ, SUMM_OUT_CAP AS summ_out_cap, SUMM_OUT_FUND AS summ_out_fund,
                     SUMM_OUT_INFL AS summ_out_infl, SUMM_OUT_DESTROY AS summ_out_destroy,
                     NAME AS name, DESCR AS descr, DT_CREATE AS dt_create, DT_AMORT_START AS dt_amort_start,
-                    AMORT_MONTHS AS amort_months, ID_USER_CREATE AS user_create
+                    AMORT_MONTHS AS amort_months, ID_USER_CREATE AS user_create,
+                    RULE_ID AS rule_id, PERIOD_KEY AS period_key, SRC AS src
              FROM base_fund_movements WHERE ID = ? LIMIT 1'
         );
         $st->execute([$id]);
@@ -361,6 +385,9 @@ final class FundMovementsRepository
             'DT_AMORT_END' => 0,
             'DT_UPDATE' => 0,
             'VALUE' => 0,
+            'RULE_ID' => (int)($data['rule_id'] ?? 0),
+            'PERIOD_KEY' => (string)($data['period_key'] ?? ''),
+            'SRC' => (int)($data['src'] ?? self::SRC_MANUAL),
         ];
         foreach ($optional as $col => $val) {
             if (Database::columnExists('base_fund_movements', $col)) {

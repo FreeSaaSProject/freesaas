@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-24T11:54:17+00:00",
+    "generated_at": "2026-11-25T07:10:57+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -1439,19 +1439,19 @@
         },
         {
             "id": "funds",
-            "version": "1.1.1",
+            "version": "1.2.0",
             "type": "product",
             "name": {
                 "en": "Funds",
                 "ru": "Фонды"
             },
             "description": {
-                "en": "Fund tree and CAPUSE/REFUND fund movements on top of the ledger.",
-                "ru": "Дерево фондов и фондовые движения CAPUSE/REFUND поверх ledger."
+                "en": "Fund tree, accumulating funds with accrual rules and a statement, and CAPUSE/REFUND fund movements on top of the ledger.",
+                "ru": "Дерево фондов, накопительные фонды с правилами начисления и ведомостью, фондовые движения CAPUSE/REFUND поверх ledger."
             },
             "summary": {
-                "en": "Enable after ledger when you need internal funds (tree of funds) and fund movements (CAPUSE/REFUND). Hard-requires ledger. Soft-used by finance reports and liquid assets for FUND_MATRIX / REVAL. Do not enable without ledger accounts already set up.",
-                "ru": "Включайте после ledger, когда нужны внутренние фонды (дерево) и движения CAPUSE/REFUND. Жёстко требует ledger. Мягко используется отчётами finance и liquid_assets (FUND_MATRIX / REVAL). Без настроенных счетов ledger пользы мало."
+                "en": "Enable after ledger when you need internal funds: accumulating ones (percent-of-income or fixed accruals per week/month, expenses from ledger DPS by type, transfers between funds, statement, overdraft highlighting) and accounting ones (CAPUSE/REFUND). Hard-requires ledger. Soft-used by finance and liquid_assets. Works standalone, without other product modules.",
+                "ru": "Включайте после ledger, когда нужны внутренние фонды: накопительные (начисление % от поступлений или фикс по неделям/месяцам, расходы из ДПС по типам, переводы между фондами, ведомость, подсветка минуса) и учётные (CAPUSE/REFUND). Жёстко требует ledger. Мягко используется finance и liquid_assets. Работает автономно, без других продуктовых модулей."
             },
             "requires": {
                 "core": ">=1.0.0",
@@ -1544,7 +1544,7 @@
         },
         {
             "id": "ledger",
-            "version": "1.0.16",
+            "version": "1.0.17",
             "type": "product",
             "name": {
                 "en": "Account ledger",
