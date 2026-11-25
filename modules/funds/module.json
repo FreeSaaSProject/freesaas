@@ -2,7 +2,7 @@
     "id": "funds",
     "name": "funds.module.name",
     "description": "funds.module.description",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "type": "product",
     "catalog": {
         "categories": [
@@ -55,6 +55,7 @@
             "/fund-movements/new",
             "/fund-movements/{id}/edit",
             "/agent/funds/accrue",
+            "/agent/funds/backfill",
             "/agent/funds/movements",
             "/agent/funds/rules",
             "/agent/funds/rules/delete",
@@ -318,11 +319,11 @@
                 "method": "POST",
                 "path": "/funds/type-map",
                 "permission": "funds.edit",
-                "description": "Upsert mapping: map_action=save, type_id, fund_id, enabled=1|0; map_action=delete with id (or type_id) removes it",
+                "description": "Upsert mapping: map_action=save, type_id, fund_id, enabled=1|0; map_action=delete with id (or type_id) removes it; map_action=backfill posts CAPUSE for past expense DPS (dry_run, from, to)",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "map_action": {"type": "string", "enum": ["save", "delete"]},
+                        "map_action": {"type": "string", "enum": ["save", "delete", "backfill"]},
                         "type_id": {"type": "integer"},
                         "fund_id": {"type": "integer"},
                         "id": {"type": "integer"},
@@ -401,6 +402,15 @@
                 "path": "/agent/funds/rules/delete",
                 "permission": "public",
                 "description": "Agent-token: delete a rule (id)",
+                "side_effect": "write",
+                "assistant": false
+            },
+            {
+                "id": "funds.token.backfill",
+                "method": "POST",
+                "path": "/agent/funds/backfill",
+                "permission": "public",
+                "description": "Agent-token: post CAPUSE for past expense DPS of mapped types (dry_run, from, to)",
                 "side_effect": "write",
                 "assistant": false
             },

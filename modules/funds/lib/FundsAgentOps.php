@@ -38,6 +38,10 @@ final class FundsAgentOps
             'description' => 'Delete a rule (posted accrual movements stay). Body: id',
             'body' => ['id'],
         ]);
+        AgentOps::registerModuleOp($p, '/agent/funds/backfill', 'funds.agent.backfill', [self::class, 'backfill'], [
+            'description' => 'Post CAPUSE for past expense DPS of mapped types that are not linked yet. Idempotent. Body: dry_run=1, from=YYYY-MM-DD, to=YYYY-MM-DD (half-open). Empty bounds mean no limit. At most 5000 rows per call.',
+            'body' => ['dry_run', 'from', 'to'],
+        ]);
         AgentOps::registerModuleOp($p, '/agent/funds/accrue', 'funds.agent.accrue', [self::class, 'accrue'], [
             'description' => 'Apply rules: idempotent ACCRUE per (rule, period). Body: dry_run=1 (preview), rule_id?, week=YYYY-MM-DD | month=YYYY-MM | from,to; include_open=1 for the unfinished period. Default window: last 40 days of finished periods.',
             'body' => ['dry_run', 'rule_id', 'week', 'month', 'from', 'to', 'include_open'],
@@ -76,6 +80,7 @@ final class FundsAgentOps
             '/agent/funds/rules/toggle' => ['POST'],
             '/agent/funds/rules/delete' => ['POST'],
             '/agent/funds/accrue' => ['POST'],
+            '/agent/funds/backfill' => ['POST'],
             '/agent/funds/type-map' => ['GET', 'POST'],
             '/agent/funds/type-map/delete' => ['POST'],
             '/agent/funds/statement' => ['GET'],
@@ -296,7 +301,24 @@ final class FundsAgentOps
         return $opts;
     }
 
-    /** @return array<string,mixed> */
+    /** @param array<string,mixed>|null $in @return array<string,mixed> */
+    public static function backfill(?array $in = null): array
+    {
+        $in = $in ?? AgentOps::requestInput();
+        try {
+            return FundExpenseBackfill::run([
+                'dry_run' => !empty($in['dry_run']) && (string)$in['dry_run'] !== '0',
+                'from' => (string)($in['from'] ?? ''),
+                'to' => (string)($in['to'] ?? ''),
+                'type_id' => (int)($in['type_id'] ?? 0),
+            ]);
+        } catch (Throwable $e) {
+            AgentHttp::rethrowIfCapture($e);
+            return self::bad($e->getMessage(), 400);
+        }
+    }
+
+    /** @param array<string,mixed>|null $in @return array<string,mixed> */
     public static function accrue(?array $in = null): array
     {
         $in = $in ?? AgentOps::requestInput();

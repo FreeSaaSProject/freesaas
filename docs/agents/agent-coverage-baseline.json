@@ -977,6 +977,7 @@
                 "funds.rules.update",
                 "funds.statement",
                 "funds.token.accrue",
+                "funds.token.backfill",
                 "funds.token.movements",
                 "funds.token.rules",
                 "funds.token.rules.delete",

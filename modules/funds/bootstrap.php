@@ -10,6 +10,7 @@ require_once __DIR__ . '/lib/FundAccrualRunner.php';
 require_once __DIR__ . '/lib/FundTransferService.php';
 require_once __DIR__ . '/lib/FundsStatement.php';
 require_once __DIR__ . '/lib/FundsLedgerHooks.php';
+require_once __DIR__ . '/lib/FundExpenseBackfill.php';
 require_once __DIR__ . '/lib/FundsAgentOps.php';
 
 Assets::register('funds', [

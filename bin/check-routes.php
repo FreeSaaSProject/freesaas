@@ -202,6 +202,7 @@ $allowed = [
     '/agent/funds/rules/toggle' => ['methods' => ['POST'], 'why' => 'agent_token funds rule toggle'],
     '/agent/funds/rules/delete' => ['methods' => ['POST'], 'why' => 'agent_token funds rule delete'],
     '/agent/funds/accrue' => ['methods' => ['POST'], 'why' => 'agent_token funds accrual run'],
+    '/agent/funds/backfill' => ['methods' => ['POST'], 'why' => 'agent_token funds expense backfill'],
     '/agent/funds/type-map' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token funds type map'],
     '/agent/funds/type-map/delete' => ['methods' => ['POST'], 'why' => 'agent_token funds type map delete'],
     '/agent/funds/statement' => ['methods' => ['GET'], 'why' => 'agent_token funds statement'],

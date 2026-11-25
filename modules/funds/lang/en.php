@@ -230,4 +230,11 @@ return [
     'funds.transfer.note' => 'Comment',
     'funds.transfer.submit' => 'Transfer',
     'funds.transfer.done' => 'Transferred {summ}',
+    'funds.backfill.title' => 'Post past expenses',
+    'funds.backfill.hint' => 'Expense DPS of mapped types that are not linked to a fund yet get a fund write-off. Re-running does not duplicate. Empty dates mean the whole history.',
+    'funds.backfill.from' => 'From date',
+    'funds.backfill.to' => 'To date',
+    'funds.backfill.button' => 'Post',
+    'funds.backfill.preview' => 'Preview: {n} write-offs, {summ}',
+    'funds.backfill.done' => 'Posted write-offs: {n}, {summ}',
 ];

@@ -11,13 +11,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $canEdit) {
     if (!$wantsJson && $action === 'save') {
         $input['enabled'] = !empty($input['enabled']) ? 1 : 0;
     }
-    $res = $action === 'delete' ? FundsAgentOps::typeMapDelete($input) : FundsAgentOps::typeMapSave($input);
+    if ($action === 'backfill') {
+        $res = FundsAgentOps::backfill($input);
+    } elseif ($action === 'delete') {
+        $res = FundsAgentOps::typeMapDelete($input);
+    } else {
+        $res = FundsAgentOps::typeMapSave($input);
+    }
     if ($wantsJson) {
         AgentHttp::emit($res, (int)($res['http'] ?? 200));
         return;
     }
     if (!empty($res['ok'])) {
-        flash_set('ok', t('core.common.saved'));
+        $message = $action === 'backfill'
+            ? t(!empty($res['dry_run']) ? 'funds.backfill.preview' : 'funds.backfill.done', [
+                'n' => (int)($res['created'] ?? 0),
+                'summ' => FundMovementsRepository::fmt((float)($res['summ'] ?? 0)),
+            ])
+            : t('core.common.saved');
+        flash_set('ok', $message);
         redirect('/funds/type-map');
         return;
     }

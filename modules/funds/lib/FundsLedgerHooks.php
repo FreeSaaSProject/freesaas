@@ -37,7 +37,7 @@ final class FundsLedgerHooks
             return $payload;
         }
         try {
-            self::syncAutoMovement($id);
+            self::applyForMove($id);
         } catch (Throwable $e) {
             // Never block a ledger save because of fund bookkeeping.
             error_log('funds auto movement #' . $id . ': ' . $e->getMessage());
@@ -45,7 +45,8 @@ final class FundsLedgerHooks
         return $payload;
     }
 
-    private static function syncAutoMovement(int $moveId): void
+    /** Post or refresh the auto CAPUSE for one expense DPS. No-op when the type is not mapped. */
+    public static function applyForMove(int $moveId): void
     {
         $row = LedgerMovesRepository::find($moveId);
         if ($row === null || (int)$row['deleted'] > 0 || (int)$row['linked_id'] > 0) {

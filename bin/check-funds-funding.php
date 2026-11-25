@@ -163,7 +163,23 @@ try {
         $r = FundAccrualRunner::run($win);
         $assert($r['deleted'] === 1, 'accrual: base fell to zero → ACCRUE removed');
 
-        // 8. Agent handlers share the same logic
+        // 8. Past expense, saved before the type was mapped, is posted once
+        $lateType = AccountMoveTypesRepository::create(AccountMoveTypesRepository::dataFromPost([
+            'name' => 'zz fchk late', 'direction' => -1, 'odds_type' => 1, 'enabled' => 1,
+        ]));
+        $created['types'][] = $lateType;
+        $mkDps($lateType, -1, '40', $dtOut);
+        $before = FundMovementsRepository::fundBalance($a);
+        $mapLate = FundTypeMapRepository::save($lateType, $a, true);
+        $created['map'][] = $mapLate['id'];
+        $preview = FundExpenseBackfill::run(['dry_run' => true, 'type_id' => $lateType]);
+        $assert((int)$preview['created'] === 1 && abs(FundMovementsRepository::fundBalance($a) - $before) < 0.005, 'backfill dry-run does not post');
+        $posted = FundExpenseBackfill::run(['type_id' => $lateType]);
+        $assert((int)$posted['created'] === 1 && abs(FundMovementsRepository::fundBalance($a) - ($before - 40.0)) < 0.005, 'backfill posts the past expense');
+        $again = FundExpenseBackfill::run(['type_id' => $lateType]);
+        $assert((int)$again['created'] === 0, 'backfill second run creates nothing');
+
+        // 9. Agent handlers share the same logic
         $s = FundsAgentOps::statement();
         $assert(!empty($s['ok']) && isset($s['rows']), 'agent statement handler returns rows');
         $sv = FundsAgentOps::rulesSave(['fund_id' => $a, 'kind' => 'percent', 'percent' => 150], 0);

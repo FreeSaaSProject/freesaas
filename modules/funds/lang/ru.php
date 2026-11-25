@@ -230,4 +230,11 @@ return [
     'funds.transfer.note' => 'Комментарий',
     'funds.transfer.submit' => 'Перевести',
     'funds.transfer.done' => 'Переведено {summ}',
+    'funds.backfill.title' => 'Разнести прошлые расходы',
+    'funds.backfill.hint' => 'Расходные ДПС уже настроенных типов, которые ещё не связаны с фондом, получат списание из фонда. Повторный запуск ничего не дублирует. Пустые даты — за всё время.',
+    'funds.backfill.from' => 'С даты',
+    'funds.backfill.to' => 'По дату',
+    'funds.backfill.button' => 'Разнести',
+    'funds.backfill.preview' => 'Предпросмотр: списаний {n} на {summ}',
+    'funds.backfill.done' => 'Разнесено списаний: {n} на {summ}',
 ];

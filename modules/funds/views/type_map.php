@@ -74,4 +74,15 @@ declare(strict_types=1);
     <div class="page-actions"><button class="btn-primary" type="submit"><?= te('core.common.save') ?></button></div>
   </form>
 </section>
+<section class="funds-dps-section">
+  <h2><?= te('funds.backfill.title') ?></h2>
+  <p class="muted"><?= te('funds.backfill.hint') ?></p>
+  <form method="post" class="form-grid">
+    <input type="hidden" name="map_action" value="backfill">
+    <label><?= te('funds.backfill.from') ?> <input type="date" name="from"></label>
+    <label><?= te('funds.backfill.to') ?> <input type="date" name="to"></label>
+    <label class="check"><input type="checkbox" name="dry_run" value="1"> <?= te('funds.rules.run.dry_run') ?></label>
+    <div class="page-actions"><button class="btn-secondary" type="submit"><?= te('funds.backfill.button') ?></button></div>
+  </form>
+</section>
 <?php endif; ?>
