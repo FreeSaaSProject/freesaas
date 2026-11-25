@@ -39,6 +39,28 @@ BulkActions::register('bonuses', 'delete', [
     },
 ]);
 
+EventBus::on('calendar.event.actions', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!Auth::can('bonuses.view') && !Auth::can('bonuses.apply')) {
+        return $payload;
+    }
+    if (!Auth::capability('EVT_BONUS') && !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $actions = is_array($payload['actions'] ?? null) ? $payload['actions'] : [];
+    $actions[] = [
+        'id' => 'bonuses',
+        'icon' => '🎁',
+        'label' => t('bonuses.event.sec'),
+        'href' => '#event-bonus-sec',
+        'order' => 40,
+    ];
+    $payload['actions'] = $actions;
+    return $payload;
+});
+
 EventBus::on('calendar.event.sections', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;

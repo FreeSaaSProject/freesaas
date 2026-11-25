@@ -41,6 +41,7 @@ if (!$dictsOn) {
 require_once base_path('modules/audio_dicts/lib/RecordsKeysRepository.php');
 require_once base_path('modules/audio_dicts/lib/RecordsTrashesRepository.php');
 require_once base_path('modules/audio_dicts/lib/RecordsDictsRepository.php');
+require_once base_path('modules/audio_dicts/lib/KeyReplaceSuggest.php');
 
 /**
  * @param list<array{id:int,name:string,id_dictonary:int,dict_name:string,relation:string}> $hits
@@ -167,12 +168,31 @@ try {
         if ($overlaps !== []) {
             $looklike = (int)$overlaps[0]['id'];
         }
-        $id = RecordsKeysRepository::create([
+        // Replacement: typed correct key (same dictionary) wins; otherwise a fast hint, else LLM pending.
+        $replaceText = mb_substr(trim((string)($_POST['replace_text'] ?? '')), 0, 255);
+        $createData = [
             'name' => $text,
             'disabled' => 0,
             'id_dictonary' => $dictId,
             'id_looklike' => $looklike,
-        ]);
+        ];
+        $suggest = null;
+        if ($replaceText !== '' && mb_strtolower($replaceText) !== mb_strtolower($text)) {
+            $createData['replace_provided'] = true;
+            $createData['replace_text'] = $replaceText;
+            $createData['id_replace'] = 0;
+        } else {
+            $suggest = KeyReplaceSuggest::heuristic($dictId, $text);
+            $createData['replace_state'] = $suggest !== null ? 'suggested' : 'pending';
+            $createData['replace_suggest'] = $suggest !== null ? (string)$suggest['name'] : '';
+        }
+        try {
+            $id = RecordsKeysRepository::create($createData);
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            return;
+        }
         $payload = [
             'success' => true,
             'keyId' => $id,
@@ -181,6 +201,10 @@ try {
             'overlaps' => $labelOverlaps($overlaps),
             'id_looklike' => $looklike,
             'reparse_skipped' => false,
+            'replace' => [
+                'state' => $createData['replace_provided'] ?? false ? 'approved' : (string)$createData['replace_state'],
+                'suggest' => $suggest,
+            ],
         ];
         // skip_reparse=1 — add key only; staff will Re-® the day/block in bulk later.
         $skipReparse = !empty($_POST['skip_reparse'])
@@ -202,6 +226,40 @@ try {
             }
         }
         echo json_encode($payload);
+        return;
+    }
+
+    if ($action === 'set_replace') {
+        // Accept a suggestion (or type one) for an existing key; empty replace_text clears the link.
+        $keyId = max(0, (int)($_POST['key_id'] ?? 0));
+        $row = $keyId > 0 ? RecordsKeysRepository::find($keyId) : null;
+        if ($row === null) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'error' => t('audio.api.key_not_found')]);
+            return;
+        }
+        $replaceText = mb_substr(trim((string)($_POST['replace_text'] ?? '')), 0, 255);
+        try {
+            RecordsKeysRepository::update($keyId, RecordsKeysRepository::dataFromPost([
+                'name' => (string)$row['name'],
+                'disabled' => (int)$row['disabled'],
+                'id_dictonary' => (int)$row['id_dictonary'],
+                'id_looklike' => (int)$row['id_looklike'],
+                'replace_text' => $replaceText,
+            ]));
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            return;
+        }
+        $fresh = RecordsKeysRepository::find($keyId);
+        $target = $fresh !== null ? RecordsKeysRepository::find((int)($fresh['id_replace'] ?? 0)) : null;
+        echo json_encode([
+            'success' => true,
+            'keyId' => $keyId,
+            'message' => t('audio.api.replace_saved'),
+            'replace_name' => (string)($target['name'] ?? ''),
+        ]);
         return;
     }
 

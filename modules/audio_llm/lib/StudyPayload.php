@@ -24,6 +24,10 @@ final class StudyPayload
             return null;
         }
         $src = (string)($row['TRANSCRIPTION'] ?? '');
+        if ($src !== '' && class_exists('TranscriptCorrector', false)) {
+            // Dictionary replacements for the LLM feed only (DB text stays raw).
+            $src = TranscriptCorrector::forRecord((int)$row['ID'], $src);
+        }
         if ($src === '' || strpos($src, '[') === false) {
             return null;
         }

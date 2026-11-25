@@ -15,7 +15,7 @@ declare(strict_types=1);
  * @var string $applyError
  */
 ?>
-<fieldset class="certificates-event-block">
+<fieldset class="certificates-event-block" id="event-cert-sec">
   <legend><?= te('certificates.event.sec') ?></legend>
 
   <?php if ($applyFlash !== ''): ?>

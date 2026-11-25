@@ -207,6 +207,19 @@
   font-weight: 600;
 }
 
+/* Dictionary correction (TranscriptCorrector): visual marker for applied fixes. */
+.key-fix-mark {
+  font-size: 0.6em;
+  margin-left: 0.1em;
+  vertical-align: super;
+  opacity: 0.8;
+}
+
+.transcript-fix-legend {
+  font-size: 0.75rem;
+  margin: 0.25rem 0 0;
+}
+
 .is-error-row td {
   background: rgba(220, 53, 69, 0.08);
 }

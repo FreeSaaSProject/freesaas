@@ -852,7 +852,9 @@
     if (hasDicts) {
       html +=
         '<div class="add-key-row"><span class="add-key-lbl"></span><input type="text" class="add-key-input" /></div>' +
-        '<div class="add-key-row"><span class="add-key-lbl" data-lbl="dict"></span><select class="add-key-dict"></select></div>';
+        '<div class="add-key-row"><span class="add-key-lbl" data-lbl="dict"></span><select class="add-key-dict"></select></div>' +
+        '<div class="add-key-row"><span class="add-key-lbl" data-lbl="replace"></span>' +
+        '<input type="text" class="add-key-replace" autocomplete="off" /></div>';
     }
     html +=
       '<div class="add-key-row add-key-actions">' +
@@ -892,6 +894,10 @@
       }
       pop.querySelector('[data-act="trash"]').textContent = L.addTrash || 'Add trash';
       pop.querySelector('.add-key-input').value = text;
+      var replLbl = pop.querySelector('[data-lbl="replace"]');
+      if (replLbl) replLbl.textContent = L.replaceLabel || 'Replace with';
+      var replInput = pop.querySelector('.add-key-replace');
+      if (replInput) replInput.placeholder = L.replaceHint || '';
     }
     var voiceBtn = pop.querySelector('[data-act="voice"]');
     var rangeEl = pop.querySelector('[data-voice-range]');
@@ -1094,6 +1100,71 @@
       warn.appendChild(actions);
     }
 
+    function showReplaceSuggestion(warn, keyText, keyId, sug, reparsed) {
+      warn.hidden = false;
+      warn.innerHTML = '';
+      var title = document.createElement('div');
+      title.className = 'add-key-overlap-title';
+      title.textContent = L.replaceSuggestTitle || 'Suggested replacement';
+      warn.appendChild(title);
+      var line = document.createElement('p');
+      line.textContent = '«' + String(sug.name) + '»';
+      warn.appendChild(line);
+      var actions = document.createElement('div');
+      actions.className = 'add-key-overlap-actions';
+      var acceptBtn = document.createElement('button');
+      acceptBtn.type = 'button';
+      acceptBtn.className = 'add-key-btn';
+      acceptBtn.textContent = L.replaceAccept || 'Accept';
+      acceptBtn.addEventListener('click', function () {
+        postSetReplace(keyText, keyId, String(sug.name));
+      });
+      var skipBtn = document.createElement('button');
+      skipBtn.type = 'button';
+      skipBtn.className = 'add-key-cancel';
+      skipBtn.textContent = L.replaceSkip || 'Skip';
+      skipBtn.addEventListener('click', function () {
+        if (reparsed) {
+          location.reload();
+        } else {
+          pop.remove();
+        }
+      });
+      actions.appendChild(acceptBtn);
+      actions.appendChild(skipBtn);
+      warn.appendChild(actions);
+    }
+
+    function postSetReplace(keyText, keyId, replaceName) {
+      var status = pop.querySelector('.add-key-status');
+      var warn = pop.querySelector('.add-key-warnings');
+      var body = new URLSearchParams();
+      body.set('action', 'set_replace');
+      body.set('text', keyText);
+      body.set('key_id', String(keyId));
+      body.set('replace_text', replaceName);
+      fetch('/audio/api/dict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: body,
+        credentials: 'same-origin',
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data || !data.success) {
+            warn.hidden = false;
+            warn.textContent = (data && data.error) || (L.error || 'Error');
+            return;
+          }
+          status.textContent = data.message || (L.done || 'OK');
+          setTimeout(function () { location.reload(); }, 500);
+        })
+        .catch(function () {
+          warn.hidden = false;
+          warn.textContent = L.network || 'Network error';
+        });
+    }
+
     function postAction(action, force, skipReparse) {
       var status = pop.querySelector('.add-key-status');
       var warn = pop.querySelector('.add-key-warnings');
@@ -1116,6 +1187,11 @@
         body.set('dict_id', dictSel.value || '0');
         if (skipReparse) {
           body.set('skip_reparse', '1');
+        }
+        var replaceInputEl = pop.querySelector('.add-key-replace');
+        var replaceVal = replaceInputEl ? String(replaceInputEl.value || '').trim() : '';
+        if (replaceVal !== '') {
+          body.set('replace_text', replaceVal);
         }
       }
       if (adminId > 0) {
@@ -1154,6 +1230,11 @@
             return;
           }
           status.textContent = data.message || (L.done || 'OK');
+          // Fast hint from the same dictionary: staff accepts or skips; nothing is applied silently.
+          if (action === 'add_key' && data.replace && data.replace.suggest && data.replace.suggest.name) {
+            showReplaceSuggestion(warn, keyText, data.keyId, data.replace.suggest, !!data.reparsed);
+            return;
+          }
           // Without Re-®: keep the list open so several keys can be added, then bulk Re-®.
           if (data.reparse_skipped) {
             if (popoverCloseTimer) clearTimeout(popoverCloseTimer);

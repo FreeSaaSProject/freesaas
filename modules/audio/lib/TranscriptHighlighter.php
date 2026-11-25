@@ -21,8 +21,9 @@ final class TranscriptHighlighter
      *   speaker_roles?:array<string,string>,
      *   speaker_admins?:array<string,int> local_id => matched (or assumed) staff id for acronym badge
      *   record_admin_id?:int when matched speaker == record staff, show green bar only (no acronym)
+     *   show_original?:bool true = raw ASR text (no dictionary correction)
      * } $opts Absolute unix window (oper: collection DT ±15s) filters lines via dt_recorded + line offset.
-     * @return array{html:string,lines:int,trash:int,keys:int,trash_candidates:list<string>,was_intersect:bool}
+     * @return array{html:string,lines:int,trash:int,keys:int,fixes:int,trash_candidates:list<string>,was_intersect:bool}
      */
     public static function render(
         string $transcription,
@@ -36,6 +37,7 @@ final class TranscriptHighlighter
             'lines' => 0,
             'trash' => 0,
             'keys' => 0,
+            'fixes' => 0,
             'trash_candidates' => [],
             'was_intersect' => false,
         ];
@@ -49,6 +51,7 @@ final class TranscriptHighlighter
         $windowTo = max(0, (int)($opts['window_to'] ?? 0));
         $dtRecorded = max(0, (int)($opts['dt_recorded'] ?? 0));
         $compact = !empty($opts['compact']);
+        $showOriginal = !empty($opts['show_original']);
         /** @var array<int,string> $cueSpeakers */
         $cueSpeakers = [];
         foreach (is_array($opts['cue_speakers'] ?? null) ? $opts['cue_speakers'] : [] as $lineNo => $spk) {
@@ -94,6 +97,7 @@ final class TranscriptHighlighter
                 'name' => (string)($inst['key_name'] ?? ''),
                 'color' => (string)($inst['color'] ?? '#111'),
                 'bg' => (string)($inst['bg'] ?? '#fde68a'),
+                'replace' => trim((string)($inst['replace_name'] ?? '')),
             ];
         }
 
@@ -143,7 +147,7 @@ final class TranscriptHighlighter
             }
 
             $hits = $byLine[$num] ?? [];
-            $highlighted = self::highlightLine($text, $hits, $out['keys']);
+            $highlighted = self::highlightLine($text, $hits, $out['keys'], $out['fixes'], $showOriginal);
 
             if ($search !== '' && mb_stripos($text, $search, 0, 'UTF-8') !== false) {
                 $highlighted .= ' <b class="transcript-search">' . e($search) . '</b>';
@@ -234,6 +238,9 @@ final class TranscriptHighlighter
         if ($out['trash'] > 0 && !$compact) {
             $html .= '<p class="transcript-trash">' . te('audio.transcript.trash_count', ['n' => $out['trash']]) . '</p>';
         }
+        if ($out['fixes'] > 0 && !$compact) {
+            $html .= '<p class="transcript-fix-legend muted">* ' . te('audio.transcript.fix_legend') . '</p>';
+        }
         if ($html === '') {
             $html = '<p class="muted">' . te('audio.transcript.empty') . '</p>';
         }
@@ -296,10 +303,15 @@ final class TranscriptHighlighter
     }
 
     /**
-     * @param list<array{pos:int,len:int,name:string,color:string,bg:string}> $hits
+     * @param list<array{pos:int,len:int,name:string,color:string,bg:string,replace?:string}> $hits
      */
-    private static function highlightLine(string $text, array $hits, int &$keyCount): string
-    {
+    private static function highlightLine(
+        string $text,
+        array $hits,
+        int &$keyCount,
+        int &$fixCount = 0,
+        bool $showOriginal = false
+    ): string {
         if ($text === '') {
             return '';
         }
@@ -324,6 +336,25 @@ final class TranscriptHighlighter
             if ($len < 1 || $pos >= $lenText) {
                 continue;
             }
+            $replace = trim((string)($hit['replace'] ?? ''));
+            // Dictionary correction: show the canonical phrase with a «*» mark (raw text kept in tooltip).
+            if ($replace !== '' && !$showOriginal) {
+                $edits = TranscriptCorrector::lineEdits($text, [['pos' => $pos, 'len' => $len, 'replace' => $replace]]);
+                if ($edits !== [] && $edits[0]['start'] >= $cursor) {
+                    $ed = $edits[0];
+                    if ($ed['start'] > $cursor) {
+                        $chunks[] = e(mb_substr($text, $cursor, $ed['start'] - $cursor, 'UTF-8'));
+                    }
+                    $style = 'background-color:' . e($hit['bg']) . ';color:' . e($hit['color']);
+                    $chunks[] = '<b class="key-hit key-fix" style="' . $style . '" title="'
+                        . e(t('audio.transcript.fix_title', ['orig' => $ed['orig']])) . '">'
+                        . e($ed['text']) . '<sup class="key-fix-mark">*</sup></b>';
+                    $cursor = $ed['end'];
+                    $keyCount++;
+                    $fixCount++;
+                    continue;
+                }
+            }
             if (mb_substr($text, $pos, 1, 'UTF-8') === ' ') {
                 $pos++;
             }
@@ -339,6 +370,9 @@ final class TranscriptHighlighter
                 continue;
             }
             $title = e($hit['name'] !== '' ? $hit['name'] : $frag);
+            if ($replace !== '') {
+                $title .= ' → ' . e(TranscriptCorrector::textFromKeyName($replace));
+            }
             $style = 'background-color:' . e($hit['bg']) . ';color:' . e($hit['color']);
             $chunks[] = '<b class="key-hit" style="' . $style . '" title="' . $title . '">' . e($frag) . '</b>';
             $cursor = $end;

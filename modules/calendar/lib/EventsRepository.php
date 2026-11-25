@@ -113,6 +113,35 @@ final class EventsRepository
         return $safe;
     }
 
+    /**
+     * Visit counts keyed by Y-m-d (PHP timezone). Blocks are omitted: a block is not an appointment.
+     *
+     * @return array<string,int>
+     */
+    public static function countsByDay(int $fromTs, int $toTs, int $staffId = 0): array
+    {
+        if ($fromTs <= 0 || $toTs <= $fromTs || !Database::tableExists('base_events')) {
+            return [];
+        }
+        $sql = 'SELECT DTSTART AS dtstart FROM base_events WHERE DTSTART >= ? AND DTSTART < ?';
+        $params = [$fromTs, $toTs];
+        if (Database::columnExists('base_events', 'IS_BLOCK')) {
+            $sql .= ' AND IFNULL(IS_BLOCK, 0) = 0';
+        }
+        if ($staffId > 0) {
+            $sql .= ' AND ID_OPERATOR = ?';
+            $params[] = $staffId;
+        }
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        $out = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $day = date('Y-m-d', (int)($row['dtstart'] ?? 0));
+            $out[$day] = ($out[$day] ?? 0) + 1;
+        }
+        return $out;
+    }
+
     public static function dayUrl(int $ts, int $staffId = 0): string
     {
         $date = $ts > 0 ? date('Y-m-d', $ts) : date('Y-m-d');

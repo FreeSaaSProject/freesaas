@@ -45,14 +45,56 @@ if ($entity === 'keys'
     && Auth::can('audio_dicts.edit')
 ) {
     $action = trim((string)($_POST['action'] ?? ''));
+    if ($action === 'replace_accept' || $action === 'replace_reject') {
+        // Per-row ✅ / ❌ on a stored suggestion; links are created only by this explicit click.
+        $id = (int)($_POST['id'] ?? 0);
+        $r = $action === 'replace_accept'
+            ? RecordsKeysRepository::acceptSuggestionsByIds([$id])
+            : RecordsKeysRepository::rejectSuggestionsByIds([$id]);
+        if ((int)$r['done'] < 1) {
+            flash_set('warn', (string)($r['skipped'][0]['reason'] ?? t('audio_dicts.replace.skip.no_suggest')));
+        } else {
+            flash_set('ok', t($action === 'replace_accept' ? 'audio_dicts.replace.row_accepted' : 'audio_dicts.replace.row_rejected'));
+        }
+        $qs = $_SERVER['QUERY_STRING'] ?? '';
+        redirect($path . ($qs !== '' ? '?' . $qs : ''));
+        return;
+    }
+    if ($action === 'replace_pick' || $action === 'replace_keep') {
+        // Popup choice: link to another canonical key (id or typed name) or keep the key as is.
+        $id = (int)($_POST['id'] ?? 0);
+        if ($action === 'replace_keep') {
+            $r = RecordsKeysRepository::setReplaceStateByIds([$id], 'keep');
+            $ok = (int)$r['done'] > 0;
+            $msg = $ok ? t('audio_dicts.replace.row_kept') : (string)($r['skipped'][0]['reason'] ?? '');
+        } else {
+            try {
+                RecordsKeysRepository::setReplacement(
+                    $id,
+                    (int)($_POST['replace_id'] ?? 0),
+                    trim((string)($_POST['replace_text'] ?? ''))
+                );
+                $ok = true;
+                $msg = t('audio_dicts.replace.row_accepted');
+            } catch (InvalidArgumentException $e) {
+                $ok = false;
+                $msg = $e->getMessage();
+            }
+        }
+        flash_set($ok ? 'ok' : 'warn', $msg);
+        $qs = $_SERVER['QUERY_STRING'] ?? '';
+        redirect($path . ($qs !== '' ? '?' . $qs : ''));
+        return;
+    }
     if ($action === 'toggle_disabled') {
         $id = (int)($_POST['id'] ?? 0);
         // checked switch = enabled → DISABLED=0
         $disabled = empty($_POST['enabled']);
         try {
             RecordsKeysRepository::setDisabled($id, $disabled);
-        } catch (Throwable $e) {
-            // fall through
+        } catch (InvalidArgumentException $e) {
+            // Canonical with variants: the switch cannot ask for a policy — open the key form.
+            flash_set('warn', $e->getMessage());
         }
         $qs = $_SERVER['QUERY_STRING'] ?? '';
         redirect($path . ($qs !== '' ? '?' . $qs : ''));
@@ -70,6 +112,14 @@ $listOpts = [
 ];
 if ($entity === 'keys') {
     $listOpts['dict'] = $dict;
+    $listOpts['replace'] = (string)($_GET['replace'] ?? '');
+    $listOpts['replace_of'] = (int)($_GET['replace_of'] ?? 0);
+    if ($listOpts['replace'] !== '') {
+        $filters['replace'] = $listOpts['replace'];
+    }
+    if ($listOpts['replace_of'] > 0) {
+        $filters['replace_of'] = (string)$listOpts['replace_of'];
+    }
     // Qualify order columns for joined query
     $orderSql = (string)$lq['order_sql'];
     $orderSql = preg_replace('/\bID\b/', 'k.ID', $orderSql) ?? $orderSql;
@@ -108,6 +158,7 @@ if ($entity === 'dicts') {
         : [];
 }
 if ($entity === 'keys') {
+    $viewData['flash'] = flash_take();
     $viewData['dict'] = $dict;
     $viewData['dictOptions'] = RecordsDictsRepository::options(true);
 }

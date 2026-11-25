@@ -106,6 +106,46 @@ EventBus::on('calendar.event.saved', static function ($payload) {
     return $payload;
 });
 
+EventBus::on('calendar.event.actions', static function ($payload) {
+    if (!is_array($payload) || !class_exists('DocsConfig', false) || !DocsConfig::canSeeEventDocs()) {
+        return is_array($payload) ? $payload : [];
+    }
+    $eventId = (int)($payload['id'] ?? 0);
+    $row = is_array($payload['row'] ?? null) ? $payload['row'] : [];
+    if ($eventId < 1 || !empty($payload['is_new']) || !empty($row['is_block'])) {
+        return $payload;
+    }
+    $actions = is_array($payload['actions'] ?? null) ? $payload['actions'] : [];
+    $actions[] = [
+        'id' => 'docs',
+        'icon' => '📄',
+        'label' => t('docs.event.sec'),
+        'href' => '#event-docs-sec',
+        'order' => 60,
+    ];
+    if (Auth::can('docs.print')) {
+        $actions[] = [
+            'id' => 'print',
+            'icon' => '🖨',
+            'label' => t('docs.event.act_print'),
+            'href' => '/documents/event/' . $eventId . '/print-all',
+            'order' => 62,
+        ];
+    }
+    $clientId = (int)($row['id_user'] ?? 0);
+    if ($clientId > 0 && Auth::can('docs.medical')) {
+        $actions[] = [
+            'id' => 'medcard',
+            'icon' => '🏥',
+            'label' => t('docs.event.act_medcard'),
+            'href' => '/documents/clients/' . $clientId . '/medcard',
+            'order' => 64,
+        ];
+    }
+    $payload['actions'] = $actions;
+    return $payload;
+});
+
 EventBus::on('calendar.event.sections', static function ($payload) {
     if (!is_array($payload) || !DocsInstancesRepository::tableReady() || !DocsConfig::canSeeEventDocs()) {
         return $payload;

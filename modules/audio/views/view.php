@@ -209,6 +209,12 @@ if ($asrDiaRun !== null) {
       <h2><?= te('audio.view.transcription') ?>
         <span class="muted">(<?= te('audio.transcript.stats', ['lines' => (int)$transcript['lines'], 'keys' => (int)$transcript['keys']]) ?>)</span>
       </h2>
+      <?php $tgl = is_array($transcriptToggle ?? null) ? $transcriptToggle : null; ?>
+      <?php if ($tgl !== null && ((int)$tgl['fixes'] > 0 || !empty($tgl['show_original']))): ?>
+        <p class="muted small">
+          <a href="<?= e((string)$tgl['url']) ?>"><?= !empty($tgl['show_original']) ? te('audio.transcript.show_fixed') : te('audio.transcript.show_original') ?></a>
+        </p>
+      <?php endif; ?>
       <div class="transcript" id="audio-transcript" data-record="<?= $recordId ?>">
         <?= $transcript['html'] ?>
       </div>

@@ -2,7 +2,7 @@
     "id": "docs",
     "name": "docs.module.name",
     "description": "docs.module.description",
-    "version": "0.2.12",
+    "version": "0.2.13",
     "type": "product",
     "runtime": "admin",
     "requires": {
@@ -478,6 +478,7 @@
     "hooks": {
         "subscribe": [
             "calendar.event.sections",
+            "calendar.event.actions",
             "calendar.event.saved",
             "clients.view.profile",
             "procedures.edit.sections",

@@ -483,6 +483,37 @@ EventBus::on('client_portal.home', static function (array $payload): array {
     return $payload;
 });
 
+EventBus::on('calendar.event.actions', static function ($payload) {
+    if (!is_array($payload) || !Auth::can('procedures.view')) {
+        return is_array($payload) ? $payload : [];
+    }
+    $eventId = (int)($payload['id'] ?? 0);
+    if ($eventId < 1 || !empty($payload['is_new'])) {
+        return $payload;
+    }
+    $linked = ProceduresRepository::listByEventParent($eventId);
+    $pid = 0;
+    foreach ($linked as $proc) {
+        $pid = (int)($proc['id'] ?? 0);
+        if ($pid > 0) {
+            break;
+        }
+    }
+    if ($pid < 1) {
+        return $payload;
+    }
+    $actions = is_array($payload['actions'] ?? null) ? $payload['actions'] : [];
+    $actions[] = [
+        'id' => 'procedures',
+        'icon' => '💆',
+        'label' => t('procedures.menu.list'),
+        'href' => '/procedures/' . $pid . '/edit',
+        'order' => 30,
+    ];
+    $payload['actions'] = $actions;
+    return $payload;
+});
+
 EventBus::on('client_portal.render', static function (array $payload): array {
     if ((string)($payload['section'] ?? '') !== 'visits') {
         return $payload;

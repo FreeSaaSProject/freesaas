@@ -157,3 +157,31 @@ EventBus::on('core.news_item.meta', static function (array $payload): array {
     $payload['actions_html'] = $actions;
     return $payload;
 });
+
+EventBus::on('calendar.event.actions', static function ($payload) {
+    if (!is_array($payload) || !class_exists('GcalConfig', false) || !GcalConfig::enabled()) {
+        return is_array($payload) ? $payload : [];
+    }
+    if (!Auth::can('gcal.manage')) {
+        return $payload;
+    }
+    $row = is_array($payload['row'] ?? null) ? $payload['row'] : [];
+    $op = (int)($row['id_operator'] ?? 0);
+    if ($op < 1 || $op !== Auth::userId()) {
+        return $payload;
+    }
+    $tok = GcalSyncRepository::getToken($op);
+    if (!$tok || trim((string)($tok['REFRESH_TOKEN'] ?? '')) === '') {
+        return $payload;
+    }
+    $actions = is_array($payload['actions'] ?? null) ? $payload['actions'] : [];
+    $actions[] = [
+        'id' => 'gcal',
+        'icon' => '🗓',
+        'label' => t('gcal.menu.settings'),
+        'href' => '/gcal/settings',
+        'order' => 70,
+    ];
+    $payload['actions'] = $actions;
+    return $payload;
+});

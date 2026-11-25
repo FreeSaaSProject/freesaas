@@ -10,6 +10,8 @@ require_once __DIR__ . '/lib/CalendarWidgets.php';
 require_once __DIR__ . '/lib/CalendarDayStats.php';
 require_once __DIR__ . '/lib/CalendarTimelineEnrich.php';
 require_once __DIR__ . '/lib/CalendarViewPref.php';
+require_once __DIR__ . '/lib/CalendarRail.php';
+require_once __DIR__ . '/lib/CalendarEventActions.php';
 require_once __DIR__ . '/lib/CalendarAssistantPreview.php';
 require_once __DIR__ . '/lib/CalendarAssistantPreflight.php';
 require_once __DIR__ . '/lib/CalendarBiContrib.php';
@@ -42,6 +44,11 @@ EventBus::on('assistant.system.hints', static function ($payload) {
     $payload['hints'] = $hints;
     return $payload;
 });
+
+EventBus::on('core.layout.gate', [CalendarRail::class, 'onGate']);
+EventBus::on('core.layout.rail', [CalendarRail::class, 'onRail']);
+EventBus::on('core.dashboard.rail_options', [CalendarRail::class, 'onOptions']);
+EventBus::on('core.dashboard.rail_options_save', [CalendarRail::class, 'onOptionsSave']);
 
 Assets::register('calendar', [
     'css' => ['calendar.css'],
@@ -77,6 +84,7 @@ $pages = [
     '/calendar/products' => ['permission' => 'calendar.edit', 'methods' => ['GET'], 'file' => 'products.php'],
     '/calendar/nazop' => ['permission' => 'calendar.view', 'methods' => ['GET', 'POST'], 'file' => 'nazop.php'],
     '/calendar/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
+    '/calendar/minical' => ['permission' => 'calendar.view', 'methods' => ['GET'], 'file' => 'minical.php'],
 ];
 
 foreach ($pages as $path => $def) {

@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "1.1.10",
+    "version": "1.1.11",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -1166,6 +1166,9 @@
             "core.dashboard.command_html",
             "core.notices.collect",
             "core.layout.gate",
+            "core.layout.rail",
+            "core.dashboard.rail_options",
+            "core.dashboard.rail_options_save",
             "core.news_item.handle_post",
             "core.news_item.meta",
             "core.news.feed_chips",

@@ -376,6 +376,16 @@ $bonusSections = EventBus::emit('calendar.event.sections', [
 ]);
 $bonusExtraHtml = is_array($bonusSections) ? (string)($bonusSections['html'] ?? '') : '';
 
+$fragment = !$wantsJson && (string)($_GET['fragment'] ?? '') === '1';
+$eventActions = CalendarEventActions::collect(
+    $row,
+    $isNew ? 0 : $id,
+    $isNew,
+    $canModify,
+    $canMakeProcedures,
+    $linkedProcedures
+);
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
@@ -424,6 +434,8 @@ View::render('event_edit', [
     'canMarkBlock' => $canMarkBlock,
     'canMakeProcedures' => $canMakeProcedures,
     'bonusExtraHtml' => $bonusExtraHtml,
+    'fragment' => $fragment,
+    'eventActions' => $eventActions,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('calendar.menu.week'), 'href' => '/calendar'],
         [
@@ -431,4 +443,4 @@ View::render('event_edit', [
             'current' => true,
         ],
     ]),
-], 'layout', 'calendar');
+], $fragment ? '' : 'layout', 'calendar');

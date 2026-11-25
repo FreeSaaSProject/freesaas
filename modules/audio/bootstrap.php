@@ -12,6 +12,7 @@ require_once __DIR__ . '/lib/ModerationBotPlugin.php';
 require_once __DIR__ . '/lib/RecordsRepository.php';
 require_once __DIR__ . '/lib/RecordsReviewsRepository.php';
 require_once __DIR__ . '/lib/TranscriptGarbage.php';
+require_once __DIR__ . '/lib/TranscriptCorrector.php';
 require_once __DIR__ . '/lib/TranscriptHighlighter.php';
 require_once __DIR__ . '/lib/AudioBiContrib.php';
 require_once __DIR__ . '/lib/AudioIngestLongJob.php';

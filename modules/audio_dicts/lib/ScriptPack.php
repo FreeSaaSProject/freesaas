@@ -296,11 +296,14 @@ final class ScriptPack
         $keysOut = [];
         foreach ($keys as $k) {
             $lookId = (int)($k['id_looklike'] ?? 0);
+            $replId = (int)($k['id_replace'] ?? 0);
             $keysOut[] = [
                 'name' => (string)$k['name'],
                 'disabled' => (int)($k['disabled'] ?? 0),
                 'tags' => self::tagNamesForKey((int)$k['id']),
                 'lookalike' => $lookId > 0 ? (string)($keyIdToName[$lookId] ?? '') : '',
+                // Canonical key name inside the same dictionary (ids are local to the instance).
+                'replace' => $replId > 0 ? (string)($keyIdToName[$replId] ?? '') : '',
             ];
         }
         return [
@@ -363,6 +366,8 @@ final class ScriptPack
         $nameToId = $existingKeys;
         /** @var list<array{id:int,lookalike:string}> */
         $lookPending = [];
+        /** @var list<array{id:int,replace:string}> */
+        $replacePending = [];
 
         foreach ($keysRaw as $k) {
             if (!is_array($k)) {
@@ -390,6 +395,10 @@ final class ScriptPack
             if ($look !== '') {
                 $lookPending[] = ['id' => $kid, 'lookalike' => $look];
             }
+            $repl = trim((string)($k['replace'] ?? ''));
+            if ($repl !== '') {
+                $replacePending[] = ['id' => $kid, 'replace' => $repl];
+            }
         }
 
         foreach ($lookPending as $lp) {
@@ -404,6 +413,31 @@ final class ScriptPack
                         'id_looklike' => $target,
                     ]);
                 }
+            }
+        }
+
+        // Replacements after all keys exist; invariants are checked by the repository.
+        foreach ($replacePending as $rp) {
+            $target = $nameToId[$rp['replace']] ?? 0;
+            if ($target < 1 || $target === $rp['id']) {
+                continue;
+            }
+            $row = RecordsKeysRepository::find($rp['id']);
+            if ($row === null || (int)($row['id_replace'] ?? 0) === $target) {
+                continue;
+            }
+            try {
+                RecordsKeysRepository::update($rp['id'], [
+                    'name' => (string)$row['name'],
+                    'disabled' => (int)$row['disabled'],
+                    'id_dictonary' => (int)$row['id_dictonary'],
+                    'id_looklike' => (int)($row['id_looklike'] ?? 0),
+                    'replace_provided' => true,
+                    'replace_text' => '',
+                    'id_replace' => $target,
+                ]);
+            } catch (InvalidArgumentException $e) {
+                $warnings[] = 'replace skipped «' . (string)$row['name'] . '»: ' . $e->getMessage();
             }
         }
 
@@ -460,8 +494,9 @@ final class ScriptPack
         if ($dictId < 1 || !Database::tableExists('base_records_keys')) {
             return [];
         }
+        $replCol = RecordsKeysRepository::hasReplaceColumns() ? ', ID_REPLACE AS id_replace' : ', 0 AS id_replace';
         $st = Database::pdo()->prepare(
-            'SELECT ID AS id, NAME AS name, DISABLED AS disabled, ID_LOOKLIKE AS id_looklike
+            'SELECT ID AS id, NAME AS name, DISABLED AS disabled, ID_LOOKLIKE AS id_looklike' . $replCol . '
              FROM base_records_keys WHERE ID_DICTONARY = ? ORDER BY ID ASC'
         );
         $st->execute([$dictId]);

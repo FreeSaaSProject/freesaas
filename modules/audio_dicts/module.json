@@ -2,7 +2,7 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "1.0.28",
+    "version": "1.0.32",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -37,6 +37,8 @@
             "/audio/dicts/longjob",
             "/audio/keys",
             "/audio/keys/new",
+            "/audio/keys/longjob",
+            "/audio/keys/replace-options",
             "/audio/keys/{id}/edit",
             "/audio/keys/check-overlap",
             "/audio/tags",
@@ -206,7 +208,7 @@
                 "permission": "public",
                 "assistant": false,
                 "side_effect": "write",
-                "description": "Agent-token: create/update key; confirm=1, name, dict; force=1 for hard overlaps"
+                "description": "Agent-token: create/update key; confirm=1, name, dict; force=1 for hard overlaps; replace_text (same-dict canonical key, created if missing) or id_replace; on_dependents=cascade|detach when the key has variants"
             },
             {
                 "id": "audio_dicts.agent.key_delete",
@@ -215,7 +217,7 @@
                 "permission": "public",
                 "assistant": false,
                 "side_effect": "write",
-                "description": "Agent-token: delete key; body id, confirm=1"
+                "description": "Agent-token: delete key; body id, confirm=1; on_dependents=cascade|detach when the key is canonical for variants (otherwise refused)"
             },
             {
                 "id": "audio_dicts.dicts.list",
@@ -277,6 +279,32 @@
                 "description": "Update dictionary"
             },
             {
+                "id": "audio_dicts.keys.replace_longjob",
+                "method": "POST",
+                "path": "/audio/keys/longjob",
+                "permission": "audio_dicts.edit",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "LongJob LLM replacement analysis for keys: action=job_start|job_tick|job_cancel; ids_csv (keys; approved links and canonical keys are skipped). Results are suggestions only (state suggested), accepted via bulk replace_accept"
+            },
+            {
+                "id": "audio_dicts.keys.replace_row",
+                "method": "POST",
+                "path": "/audio/keys",
+                "permission": "audio_dicts.edit",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Per-row quick decision on a suggested replacement in the keys list: action=replace_accept (writes the suggested name as replace_text, same rules as keys.update), action=replace_reject (clears the suggestion), action=replace_pick (link to another canonical key: replace_id or replace_text) or action=replace_keep (no replacement, state keep); id = key id. Same rules as the bulk replace_* actions"
+            },
+            {
+                "id": "audio_dicts.keys.replace_options",
+                "method": "GET",
+                "path": "/audio/keys/replace-options",
+                "permission": "audio_dicts.edit",
+                "side_effect": "read",
+                "description": "Alternative canonical keys (same dictionary) for the review popup; id = key id, optional q = substring. Keys already used as canonical (variants>0) come first, then by similarity"
+            },
+            {
                 "id": "audio_dicts.dicts.suggest_descr",
                 "method": "POST",
                 "path": "/audio/dicts/{id}/suggest-descr",
@@ -326,6 +354,14 @@
                             "type": "integer",
                             "description": "Optional similar key id"
                         },
+                        "replace_text": {
+                            "type": "string",
+                            "description": "Correct key of the same dictionary that this ASR variant is replaced with (created if missing); empty clears"
+                        },
+                        "id_replace": {
+                            "type": "integer",
+                            "description": "Id of the canonical key (same dictionary, enabled, not itself a variant); 0 clears"
+                        },
                         "disabled": {
                             "type": "integer",
                             "enum": [
@@ -365,6 +401,19 @@
                         },
                         "id_looklike": {
                             "type": "integer"
+                        },
+                        "replace_text": {
+                            "type": "string",
+                            "description": "Correct key of the same dictionary (created if missing); empty clears"
+                        },
+                        "id_replace": {
+                            "type": "integer",
+                            "description": "Canonical key id (same dictionary); 0 clears"
+                        },
+                        "on_dependents": {
+                            "type": "string",
+                            "enum": ["cascade", "detach"],
+                            "description": "Needed when disabling a canonical key that has variants"
                         },
                         "disabled": {
                             "type": "integer",

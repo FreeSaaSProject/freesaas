@@ -235,8 +235,9 @@ if (ModuleManager::isEnabled('terminals') && class_exists(TerminalBooking::class
                 (int)$row['dtstart'],
                 null,
                 true,
-                BookingSlots::defaultLeadSec(),
-                $procId
+                $leadFloor,
+                $procId,
+                TerminalsConfig::bookingSlotOpts()
             );
             $assert(true, 'procedure edit assertSlot self-exclude ok');
         } catch (Throwable $e) {
@@ -252,8 +253,9 @@ if (ModuleManager::isEnabled('terminals') && class_exists(TerminalBooking::class
                 (int)$row['dtstart'],
                 null,
                 true,
-                BookingSlots::defaultLeadSec(),
-                null
+                $leadFloor,
+                null,
+                TerminalsConfig::bookingSlotOpts()
             );
         } catch (Throwable $e) {
             $conflictOk = true;

@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "1.0.17",
+    "version": "1.0.20",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -52,7 +52,8 @@
             "/calendar/clients",
             "/calendar/products",
             "/calendar/nazop",
-            "/calendar/settings"
+            "/calendar/settings",
+            "/calendar/minical"
         ]
     },
     "agent": {
@@ -162,6 +163,13 @@
                 "path": "/calendar/clients",
                 "permission": "calendar.edit",
                 "description": "Client autocomplete for event edit; query q= name or phone digits (min 2)"
+            },
+            {
+                "id": "calendar.minical",
+                "method": "GET",
+                "path": "/calendar/minical",
+                "permission": "calendar.view",
+                "description": "Rail calendar for one month (YYYY-MM). source is off, events, or procedures (default off, no count query; auto: procedures when the salon has no visits). Respects EVT_MY_ONLY and optional staff=. HTML fragment when fragment=1."
             },
             {
                 "id": "calendar.products.search",
@@ -337,6 +345,10 @@
             "core.dashboard.widgets",
             "assistant.write.preview",
             "assistant.system.hints",
+            "core.layout.gate",
+            "core.layout.rail",
+            "core.dashboard.rail_options",
+            "core.dashboard.rail_options_save",
             "bi.datasets"
         ],
         "publish": [
@@ -345,6 +357,7 @@
             "calendar.event.sections",
             "calendar.event.save",
             "calendar.event.saved",
+            "calendar.event.actions",
             "calendar.settings.sections",
             "calendar.settings.save"
         ]

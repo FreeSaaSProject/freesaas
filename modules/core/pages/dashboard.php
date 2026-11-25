@@ -62,6 +62,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             UserPrefsRepository::set($uid, 'rail.peek', !empty($_POST['rail_peek']) ? '1' : '0');
             UserPrefsRepository::set($uid, 'rail.group_home', !empty($_POST['rail_group_home']) ? '1' : '0');
             UserPrefsRepository::set($uid, 'rail.icons', !empty($_POST['rail_icons']) ? '1' : '0');
+            EventBus::emit('core.dashboard.rail_options_save', [
+                'user_id' => $uid,
+                'post' => $_POST,
+            ]);
 
             $message = t('core.common.saved');
         }

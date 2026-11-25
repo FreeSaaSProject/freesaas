@@ -2,7 +2,7 @@
     "id": "procedures",
     "name": "procedures.module.name",
     "description": "procedures.module.description",
-    "version": "1.0.34",
+    "version": "1.0.36",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -254,6 +254,7 @@
         "subscribe": [
             "core.bulk.check_item",
             "calendar.day.stats",
+            "calendar.event.actions",
             "calendar.settings.sections",
             "calendar.settings.save",
             "core.user_edit.sections",

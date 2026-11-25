@@ -221,7 +221,11 @@ final class ReviewModerationBuilder
 
         $lines[] = '';
         $lines[] = t('audio_llm.moderation.block.transcript_label');
-        $clean = self::cleanTranscript((string)$row['transcription'], $trash);
+        $raw = (string)$row['transcription'];
+        if ($raw !== '' && class_exists('TranscriptCorrector', false)) {
+            $raw = TranscriptCorrector::forRecord((int)$row['id'], $raw);
+        }
+        $clean = self::cleanTranscript($raw, $trash);
         $lines[] = $clean !== '' ? $clean : t('audio_llm.moderation.block.transcript_empty');
 
         return implode("\n", $lines);

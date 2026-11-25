@@ -33,7 +33,7 @@ if ($clientId < 1) {
     $summaryExtra = t('bonuses.event.balance', ['n' => number_format($balance, 0, '.', ' ')]);
 }
 ?>
-<details class="bonuses-event-block"<?= $open ? ' open' : '' ?>>
+<details class="bonuses-event-block" id="event-bonus-sec"<?= $open ? ' open' : '' ?>>
   <summary class="bonuses-event-summary">
     <span><?= te('bonuses.event.sec') ?></span>
     <?php if ($summaryExtra !== ''): ?>

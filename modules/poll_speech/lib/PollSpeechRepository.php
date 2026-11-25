@@ -113,7 +113,19 @@ final class PollSpeechRepository
              ORDER BY DT_RECORDED ASC, ID ASC"
         );
         $st->execute(array_merge($adminIds, [$winFrom, $winTo]));
-        return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($rows !== [] && class_exists('TranscriptCorrector', false)) {
+            // Dictionary replacements for the oral-feedback LLM/key feed (read-time only).
+            $texts = [];
+            foreach ($rows as $r) {
+                $texts[(int)$r['id']] = (string)$r['transcription'];
+            }
+            $fixed = TranscriptCorrector::applyToRecords($texts);
+            foreach ($rows as $i => $r) {
+                $rows[$i]['transcription'] = $fixed[(int)$r['id']] ?? (string)$r['transcription'];
+            }
+        }
+        return $rows;
     }
 
     /**

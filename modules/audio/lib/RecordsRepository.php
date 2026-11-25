@@ -262,6 +262,16 @@ final class RecordsRepository
         $hasKeys = Database::tableExists('base_records_keys');
         $hasDicts = $hasKeys && Database::tableExists('base_records_dictonarys');
 
+        // ASR correction (audio_dicts): approved variant → enabled canonical key; one hop only.
+        $hasReplace = $hasKeys && Database::columnExists('base_records_keys', 'ID_REPLACE')
+            && Database::columnExists('base_records_keys', 'REPLACE_STATE');
+        $replSel = $hasReplace ? ', kr.NAME AS replace_name' : ", '' AS replace_name";
+        $replJoin = $hasReplace
+            ? " LEFT JOIN base_records_keys kr ON kr.ID = k.ID_REPLACE AND k.ID_REPLACE > 0
+                    AND k.REPLACE_STATE = 'approved' AND kr.DISABLED < 1 AND kr.ID_REPLACE = 0
+                    AND kr.ID <> k.ID"
+            : '';
+
         if ($hasKeys && $hasDicts) {
             $sql = "SELECT i.ID AS id, i.ID_RECORD AS id_record, i.STRING_NUM AS string_num,
                            i.STRING_POSITION AS string_position, i.ID_KEY AS id_key, i.LENGTH AS length,
@@ -269,10 +279,10 @@ final class RecordsRepository
                            k.NAME AS key_name, k.ID_DICTONARY AS id_dictonary,
                            COALESCE(NULLIF(d.NAME, ''), '') AS dict_name,
                            COALESCE(NULLIF(d.COLOR, ''), '#111') AS color,
-                           COALESCE(NULLIF(d.COLOR_BACKGROUND, ''), '#fde68a') AS bg
+                           COALESCE(NULLIF(d.COLOR_BACKGROUND, ''), '#fde68a') AS bg{$replSel}
                     FROM base_records_instances i
                     LEFT JOIN base_records_keys k ON k.ID = i.ID_KEY
-                    LEFT JOIN base_records_dictonarys d ON d.ID = k.ID_DICTONARY
+                    LEFT JOIN base_records_dictonarys d ON d.ID = k.ID_DICTONARY{$replJoin}
                     WHERE i.ID_RECORD IN ($in)
                     ORDER BY i.ID_RECORD ASC, i.STRING_NUM ASC, i.STRING_POSITION ASC";
         } elseif ($hasKeys) {
@@ -280,9 +290,9 @@ final class RecordsRepository
                            i.STRING_POSITION AS string_position, i.ID_KEY AS id_key, i.LENGTH AS length,
                            i.DT_START AS dt_start, i.DT_END AS dt_end,
                            k.NAME AS key_name, k.ID_DICTONARY AS id_dictonary,
-                           '' AS dict_name, '#111' AS color, '#fde68a' AS bg
+                           '' AS dict_name, '#111' AS color, '#fde68a' AS bg{$replSel}
                     FROM base_records_instances i
-                    LEFT JOIN base_records_keys k ON k.ID = i.ID_KEY
+                    LEFT JOIN base_records_keys k ON k.ID = i.ID_KEY{$replJoin}
                     WHERE i.ID_RECORD IN ($in)
                     ORDER BY i.ID_RECORD ASC, i.STRING_NUM ASC, i.STRING_POSITION ASC";
         } else {
@@ -290,7 +300,7 @@ final class RecordsRepository
                            i.STRING_POSITION AS string_position, i.ID_KEY AS id_key, i.LENGTH AS length,
                            i.DT_START AS dt_start, i.DT_END AS dt_end,
                            '' AS key_name, 0 AS id_dictonary,
-                           '' AS dict_name, '#111' AS color, '#fde68a' AS bg
+                           '' AS dict_name, '#111' AS color, '#fde68a' AS bg, '' AS replace_name
                     FROM base_records_instances i
                     WHERE i.ID_RECORD IN ($in)
                     ORDER BY i.ID_RECORD ASC, i.STRING_NUM ASC, i.STRING_POSITION ASC";
@@ -686,6 +696,11 @@ final class RecordsRepository
         }
         // MCP/assistant get the same trash-filtered transcript as the UI (not raw ASR).
         $raw = (string)($row['transcription'] ?? '');
+        // Dictionary replacements first (line numbers still match instances); trash filter after.
+        if ($raw !== '' && class_exists('TranscriptCorrector', false)) {
+            $raw = TranscriptCorrector::forRecord((int)($row['id'] ?? 0), $raw);
+            $row['transcription'] = $raw;
+        }
         if ($raw !== '' && class_exists('TranscriptGarbage', false)) {
             $filtered = TranscriptGarbage::filterTranscription($raw);
             $row['transcription'] = $filtered['text'];

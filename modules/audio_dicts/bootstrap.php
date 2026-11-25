@@ -11,6 +11,9 @@ require_once __DIR__ . '/lib/ScriptVersionsRepository.php';
 require_once __DIR__ . '/lib/ScriptPack.php';
 require_once __DIR__ . '/lib/DictDescrSuggest.php';
 require_once __DIR__ . '/lib/AudioDictsLongJob.php';
+require_once __DIR__ . '/lib/KeyReplaceSuggest.php';
+require_once __DIR__ . '/lib/KeyReplaceLlm.php';
+require_once __DIR__ . '/lib/KeyReplaceLongJob.php';
 require_once __DIR__ . '/lib/AudioDictsAgentOps.php';
 require_once __DIR__ . '/lib/AudioDictsBiContrib.php';
 
@@ -20,6 +23,19 @@ EventBus::on('bi.datasets', [AudioDictsBiContrib::class, 'onDatasets']);
 Assets::register('audio_dicts', [
     'css' => ['audio_dicts.css'],
     'js' => ['audio_dicts.js'],
+]);
+
+LongJob::register(KeyReplaceLongJob::TYPE, [
+    'module' => 'audio_dicts',
+    'permission' => 'audio_dicts.edit',
+    'defaults' => ['tick_seconds' => 90],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 90],
+        'cli' => ['tick_seconds' => 120],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [KeyReplaceLongJob::class, 'onStart'],
+    'tick' => [KeyReplaceLongJob::class, 'tick'],
 ]);
 
 LongJob::register(AudioDictsLongJob::TYPE_SUGGEST_DESCR, [
@@ -62,6 +78,52 @@ $entities = [
     ],
 ];
 
+if (!function_exists('audioKeysVariantsField')) {
+    /** Bulk field: what to do with variants (ID_REPLACE → this key) of canonical keys. */
+    function audioKeysVariantsField(): array
+    {
+        return [
+            'name' => 'on_dependents',
+            'type' => 'select',
+            'label' => 'audio_dicts.replace.field.on_dependents',
+            'options' => [
+                '' => t('audio_dicts.replace.policy.ask'),
+                'cascade' => t('audio_dicts.replace.policy.cascade'),
+                'detach' => t('audio_dicts.replace.policy.detach'),
+            ],
+        ];
+    }
+
+    /**
+     * Canonical keys with variants are skipped until the operator picks a policy.
+     *
+     * @param list<mixed> $ids
+     * @param array<string,mixed> $params
+     * @param callable(list<int>,string):int $apply
+     */
+    function audioKeysVariantsRun(array $ids, array $params, callable $apply): array
+    {
+        $mode = (string)($params['on_dependents'] ?? '');
+        if (!in_array($mode, ['', 'cascade', 'detach'], true)) {
+            $mode = '';
+        }
+        $ids = array_values(array_filter(array_map('intval', $ids), static fn ($i) => $i > 0));
+        $blockers = $mode === '' ? RecordsKeysRepository::dependentBlockers($ids) : [];
+        $work = [];
+        $skipped = [];
+        foreach ($ids as $id) {
+            if (isset($blockers[$id])) {
+                $skipped[] = ['id' => $id, 'reason' => $blockers[$id]];
+                continue;
+            }
+            $work[] = $id;
+        }
+        $done = $work !== [] ? (int)$apply($work, $mode) : 0;
+
+        return ['done' => $done, 'skipped' => $skipped];
+    }
+}
+
 foreach ($entities as $entity => $meta) {
     $listPath = $meta['list'];
     ModuleManager::registerRoute($listPath, [
@@ -94,12 +156,20 @@ foreach ($entities as $entity => $meta) {
 
     $repo = $meta['repo'];
     $listId = $meta['list_id'];
+    $isKeys = $entity === 'keys';
     BulkActions::register($listId, 'delete', [
         'label' => 'core.bulk.delete',
         'permission' => 'audio_dicts.delete',
         'confirm' => 'core.bulk.confirm_delete',
-        'run' => static function (array $ids, array $params) use ($repo): array {
-            return ['done' => $repo::deleteByIds($ids), 'skipped' => []];
+        'fields' => $isKeys ? [audioKeysVariantsField()] : [],
+        'run' => static function (array $ids, array $params) use ($repo, $isKeys): array {
+            if (!$isKeys) {
+                return ['done' => $repo::deleteByIds($ids), 'skipped' => []];
+            }
+
+            return audioKeysVariantsRun($ids, $params, static function (array $work, string $mode) use ($repo): int {
+                return $repo::deleteByIds($work, $mode);
+            });
         },
     ]);
 }
@@ -120,12 +190,82 @@ BulkActions::register('audio_keys', 'disable', [
     'group' => 'audio_dicts.bulk.group.enablers',
     'permission' => 'audio_dicts.edit',
     'confirm' => 'audio_dicts.bulk.confirm_disable_keys',
+    'fields' => [audioKeysVariantsField()],
     'run' => static function (array $ids, array $params): array {
-        unset($params);
-
-        return ['done' => RecordsKeysRepository::setDisabledByIds($ids, true), 'skipped' => []];
+        return audioKeysVariantsRun($ids, $params, static function (array $work, string $mode): int {
+            return RecordsKeysRepository::setDisabledByIds($work, true, $mode);
+        });
     },
 ]);
+
+// ASR replacement review (state only; links are created by accept, never by LLM directly).
+BulkActions::register('audio_keys', 'replace_pending', [
+    'label' => 'audio_dicts.replace.bulk.pending',
+    'group' => 'audio_dicts.bulk.group.enablers',
+    'permission' => 'audio_dicts.edit',
+    'confirm' => 'audio_dicts.replace.bulk.confirm_pending',
+    'run' => static function (array $ids): array {
+        $r = RecordsKeysRepository::setReplaceStateByIds($ids, 'pending');
+
+        return ['done' => $r['done'], 'skipped' => $r['skipped']];
+    },
+]);
+BulkActions::register('audio_keys', 'replace_keep', [
+    'label' => 'audio_dicts.replace.bulk.keep',
+    'group' => 'audio_dicts.bulk.group.enablers',
+    'permission' => 'audio_dicts.edit',
+    'confirm' => 'audio_dicts.replace.bulk.confirm_keep',
+    'run' => static function (array $ids): array {
+        $r = RecordsKeysRepository::setReplaceStateByIds($ids, 'keep');
+
+        return ['done' => $r['done'], 'skipped' => $r['skipped']];
+    },
+]);
+BulkActions::register('audio_keys', 'replace_accept', [
+    'label' => 'audio_dicts.replace.bulk.accept',
+    'group' => 'audio_dicts.bulk.group.enablers',
+    'permission' => 'audio_dicts.edit',
+    'confirm' => 'audio_dicts.replace.bulk.confirm_accept',
+    'run' => static function (array $ids): array {
+        $r = RecordsKeysRepository::acceptSuggestionsByIds($ids);
+
+        return ['done' => $r['done'], 'skipped' => $r['skipped']];
+    },
+]);
+BulkActions::register('audio_keys', 'replace_reject', [
+    'label' => 'audio_dicts.replace.bulk.reject',
+    'group' => 'audio_dicts.bulk.group.enablers',
+    'permission' => 'audio_dicts.edit',
+    'confirm' => 'audio_dicts.replace.bulk.confirm_reject',
+    'run' => static function (array $ids): array {
+        $r = RecordsKeysRepository::rejectSuggestionsByIds($ids);
+
+        return ['done' => $r['done'], 'skipped' => $r['skipped']];
+    },
+]);
+
+// LLM analysis: LongJobPanel on the keys list (JS intercepts, like suggest_descr). Sync run is a no-op.
+if (ModuleManager::isEnabled('llm')) {
+    BulkActions::register('audio_keys', 'replace_llm', [
+        'label' => 'audio_dicts.replace.bulk.llm',
+        'group' => 'audio_dicts.bulk.group.enablers',
+        'permission' => 'audio_dicts.edit',
+        'confirm' => 'audio_dicts.replace.bulk.confirm_llm',
+        'max_selection' => 200,
+        'run' => static function (array $ids): array {
+            $reason = t('audio_dicts.replace.bulk.need_progress');
+            $skipped = [];
+            foreach ($ids as $id) {
+                $id = (int)$id;
+                if ($id > 0) {
+                    $skipped[] = ['id' => $id, 'reason' => $reason];
+                }
+            }
+
+            return ['done' => 0, 'skipped' => $skipped];
+        },
+    ]);
+}
 
 // Soft: only when llm is enabled in config (profile check happens at run time).
 if (ModuleManager::isEnabled('llm')) {
@@ -164,6 +304,24 @@ ModuleManager::registerRoute('/audio/dicts/{id}/suggest-descr', [
     'permission' => 'audio_dicts.edit',
     'handler' => static function (): void {
         require base_path('modules/audio_dicts/pages/dicts_suggest_descr.php');
+    },
+]);
+
+ModuleManager::registerRoute('/audio/keys/longjob', [
+    'module' => 'audio_dicts',
+    'methods' => ['POST'],
+    'permission' => 'audio_dicts.edit',
+    'handler' => static function (): void {
+        require base_path('modules/audio_dicts/pages/keys_longjob.php');
+    },
+]);
+
+ModuleManager::registerRoute('/audio/keys/replace-options', [
+    'module' => 'audio_dicts',
+    'methods' => ['GET'],
+    'permission' => 'audio_dicts.edit',
+    'handler' => static function (): void {
+        require base_path('modules/audio_dicts/pages/keys_replace_options.php');
     },
 ]);
 

@@ -53,6 +53,13 @@ final class EntityDelete
         if ($class !== '') {
             $classes .= ' ' . $class;
         }
+        $title = trim((string)($opts['title'] ?? ''));
+        $titleAttr = $title !== '' ? ' title="' . e($title) . '"' : '';
+        $dialogField = !empty($opts['dialog'])
+            ? '<input type="hidden" name="dialog" value="1">'
+            : '';
+        $actionUrl = trim((string)($opts['action_url'] ?? ''));
+        $actionAttr = $actionUrl !== '' ? ' action="' . e($actionUrl) . '"' : '';
 
         $html = '';
         $postErr = self::consumeError();
@@ -67,10 +74,11 @@ final class EntityDelete
                 . ' aria-disabled="true">'
                 . e($label) . '</button>';
         } else {
-            $html .= '<form method="post" class="entity-delete-form" onsubmit="return confirm(' . tj($confirmKey) . ');">';
+            $html .= '<form method="post"' . $actionAttr . ' class="entity-delete-form" onsubmit="return confirm(' . tj($confirmKey) . ');">';
             $html .= NavContext::hiddenField();
+            $html .= $dialogField;
             $html .= '<input type="hidden" name="action" value="' . e($action) . '">';
-            $html .= '<button class="btn-danger" type="submit">' . e($label) . '</button>';
+            $html .= '<button class="btn-danger" type="submit"' . $titleAttr . '>' . e($label) . '</button>';
             $html .= '</form>';
         }
         $html .= '</div>';
@@ -116,25 +124,26 @@ final class EntityDelete
         }
 
         $wantsJson = AgentHttp::wantsJson();
+        $dialog = !$wantsJson && (string)($_POST['dialog'] ?? '') === '1';
         if ($wantsJson && !AgentHttp::allowsDelete()) {
             AgentHttp::error(t('core.entity.agent_delete_denied'), 403);
             return true;
         }
 
         if ($id < 1) {
-            self::fail($wantsJson, t('core.entity.err.not_found'), (string)($opts['stay_path'] ?? ''), $redirectListPath);
+            self::fail($wantsJson, t('core.entity.err.not_found'), (string)($opts['stay_path'] ?? ''), $redirectListPath, $dialog);
             return true;
         }
 
         $def = BulkActions::actionDef($listId, $bulkAction);
         if ($def === null || !BulkActions::isAllowed($def)) {
-            self::fail($wantsJson, t('core.bulk.err.forbidden'), (string)($opts['stay_path'] ?? ''), $redirectListPath);
+            self::fail($wantsJson, t('core.bulk.err.forbidden'), (string)($opts['stay_path'] ?? ''), $redirectListPath, $dialog);
             return true;
         }
 
         $reason = BulkActions::checkItem($listId, $bulkAction, $id);
         if ($reason !== '') {
-            self::fail($wantsJson, $reason, (string)($opts['stay_path'] ?? ''), $redirectListPath);
+            self::fail($wantsJson, $reason, (string)($opts['stay_path'] ?? ''), $redirectListPath, $dialog);
             return true;
         }
 
@@ -158,8 +167,20 @@ final class EntityDelete
                 $wantsJson,
                 $skipReason !== '' ? $skipReason : t('core.entity.err.delete_failed'),
                 (string)($opts['stay_path'] ?? ''),
-                $redirectListPath
+                $redirectListPath,
+                $dialog
             );
+            return true;
+        }
+
+        if ($dialog) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'ok' => true,
+                'reload' => true,
+                'action' => 'delete',
+                'id' => $id,
+            ], JSON_UNESCAPED_UNICODE);
             return true;
         }
 
@@ -182,8 +203,14 @@ final class EntityDelete
         return true;
     }
 
-    private static function fail(bool $wantsJson, string $message, string $stayPath, string $listPath): void
+    private static function fail(bool $wantsJson, string $message, string $stayPath, string $listPath, bool $dialog = false): void
     {
+        if ($dialog) {
+            http_response_code(409);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
+            return;
+        }
         if ($wantsJson) {
             AgentHttp::error($message, 409);
             return;

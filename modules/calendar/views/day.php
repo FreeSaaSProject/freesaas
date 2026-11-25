@@ -99,6 +99,7 @@ require __DIR__ . '/_period_footer.php';
 ?>
 
 <div id="calendar-info" class="calendar-info" hidden></div>
+<?php require __DIR__ . '/_event_dialog.php'; ?>
 
 <?php if ($canAssign || $canTables): ?>
 <dialog id="calendar-shift-dialog" class="calendar-shift-dialog">

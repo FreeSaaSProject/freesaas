@@ -2,7 +2,7 @@
     "id": "certificates",
     "name": "certificates.module.name",
     "description": "certificates.module.description",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -149,6 +149,7 @@
     "hooks": {
         "subscribe": [
             "calendar.event.sections",
+            "calendar.event.actions",
             "clients.view.profile",
             "sites.cart.prepare",
             "sites.checkout.before",

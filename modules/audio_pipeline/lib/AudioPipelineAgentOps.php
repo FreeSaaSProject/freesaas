@@ -231,6 +231,9 @@ final class AudioPipelineAgentOps
             ];
             if ($withTr) {
                 $tr = (string)($row['transcription'] ?? '');
+                if ($tr !== '' && class_exists('TranscriptCorrector', false)) {
+                    $tr = TranscriptCorrector::forRecord((int)$row['id'], $tr);
+                }
                 if ($tr !== '' && class_exists('TranscriptGarbage', false)) {
                     $tr = TranscriptGarbage::filterTranscription($tr)['text'];
                 }
@@ -316,7 +319,7 @@ final class AudioPipelineAgentOps
                 'quality' => (int)$row['quality'],
                 'filename' => (string)$row['filename'],
                 'key_types' => (string)($row['key_types'] ?? ''),
-                'transcription' => self::agentTranscription((string)($row['transcription'] ?? '')),
+                'transcription' => self::agentTranscription((string)($row['transcription'] ?? ''), (int)$row['id']),
             ],
             'instances' => $instances,
             'instances_count' => count($instances),
@@ -325,9 +328,15 @@ final class AudioPipelineAgentOps
     }
 
     /** Trash-filtered Whisper text for agent/MCP consumers (same rules as UI). */
-    private static function agentTranscription(string $raw): string
+    private static function agentTranscription(string $raw, int $recordId = 0): string
     {
-        if ($raw === '' || !class_exists('TranscriptGarbage', false)) {
+        if ($raw === '') {
+            return $raw;
+        }
+        if ($recordId > 0 && class_exists('TranscriptCorrector', false)) {
+            $raw = TranscriptCorrector::forRecord($recordId, $raw);
+        }
+        if (!class_exists('TranscriptGarbage', false)) {
             return $raw;
         }
         return TranscriptGarbage::filterTranscription($raw)['text'];

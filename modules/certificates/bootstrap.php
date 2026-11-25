@@ -77,6 +77,25 @@ Cron::register('certificates.expire', [
     },
 ]);
 
+EventBus::on('calendar.event.actions', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!Auth::can('certificates.view') && !Auth::can('certificates.apply')) {
+        return $payload;
+    }
+    $actions = is_array($payload['actions'] ?? null) ? $payload['actions'] : [];
+    $actions[] = [
+        'id' => 'certificate',
+        'icon' => '🎟',
+        'label' => t('certificates.event.sec'),
+        'href' => '#event-cert-sec',
+        'order' => 50,
+    ];
+    $payload['actions'] = $actions;
+    return $payload;
+});
+
 EventBus::on('calendar.event.sections', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;

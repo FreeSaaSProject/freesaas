@@ -1582,6 +1582,226 @@
     start();
   }
 
+  /** Bulk LLM replacement analysis on keys list → LongJobPanel (a few keys per tick). */
+  function initReplaceBulk() {
+    var boot = document.getElementById('audio-keys-replace-boot');
+    var overlay = document.getElementById('audio-keys-replace-overlay');
+    if (!boot || !overlay) return;
+
+    var tries = 0;
+    function start() {
+      if (!window.LongJobPanel) {
+        if (++tries < 80) setTimeout(start, 50);
+        return;
+      }
+      if (boot.getAttribute('data-bound') === '1') return;
+      boot.setAttribute('data-bound', '1');
+
+      var i18n = parseJson(boot, 'data-i18n', {});
+      var csrf = boot.getAttribute('data-csrf') || (window.freesaasCsrfToken ? window.freesaasCsrfToken() : '');
+      var busy = false;
+      var panel = LongJobPanel.mount({
+        root: overlay,
+        startUrl: '/audio/keys/longjob',
+        tickUrl: '/audio/keys/longjob',
+        cancelUrl: '/audio/keys/longjob',
+        dualBars: false,
+        showBytes: false,
+        reloadOnOk: true,
+        csrf: csrf,
+        i18n: i18n,
+        onFinish: function () { busy = false; }
+      });
+      if (!panel) return;
+
+      document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form || !form.getAttribute || form.getAttribute('data-bulk-form') === null) return;
+        var actionSel = form.querySelector('[data-bulk-action]');
+        if (!actionSel || String(actionSel.value || '') !== 'replace_llm') return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (busy) {
+          window.alert(i18n.busy || 'Busy');
+          return;
+        }
+        var confirmMsg = i18n.confirm || '';
+        if (confirmMsg && !window.confirm(confirmMsg)) return;
+        var ids = Array.prototype.slice.call(form.querySelectorAll('[data-bulk-id]'))
+          .filter(function (c) { return c.checked && !c.disabled; })
+          .map(function (c) { return parseInt(c.value, 10) || 0; })
+          .filter(function (id) { return id > 0; });
+        if (!ids.length) {
+          window.alert(i18n.empty || 'Empty');
+          return;
+        }
+        busy = true;
+        var fd = new FormData();
+        fd.set('ids_csv', ids.join(','));
+        panel.runFormData(fd, {}).then(function () {
+          busy = false;
+        }, function () {
+          busy = false;
+        });
+      }, true);
+    }
+    start();
+  }
+
+  /**
+   * Keys list: click on "? suggestion" opens a popup with other canonical keys of the dictionary
+   * (already-used canonicals first) for when the LLM/heuristic guess is wrong.
+   */
+  function initReplaceOptions() {
+    var boot = document.getElementById('audio-key-alt-boot');
+    if (!boot) return;
+    var i18n = parseJson(boot, 'data-i18n', {});
+    var url = boot.getAttribute('data-url') || '/audio/keys/replace-options';
+    var actionUrl = boot.getAttribute('data-action') || window.location.href;
+    var dlg = null;
+    var titleEl;
+    var searchEl;
+    var listEl;
+    var typedBtn;
+    var curId = 0;
+    var seq = 0;
+    var timer = null;
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function post(fields) {
+      var f = document.createElement('form');
+      f.method = 'post';
+      f.action = actionUrl;
+      f.style.display = 'none';
+      fields.csrf = window.freesaasCsrfToken ? window.freesaasCsrfToken() : '';
+      Object.keys(fields).forEach(function (k) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = k;
+        inp.value = String(fields[k]);
+        f.appendChild(inp);
+      });
+      document.body.appendChild(f);
+      f.submit();
+    }
+
+    function build() {
+      if (dlg) return;
+      dlg = document.createElement('dialog');
+      dlg.className = 'audio-key-alt-dialog';
+      dlg.innerHTML =
+        '<div class="audio-key-alt-inner">' +
+        '<h2 class="audio-key-alt-title"></h2>' +
+        '<input type="search" class="audio-key-alt-search" autocomplete="off" placeholder="' + esc(i18n.search || '') + '">' +
+        '<div class="audio-key-alt-list" role="listbox"></div>' +
+        '<div class="audio-key-alt-foot">' +
+        '<button type="button" class="btn-sm audio-key-alt-typed" hidden></button>' +
+        '<button type="button" class="btn-sm audio-key-alt-keep">' + esc(i18n.keep || '') + '</button>' +
+        '<button type="button" class="btn-sm audio-key-alt-close">' + esc(i18n.close || '') + '</button>' +
+        '</div></div>';
+      document.body.appendChild(dlg);
+      titleEl = dlg.querySelector('.audio-key-alt-title');
+      searchEl = dlg.querySelector('.audio-key-alt-search');
+      listEl = dlg.querySelector('.audio-key-alt-list');
+      typedBtn = dlg.querySelector('.audio-key-alt-typed');
+
+      dlg.querySelector('.audio-key-alt-close').addEventListener('click', function () { dlg.close(); });
+      dlg.querySelector('.audio-key-alt-keep').addEventListener('click', function () {
+        post({ action: 'replace_keep', id: curId });
+      });
+      typedBtn.addEventListener('click', function () {
+        var q = String(searchEl.value || '').trim();
+        if (q) post({ action: 'replace_pick', id: curId, replace_text: q });
+      });
+      dlg.addEventListener('click', function (e) {
+        if (e.target === dlg) dlg.close();
+      });
+      listEl.addEventListener('click', function (e) {
+        var b = e.target && e.target.closest ? e.target.closest('.audio-key-alt-item') : null;
+        if (!b) return;
+        post({ action: 'replace_pick', id: curId, replace_id: b.getAttribute('data-id') || '0' });
+      });
+      searchEl.addEventListener('input', function () {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(load, 250);
+      });
+    }
+
+    function itemHtml(it) {
+      var meta = [];
+      if (it.current) meta.push(esc(i18n.current || ''));
+      if (it.variants > 0) meta.push(esc(String(i18n.variants || '').replace('{n}', String(it.variants))));
+      meta.push(Math.round((Number(it.score) || 0) * 100) + '%');
+      return '<button type="button" class="audio-key-alt-item' + (it.current ? ' is-current' : '') +
+        '" data-id="' + (parseInt(it.id, 10) || 0) + '">' +
+        '<span class="audio-key-alt-name">' + esc(it.name) + '</span>' +
+        '<span class="audio-key-alt-meta muted">' + meta.join(' · ') + '</span></button>';
+    }
+
+    function render(items, q) {
+      var used = items.filter(function (it) { return it.variants > 0; });
+      var other = items.filter(function (it) { return !(it.variants > 0); });
+      var html = '';
+      if (used.length) {
+        html += '<div class="audio-key-alt-group">' + esc(i18n.groupUsed || '') + '</div>' + used.map(itemHtml).join('');
+      }
+      if (other.length) {
+        html += '<div class="audio-key-alt-group">' + esc(i18n.groupOther || '') + '</div>' + other.map(itemHtml).join('');
+      }
+      listEl.innerHTML = html || '<div class="muted audio-key-alt-empty">' + esc(i18n.empty || '') + '</div>';
+      var exact = items.some(function (it) { return String(it.name).toLowerCase() === q.toLowerCase(); });
+      if (q && !exact) {
+        typedBtn.hidden = false;
+        typedBtn.textContent = String(i18n.typed || '').replace('{q}', q);
+      } else {
+        typedBtn.hidden = true;
+      }
+    }
+
+    function load() {
+      var q = String(searchEl.value || '').trim();
+      var my = ++seq;
+      listEl.innerHTML = '<div class="muted audio-key-alt-empty">' + esc(i18n.loading || '…') + '</div>';
+      fetch(url + '?id=' + curId + '&q=' + encodeURIComponent(q), {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        if (my !== seq) return;
+        if (!data || !data.ok) throw new Error('bad');
+        render(data.items || [], q);
+      }).catch(function () {
+        if (my !== seq) return;
+        listEl.innerHTML = '<div class="audio-key-alt-empty">' + esc(i18n.error || '') + '</div>';
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('.audio-key-suggest-open') : null;
+      if (!btn) return;
+      e.preventDefault();
+      curId = parseInt(btn.getAttribute('data-key-id') || '0', 10) || 0;
+      if (curId < 1) return;
+      build();
+      titleEl.textContent = (i18n.title || '') + ' «' + (btn.getAttribute('data-key-name') || '') + '»';
+      searchEl.value = '';
+      typedBtn.hidden = true;
+      if (typeof dlg.showModal === 'function') {
+        if (!dlg.open) dlg.showModal();
+      } else {
+        dlg.setAttribute('open', '');
+      }
+      load();
+      searchEl.focus();
+    });
+  }
+
   /** Keys edit: live overlap + stem-conflict probe (same rules as list add-key / api_dict). */
   function initKeyOverlapForm() {
     var form = document.getElementById('audio-key-form');
@@ -1717,6 +1937,8 @@
     if (canvas) initCanvas(canvas);
     initScriptImport();
     initSuggestBulk();
+    initReplaceBulk();
+    initReplaceOptions();
     initKeyOverlapForm();
   });
 })();

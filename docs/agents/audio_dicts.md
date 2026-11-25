@@ -109,6 +109,30 @@ curl -sS -b jar.txt 'https://example/audio/dicts?format=json'
 curl -sS -b jar.txt 'https://example/audio/scripts?format=json'
 ```
 
+## ASR replacements (ID_REPLACE)
+
+A key may be a **variant**: `base_records_keys.ID_REPLACE` points at a **canonical** key of the **same dictionary**. Read-time only: transcripts in `base_records.TRANSCRIPTION` are never rewritten. The UI (transcript `*` mark, legend, `?orig=1` raw view), `RecordsRepository::forAgent`, `audio_pipeline` day/record agent ops, `StudyPayload`, `ReviewModerationBuilder` and `poll_speech` feeds apply `TranscriptCorrector` (`modules/audio/lib/TranscriptCorrector.php`).
+
+Columns (migration `014_keys_replace`): `ID_REPLACE`, `REPLACE_STATE` (`''|pending|suggested|approved|keep|rejected`), `REPLACE_SUGGEST` (proposed canonical name, not linked yet).
+
+Invariants (enforced in `RecordsKeysRepository`, refused with a message):
+
+- Canonical key is enabled, in the same dictionary, not the key itself, and has `ID_REPLACE = 0` (**no chains**; one hop on read).
+- A key that has variants cannot get `ID_REPLACE`.
+- Disable or delete of a canonical key with variants needs an explicit policy: `on_dependents=cascade` (variants go with it) or `detach` (variants lose the link). Without it the operation is refused — variants are never silently zeroed.
+- Dictionary move of a canonical key with variants is refused.
+
+Flows:
+
+- **Add key from transcript popover** (`/audio/api/dict` `add_key`): optional `replace_text` (created as a canonical key of the dictionary if missing). Without it the key gets a fast heuristic hint (`KeyReplaceSuggest`, same dictionary, no LLM, state `suggested`) or state `pending` for LLM analysis. Hints are never applied automatically.
+- `set_replace` (`/audio/api/dict`): accept a hint or set/clear the link for an existing key.
+- **LongJob LLM analysis** (`/audio/keys/longjob`, bulk `replace_llm`; needs `llm`): `KeyReplaceLlm` returns keep or replace; replace is stored as `suggested` only and must name a candidate from the list.
+- Bulk on `/audio/keys`: `replace_pending`, `replace_keep`, `replace_accept` (links suggested canonical), `replace_reject`. Queue: `/audio/keys?replace=review` (also `variants`, `canonical`, `none`, `replace_of=ID`).
+- Agent: `key_save` takes `replace_text` or `id_replace`; `key_delete` and disable take `on_dependents`.
+- Script packs export/import the canonical **name** inside the dictionary (`replace`), not the id.
+
+Future (not implemented): persistent transcript corrections (write-back) as a separate, journaled step.
+
 ## Notes
 
 - Required by recognition pipeline and staff reports.

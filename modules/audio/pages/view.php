@@ -68,13 +68,19 @@ if (class_exists('SpeakerService', false)) {
     $speakerRows = SpeakerService::speakersForRecord($id);
     $speakerOpts = SpeakerService::highlightOptsForRecord($id, (int)($row['id_admin'] ?? $row['ID_ADMIN'] ?? 0));
 }
+$showOriginal = !empty($_GET['orig']);
 $transcript = TranscriptHighlighter::render(
     (string)($row['transcription'] ?? ''),
     $instances,
     $trash,
     '',
-    $speakerOpts
+    $speakerOpts + ['show_original' => $showOriginal]
 );
+$transcriptToggle = [
+    'show_original' => $showOriginal,
+    'fixes' => (int)($transcript['fixes'] ?? 0),
+    'url' => '/audio/' . $id . ($showOriginal ? '' : '?orig=1'),
+];
 $dictMeta = RecordsRepository::dictMetaMap();
 $keyDicts = TranscriptHighlighter::parseKeyDicts(isset($row['key_dicts']) ? (string)$row['key_dicts'] : null);
 
@@ -138,6 +144,7 @@ View::render('view', [
     'playUrl' => $playUrl,
     'canEdit' => Auth::can('audio.edit'),
     'transcript' => $transcript,
+    'transcriptToggle' => $transcriptToggle,
     'instances' => $instances,
     'dictMeta' => $dictMeta,
     'keyDicts' => $keyDicts,

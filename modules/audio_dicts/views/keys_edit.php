@@ -104,6 +104,54 @@ $relLabels = [
     <span class="muted small"><?= te('audio_dicts.keys.dict_hint') ?></span>
   </label>
 
+  <?php
+    $variantCount = (int)($variantCount ?? 0);
+    $replaceEnabled = !empty($replaceEnabled);
+    $replaceCandidates = is_array($replaceCandidates ?? null) ? $replaceCandidates : [];
+    $replaceInput = array_key_exists('replace_text', $row)
+        ? (string)$row['replace_text'] : (string)($row['replace_name'] ?? '');
+    $replaceState = (string)($row['replace_state'] ?? '');
+    $policyOptions = [
+        '' => t('audio_dicts.replace.policy.ask'),
+        'cascade' => t('audio_dicts.replace.policy.cascade'),
+        'detach' => t('audio_dicts.replace.policy.detach'),
+    ];
+  ?>
+  <?php if ($replaceEnabled && $variantCount > 0): ?>
+  <h2 class="form-section-title"><?= te('audio_dicts.replace.sec_canonical') ?></h2>
+  <p class="audio-key-replace-canonical">
+    <?= te('audio_dicts.replace.canonical_for', ['n' => $variantCount]) ?>
+    — <a href="/audio/keys?replace_of=<?= $id ?>"><?= te('audio_dicts.replace.open_variants') ?></a>
+  </p>
+  <p class="muted small"><?= te('audio_dicts.replace.canonical_hint') ?></p>
+  <label>
+    <?= te('audio_dicts.replace.field.on_dependents') ?>
+    <select name="on_dependents">
+      <?php foreach ($policyOptions as $pv => $pl): ?>
+        <option value="<?= e((string)$pv) ?>"><?= e($pl) ?></option>
+      <?php endforeach; ?>
+    </select>
+    <span class="muted small"><?= te('audio_dicts.replace.field.on_dependents_hint') ?></span>
+  </label>
+  <?php elseif ($replaceEnabled): ?>
+  <h2 class="form-section-title"><?= te('audio_dicts.replace.sec_field') ?></h2>
+  <label>
+    <?= te('audio_dicts.replace.field.label') ?>
+    <input type="text" name="replace_text" id="key-replace" maxlength="255" list="key-replace-candidates"
+           value="<?= e($replaceInput) ?>" autocomplete="off"
+           placeholder="<?= te('audio_dicts.replace.field.placeholder') ?>">
+    <datalist id="key-replace-candidates">
+      <?php foreach ($replaceCandidates as $cand): ?>
+        <option value="<?= e((string)($cand['name'] ?? '')) ?>"></option>
+      <?php endforeach; ?>
+    </datalist>
+    <span class="muted small"><?= te('audio_dicts.replace.field.hint') ?></span>
+    <?php if ($replaceState !== ''): ?>
+      <span class="muted small"><?= te('audio_dicts.replace.state.' . $replaceState) ?></span>
+    <?php endif; ?>
+  </label>
+  <?php endif; ?>
+
   <h2 class="form-section-title"><?= te('audio_dicts.keys.sec_links') ?></h2>
   <p class="muted audio-dict-hint"><?= te('audio_dicts.keys.hint_links') ?></p>
 
@@ -134,6 +182,21 @@ $relLabels = [
   </div>
 </form>
 
-<?php if (!$isNew): ?>
+<?php if (!$isNew && !empty($variantCount)): ?>
+<form method="post" class="entity-delete-form audio-key-delete-variants"
+      onsubmit="return confirm(<?= tj('core.entity.confirm_delete') ?>);">
+  <?= NavContext::hiddenField() ?>
+  <input type="hidden" name="action" value="delete">
+  <label>
+    <?= te('audio_dicts.replace.field.on_dependents') ?>
+    <select name="on_dependents" required>
+      <option value=""><?= te('audio_dicts.replace.policy.ask') ?></option>
+      <option value="cascade"><?= te('audio_dicts.replace.policy.cascade') ?></option>
+      <option value="detach"><?= te('audio_dicts.replace.policy.detach') ?></option>
+    </select>
+  </label>
+  <button class="btn-danger" type="submit"><?= te('core.common.delete') ?></button>
+</form>
+<?php elseif (!$isNew): ?>
 <?= EntityDelete::form((string)($listId ?? 'audio_keys'), $id > 0 ? $id : (int)($row['id'] ?? 0)) ?>
 <?php endif; ?>

@@ -653,14 +653,21 @@ final class AudioDictsAgentOps
         if (!$isNew && $existing === null) {
             return ['ok' => false, 'error' => 'not_found', 'http' => 404];
         }
+        // Replacement fields are applied only when present in the call (absent = keep link).
+        $replaceIn = [];
+        foreach (['replace_text', 'id_replace'] as $rk) {
+            if (array_key_exists($rk, $in)) {
+                $replaceIn[$rk] = $in[$rk];
+            }
+        }
         try {
-            $data = RecordsKeysRepository::dataFromPost([
+            $data = RecordsKeysRepository::dataFromPost(array_merge([
                 'name' => $in['name'] ?? ($existing['name'] ?? ''),
                 'disabled' => $in['disabled'] ?? ($existing['disabled'] ?? 0),
                 'id_dictonary' => $in['dict'] ?? $in['id_dictonary']
                     ?? ($existing['id_dictonary'] ?? 0),
                 'id_looklike' => $in['id_looklike'] ?? ($existing['id_looklike'] ?? 0),
-            ]);
+            ], $replaceIn));
         } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
         }
@@ -731,6 +738,7 @@ final class AudioDictsAgentOps
             }
         }
 
+        $onDependents = self::dependentsPolicy($in);
         try {
             if ($isNew) {
                 $id = RecordsKeysRepository::create($data);
@@ -740,8 +748,10 @@ final class AudioDictsAgentOps
                     $id = (int)($byName['id'] ?? 0);
                 }
             } else {
-                RecordsKeysRepository::update($id, $data);
+                RecordsKeysRepository::update($id, $data, $onDependents);
             }
+        } catch (InvalidArgumentException $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'error_code' => 'replace_invalid', 'http' => 409];
         } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage(), 'http' => 500];
         }
@@ -773,13 +783,29 @@ final class AudioDictsAgentOps
         if (RecordsKeysRepository::find($id) === null) {
             return ['ok' => false, 'error' => 'not_found', 'http' => 404];
         }
-        $n = RecordsKeysRepository::deleteByIds([$id]);
+        try {
+            $n = RecordsKeysRepository::deleteByIds([$id], self::dependentsPolicy($in));
+        } catch (InvalidArgumentException $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'error_code' => 'has_variants', 'http' => 409];
+        }
         return [
             'ok' => true,
             'message' => 'key_deleted',
             'deleted' => $n,
             'http' => 200,
         ];
+    }
+
+    /**
+     * Policy for variants of a canonical key: cascade | detach | '' (ask; refused when variants exist).
+     *
+     * @param array<string,mixed> $in
+     */
+    private static function dependentsPolicy(array $in): string
+    {
+        $p = strtolower(trim((string)($in['on_dependents'] ?? '')));
+
+        return in_array($p, ['cascade', 'detach'], true) ? $p : '';
     }
 
     /** @param array<string,mixed> $in */

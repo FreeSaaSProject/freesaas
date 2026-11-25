@@ -631,6 +631,205 @@
   function boot() {
     bindBoardPopups(document);
     document.querySelectorAll('form[data-calendar-event-form]').forEach(bindEventForm);
+    bindEventDialog();
+    bindRailCal(document);
+    restoreCalendarScroll();
+  }
+
+  function restoreCalendarScroll() {
+    try {
+      var y = sessionStorage.getItem('calendar-scroll');
+      if (y === null) return;
+      sessionStorage.removeItem('calendar-scroll');
+      var n = parseInt(y, 10);
+      if (n > 0) window.scrollTo(0, n);
+    } catch (err) { /* ignore */ }
+  }
+
+  function bindEventDialog() {
+    var dlg = document.getElementById('calendar-event-dialog');
+    var body = document.getElementById('calendar-event-dialog-body');
+    if (!dlg || !body) return;
+    var lastFocus = null;
+
+    function closeDlg() {
+      if (typeof dlg.close === 'function') dlg.close();
+      else dlg.removeAttribute('open');
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    function bindBody(root) {
+      if (window.SitesPhoneRu && SitesPhoneRu.scan) SitesPhoneRu.scan(root);
+      root.querySelectorAll('form[data-calendar-event-form]').forEach(function (form) {
+        form.removeAttribute('data-event-form-bound');
+        bindEventForm(form);
+        form.addEventListener('submit', function (e) {
+          if (e.defaultPrevented) return;
+          if (!form.closest('#calendar-event-dialog')) return;
+          e.preventDefault();
+          submitEventForm(form, e.submitter || null);
+        });
+      });
+      root.querySelectorAll('form.entity-delete-form').forEach(function (form) {
+        if (form.getAttribute('data-dialog-delete') === '1') return;
+        form.setAttribute('data-dialog-delete', '1');
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var fd = new FormData(form);
+          fetch(form.getAttribute('action') || location.pathname, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          }).then(function (r) {
+            var ct = r.headers.get('content-type') || '';
+            if (ct.indexOf('application/json') !== -1) return r.json();
+            location.href = r.url || location.href;
+            return null;
+          }).then(function (data) {
+            if (!data) return;
+            if (data.ok) {
+              try { sessionStorage.setItem('calendar-scroll', String(window.scrollY)); } catch (err) { /* ignore */ }
+              location.reload();
+              return;
+            }
+            window.alert(data.error || 'Error');
+          }).catch(function () {
+            window.alert('Error');
+          });
+        });
+      });
+      root.querySelectorAll('[data-event-dialog-close]').forEach(function (btn) {
+        btn.addEventListener('click', closeDlg);
+      });
+    }
+
+    function submitEventForm(form, submitter) {
+      var fd = new FormData(form);
+      if (submitter && submitter.name) fd.set(submitter.name, submitter.value);
+      fetch(form.getAttribute('action') || location.pathname, {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }).then(function (r) {
+        var ct = r.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') === -1) {
+          location.href = r.url || form.getAttribute('action') || location.href;
+          return null;
+        }
+        return r.json();
+      }).then(function (data) {
+        if (!data) return;
+        if (data.ok && data.procedure_id) {
+          location.href = '/procedures/' + data.procedure_id + '/edit';
+          return;
+        }
+        if (data.ok && data.redirect) {
+          location.href = data.redirect;
+          return;
+        }
+        if (data.ok) {
+          try { sessionStorage.setItem('calendar-scroll', String(window.scrollY)); } catch (err) { /* ignore */ }
+          location.reload();
+          return;
+        }
+        var flash = body.querySelector('.calendar-event-dialog-error');
+        if (!flash) {
+          flash = document.createElement('div');
+          flash.className = 'flash flash-warn calendar-event-dialog-error';
+          body.insertBefore(flash, body.firstChild);
+        }
+        flash.textContent = data.error || 'Error';
+      }).catch(function () {
+        window.alert('Error');
+      });
+    }
+
+    function openFrom(href, opener) {
+      if (!href) return;
+      lastFocus = opener || document.activeElement;
+      var url = href + (href.indexOf('?') >= 0 ? '&' : '?') + 'fragment=1';
+      body.innerHTML = '<p class="muted">' + (dlg.getAttribute('data-loading') || '…') + '</p>';
+      if (typeof dlg.showModal === 'function') dlg.showModal();
+      else dlg.setAttribute('open', 'open');
+      fetch(url, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      }).then(function (r) { return r.text(); }).then(function (html) {
+        if (html.indexOf('calendar-event-sheet') === -1) {
+          location.href = href;
+          return;
+        }
+        body.innerHTML = html;
+        bindBody(body);
+        var focusable = body.querySelector('input, select, textarea, button');
+        if (focusable && focusable.focus) focusable.focus();
+      }).catch(function () {
+        location.href = href;
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
+      var link = e.target && e.target.closest
+        ? e.target.closest('.calendar-tl-chip-event, .calendar-tl-chip-block, .calendar-tl-slot')
+        : null;
+      if (!link && e.target && e.target.closest) {
+        var mark = e.target.closest('.calendar-tl-hour-mark');
+        if (mark && mark.parentNode) {
+          var slots = mark.parentNode.querySelectorAll('.calendar-tl-slot');
+          for (var i = 0; i < slots.length; i++) {
+            if (slots[i].style.top === mark.style.top) {
+              link = slots[i];
+              break;
+            }
+          }
+        }
+      }
+      if (!link || !link.getAttribute('href')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      openFrom(link.getAttribute('href'), link);
+    }, true);
+
+    dlg.addEventListener('click', function (e) {
+      if (e.target === dlg) closeDlg();
+    });
+    dlg.addEventListener('close', function () {
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    });
+  }
+
+  function bindRailCal(root) {
+    var scope = root || document;
+    scope.querySelectorAll('[data-rail-month]').forEach(function (btn) {
+      if (btn.getAttribute('data-rail-bound') === '1') return;
+      btn.setAttribute('data-rail-bound', '1');
+      btn.addEventListener('click', function () {
+        var month = btn.getAttribute('data-rail-month') || '';
+        var box = btn.closest('[data-rail-cal]');
+        if (!box || !month) return;
+        var staff = '';
+        try { staff = new URLSearchParams(location.search).get('staff') || ''; } catch (err) { staff = ''; }
+        var url = '/calendar/minical?fragment=1&month=' + encodeURIComponent(month);
+        if (staff) url += '&staff=' + encodeURIComponent(staff);
+        fetch(url, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        }).then(function (r) { return r.text(); }).then(function (html) {
+          var wrap = document.createElement('div');
+          wrap.innerHTML = html;
+          var next = wrap.querySelector('[data-rail-cal]');
+          if (!next || !box.parentNode) return;
+          box.parentNode.replaceChild(next, box);
+          bindRailCal(next);
+        }).catch(function () { /* keep the current month */ });
+      });
+    });
   }
 
   if (document.readyState === 'loading') {

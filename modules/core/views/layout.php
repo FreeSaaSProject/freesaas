@@ -286,6 +286,28 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
                 break;
             }
         }
+        $railBefore = [];
+        try {
+            $railInject = EventBus::emit('core.layout.rail', [
+                'path' => $path,
+                'before' => [],
+            ]);
+            if (is_array($railInject) && is_array($railInject['before'] ?? null)) {
+                $railBefore = $railInject['before'];
+            }
+        } catch (Throwable $e) {
+            error_log('[layout rail] ' . $e->getMessage());
+        }
+        $railSeen = [];
+        foreach ($railGroups as $g) {
+            $railSeen[(string)$g['key']] = true;
+        }
+        foreach ($railBefore as $railKey => $railHtml) {
+            if (!is_string($railHtml) || $railHtml === '' || isset($railSeen[(string)$railKey])) {
+                continue;
+            }
+            echo $railHtml;
+        }
         foreach ($railGroups as $i => $g):
             $isOpen = ($openIndex !== null && $i === $openIndex);
             $homeHref = null;
@@ -314,6 +336,10 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
                 // Expand-only mode: sole visible item — title navigates there.
                 $homeHref = (string)$g['items'][0]['path'];
                 $homeActive = !empty($g['items'][0]['active']);
+            }
+            $railSlot = (string)($railBefore[(string)$g['key']] ?? '');
+            if ($railSlot !== '') {
+                echo $railSlot;
             }
       ?>
         <div class="rail-group<?= $isOpen ? ' is-open' : '' ?>" data-group-key="<?= e($g['key']) ?>">

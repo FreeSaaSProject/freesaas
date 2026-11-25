@@ -2,7 +2,7 @@
     "id": "poll_speech",
     "name": "poll_speech.module.name",
     "description": "poll_speech.module.description",
-    "version": "0.1.23",
+    "version": "0.1.24",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",

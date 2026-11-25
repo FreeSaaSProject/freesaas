@@ -3,7 +3,7 @@
     "name": "gcal.module.name",
     "description": "gcal.module.description",
     "summary": "gcal.module.summary",
-    "version": "0.1.9",
+    "version": "0.1.10",
     "type": "product",
     "catalog": {
         "categories": [
@@ -68,7 +68,8 @@
         ],
         "subscribe": [
             "core.news_item.meta",
-            "core.news.feed_chips"
+            "core.news.feed_chips",
+            "calendar.event.actions"
         ]
     },
     "agent": {

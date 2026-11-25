@@ -249,6 +249,34 @@ final class ProceduresRepository
     }
 
     /**
+     * Enabled procedures per calendar day (PHP timezone). Staff matches the day board:
+     * operator or admin.
+     *
+     * @return array<string,int>
+     */
+    public static function countsByDay(int $fromTs, int $toTs, int $staffId = 0): array
+    {
+        if ($fromTs <= 0 || $toTs <= $fromTs || !Database::tableExists('base_procedures')) {
+            return [];
+        }
+        $sql = 'SELECT DTSTART AS dtstart FROM base_procedures WHERE DTSTART >= ? AND DTSTART < ? AND ENABLED = 1';
+        $params = [$fromTs, $toTs];
+        if ($staffId > 0) {
+            $sql .= ' AND (ID_OPERATOR = ? OR ID_ADMIN = ?)';
+            $params[] = $staffId;
+            $params[] = $staffId;
+        }
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        $out = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $day = date('Y-m-d', (int)($row['dtstart'] ?? 0));
+            $out[$day] = ($out[$day] ?? 0) + 1;
+        }
+        return $out;
+    }
+
+    /**
      * Calendar helper: enabled procedures whose DTSTART falls in [scanStart, scanEnd).
      * Cancelled (ENABLED=0, not restored) are omitted — same as dayColumnStats.
      *

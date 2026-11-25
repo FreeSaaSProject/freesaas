@@ -53,6 +53,29 @@ $keyStemConflicts = [];
 $keyForceChecked = false;
 $keyErrorCode = '';
 
+// Canonical key with variants: delete asks for a policy on this form (cascade|detach).
+$keysPolicy = $entity === 'keys' && in_array((string)($_POST['on_dependents'] ?? ''), ['cascade', 'detach'], true)
+    ? (string)$_POST['on_dependents'] : '';
+if (!$isNew && $entity === 'keys' && $keysPolicy !== ''
+    && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && trim((string)($_POST['action'] ?? '')) === 'delete'
+) {
+    $denied = BulkActions::checkItem('audio_keys', 'delete', $id);
+    if ($denied !== '') {
+        flash_set('warn', $denied);
+    } else {
+        $res = audioKeysVariantsRun([$id], ['on_dependents' => $keysPolicy], static function (array $work, string $mode): int {
+            return RecordsKeysRepository::deleteByIds($work, $mode);
+        });
+        if ((int)($res['done'] ?? 0) > 0) {
+            redirect($path);
+            return;
+        }
+        flash_set('warn', (string)($res['skipped'][0]['reason'] ?? t('core.entity.err.delete_failed')));
+    }
+    redirect($path . '/' . $id . '/edit');
+    return;
+}
+
 if (!$isNew && EntityDelete::tryHandle($listId, $id, $path, [
     'stay_path' => $path . '/' . $id . '/edit',
 ])) {
@@ -166,7 +189,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             redirect($path . '/' . $newId . '/edit');
         }
-        $repo::update($id, $data);
+        if ($entity === 'keys') {
+            RecordsKeysRepository::update($id, $data, $keysPolicy);
+        } else {
+            $repo::update($id, $data);
+        }
         if ($wantsJson) {
             AgentHttp::emit(['ok' => true, 'entity' => $entity, 'id' => $id, 'item' => $repo::find($id)]);
             return;
@@ -258,6 +285,13 @@ if ($entity === 'dicts') {
 }
 if ($entity === 'keys') {
     $viewData['dictOptions'] = RecordsDictsRepository::options(true);
+    // ASR replacement: variants of this key (if canonical) and canonical candidates for the input.
+    $variantIds = $isNew ? [] : RecordsKeysRepository::dependentIds($id);
+    $viewData['variantCount'] = count($variantIds);
+    $viewData['replaceEnabled'] = RecordsKeysRepository::hasReplaceColumns();
+    $viewData['replaceCandidates'] = $viewData['replaceEnabled']
+        ? RecordsKeysRepository::canonicalCandidates(max(0, (int)($row['id_dictonary'] ?? 0)), $isNew ? 0 : $id)
+        : [];
     // Merge stem conflicts into the overlap list for the form panel.
     $stemLabels = [
         'stem_prefix_eats' => t('audio_dicts.keys.stem_prefix_eats'),

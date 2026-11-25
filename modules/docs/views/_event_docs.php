@@ -13,7 +13,7 @@ $canPrint = Auth::can('docs.print');
 $canMedical = Auth::can('docs.medical');
 $canOpenDoc = Auth::can('docs.edit') || Auth::can('docs.view');
 ?>
-<fieldset class="docs-event-block">
+<fieldset class="docs-event-block" id="event-docs-sec">
   <legend><?= te('docs.event.sec') ?></legend>
   <?php if ($blocking): ?>
     <p class="flash flash-warn"><?= te('docs.event.medcard_blocking') ?></p>

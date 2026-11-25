@@ -82,6 +82,12 @@ $railGroupHome = !empty($railGroupHome);
     <span><?= te('core.dashboard.rail_icons') ?></span>
   </label>
   <p class="muted dashboard-hint"><?= te('core.dashboard.rail_icons_hint') ?></p>
+  <?php
+    $railOptions = EventBus::emit('core.dashboard.rail_options', ['html' => '']);
+    if (is_array($railOptions) && (string)($railOptions['html'] ?? '') !== '') {
+        echo $railOptions['html'];
+    }
+  ?>
 
   <?php if (!$menuLayout): ?>
     <div class="flash flash-warn"><?= te('core.dashboard.no_menu') ?></div>
