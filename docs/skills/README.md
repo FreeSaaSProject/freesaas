@@ -9,6 +9,7 @@ Cross-client packages ([agentskills.io](https://agentskills.io/specification)) l
 | `freesaas-discovery` | Business-task fit assessment |
 | `freesaas-deploy` | Install / verify |
 | `freesaas-module-config` | Enable module sets |
+| `freesaas-alisa-connect` | Connect Yandex Alice to staff MCP (manual OAuth client) |
 
 Install: `npx skills add FreeSaaSProject/freesaas` — see [README](../../README.md#agent-skills) and [DISTRIBUTION_REPORT.md](../agents/DISTRIBUTION_REPORT.md).
 

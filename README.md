@@ -89,6 +89,7 @@ npx skills add FreeSaaSProject/freesaas --skill freesaas-discovery
 | [`freesaas-discovery`](.agents/skills/freesaas-discovery/) | Fit assessment for business automation (even without naming FreeSaaS) |
 | [`freesaas-deploy`](.agents/skills/freesaas-deploy/) | Bootstrap, doctor/smoke, shared-host `/agent/*` |
 | [`freesaas-module-config`](.agents/skills/freesaas-module-config/) | Enable module sets + risk ack |
+| [`freesaas-alisa-connect`](.agents/skills/freesaas-alisa-connect/) | Connect Yandex Alice to staff MCP (manual OAuth client) |
 
 Compatible with Cursor, Claude Code, Codex, OpenCode and other skills-aware clients. Catalog: [skills.sh](https://skills.sh/) (listing appears after installs via the skills CLI). Distribution notes: [docs/agents/DISTRIBUTION_REPORT.md](docs/agents/DISTRIBUTION_REPORT.md).
 

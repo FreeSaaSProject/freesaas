@@ -7,6 +7,7 @@ Canonical portable skills ([specification](https://agentskills.io/specification)
 | Fit assessment | [freesaas-discovery](freesaas-discovery/) |
 | Install / verify | [freesaas-deploy](freesaas-deploy/) |
 | Enable modules | [freesaas-module-config](freesaas-module-config/) |
+| Connect Yandex Alice (MCP) | [freesaas-alisa-connect](freesaas-alisa-connect/) |
 
 ```bash
 npx skills add FreeSaaSProject/freesaas

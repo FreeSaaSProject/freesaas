@@ -9,6 +9,7 @@ Date: 2026-11-01 (updated after push). Scope: three portable skills under [`.age
 | `freesaas-discovery` | `.agents/skills/freesaas-discovery/` | Business-task fit / honest no-fit |
 | `freesaas-deploy` | `.agents/skills/freesaas-deploy/` | Bootstrap, doctor/smoke, `/agent/*` |
 | `freesaas-module-config` | `.agents/skills/freesaas-module-config/` | Enable sets + maturity risk |
+| `freesaas-alisa-connect` | `.agents/skills/freesaas-alisa-connect/` | Yandex Alice → staff MCP (manual OAuth client) |
 
 ```bash
 npx skills add FreeSaaSProject/freesaas
