@@ -236,7 +236,6 @@ final class BackupStandby
             $body = (string)curl_exec($ch);
             $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $cerr = curl_error($ch);
-            curl_close($ch);
             if ($cerr !== '') {
                 $err = $cerr;
             }

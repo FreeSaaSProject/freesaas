@@ -149,6 +149,23 @@ if ($sessionCode !== 0) {
     $sections['session']['output'] = implode("\n", $sessionLines);
 }
 
+// PHP 8.x deprecated calls (curl_close, imagedestroy, …) — bin/check-php-deprecated.php
+$depLines = [];
+$depCode = 0;
+exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/check-php-deprecated.php') . ' 2>&1',
+    $depLines,
+    $depCode
+);
+$sections['php_deprecated'] = [
+    'ok' => $depCode === 0,
+    'exit' => $depCode,
+];
+if ($depCode !== 0) {
+    $failed = true;
+    $sections['php_deprecated']['output'] = implode("\n", $depLines);
+}
+
 // Bots webhook / link security (bin/check-bots-webhook.php)
 $botsLines = [];
 $botsCode = 0;

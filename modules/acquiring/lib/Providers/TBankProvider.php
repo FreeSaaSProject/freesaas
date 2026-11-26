@@ -59,7 +59,6 @@ final class TBankProvider implements AcquiringProvider
         ]);
         $raw = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         $data = is_string($raw) ? json_decode($raw, true) : null;
         if (is_array($data) && !empty($data['Success']) && !empty($data['PaymentId'])) {
             return [

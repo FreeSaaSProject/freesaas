@@ -150,7 +150,6 @@ final class EdgeHostClient
         $http = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $errno = curl_errno($ch);
         $err = curl_error($ch);
-        curl_close($ch);
 
         if ($tooBig) {
             return $fail('response_too_large', $http);

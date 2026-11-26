@@ -123,7 +123,7 @@ php bin/smoke.php --format=json
 
 5. Sign in at `/login`. Diagnose anytime: `php bin/freesaas.php doctor --format=json`.
 
-Requirements: PHP 7.4+ / 8.x, MySQL, Apache with `.htaccess` (or the bundled Docker Compose).
+Requirements: PHP 8.1+, MySQL, Apache with `.htaccess` (or the bundled Docker Compose).
 
 ## Contacts
 

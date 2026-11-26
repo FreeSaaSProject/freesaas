@@ -2,7 +2,7 @@
     "id": "clientics",
     "name": "clientics.module.name",
     "description": "clientics.module.description",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "type": "product",
     "catalog": {
         "categories": [

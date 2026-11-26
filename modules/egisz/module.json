@@ -2,7 +2,7 @@
     "id": "egisz",
     "name": "egisz.module.name",
     "description": "egisz.module.description",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "type": "product",
     "runtime": "admin",
     "catalog": {

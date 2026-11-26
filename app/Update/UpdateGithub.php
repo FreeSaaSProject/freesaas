@@ -317,7 +317,6 @@ final class UpdateGithub
             $ok = curl_exec($ch);
             $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $err = (string)curl_error($ch);
-            curl_close($ch);
             if ($ok === false || $code < 200 || $code >= 300) {
                 throw new RuntimeException('Download failed HTTP ' . $code . ($err !== '' ? (': ' . $err) : ''));
             }
@@ -433,7 +432,6 @@ final class UpdateGithub
         $body = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = (string)curl_error($ch);
-        curl_close($ch);
         if ($body === false || $code < 200 || $code >= 300) {
             throw new RuntimeException('HTTP GET failed ' . $code . ' for ' . $url . ($err !== '' ? (': ' . $err) : ''));
         }

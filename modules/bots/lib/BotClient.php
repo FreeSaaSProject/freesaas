@@ -375,7 +375,6 @@ final class BotClient
         ]);
         $ok = curl_exec($ch);
         $err = curl_error($ch);
-        curl_close($ch);
         fclose($fp);
         if ($ok === false) {
             @unlink($dest);
@@ -890,11 +889,9 @@ final class BotClient
         $response = curl_exec($ch);
         if ($response === false) {
             $err = curl_error($ch);
-            curl_close($ch);
             return ['ok' => false, 'data' => null, 'error' => $err !== '' ? $err : 'curl failed'];
         }
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         $data = json_decode((string)$response, true);
         if (!is_array($data)) {
             return ['ok' => false, 'data' => null, 'error' => 'invalid telegram json http=' . $http];
@@ -959,11 +956,9 @@ final class BotClient
         $response = curl_exec($ch);
         if ($response === false) {
             $err = curl_error($ch);
-            curl_close($ch);
             return ['ok' => false, 'data' => null, 'error' => $err !== '' ? $err : 'curl failed'];
         }
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         $data = ($response !== '' ? json_decode((string)$response, true) : null);
         if ($http < 200 || $http >= 300) {
             $snippet = is_string($response) ? substr($response, 0, 300) : '';

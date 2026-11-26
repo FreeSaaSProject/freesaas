@@ -218,7 +218,6 @@ final class SafeHttp
             $errno = curl_errno($ch);
             $err = curl_error($ch);
             $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
             if ($tooLarge) {
                 $empty['error'] = 'response too large';
                 $empty['http'] = $code;
@@ -353,7 +352,6 @@ final class SafeHttp
             $errno = curl_errno($ch);
             $err = curl_error($ch);
             $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
             fclose($fp);
             if ($tooLarge) {
                 @unlink($destPath);

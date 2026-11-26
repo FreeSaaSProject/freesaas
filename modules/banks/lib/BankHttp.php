@@ -44,7 +44,6 @@ final class BankHttp
         $errno = curl_errno($ch);
         $err = $errno ? (string)curl_error($ch) : '';
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         if ($errno) {
             return ['ok' => false, 'http' => $http, 'data' => null, 'raw' => $raw, 'error' => $err];
         }

@@ -162,7 +162,6 @@ final class DbFetch
                     $errno = 0;
                     $error = '';
                 }
-                curl_close($ch);
 
                 if ($code >= 300 && $code < 400) {
                     $loc = self::headerValue($headers, 'Location');

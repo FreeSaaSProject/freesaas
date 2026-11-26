@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 /**
  * Compact calendar in the main rail, above the Assistant group.
- * Personal prefs: calendar.rail = off|month|week, calendar.rail_week_off_today = 0|1.
+ * Personal prefs: calendar.rail = off|month|week (unset = month),
+ * calendar.rail_week_off_today = 0|1.
  */
 final class CalendarRail
 {
@@ -16,8 +17,17 @@ final class CalendarRail
         if (!Auth::check() || !Auth::can('calendar.view') || !Database::tableExists('base_events')) {
             return 'off';
         }
+        return self::storedMode();
+    }
+
+    /** @return 'off'|'month'|'week' */
+    private static function storedMode(): string
+    {
         $v = UserPrefsRepository::get(Auth::userId(), self::PREF_MODE);
-        return ($v === 'month' || $v === 'week') ? $v : 'off';
+        if ($v === 'off' || $v === 'month' || $v === 'week') {
+            return $v;
+        }
+        return 'month';
     }
 
     public static function weekOnOther(): bool
@@ -62,10 +72,7 @@ final class CalendarRail
         if (!is_array($payload) || !Auth::check() || !Auth::can('calendar.view')) {
             return is_array($payload) ? $payload : [];
         }
-        $mode = UserPrefsRepository::get(Auth::userId(), self::PREF_MODE);
-        if ($mode !== 'month' && $mode !== 'week') {
-            $mode = 'off';
-        }
+        $mode = self::storedMode();
         $week = self::weekOnOther();
         $source = self::sourcePref();
         $resolved = self::markSource();

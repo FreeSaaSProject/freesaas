@@ -2,7 +2,7 @@
     "id": "media",
     "name": "media.module.name",
     "description": "media.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "runtime": "admin",
     "requires": {

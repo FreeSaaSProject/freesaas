@@ -274,11 +274,9 @@ final class YclientsApiClient
         $raw = curl_exec($ch);
         if ($raw === false) {
             $err = curl_error($ch);
-            curl_close($ch);
             return ['ok' => false, 'error' => $err !== '' ? $err : 'curl failed'];
         }
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         $decoded = json_decode((string)$raw, true);
         // Auth success is often HTTP 201.

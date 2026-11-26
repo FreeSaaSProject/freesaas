@@ -145,6 +145,7 @@ jobs:
           php bin/check-password.php
           php bin/check-session.php
           php bin/check-unserialize.php
+          php bin/check-php-deprecated.php
           php bin/check-htaccess-denies.php
           php bin/check-safe-http.php
           php bin/check-license-inventory.php

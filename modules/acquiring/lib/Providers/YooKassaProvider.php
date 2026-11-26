@@ -63,7 +63,6 @@ final class YooKassaProvider implements AcquiringProvider
         ]);
         $raw = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         $data = is_string($raw) ? json_decode($raw, true) : null;
         if ($code >= 200 && $code < 300 && is_array($data) && !empty($data['id'])) {
             $url = (string)($data['confirmation']['confirmation_url'] ?? '');

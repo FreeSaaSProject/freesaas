@@ -91,7 +91,6 @@ final class BanksEgressIp
         curl_setopt($ch, CURLOPT_USERAGENT, 'FreeSaaS-banks-egress/1');
         $raw = (string)curl_exec($ch);
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         if ($http < 200 || $http >= 300) {
             return '';
         }

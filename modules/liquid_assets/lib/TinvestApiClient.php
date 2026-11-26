@@ -71,7 +71,6 @@ final class TinvestApiClient
         $raw = curl_exec($ch);
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $cerr = curl_error($ch);
-        curl_close($ch);
         $dt = microtime(true) - $t0;
         self::$stats['n']++;
         self::$stats['sec'] += $dt;

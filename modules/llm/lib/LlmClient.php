@@ -46,11 +46,9 @@ final class LlmClient
         $response = curl_exec($ch);
         if ($response === false) {
             $err = t('llm.err.curl') . ': ' . curl_error($ch);
-            curl_close($ch);
             return ['ok' => false, 'data' => null, 'error' => $err, 'profile' => $cfg['id']];
         }
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         if ($httpCode < 200 || $httpCode >= 300) {
             $snippet = is_string($response) ? $response : '';
@@ -148,7 +146,6 @@ final class LlmClient
         curl_exec($ch);
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
-        curl_close($ch);
 
         if ($err !== '') {
             return ['ok' => false, 'text' => $fullContent, 'error' => t('llm.err.curl') . ': ' . $err, 'profile' => $cfg['id']];

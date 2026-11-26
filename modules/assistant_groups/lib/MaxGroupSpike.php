@@ -39,11 +39,9 @@ final class MaxGroupSpike
         $response = curl_exec($ch);
         if ($response === false) {
             $err = curl_error($ch);
-            curl_close($ch);
             return ['ok' => false, 'data' => null, 'error' => $err !== '' ? $err : 'curl failed', 'http' => 0];
         }
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         $data = $response !== '' ? json_decode((string)$response, true) : null;
         if ($http < 200 || $http >= 300) {
             $snippet = is_string($response) ? substr($response, 0, 300) : '';

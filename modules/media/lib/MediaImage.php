@@ -41,8 +41,7 @@ final class MediaImage
         $maxEdge = MediaConfig::maxEdgePx();
         $master = self::scaleToEdge($src, $w, $h, $maxEdge);
         if ($master !== $src) {
-            imagedestroy($src);
-            $src = null;
+            $src = null; // GD handle is freed by refcount
         }
         $mw = imagesx($master);
         $mh = imagesy($master);
@@ -51,10 +50,8 @@ final class MediaImage
 
         $workDir = rtrim(sys_get_temp_dir(), '/') . '/freesaas_media_' . bin2hex(random_bytes(4));
         if (!@mkdir($workDir, 0700, true) && !is_dir($workDir)) {
-            imagedestroy($master);
-            if ($thumb !== $master) {
-                imagedestroy($thumb);
-            }
+            $master = null;
+            $thumb = null;
             throw new RuntimeException(t('media.err.temp_dir'));
         }
         $outMime = 'image/jpeg';
@@ -69,10 +66,8 @@ final class MediaImage
             self::cleanupWork($workDir, $master, $thumb);
             throw new RuntimeException(t('media.err.encode_failed'));
         }
-        if ($thumb !== $master) {
-            imagedestroy($thumb);
-        }
-        imagedestroy($master);
+        $thumb = null;
+        $master = null;
 
         return [
             'path' => $masterPath,
@@ -127,12 +122,7 @@ final class MediaImage
     /** @param resource|object|null $b */
     private static function cleanupWork(string $dir, $a, $b): void
     {
-        if (is_resource($a) || is_object($a)) {
-            @imagedestroy($a);
-        }
-        if ($b !== null && $b !== $a && (is_resource($b) || is_object($b))) {
-            @imagedestroy($b);
-        }
+        // GD handles are released when the caller's references go out of scope.
         foreach ([$dir . '/master.jpg', $dir . '/thumb.jpg'] as $f) {
             if (is_file($f)) {
                 @unlink($f);

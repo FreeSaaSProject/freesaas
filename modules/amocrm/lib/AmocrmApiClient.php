@@ -35,7 +35,6 @@ final class AmocrmApiClient
         $raw = curl_exec($ch);
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $cerr = curl_error($ch);
-        curl_close($ch);
         if ($raw === false) {
             return ['ok' => false, 'error' => $cerr !== '' ? $cerr : 'curl failed', 'http' => $http];
         }

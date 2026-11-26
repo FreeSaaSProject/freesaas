@@ -606,7 +606,6 @@ final class OnecClient
         $raw = curl_exec($ch);
         $errno = curl_errno($ch);
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         if ($raw === false || $errno !== 0) {
             return ['ok' => false, 'error' => 'curl error ' . $errno, 'http' => $http];
         }

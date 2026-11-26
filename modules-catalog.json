@@ -1,10 +1,10 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-26T18:22:36+00:00",
+    "generated_at": "2026-11-26T18:52:34+00:00",
     "modules": [
         {
             "id": "acquiring",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Online acquiring",
@@ -85,7 +85,7 @@
         },
         {
             "id": "amocrm",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "AmoCRM",
@@ -199,7 +199,7 @@
         },
         {
             "id": "assistant_groups",
-            "version": "1.0.23",
+            "version": "1.0.24",
             "type": "product",
             "name": {
                 "en": "Assistant in groups",
@@ -547,7 +547,7 @@
         },
         {
             "id": "backups",
-            "version": "0.4.17",
+            "version": "0.4.18",
             "type": "product",
             "name": {
                 "en": "Backups",
@@ -586,7 +586,7 @@
         },
         {
             "id": "banks",
-            "version": "0.1.30",
+            "version": "0.1.31",
             "type": "product",
             "name": {
                 "en": "Banks",
@@ -661,7 +661,7 @@
         },
         {
             "id": "bitrix",
-            "version": "0.1.3",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Bitrix24 CRM",
@@ -779,7 +779,7 @@
         },
         {
             "id": "bots",
-            "version": "1.0.9",
+            "version": "1.0.10",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -847,7 +847,7 @@
         },
         {
             "id": "calendar",
-            "version": "1.0.21",
+            "version": "1.0.22",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -1047,7 +1047,7 @@
         },
         {
             "id": "clientics",
-            "version": "0.2.2",
+            "version": "0.2.3",
             "type": "product",
             "name": {
                 "en": "Clientics",
@@ -1363,7 +1363,7 @@
         },
         {
             "id": "egisz",
-            "version": "0.3.0",
+            "version": "0.3.1",
             "type": "product",
             "name": {
                 "en": "EGISZ / REMD",
@@ -1473,7 +1473,7 @@
         },
         {
             "id": "gcal",
-            "version": "0.1.10",
+            "version": "0.1.11",
             "type": "product",
             "name": {
                 "en": "Google Calendar",
@@ -1628,7 +1628,7 @@
         },
         {
             "id": "liquid_assets",
-            "version": "1.0.4",
+            "version": "1.0.5",
             "type": "product",
             "name": {
                 "en": "Liquid assets",
@@ -1667,7 +1667,7 @@
         },
         {
             "id": "llm",
-            "version": "1.0.6",
+            "version": "1.0.7",
             "type": "product",
             "name": {
                 "en": "LLM",
@@ -1772,7 +1772,7 @@
         },
         {
             "id": "media",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Media",
@@ -2530,7 +2530,7 @@
         },
         {
             "id": "terminals",
-            "version": "1.0.14",
+            "version": "1.0.15",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
@@ -2815,7 +2815,7 @@
         },
         {
             "id": "yclients",
-            "version": "0.1.7",
+            "version": "0.1.8",
             "type": "product",
             "name": {
                 "en": "YClients",

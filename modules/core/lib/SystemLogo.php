@@ -98,12 +98,8 @@ final class SystemLogo
         }
 
         self::ensureDir();
-        try {
-            foreach (self::BOXES as $variant => $box) {
-                self::writeVariant($src, $variant, $box['w'], $box['h']);
-            }
-        } finally {
-            imagedestroy($src);
+        foreach (self::BOXES as $variant => $box) {
+            self::writeVariant($src, $variant, $box['w'], $box['h']);
         }
         self::$hasCache = true;
     }
@@ -158,7 +154,6 @@ final class SystemLogo
 
         $out = self::path($variant);
         $ok = imagepng($dst, $out, 6);
-        imagedestroy($dst);
         if (!$ok) {
             throw new RuntimeException(t('core.settings.logo.err_process'));
         }

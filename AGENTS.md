@@ -6,7 +6,7 @@ Instructions for coding agents working in this repository. Human guide: [`docs/G
 
 ## Stack
 
-- PHP 7.4+/8.x style with `declare(strict_types=1);`, no Composer framework.
+- PHP 8.1+ (CI matrix 8.1 / 8.2 / 8.4) with `declare(strict_types=1);`, no Composer framework. Do not add 7.x-only workarounds; avoid functions deprecated in 8.5 (`bin/check-php-deprecated.php`).
 - Front controllers: `index.php` (admin) / `site.php` (storefront) → `app/bootstrap.php` → `Router::dispatch()`. Role: `AppRuntime` + optional `module.json` `runtime` (`admin`\|`storefront`\|`both`).
 - MySQL via PDO (`app/Database.php`). Platform config: `cfg/config.ini`; module settings: `cfg/modules/<id>.ini`.
 - Modules under `modules/<id>/` with `module.json` + `bootstrap.php`.
