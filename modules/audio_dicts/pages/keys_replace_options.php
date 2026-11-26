@@ -13,12 +13,17 @@ if ($key === null) {
 $q = trim((string)($_GET['q'] ?? ''));
 $items = KeyReplaceSuggest::alternatives($id, $q, 40);
 $current = (string)($key['replace_suggest'] ?? '');
+// Other keys with the very same stored suggestion: the UI lists them so the user can apply the choice explicitly.
+$same = (string)($key['replace_state'] ?? '') === 'suggested'
+    ? RecordsKeysRepository::sameSuggestionKeys((int)$key['id_dictonary'], $current, $id, 200)
+    : [];
 
 AgentHttp::emit([
     'ok' => true,
     'id' => $id,
     'name' => (string)$key['name'],
     'suggest' => $current,
+    'same' => $same,
     'items' => array_map(static fn (array $r): array => [
         'id' => $r['id'],
         'name' => $r['name'],

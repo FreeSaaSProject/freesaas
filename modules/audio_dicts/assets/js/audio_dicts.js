@@ -1663,9 +1663,44 @@
     var searchEl;
     var listEl;
     var typedBtn;
+    var sameBox;
+    var sameTitle;
+    var sameList;
+    var sameAll;
+    var sameCount;
+    var sameRendered = false;
     var curId = 0;
     var seq = 0;
     var timer = null;
+
+    /** Ids of other keys with the same suggestion that the user ticked (explicit opt-in). */
+    function alsoCsv() {
+      if (!sameList) return '';
+      return Array.prototype.slice.call(sameList.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(function (c) { return c.value; }).join(',');
+    }
+
+    function updateSameCount() {
+      var n = sameList ? sameList.querySelectorAll('input[type="checkbox"]:checked').length : 0;
+      sameCount.textContent = String(i18n.sameChecked || '').replace('{n}', String(n));
+    }
+
+    function renderSame(same, suggest) {
+      sameRendered = true;
+      if (!same || !same.length) {
+        sameBox.hidden = true;
+        sameList.innerHTML = '';
+        return;
+      }
+      sameTitle.textContent = String(i18n.same || '').replace('{s}', suggest || '').replace('{n}', String(same.length));
+      sameList.innerHTML = same.map(function (k) {
+        return '<label class="audio-key-alt-same-item"><input type="checkbox" value="' + (parseInt(k.id, 10) || 0) + '"> ' +
+          '<span class="muted">#' + (parseInt(k.id, 10) || 0) + '</span> ' + esc(k.name) + '</label>';
+      }).join('');
+      sameAll.checked = false;
+      updateSameCount();
+      sameBox.hidden = false;
+    }
 
     function esc(s) {
       return String(s == null ? '' : s)
@@ -1681,6 +1716,8 @@
       f.action = actionUrl;
       f.style.display = 'none';
       fields.csrf = window.freesaasCsrfToken ? window.freesaasCsrfToken() : '';
+      var also = alsoCsv();
+      if (also) fields.also_csv = also;
       Object.keys(fields).forEach(function (k) {
         var inp = document.createElement('input');
         inp.type = 'hidden';
@@ -1701,8 +1738,14 @@
         '<h2 class="audio-key-alt-title"></h2>' +
         '<input type="search" class="audio-key-alt-search" autocomplete="off" placeholder="' + esc(i18n.search || '') + '">' +
         '<div class="audio-key-alt-list" role="listbox"></div>' +
+        '<div class="audio-key-alt-same" hidden>' +
+        '<p class="audio-key-alt-same-title small"></p>' +
+        '<label class="audio-key-alt-same-all small"><input type="checkbox"> ' + esc(i18n.sameAll || '') + '</label> ' +
+        '<span class="audio-key-alt-same-count muted small"></span>' +
+        '<div class="audio-key-alt-same-list"></div></div>' +
         '<div class="audio-key-alt-foot">' +
         '<button type="button" class="btn-sm audio-key-alt-typed" hidden></button>' +
+        '<button type="button" class="btn-sm audio-key-alt-reject">' + esc(i18n.reject || '') + '</button>' +
         '<button type="button" class="btn-sm audio-key-alt-keep">' + esc(i18n.keep || '') + '</button>' +
         '<button type="button" class="btn-sm audio-key-alt-close">' + esc(i18n.close || '') + '</button>' +
         '</div></div>';
@@ -1711,7 +1754,22 @@
       searchEl = dlg.querySelector('.audio-key-alt-search');
       listEl = dlg.querySelector('.audio-key-alt-list');
       typedBtn = dlg.querySelector('.audio-key-alt-typed');
+      sameBox = dlg.querySelector('.audio-key-alt-same');
+      sameTitle = dlg.querySelector('.audio-key-alt-same-title');
+      sameList = dlg.querySelector('.audio-key-alt-same-list');
+      sameAll = dlg.querySelector('.audio-key-alt-same-all input');
+      sameCount = dlg.querySelector('.audio-key-alt-same-count');
 
+      sameAll.addEventListener('change', function () {
+        Array.prototype.forEach.call(sameList.querySelectorAll('input[type="checkbox"]'), function (c) {
+          c.checked = sameAll.checked;
+        });
+        updateSameCount();
+      });
+      sameList.addEventListener('change', updateSameCount);
+      dlg.querySelector('.audio-key-alt-reject').addEventListener('click', function () {
+        post({ action: 'replace_reject', id: curId });
+      });
       dlg.querySelector('.audio-key-alt-close').addEventListener('click', function () { dlg.close(); });
       dlg.querySelector('.audio-key-alt-keep').addEventListener('click', function () {
         post({ action: 'replace_keep', id: curId });
@@ -1776,6 +1834,7 @@
         if (my !== seq) return;
         if (!data || !data.ok) throw new Error('bad');
         render(data.items || [], q);
+        if (!sameRendered) renderSame(data.same || [], data.suggest || '');
       }).catch(function () {
         if (my !== seq) return;
         listEl.innerHTML = '<div class="audio-key-alt-empty">' + esc(i18n.error || '') + '</div>';
@@ -1792,6 +1851,9 @@
       titleEl.textContent = (i18n.title || '') + ' «' + (btn.getAttribute('data-key-name') || '') + '»';
       searchEl.value = '';
       typedBtn.hidden = true;
+      sameRendered = false;
+      sameBox.hidden = true;
+      sameList.innerHTML = '';
       if (typeof dlg.showModal === 'function') {
         if (!dlg.open) dlg.showModal();
       } else {

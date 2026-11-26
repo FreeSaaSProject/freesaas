@@ -956,6 +956,25 @@ button.audio-key-suggest:hover { text-decoration: underline; }
 .audio-key-alt-item.is-current { box-shadow: inset 3px 0 0 var(--accent, #2563eb); }
 .audio-key-alt-meta { white-space: nowrap; font-size: 0.8rem; }
 .audio-key-alt-empty { padding: 0.75rem; }
+.audio-key-alt-same {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  background: var(--surface-2, #f8fafc);
+}
+.audio-key-alt-same[hidden] { display: none !important; }
+.audio-key-alt-same-title { margin: 0 0 0.35rem; }
+.audio-key-alt-same-list {
+  max-height: 9rem;
+  overflow: auto;
+  margin-top: 0.35rem;
+}
+.audio-key-alt-same-item {
+  display: block;
+  padding: 0.1rem 0;
+  font-size: 0.88rem;
+}
 .audio-key-alt-foot {
   display: flex;
   flex-wrap: wrap;

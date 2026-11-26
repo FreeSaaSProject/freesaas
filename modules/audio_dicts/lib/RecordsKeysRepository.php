@@ -193,6 +193,19 @@ final class RecordsKeysRepository
         if ($replaceId !== null && $replaceId > 0) {
             self::dropReviewState($replaceId);
         }
+        if ($cur !== null && (int)($cur['id_replace'] ?? 0) === 0 && empty($cur['disabled'])) {
+            // The key may have been a suggestion target: keep those suggestions valid.
+            $oldName = (string)$cur['name'];
+            $oldDict = (int)$cur['id_dictonary'];
+            if ($replaceId !== null && $replaceId > 0) {
+                $target = self::find($replaceId);
+                self::retargetSuggestions($oldDict, $oldName, $target !== null ? (string)$target['name'] : '', $replaceId);
+            } elseif (!empty($data['disabled']) || $dictChanged) {
+                self::retargetSuggestions($oldDict, $oldName, '');
+            } elseif ($oldName !== (string)$data['name']) {
+                self::retargetSuggestions($oldDict, $oldName, (string)$data['name'], $id);
+            }
+        }
         if ($cascadeIds !== []) {
             self::setDisabledByIds($cascadeIds, true);
         }
@@ -217,6 +230,81 @@ final class RecordsKeysRepository
              WHERE ID = ? AND ID_REPLACE = 0 AND REPLACE_STATE IN ('pending', 'suggested')"
         );
         $st->execute([$keyId]);
+    }
+
+    /**
+     * Stored suggestions are plain names. When their target stops being a canonical key
+     * (renamed, linked elsewhere, disabled, deleted) repoint them to `$to`, or drop when `$to` is empty.
+     *
+     * @return int suggestions changed
+     */
+    public static function retargetSuggestions(int $dictId, string $from, string $to = '', int $exceptId = 0): int
+    {
+        if ($dictId < 1 || $from === '' || !self::hasReplaceColumns()) {
+            return 0;
+        }
+        $pdo = Database::pdo();
+        if ($to === '') {
+            $st = $pdo->prepare(
+                "UPDATE base_records_keys SET REPLACE_STATE = '', REPLACE_SUGGEST = ''
+                 WHERE ID_DICTONARY = ? AND REPLACE_STATE = 'suggested' AND REPLACE_SUGGEST = ?"
+            );
+            $st->execute([$dictId, $from]);
+
+            return $st->rowCount();
+        }
+        // Never point a key at itself (rows named like the new target keep no suggestion).
+        $st = $pdo->prepare(
+            "UPDATE base_records_keys SET REPLACE_SUGGEST = ?
+             WHERE ID_DICTONARY = ? AND REPLACE_STATE = 'suggested' AND REPLACE_SUGGEST = ?
+               AND ID <> ? AND NAME <> ?"
+        );
+        $st->execute([mb_substr($to, 0, 255), $dictId, $from, $exceptId, $to]);
+
+        return $st->rowCount();
+    }
+
+    /**
+     * Drop suggestions that point at these keys (they are about to be disabled or deleted).
+     *
+     * @param list<int> $ids
+     */
+    private static function forgetSuggestionsTo(array $ids): void
+    {
+        if ($ids === [] || !self::hasReplaceColumns()) {
+            return;
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT NAME, ID_DICTONARY FROM base_records_keys WHERE ID IN ($in) AND ID_REPLACE = 0 AND DISABLED < 1"
+        );
+        $st->execute($ids);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+            self::retargetSuggestions((int)$r['ID_DICTONARY'], (string)$r['NAME'], '');
+        }
+    }
+
+    /**
+     * Other keys of the dictionary that carry the same stored suggestion (state suggested).
+     *
+     * @return list<array{id:int,name:string}>
+     */
+    public static function sameSuggestionKeys(int $dictId, string $suggest, int $exceptId = 0, int $limit = 200): array
+    {
+        if ($dictId < 1 || $suggest === '' || !self::hasReplaceColumns()) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            "SELECT ID AS id, NAME AS name FROM base_records_keys
+             WHERE ID_DICTONARY = ? AND REPLACE_STATE = 'suggested' AND REPLACE_SUGGEST = ? AND ID <> ?
+             ORDER BY NAME LIMIT " . max(1, $limit)
+        );
+        $st->execute([$dictId, $suggest, $exceptId]);
+
+        return array_map(
+            static fn (array $r): array => ['id' => (int)$r['id'], 'name' => (string)$r['name']],
+            $st->fetchAll(PDO::FETCH_ASSOC) ?: []
+        );
     }
 
     public static function findByName(string $name): ?array
@@ -601,6 +689,7 @@ final class RecordsKeysRepository
         }
         if ($disabled) {
             $ids = self::withDependents($ids, $onDependents);
+            self::forgetSuggestionsTo($ids);
         }
         $in = implode(',', array_fill(0, count($ids), '?'));
         $params = array_merge([$disabled ? 1 : 0], $ids);
@@ -770,6 +859,7 @@ final class RecordsKeysRepository
             return 0;
         }
         $ids = self::withDependents($ids, $onDependents);
+        self::forgetSuggestionsTo($ids);
         $in = implode(',', array_fill(0, count($ids), '?'));
         $st = Database::pdo()->prepare("DELETE FROM base_records_keys WHERE ID IN ($in)");
         $st->execute($ids);

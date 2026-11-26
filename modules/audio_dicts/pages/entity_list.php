@@ -45,43 +45,72 @@ if ($entity === 'keys'
     && Auth::can('audio_dicts.edit')
 ) {
     $action = trim((string)($_POST['action'] ?? ''));
-    if ($action === 'replace_accept' || $action === 'replace_reject') {
-        // Per-row ✅ / ❌ on a stored suggestion; links are created only by this explicit click.
+    if ($action === 'replace_accept') {
+        // Per-row ✅ on a stored suggestion; the link is created only by this explicit click.
         $id = (int)($_POST['id'] ?? 0);
-        $r = $action === 'replace_accept'
-            ? RecordsKeysRepository::acceptSuggestionsByIds([$id])
-            : RecordsKeysRepository::rejectSuggestionsByIds([$id]);
+        $r = RecordsKeysRepository::acceptSuggestionsByIds([$id]);
         if ((int)$r['done'] < 1) {
             flash_set('warn', (string)($r['skipped'][0]['reason'] ?? t('audio_dicts.replace.skip.no_suggest')));
         } else {
-            flash_set('ok', t($action === 'replace_accept' ? 'audio_dicts.replace.row_accepted' : 'audio_dicts.replace.row_rejected'));
+            flash_set('ok', t('audio_dicts.replace.row_accepted'));
         }
         $qs = $_SERVER['QUERY_STRING'] ?? '';
         redirect($path . ($qs !== '' ? '?' . $qs : ''));
         return;
     }
-    if ($action === 'replace_pick' || $action === 'replace_keep') {
-        // Popup choice: link to another canonical key (id or typed name) or keep the key as is.
+    if ($action === 'replace_pick' || $action === 'replace_keep' || $action === 'replace_reject') {
+        // ❌ in a row / popup choice: link to another canonical key (id or typed name), keep as is, or reject.
+        // `also_csv` = ids the user ticked in the popup; only keys that carry the same stored suggestion count.
         $id = (int)($_POST['id'] ?? 0);
+        $ids = [$id];
+        $primary = RecordsKeysRepository::find($id);
+        if ($primary !== null && (string)$primary['replace_state'] === 'suggested' && (string)$primary['replace_suggest'] !== '') {
+            $want = array_filter(array_map('intval', explode(',', (string)($_POST['also_csv'] ?? ''))), static fn ($i) => $i > 0);
+            $valid = array_column(RecordsKeysRepository::sameSuggestionKeys(
+                (int)$primary['id_dictonary'],
+                (string)$primary['replace_suggest'],
+                $id,
+                1000
+            ), 'id');
+            $ids = array_merge($ids, array_values(array_unique(array_intersect($want, $valid))));
+        }
+        $done = 0;
+        $skipped = [];
         if ($action === 'replace_keep') {
-            $r = RecordsKeysRepository::setReplaceStateByIds([$id], 'keep');
-            $ok = (int)$r['done'] > 0;
-            $msg = $ok ? t('audio_dicts.replace.row_kept') : (string)($r['skipped'][0]['reason'] ?? '');
+            $r = RecordsKeysRepository::setReplaceStateByIds($ids, 'keep');
+            $done = (int)$r['done'];
+            $skipped = $r['skipped'];
+        } elseif ($action === 'replace_reject') {
+            $r = RecordsKeysRepository::rejectSuggestionsByIds($ids);
+            $done = (int)$r['done'];
+            $skipped = $r['skipped'];
         } else {
-            try {
-                RecordsKeysRepository::setReplacement(
-                    $id,
-                    (int)($_POST['replace_id'] ?? 0),
-                    trim((string)($_POST['replace_text'] ?? ''))
-                );
-                $ok = true;
-                $msg = t('audio_dicts.replace.row_accepted');
-            } catch (InvalidArgumentException $e) {
-                $ok = false;
-                $msg = $e->getMessage();
+            foreach ($ids as $kid) {
+                try {
+                    RecordsKeysRepository::setReplacement(
+                        $kid,
+                        (int)($_POST['replace_id'] ?? 0),
+                        trim((string)($_POST['replace_text'] ?? ''))
+                    );
+                    $done++;
+                } catch (InvalidArgumentException $e) {
+                    $skipped[] = ['id' => $kid, 'reason' => '#' . $kid . ': ' . $e->getMessage()];
+                }
             }
         }
-        flash_set($ok ? 'ok' : 'warn', $msg);
+        if ($done < 1) {
+            flash_set('warn', (string)($skipped[0]['reason'] ?? t('audio_dicts.replace.skip.no_suggest')));
+        } elseif (count($ids) > 1) {
+            $msg = t('audio_dicts.replace.row_many', ['done' => (string)$done, 'skip' => (string)count($skipped)]);
+            if ($skipped !== []) {
+                $msg .= ' ' . (string)$skipped[0]['reason'];
+            }
+            flash_set($skipped === [] ? 'ok' : 'warn', $msg);
+        } else {
+            flash_set('ok', t($action === 'replace_keep'
+                ? 'audio_dicts.replace.row_kept'
+                : ($action === 'replace_reject' ? 'audio_dicts.replace.row_rejected' : 'audio_dicts.replace.row_accepted')));
+        }
         $qs = $_SERVER['QUERY_STRING'] ?? '';
         redirect($path . ($qs !== '' ? '?' . $qs : ''));
         return;

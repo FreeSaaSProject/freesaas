@@ -166,6 +166,10 @@ $dictOptions = is_array($dictOptions ?? null) ? $dictOptions : [];
          'loading' => t('audio_dicts.replace.alt.loading'),
          'error' => t('audio_dicts.replace.alt.error'),
          'keep' => t('audio_dicts.replace.alt.keep'),
+         'reject' => t('audio_dicts.replace.alt.reject'),
+         'same' => t('audio_dicts.replace.alt.same'),
+         'sameAll' => t('audio_dicts.replace.alt.same_all'),
+         'sameChecked' => t('audio_dicts.replace.alt.same_checked'),
          'typed' => t('audio_dicts.replace.alt.typed'),
          'close' => t('audio_dicts.replace.alt.close'),
      ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?: '{}') ?>"></div>

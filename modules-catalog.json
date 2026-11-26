@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-25T22:06:09+00:00",
+    "generated_at": "2026-11-26T10:08:50+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -317,7 +317,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.32",
+            "version": "1.0.33",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",

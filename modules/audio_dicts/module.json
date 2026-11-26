@@ -2,7 +2,7 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "1.0.32",
+    "version": "1.0.33",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -294,7 +294,7 @@
                 "permission": "audio_dicts.edit",
                 "side_effect": "write",
                 "assistant": false,
-                "description": "Per-row quick decision on a suggested replacement in the keys list: action=replace_accept (writes the suggested name as replace_text, same rules as keys.update), action=replace_reject (clears the suggestion), action=replace_pick (link to another canonical key: replace_id or replace_text) or action=replace_keep (no replacement, state keep); id = key id. Same rules as the bulk replace_* actions"
+                "description": "Per-row quick decision on a suggested replacement in the keys list: action=replace_accept (writes the suggested name as replace_text, same rules as keys.update), action=replace_reject (clears the suggestion), action=replace_pick (link to another canonical key: replace_id or replace_text) or action=replace_keep (no replacement, state keep); id = key id. replace_pick/replace_keep/replace_reject accept also_csv = ids of other keys that carry the same stored suggestion (anything else is ignored). Same rules as the bulk replace_* actions"
             },
             {
                 "id": "audio_dicts.keys.replace_options",
@@ -302,7 +302,7 @@
                 "path": "/audio/keys/replace-options",
                 "permission": "audio_dicts.edit",
                 "side_effect": "read",
-                "description": "Alternative canonical keys (same dictionary) for the review popup; id = key id, optional q = substring. Keys already used as canonical (variants>0) come first, then by similarity"
+                "description": "Alternative canonical keys (same dictionary) for the review popup; id = key id, optional q = substring. Keys already used as canonical (variants>0) come first, then by similarity. Also returns same = other keys with the same stored suggestion"
             },
             {
                 "id": "audio_dicts.dicts.suggest_descr",
