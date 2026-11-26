@@ -577,6 +577,12 @@ tr.is-block td { opacity: 0.75; }
 .calendar-tl-chip-block {
   opacity: 0.92;
 }
+/* CalendarViewScope: details hidden — time + specialist only, not clickable. */
+.calendar-tl-chip-busy {
+  opacity: 0.85;
+  cursor: default;
+  box-shadow: none;
+}
 /* Out-of-shift lane wash (only when staff already has chips). */
 .calendar-tl-chip-shift_bound {
   z-index: 1;

@@ -45,6 +45,9 @@ final class CalendarWidgets
             }
             $out[] = $row;
         }
+        if (CalendarViewScope::active()) {
+            $out = CalendarViewScope::maskRows([], $out, [])['procedures'];
+        }
         return $out;
     }
 
@@ -72,6 +75,13 @@ final class CalendarWidgets
                 continue;
             }
             $out[] = $row;
+        }
+        if (CalendarViewScope::active()) {
+            // Busy rows carry no details — widgets list only what the viewer may fully see.
+            $out = array_values(array_filter(
+                CalendarViewScope::maskRows($out, [], [])['events'],
+                static fn(array $r): bool => empty($r['busy'])
+            ));
         }
         return $out;
     }

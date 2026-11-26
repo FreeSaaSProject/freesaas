@@ -156,6 +156,17 @@ final class OAuthServer
         return false;
     }
 
+    /**
+     * Hosts accepted only as https redirect_uri (DCR / CIMD metadata), never as CIMD fetch targets.
+     * Alice (Yandex) MCP clients register `https://alice.yandex.ru/plugins/oauth/callback`.
+     *
+     * @return list<string>
+     */
+    public static function trustedRedirectOnlyHosts(): array
+    {
+        return ['alice.yandex.ru'];
+    }
+
     public static function isTrustedRedirectUri(string $uri): bool
     {
         if (!preg_match('#^https?://#i', $uri)) {
@@ -169,7 +180,12 @@ final class OAuthServer
         if (self::isLoopbackHost($host)) {
             return true;
         }
-        return self::isTrustedOAuthHost($host);
+        if (self::isTrustedOAuthHost($host)) {
+            return true;
+        }
+        $host = strtolower($host);
+        $scheme = strtolower((string)parse_url($uri, PHP_URL_SCHEME));
+        return $scheme === 'https' && in_array($host, self::trustedRedirectOnlyHosts(), true);
     }
 
     public static function isLoopbackHost(string $host): bool

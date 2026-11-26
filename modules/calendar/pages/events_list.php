@@ -39,7 +39,12 @@ if ($staffId < 1) {
 
 $includeBlocks = !isset($_GET['include_blocks']) || (string)$_GET['include_blocks'] !== '0';
 $items = [];
-foreach (EventsRepository::listForAgent(EventsRepository::listForDayRange($fromTs, $toTs + 86400, $staffId)) as $ev) {
+$listRows = CalendarViewScope::maskRows(
+    EventsRepository::listForDayRange($fromTs, $toTs + 86400, $staffId),
+    [],
+    []
+)['events'];
+foreach (EventsRepository::listForAgent($listRows) as $ev) {
     if (!$includeBlocks && !empty($ev['is_block'])) {
         continue;
     }

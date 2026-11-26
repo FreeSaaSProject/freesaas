@@ -392,6 +392,7 @@ final class EventsRepository
                 $existing !== null ? (int)($existing['id_operator'] ?? 0) : 0
             );
         }
+        self::assertScopeAllowsGoods($data, $existing);
         self::assertModeAllowsWrite($data, $existing);
         self::assertBlockConversionAllowed($data, $existing);
         if ($existing !== null) {
@@ -598,6 +599,7 @@ final class EventsRepository
      */
     public static function create(array $data): int
     {
+        self::assertScopeAllowsGoods($data, null);
         self::assertModeAllowsWrite($data);
         self::assertBlockConversionAllowed($data, null);
 
@@ -664,6 +666,10 @@ final class EventsRepository
             throw new InvalidArgumentException(t('calendar.event.err.not_found', ['id' => $id]));
         }
 
+        if (!CalendarViewScope::canSeeEvent($old)) {
+            throw new InvalidArgumentException(t('calendar.err.scope_forbidden'));
+        }
+        self::assertScopeAllowsGoods($data, $old);
         self::assertModeAllowsWrite($data, $old);
         self::assertBlockConversionAllowed($data, $old);
         self::assertProcedureLinkedGoodsKept($data, $old);
@@ -754,6 +760,31 @@ final class EventsRepository
             return;
         }
         Database::pdo()->prepare('UPDATE base_events SET DTUPDATE = ? WHERE ID = ?')->execute([time(), $id]);
+    }
+
+    /**
+     * Scoped viewers (rates hide_calendar) may only book services of unchecked types.
+     * Goods already on the stored event are kept (cannot be removed-then-blocked here).
+     *
+     * @param array<string,mixed> $data
+     * @param array<string,mixed>|null $existing
+     */
+    private static function assertScopeAllowsGoods(array $data, ?array $existing = null): void
+    {
+        if (!CalendarViewScope::active() || !empty($data['is_block'])) {
+            return;
+        }
+        $goods = [];
+        foreach (is_array($data['items'] ?? null) ? $data['items'] : [] as $it) {
+            if (is_array($it)) {
+                $goods[] = (int)($it['id_good'] ?? $it['id'] ?? 0);
+            }
+        }
+        $kept = is_array($existing['content_ids'] ?? null) ? array_map('intval', $existing['content_ids']) : [];
+        $bad = array_diff(CalendarViewScope::forbiddenGoods($goods), $kept);
+        if ($bad !== []) {
+            throw new InvalidArgumentException(t('calendar.event.err.good_not_allowed'));
+        }
     }
 
     /**
@@ -1087,6 +1118,8 @@ final class EventsRepository
             $out[$selfId] = $label !== '' ? $label : ('#' . $selfId);
         }
 
+        $out = CalendarViewScope::filterStaffChoices($out, $dayStart, $keepOperatorId);
+
         if ($keepOperatorId > 0 && !isset($out[$keepOperatorId])) {
             if (!$myOnly || $keepOperatorId === $selfId) {
                 $u = class_exists('UsersRepository', false) ? UsersRepository::find($keepOperatorId) : null;
@@ -1172,12 +1205,18 @@ final class EventsRepository
         if ($event && !empty(Auth::statusFlags()['EVT_MY_ONLY'])) {
             return (int)($event['id_operator'] ?? 0) === Auth::userId();
         }
+        if ($event && !CalendarViewScope::canSeeEvent($event)) {
+            return false;
+        }
         return true;
     }
 
     public static function canDelete(?array $event = null): bool
     {
         if (!Auth::can('calendar.delete') || !Auth::capability('EVT_DELETE')) {
+            return false;
+        }
+        if ($event && !CalendarViewScope::canSeeEvent($event)) {
             return false;
         }
         if ($event && !empty(Auth::statusFlags()['EVT_MY_ONLY'])) {

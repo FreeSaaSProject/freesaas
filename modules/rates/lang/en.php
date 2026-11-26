@@ -30,6 +30,8 @@ return [
     'rates.col.pct' => '%',
     'rates.ban.booking' => 'Ban booking',
     'rates.ban.online' => 'Ban online',
+    'rates.ban.calendar' => 'Hide details in calendar (admins)',
+    'rates.ban.calendar_hint' => 'For admins: services of ticked types show only as "Busy" in the admin calendar; specialists with no unticked type (and a %) are hidden.',
     'rates.ban.procs_hint' => 'Ban individual products of this type (type stays enabled):',
     'rates.edit.title_new' => 'New rate set',
     'rates.edit.title' => 'Rates: {name}',

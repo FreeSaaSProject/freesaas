@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-26T10:08:50+00:00",
+    "generated_at": "2026-11-26T18:22:36+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -847,7 +847,7 @@
         },
         {
             "id": "calendar",
-            "version": "1.0.20",
+            "version": "1.0.21",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -1667,7 +1667,7 @@
         },
         {
             "id": "llm",
-            "version": "1.0.5",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "LLM",
@@ -2162,7 +2162,7 @@
         },
         {
             "id": "rates",
-            "version": "1.1.0",
+            "version": "1.1.1",
             "type": "product",
             "name": {
                 "en": "Specialist rates",

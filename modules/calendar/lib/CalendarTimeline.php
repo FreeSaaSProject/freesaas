@@ -355,6 +355,36 @@ final class CalendarTimeline
                 $opsWithItems[$op] = true;
             }
             $pos = self::position($dayStart, (int)($ev['dtstart'] ?? 0), (int)($ev['dtend'] ?? 0));
+            if (!empty($ev['busy'])) {
+                // CalendarViewScope: time + specialist only, no client / basket / links.
+                $dtStart = (int)($ev['dtstart'] ?? 0);
+                $dtEnd = (int)($ev['dtend'] ?? 0);
+                $range = date('H:i', $dtStart) . '–' . date('H:i', $dtEnd);
+                $busyLabel = $range . ' ' . t('calendar.day.busy');
+                $info = '<div class="calendar-info-head">' . htmlspecialchars(t('calendar.day.busy'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>'
+                    . '<div>' . $range . '</div>';
+                if (!empty($ev['operator_name'])) {
+                    $info .= '<div class="muted">' . htmlspecialchars((string)$ev['operator_name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>';
+                }
+                $chips[] = [
+                    'kind' => 'busy',
+                    'id' => 0,
+                    'href' => '#',
+                    'top' => $pos['top'],
+                    'height' => $pos['height'],
+                    'left' => $lefts[$op] ?? 0.0,
+                    'width' => $width,
+                    'bg' => 'repeating-linear-gradient(45deg,#6b7280 0 6px,#9ca3af 6px 12px)',
+                    'fg' => '#fff',
+                    'is_block' => true,
+                    'dtstart' => $dtStart,
+                    'dtend' => $dtEnd,
+                    'label' => $busyLabel,
+                    'title' => $busyLabel,
+                    'info' => $info,
+                ];
+                continue;
+            }
             $isBlock = !empty($ev['is_block']);
             $client = trim((string)($ev['client_name'] ?? ''));
             if ($client === '') {

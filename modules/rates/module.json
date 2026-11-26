@@ -2,7 +2,7 @@
     "id": "rates",
     "name": "rates.module.name",
     "description": "rates.module.description",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -63,7 +63,7 @@
                 "method": "POST",
                 "path": "/rates/new",
                 "permission": "rates.edit",
-                "description": "Create rate profile (content % + optional ban_booking/ban_online maps)"
+                "description": "Create rate profile (content % + optional ban_booking/ban_online maps; hide_calendar[type_id]=1 hides details of that type in the admin calendar for this staff member)"
             },
             {
                 "id": "rates.update",

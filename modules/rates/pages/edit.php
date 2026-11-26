@@ -138,6 +138,7 @@ if ($wantsJson) {
         'products_by_type' => $productsByType,
         'has_skill_bans' => RatesRepository::hasBanColumns(),
         'has_ban_procs' => RatesRepository::hasBanProcsColumn(),
+        'has_ban_calendar' => RatesRepository::hasBanCalendarColumn(),
     ]);
     return;
 }

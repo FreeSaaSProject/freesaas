@@ -15,6 +15,8 @@ $showSkillBans = !empty($showSkillBans);
 $banBooking = is_array($row['ban_booking'] ?? null) ? $row['ban_booking'] : [];
 $banOnline = is_array($row['ban_online'] ?? null) ? $row['ban_online'] : [];
 $banProcs = is_array($row['ban_procs'] ?? null) ? $row['ban_procs'] : [];
+$banCalendar = is_array($row['ban_calendar'] ?? null) ? $row['ban_calendar'] : [];
+$showCalendarHide = RatesRepository::hasBanCalendarColumn();
 $productsByType = $productsByType ?? [];
 
 $sections = [
@@ -79,6 +81,7 @@ $sections = [
         $pctF = (float)str_replace(',', '.', $pct);
         $bb = !empty($banBooking[$tid]) || !empty($banBooking[(string)$tid]);
         $bo = !empty($banOnline[$tid]) || !empty($banOnline[(string)$tid]);
+        $bc = !empty($banCalendar[$tid]) || !empty($banCalendar[(string)$tid]);
         $typeProducts = $productsByType[$tid] ?? [];
         $isSpec = RatesRepository::isSpecOrBreakType($tid);
         ?>
@@ -96,6 +99,12 @@ $sections = [
               <input type="checkbox" name="ban_online[<?= $tid ?>]" value="1"<?= $bo ? ' checked' : '' ?>>
               <?= te('rates.ban.online') ?>
             </label>
+            <?php if ($showCalendarHide): ?>
+            <label class="check" title="<?= e(t('rates.ban.calendar_hint')) ?>">
+              <input type="checkbox" name="hide_calendar[<?= $tid ?>]" value="1"<?= $bc ? ' checked' : '' ?>>
+              <?= te('rates.ban.calendar') ?>
+            </label>
+            <?php endif; ?>
           </div>
           <?php if (!$isSpec && $pctF > 0 && $typeProducts !== []): ?>
           <div class="rates-skill-procs">

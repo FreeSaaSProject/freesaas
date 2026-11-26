@@ -89,6 +89,12 @@ $events = EventsRepository::listForDayRange($monday, $weekEnd, $staffFilter);
 $procedures = ProceduresRepository::listForDayRange($monday, $weekEnd, $staffFilter);
 $orders = CalendarTimeline::advanceOrdersForRange($monday, $weekEnd, $staffFilter);
 
+// Freelance-admin scope (rates hide_calendar): hide specialists, collapse hidden types to «busy».
+$scoped = CalendarViewScope::maskRows($events, $procedures, $orders);
+$events = $scoped['events'];
+$procedures = $scoped['procedures'];
+$orders = $scoped['orders'];
+
 $eventsByDate = CalendarWeek::groupByDate($events, 'dtstart');
 $procsByDate = CalendarWeek::groupByDate($procedures, 'dtstart');
 $ordersByDate = CalendarWeek::groupByDate($orders, 'dt_event');
@@ -125,7 +131,7 @@ foreach ($days as $day) {
     $dayEvents = $eventsByDate[$d] ?? [];
     $dayProcs = $procsByDate[$d] ?? [];
     $dayOrders = $ordersByDate[$d] ?? [];
-    $shifts = $shiftsByDate[$d] ?? [];
+    $shifts = CalendarViewScope::filterShifts($shiftsByDate[$d] ?? [], (int)$day['ts']);
     // EVT_MY_ONLY: still show all shift neighbours (admin/masseurs on duty);
     // events/procedures stay filtered via $staffFilter. Director ?staff= narrows badges.
     if ($staffId > 0 && !$myOnly) {
@@ -256,6 +262,7 @@ if (!$myOnly) {
         }
         $staffOptions[(int)$u['id']] = $label;
     }
+    $staffOptions = CalendarViewScope::filterStaffChoices($staffOptions, $monday, $staffId);
 }
 
 $rangeLabel = CalendarWeek::rangeLabel($monday);
@@ -271,7 +278,7 @@ if ($wantsJson) {
     $daysOut = [];
     foreach ($days as $day) {
         $d = $day['date'];
-        $dayShifts = $shiftsByDate[$d] ?? [];
+        $dayShifts = CalendarViewScope::filterShifts($shiftsByDate[$d] ?? [], (int)$day['ts']);
         if ($staffId > 0 && !$myOnly) {
             $dayShifts = array_values(array_filter(
                 $dayShifts,

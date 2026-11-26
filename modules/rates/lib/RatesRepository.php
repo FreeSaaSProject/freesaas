@@ -11,6 +11,9 @@ final class RatesRepository
     /** Product-level skill bans: product_id => 1. */
     private const BAN_PROC_KEY = 'ban_procs';
 
+    /** Type-level «hide details in admin calendar» flags: type_id => 1 (payroll/booking ignore). */
+    private const BAN_CALENDAR_KEY = 'ban_calendar';
+
     /** @var array<string,array<string,mixed>|false> request memo for latestForOperator */
     private static $latestCache = [];
 
@@ -295,6 +298,16 @@ final class RatesRepository
 
         $applied = self::applyZeroPctTypeBans($maps['content'], $bans['ban_booking'], $bans['ban_online']);
 
+        $banCalendar = [];
+        $rawCalendar = $post['hide_calendar'] ?? ($post[self::BAN_CALENDAR_KEY] ?? []);
+        if (is_array($rawCalendar)) {
+            foreach ($typeIds as $tid) {
+                if (!empty($rawCalendar[$tid]) || !empty($rawCalendar[(string)$tid])) {
+                    $banCalendar[(int)$tid] = 1;
+                }
+            }
+        }
+
         return [
             'operator_id' => $operatorId,
             'dt' => $dt,
@@ -306,6 +319,7 @@ final class RatesRepository
             'ban_booking' => $applied['ban_booking'],
             'ban_online' => $applied['ban_online'],
             'ban_procs' => $banProcs,
+            'ban_calendar' => $banCalendar,
             'loss' => (float)str_replace(',', '.', (string)($post['loss'] ?? '0')),
             'loss_fix' => (float)str_replace(',', '.', (string)($post['loss_fix'] ?? '0')),
             'offers' => (int)($post['offers'] ?? 0),
@@ -394,6 +408,15 @@ final class RatesRepository
             $cols[] = 'ban_procs';
             $vals[] = serialize(is_array($data['ban_procs'] ?? null) ? $data['ban_procs'] : []);
         }
+        if (self::hasBanCalendarColumn()) {
+            // Callers that rebuild rows (skill grant/revoke, migrators) omit the key:
+            // inherit from the operator's previous profile so the flag survives new history rows.
+            $cal = array_key_exists(self::BAN_CALENDAR_KEY, $data) && is_array($data[self::BAN_CALENDAR_KEY])
+                ? $data[self::BAN_CALENDAR_KEY]
+                : self::previousBanCalendar((int)$data['operator_id'], (int)$data['dt']);
+            $cols[] = 'ban_calendar';
+            $vals[] = serialize($cal);
+        }
         if (self::hasAudioRateColumns()) {
             $cols[] = 'AUDIO_HOUR_RATE';
             $cols[] = 'SCRIPT_SCORE_RATE';
@@ -447,6 +470,14 @@ final class RatesRepository
             $sets[] = 'ban_procs = ?';
             $vals[] = serialize(is_array($data['ban_procs'] ?? null) ? $data['ban_procs'] : []);
         }
+        // Absent key = leave the stored flags untouched.
+        if (self::hasBanCalendarColumn()
+            && array_key_exists(self::BAN_CALENDAR_KEY, $data)
+            && is_array($data[self::BAN_CALENDAR_KEY])
+        ) {
+            $sets[] = 'ban_calendar = ?';
+            $vals[] = serialize($data[self::BAN_CALENDAR_KEY]);
+        }
         if (self::hasAudioRateColumns()) {
             $sets[] = 'AUDIO_HOUR_RATE = ?';
             $sets[] = 'SCRIPT_SCORE_RATE = ?';
@@ -497,6 +528,7 @@ final class RatesRepository
                 'ban_booking' => is_array($row['ban_booking'] ?? null) ? $row['ban_booking'] : [],
                 'ban_online' => is_array($row['ban_online'] ?? null) ? $row['ban_online'] : [],
                 'ban_procs' => is_array($row['ban_procs'] ?? null) ? $row['ban_procs'] : [],
+                'ban_calendar' => is_array($row['ban_calendar'] ?? null) ? $row['ban_calendar'] : [],
                 'loss' => (float)$row['loss'],
                 'loss_fix' => (float)$row['loss_fix'],
                 'offers' => (int)$row['offers'],
@@ -609,7 +641,7 @@ final class RatesRepository
             $un = @unserialize((string)$raw, ['allowed_classes' => false]);
             $row[$key] = is_array($un) ? $un : [];
         }
-        foreach (array_merge(self::BAN_TYPE_KEYS, [self::BAN_PROC_KEY]) as $key) {
+        foreach (array_merge(self::BAN_TYPE_KEYS, [self::BAN_PROC_KEY, self::BAN_CALENDAR_KEY]) as $key) {
             if (!array_key_exists($key, $row)) {
                 $row[$key] = [];
                 continue;
@@ -653,6 +685,36 @@ final class RatesRepository
             && Database::columnExists('base_procent_history', 'ban_procs');
     }
 
+    public static function hasBanCalendarColumn(): bool
+    {
+        return Database::tableExists('base_procent_history')
+            && Database::columnExists('base_procent_history', 'ban_calendar');
+    }
+
+    /**
+     * Calendar-hide flags of the operator's latest profile at or before $dt (for new history rows).
+     *
+     * @return array<int,int>
+     */
+    private static function previousBanCalendar(int $operatorId, int $dt): array
+    {
+        if ($operatorId < 1 || !self::hasBanCalendarColumn()) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ban_calendar FROM base_procent_history
+             WHERE ID_OPERATOR = ? AND DT <= ?
+             ORDER BY DT DESC, ID DESC LIMIT 1'
+        );
+        $st->execute([$operatorId, $dt > 0 ? $dt : time()]);
+        $raw = $st->fetchColumn();
+        if (!is_string($raw) || $raw === '') {
+            return [];
+        }
+        $un = @unserialize($raw, ['allowed_classes' => false]);
+        return is_array($un) ? $un : [];
+    }
+
     /**
      * Leading comma fragment for SELECT lists, or empty when columns absent.
      */
@@ -674,6 +736,9 @@ final class RatesRepository
         $sql = ", {$p}ban_booking, {$p}ban_online";
         if (self::hasBanProcsColumn()) {
             $sql .= ", {$p}ban_procs";
+        }
+        if (self::hasBanCalendarColumn()) {
+            $sql .= ", {$p}ban_calendar";
         }
         return $sql;
     }

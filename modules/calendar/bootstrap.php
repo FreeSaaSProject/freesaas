@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/CalendarConfig.php';
 require_once __DIR__ . '/lib/EventItemsRepository.php';
 require_once __DIR__ . '/lib/EventsRepository.php';
+require_once __DIR__ . '/lib/CalendarViewScope.php';
 require_once __DIR__ . '/lib/CalendarWeek.php';
 require_once __DIR__ . '/lib/CalendarTimeline.php';
 require_once __DIR__ . '/lib/CalendarWidgets.php';

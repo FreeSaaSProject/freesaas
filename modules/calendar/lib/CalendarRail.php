@@ -197,7 +197,7 @@ final class CalendarRail
     public static function counts(int $fromTs, int $toTs, int $staffId): array
     {
         $source = self::markSource();
-        if ($source === 'off') {
+        if ($source === 'off' || CalendarViewScope::active()) {
             return [];
         }
         if ($source === 'procedures' && class_exists('ProceduresRepository', false)) {

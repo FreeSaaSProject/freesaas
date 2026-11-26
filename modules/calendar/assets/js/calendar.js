@@ -774,6 +774,11 @@
     }
 
     document.addEventListener('click', function (e) {
+      var busy = e.target && e.target.closest ? e.target.closest('.calendar-tl-chip-busy') : null;
+      if (busy) {
+        e.preventDefault();
+        return;
+      }
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
       var link = e.target && e.target.closest
         ? e.target.closest('.calendar-tl-chip-event, .calendar-tl-chip-block, .calendar-tl-slot')

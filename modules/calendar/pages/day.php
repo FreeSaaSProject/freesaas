@@ -41,6 +41,13 @@ $procedures = ProceduresRepository::listForDayRange($dayStart, $dayEnd, $staffFi
 $orders = CalendarTimeline::advanceOrdersForRange($dayStart, $dayEnd, $staffFilter);
 $shifts = WorkweeksRepository::listForDay($dayStart);
 
+// Freelance-admin scope (rates hide_calendar): hide specialists, collapse hidden types to «busy».
+$scoped = CalendarViewScope::maskRows($events, $procedures, $orders);
+$events = $scoped['events'];
+$procedures = $scoped['procedures'];
+$orders = $scoped['orders'];
+$shifts = CalendarViewScope::filterShifts($shifts, $dayStart);
+
 $dateLabel = date('d.m.Y', $dayStart);
 $canEdit = Auth::can('calendar.edit');
 $canCreate = EventsRepository::canCreate();

@@ -14,6 +14,10 @@ final class CalendarDayStats
      */
     public static function collect(array $days, ?int $staffFilter, string $view = 'week'): array
     {
+        // Scoped viewers (freelance admins) get no money / counter aggregates.
+        if (CalendarViewScope::active()) {
+            return [];
+        }
         $dayPayload = [];
         $today = date('Y-m-d', DemoMode::now());
         $now = DemoMode::now();
