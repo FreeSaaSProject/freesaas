@@ -74,6 +74,7 @@ $s = $settings ?? [];
     <?php
     $sched = $sched ?? ['mode' => 'always'];
     require __DIR__ . '/_schedule_fields.php';
+    require __DIR__ . '/_rules_fields.php';
     ?>
     <div class="video-form-actions">
       <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>

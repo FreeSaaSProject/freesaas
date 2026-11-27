@@ -239,4 +239,12 @@ return [
     'video.notify.field.kind' => 'Alert kind',
     'video.notify.field.camera_id' => 'Camera id',
     'video.notify.tpl.alert' => '[video] {camera_name}: {message}',
+    'video.rules.title' => 'Control rules',
+    'video.rules.help' => 'One rule per line: type class [n=1] [ticks=1] [cooldown=30] [when=class] [unless=class]. Types: present, absent, count_over. ticks = consecutive monitoring ticks, cooldown = minutes between alerts. Example: absent staff ticks=3; present guest unless=staff. Empty = use post rules.',
+    'video.rules.placeholder' => 'absent staff ticks=3 cooldown=30',
+    'video.rules.msg.present' => 'Control: {class} detected ({count}).',
+    'video.rules.msg.absent' => 'Control: no {class} in frame for {ticks} tick(s).',
+    'video.rules.msg.count_over' => 'Control: {class} count {count} exceeds {n}.',
+    'video.rules.msg.when' => '(while {class} is present)',
+    'video.rules.msg.unless' => '(without {class})',
 ];

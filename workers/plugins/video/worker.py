@@ -1158,7 +1158,7 @@ def start_push_mode() -> None:
     n = PUSH_STORE.reset_processing()
     if n:
         log.info("push: %d unfinished job(s) requeued after restart", n)
-    port = int(_plugin_manifest().get("local_api_port") or 18472)
+    port = int(_plugin_manifest().get("local_api_port") or 18474)
     local_api.serve(port, push_handle, log=log.warning)
     log.info("push API 127.0.0.1:%d (behind host gateway /v1/video/*)", port)
 

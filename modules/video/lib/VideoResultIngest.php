@@ -109,20 +109,41 @@ final class VideoResultIngest
             $bytes += VideoStorage::sizeBytes($p);
         }
 
+        $alerts = [];
+        $now = time();
+        $cam = $cameraId > 0 ? VideoCamerasRepository::find($cameraId) : null;
+        $monitorTick = empty($result['on_demand']) && (string)($payload['mode'] ?? 'monitoring') === 'monitoring';
+        $hasRules = false;
+        if ($monitorTick && is_array($cam)) {
+            $classes = is_array($payload['classes'] ?? null) ? array_values($payload['classes']) : [];
+            $ruleAlerts = VideoRules::evaluate($cameraId, $cam, $detections, $classes, $now);
+            $hasRules = VideoRules::effective($cam) !== [];
+            foreach ($ruleAlerts as $ra) {
+                $alerts[] = $ra;
+            }
+        }
         if (!empty($result['alert']) && is_array($result['alert'])) {
-            $alertId = VideoAlertsRepository::create(
-                $cameraId,
-                (string)($result['alert']['kind'] ?? 'absence'),
-                (string)($result['alert']['message'] ?? ''),
-                $allPaths,
-                is_array($result['alert']['meta'] ?? null) ? $result['alert']['meta'] : []
-            );
+            $wk = (string)($result['alert']['kind'] ?? 'absence');
+            // Worker built-in alert: superseded by rules; otherwise rate-limited so it cannot flood every tick.
+            if (!$hasRules && VideoRules::legacyAlertAllowed($cameraId, $wk, $now)) {
+                $alerts[] = [
+                    'kind' => $wk,
+                    'message' => (string)($result['alert']['message'] ?? ''),
+                    'meta' => is_array($result['alert']['meta'] ?? null) ? $result['alert']['meta'] : [],
+                ];
+            }
+        }
+        foreach ($alerts as $a) {
+            $id = VideoAlertsRepository::create($cameraId, $a['kind'], $a['message'], $allPaths, $a['meta']);
+            if ($alertId === 0) {
+                $alertId = $id;
+            }
             if (class_exists(EventBus::class, false)) {
                 EventBus::emit('video.alert.created', [
-                    'alert_id' => $alertId,
+                    'alert_id' => $id,
                     'camera_id' => $cameraId,
-                    'kind' => (string)($result['alert']['kind'] ?? 'absence'),
-                    'message' => (string)($result['alert']['message'] ?? ''),
+                    'kind' => $a['kind'],
+                    'message' => $a['message'],
                     'paths' => $allPaths,
                 ]);
             }

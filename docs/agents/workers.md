@@ -418,7 +418,7 @@ One inbound HTTPS endpoint per machine, inside the dashboard process (LaunchAgen
 FreeSaaS ──https://IP:18443/v1/<service>/…──▶ gateway (dashboard process)
                                               ├─ /v1/status        host + per-service status
                                               ├─ /v1/asr/*   ──▶ whisper 127.0.0.1:18471
-                                              ├─ /v1/video/* ──▶ video   127.0.0.1:18472
+                                              ├─ /v1/video/* ──▶ video   127.0.0.1:18474
                                               └─ /v1/host/*        reserved (remote control, later)
 ```
 

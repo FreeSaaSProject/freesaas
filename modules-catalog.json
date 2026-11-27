@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-26T18:52:34+00:00",
+    "generated_at": "2026-11-27T13:48:28+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -2670,7 +2670,7 @@
         },
         {
             "id": "video",
-            "version": "0.4.0",
+            "version": "0.4.1",
             "type": "product",
             "name": {
                 "en": "Video analytics",

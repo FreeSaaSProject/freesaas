@@ -25,6 +25,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     }
     $settings = json_decode((string)(($row['SETTINGS_JSON'] ?? '') ?: ''), true) ?: [];
     $settings = VideoSchedule::mergeFromPost($_POST, is_array($settings) ? $settings : []);
+    $settings = VideoRules::mergeFromPost($_POST, $settings);
     $savedId = VideoPostsRepository::save($id, [
         'name' => $_POST['name'] ?? '',
         'enabled' => !empty($_POST['enabled']),
@@ -42,6 +43,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 $models = VideoModelsRepository::listAll();
 $settings = json_decode((string)($row['SETTINGS_JSON'] ?? ''), true) ?: [];
 $sched = $settings['schedule'] ?? ['mode' => 'always'];
+$rulesText = VideoRules::formatText(is_array($settings['rules'] ?? null) ? $settings['rules'] : []);
 
 if ($wantsJson) {
     AgentHttp::emit(['ok' => true, 'post' => $row, 'models' => $models]);
@@ -57,6 +59,7 @@ View::render('post_edit', [
     'row' => $row ?? ['NAME' => '', 'ENABLED' => 1, 'MODEL_ID' => 0],
     'models' => $models,
     'sched' => $sched,
+    'rules_text' => $rulesText,
     'isNew' => $isNew,
     'error' => $error,
 ], 'layout', 'video');

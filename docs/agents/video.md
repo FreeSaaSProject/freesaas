@@ -49,6 +49,20 @@ Stored in camera (or post default) `SETTINGS_JSON.schedule`:
 
 PHP: `VideoSchedule::isActive` gates cron `video.monitor_enqueue` (camera schedule, else post schedule).
 
+## Control rules (alerts)
+
+Per camera (`SETTINGS_JSON.rules`), falling back to the post's rules when the camera has none. Evaluated server-side in `VideoResultIngest` on each `monitor_tick` (not `on_demand`) by `VideoRules`; state (streaks, last alert) in `var/video/rules_state/<camera>.json`. Alerts go through `VideoAlertsRepository` → `video.alert.created` → notify/`bots.send`; kind `rule:<type>`.
+
+Text form (`rules_text` in the camera/post form and `video.setup`), one rule per line:
+
+```
+absent staff ticks=3 cooldown=30
+present guest unless=staff
+count_over guest n=5
+```
+
+`type class [n=1] [ticks=1] [cooldown=30] [when=class] [unless=class]` — types `present` (count ≥ n), `absent` (count < n), `count_over` (count > n); `class` = id, key or label of the model class; `ticks` = consecutive ticks; `cooldown` = minutes between alerts of that rule. With rules configured, the worker's built-in `no_detection` alert is ignored; without rules it is rate-limited to one per 30 min per camera.
+
 ## Dataset collect (preferred: Mac local)
 
 Realtime JPEG ticks to hosting are **off** by default (`video.train_session_remote_frames=0`, `dataset_remote_ingest=0` in `cfg/modules/video.ini`).

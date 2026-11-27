@@ -239,4 +239,12 @@ return [
     'video.notify.field.kind' => 'Тип тревоги',
     'video.notify.field.camera_id' => 'ID камеры',
     'video.notify.tpl.alert' => '[video] {camera_name}: {message}',
+    'video.rules.title' => 'Правила контроля',
+    'video.rules.help' => 'По одному правилу в строке: тип класс [n=1] [ticks=1] [cooldown=30] [when=класс] [unless=класс]. Типы: present, absent, count_over. ticks — подряд идущих тиков мониторинга, cooldown — минут между алертами. Пример: absent сотрудник ticks=3; present гость unless=сотрудник. Пусто — берутся правила поста.',
+    'video.rules.placeholder' => 'absent сотрудник ticks=3 cooldown=30',
+    'video.rules.msg.present' => 'Контроль: обнаружен класс {class} ({count}).',
+    'video.rules.msg.absent' => 'Контроль: класс {class} отсутствует в кадре ({ticks} тик.).',
+    'video.rules.msg.count_over' => 'Контроль: класса {class} {count}, больше {n}.',
+    'video.rules.msg.when' => '(при наличии {class})',
+    'video.rules.msg.unless' => '(без {class})',
 ];

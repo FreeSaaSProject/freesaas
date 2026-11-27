@@ -25,7 +25,7 @@
     "save_loop"
   ],
   "service": "video",
-  "local_api_port": 18472,
+  "local_api_port": 18474,
   "capabilities": ["jobs", "results", "results_file", "frame"],
   "billing_units": ["frame", "train_sec"],
   "remote_actions": ["vpn_up", "vpn_down"],

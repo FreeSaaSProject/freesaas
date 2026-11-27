@@ -26,6 +26,7 @@ require_once __DIR__ . '/lib/VideoDiagnose.php';
 require_once __DIR__ . '/lib/VideoColors.php';
 require_once __DIR__ . '/lib/VideoSchedule.php';
 require_once __DIR__ . '/lib/VideoPostsRepository.php';
+require_once __DIR__ . '/lib/VideoRules.php';
 require_once __DIR__ . '/lib/VideoTrainSessionsRepository.php';
 require_once __DIR__ . '/lib/VideoResultIngest.php';
 require_once __DIR__ . '/lib/VideoPushDispatcher.php';

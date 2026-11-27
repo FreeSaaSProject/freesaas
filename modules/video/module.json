@@ -2,7 +2,7 @@
     "id": "video",
     "name": "video.module.name",
     "description": "video.module.description",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "type": "product",
     "requires": {
         "core": ">=1.1.0"
@@ -146,7 +146,7 @@
                 "path": "/video/cameras/new",
                 "permission": "video.edit",
                 "side_effect": "write",
-                "description": "Create camera; fields: name, rtsp_url, post_id, mode, model_id, enabled, conf_threshold, iou_threshold, interval_sec, schedule_*, crop_height_pct, rotate_deg, dataset_project_id",
+                "description": "Create camera; fields: name, rtsp_url, post_id, mode, model_id, enabled, conf_threshold, iou_threshold, interval_sec, schedule_*, rules_text, crop_height_pct, rotate_deg, dataset_project_id",
                 "parameters": {
                     "type": "object",
                     "required": [
@@ -191,7 +191,7 @@
                 "path": "/video/cameras/{id}/edit",
                 "permission": "video.edit",
                 "side_effect": "write",
-                "description": "Update camera (same fields as create)"
+                "description": "Update camera (same fields as create). rules_text: one control rule per line, e.g. `absent staff ticks=3 cooldown=30` or `present guest unless=staff`"
             },
             {
                 "id": "video.cameras.delete",

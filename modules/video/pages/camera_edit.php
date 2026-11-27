@@ -36,6 +36,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $existing = json_decode((string)(($row['SETTINGS_JSON'] ?? '') ?: ''), true) ?: [];
         $settings = array_merge(is_array($existing) ? $existing : [], $settings);
         $settings = VideoSchedule::mergeFromPost($_POST, $settings);
+        $settings = VideoRules::mergeFromPost($_POST, $settings);
         $savedId = VideoCamerasRepository::save($id, [
             'name' => $_POST['name'] ?? '',
             'rtsp_url' => $_POST['rtsp_url'] ?? '',
@@ -93,6 +94,7 @@ if ($isNew) {
 }
 $settings = json_decode((string)($row['SETTINGS_JSON'] ?? ''), true) ?: [];
 $sched = $settings['schedule'] ?? ['mode' => 'always'];
+$rulesText = VideoRules::formatText(is_array($settings['rules'] ?? null) ? $settings['rules'] : []);
 
 if ($wantsJson) {
     AgentHttp::emit(['ok' => true, 'camera' => $row, 'models' => $models, 'posts' => $posts]);
@@ -110,6 +112,7 @@ View::render('camera_edit', [
     'posts' => $posts,
     'settings' => $settings,
     'sched' => $sched,
+    'rules_text' => $rulesText,
     'isNew' => $isNew,
     'error' => $error,
 ], 'layout', 'video');

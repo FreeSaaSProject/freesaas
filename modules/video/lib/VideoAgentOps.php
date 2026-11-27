@@ -32,7 +32,7 @@ final class VideoAgentOps
                 'enabled', 'interval_sec', 'conf_threshold', 'iou_threshold', 'model_id', 'camera_id',
                 'post_id', 'post_name', 'regenerate_token', 'mode',
                 'schedule_mode', 'schedule_start_hour', 'schedule_start_minute',
-                'schedule_end_hour', 'schedule_end_minute',
+                'schedule_end_hour', 'schedule_end_minute', 'rules_text',
             ],
         ]);
         AgentOps::registerModuleOp('POST', '/agent/video/enqueue', 'video.enqueue', [self::class, 'enqueue'], [
@@ -223,6 +223,7 @@ final class VideoAgentOps
             if (isset($body['schedule_mode'])) {
                 $settings = VideoSchedule::mergeFromPost($body, $settings);
             }
+            $settings = VideoRules::mergeFromPost($body, $settings);
             $cameraId = VideoCamerasRepository::save($cameraId, [
                 'name' => trim((string)($body['camera_name'] ?? 'Cam')) ?: 'Cam',
                 'rtsp_url' => $rtsp,
