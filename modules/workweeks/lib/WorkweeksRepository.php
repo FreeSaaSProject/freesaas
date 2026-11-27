@@ -580,6 +580,59 @@ final class WorkweeksRepository
     }
 
     /**
+     * Staff on shift at $ts: day row in base_workweeks, shift window from PRICE_COL, user status in $statusIds.
+     * Several matches: shortest shift window wins, tie → lowest operator id.
+     *
+     * @param list<int> $statusIds role ids (base_users.ID_STATUS); empty list → null
+     * @return array{id:int,name:string,price_col:int,start:int,end:int}|null
+     */
+    public static function onDutyAt(int $ts, array $statusIds): ?array
+    {
+        $statusIds = array_values(array_filter(array_map('intval', $statusIds), static fn (int $v): bool => $v > 0));
+        if ($ts <= 0 || $statusIds === []
+            || !Database::tableExists('base_workweeks')
+            || !Database::tableExists('base_users')
+        ) {
+            return null;
+        }
+        $dayStart = (int)strtotime(date('Y-m-d', $ts) . ' 00:00:00');
+        $in = implode(',', array_fill(0, count($statusIds), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT w.ID_OPERATOR AS id, w.PRICE_COL AS price_col,
+                    COALESCE(NULLIF(u.name, ''), u.login) AS name
+             FROM base_workweeks w
+             INNER JOIN base_users u ON u.id = w.ID_OPERATOR
+             WHERE w.DT = ? AND u.ID_STATUS IN ($in) AND u.enabled = '1'
+             ORDER BY w.ID_OPERATOR ASC"
+        );
+        $st->execute(array_merge([$dayStart], $statusIds));
+        $best = null;
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $range = self::shiftRangeForDay($dayStart, (int)$row['price_col']);
+            if ($range === null || $ts < $range['start'] || $ts > $range['end']) {
+                continue;
+            }
+            $len = $range['end'] - $range['start'];
+            if ($best === null || $len < $best['len']) {
+                $best = [
+                    'len' => $len,
+                    'id' => (int)$row['id'],
+                    'name' => (string)$row['name'],
+                    'price_col' => (int)$row['price_col'],
+                    'start' => $range['start'],
+                    'end' => $range['end'],
+                ];
+            }
+        }
+        if ($best === null) {
+            return null;
+        }
+        unset($best['len']);
+
+        return $best;
+    }
+
+    /**
      * @param array<int,array{start?:string,end?:string,label?:string}> $windows
      */
     public static function setShiftWindows(array $windows): void

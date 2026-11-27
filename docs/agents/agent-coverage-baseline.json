@@ -121,6 +121,7 @@
                 "audio.settings.save"
             ],
             "uncovered_routes": [
+                "/agent/audio/video-effects",
                 "/audio/ingest",
                 "/audio/play"
             ],
@@ -1574,6 +1575,10 @@
         "video": {
             "ops": [
                 "video.alerts.list",
+                "video.appeals.create",
+                "video.appeals.decide",
+                "video.appeals.get",
+                "video.appeals.list",
                 "video.cameras.create",
                 "video.cameras.delete",
                 "video.cameras.enqueue_monitor",
@@ -1589,6 +1594,7 @@
                 "video.models.train",
                 "video.posts.get",
                 "video.posts.list",
+                "video.presence.report",
                 "video.settings.get",
                 "video.settings.purge",
                 "video.settings.save",
@@ -1598,7 +1604,9 @@
                 "video.train.start"
             ],
             "uncovered_routes": [
+                "/agent/video/alerts",
                 "/agent/video/enqueue",
+                "/agent/video/presence",
                 "/agent/video/session",
                 "/agent/video/settings",
                 "/agent/video/setup",

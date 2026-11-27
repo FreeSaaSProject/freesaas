@@ -66,6 +66,60 @@ final class VideoSchedule
     }
 
     /**
+     * Unix time when the active window containing $now closes (end minute inclusive).
+     * Null when the schedule has no daily end (always on, closed day, unknown mode).
+     *
+     * @param array<string, mixed> $settings Camera or post SETTINGS_JSON decoded
+     */
+    public static function windowEndTs(int $now, array $settings): ?int
+    {
+        $sched = $settings['schedule'] ?? null;
+        if (!is_array($sched)) {
+            return null;
+        }
+        $mode = (string)($sched['mode'] ?? 'always');
+        if ($mode === '' || $mode === 'always') {
+            return null;
+        }
+        $tz = new DateTimeZone(date_default_timezone_get() ?: 'UTC');
+        $dt = (new DateTimeImmutable('@' . $now))->setTimezone($tz);
+        $window = null;
+        $overrides = $sched['monthly_overrides'] ?? [];
+        $dateKey = $dt->format('Y-m-d');
+        if (is_array($overrides) && isset($overrides[$dateKey])) {
+            $window = $overrides[$dateKey];
+        } elseif ($mode === 'simple') {
+            $window = [
+                'start_hour' => (int)($sched['start_hour'] ?? 0),
+                'start_minute' => (int)($sched['start_minute'] ?? 0),
+                'end_hour' => (int)($sched['end_hour'] ?? 23),
+                'end_minute' => (int)($sched['end_minute'] ?? 59),
+            ];
+        } elseif ($mode === 'weekly') {
+            $key = [
+                'Mon' => 'mon', 'Tue' => 'tue', 'Wed' => 'wed', 'Thu' => 'thu',
+                'Fri' => 'fri', 'Sat' => 'sat', 'Sun' => 'sun',
+            ][$dt->format('D')] ?? 'mon';
+            $weekly = $sched['weekly'] ?? [];
+            $window = is_array($weekly) ? ($weekly[$key] ?? null) : null;
+        }
+        if (!is_array($window) || !empty($window['closed'])) {
+            return null;
+        }
+        $sh = (int)($window['start_hour'] ?? $window['startHour'] ?? 0);
+        $sm = (int)($window['start_minute'] ?? $window['startMinute'] ?? 0);
+        $eh = (int)($window['end_hour'] ?? $window['endHour'] ?? 23);
+        $em = (int)($window['end_minute'] ?? $window['endMinute'] ?? 59);
+        $mins = ((int)$dt->format('G')) * 60 + (int)$dt->format('i');
+        $end = $dt->setTime($eh, $em, 59);
+        if ($eh * 60 + $em < $sh * 60 + $sm && $mins >= $sh * 60 + $sm) {
+            $end = $end->modify('+1 day');
+        }
+
+        return $end->getTimestamp();
+    }
+
+    /**
      * @param array<string, mixed>|bool|null $window
      */
     private static function windowActive(DateTimeImmutable $dt, $window): bool

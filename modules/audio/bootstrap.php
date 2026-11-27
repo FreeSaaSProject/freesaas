@@ -19,6 +19,42 @@ require_once __DIR__ . '/lib/AudioIngestLongJob.php';
 
 EventBus::on('bi.datasets', [AudioBiContrib::class, 'onDatasets']);
 
+// Optional consequence of video absence alerts (soft coupling via EventBus; off by default).
+require_once __DIR__ . '/lib/AudioVideoEffects.php';
+require_once __DIR__ . '/lib/AudioAgentOps.php';
+AudioAgentOps::register();
+EventBus::on('video.alert.created', [AudioVideoEffects::class, 'onAlertCreated']);
+EventBus::on('video.appeal.decided', [AudioVideoEffects::class, 'onAppealDecided']);
+EventBus::on('video.consequences.collect', [AudioVideoEffects::class, 'onCollect']);
+EventBus::on('audio.settings.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        $payload = ['html' => ''];
+    }
+    if (!Auth::capability('SUPERADMIN_ACCESS') || !ModuleManager::isEnabled('video')) {
+        return $payload;
+    }
+    if (!isset($payload['sections']) || !is_array($payload['sections'])) {
+        $payload['sections'] = [];
+    }
+    $payload['sections'][] = [
+        'id' => 'video_effects',
+        'title' => 'audio.video_effects.title',
+        'weight' => 60,
+        'html' => View::capture('_settings_video_effects', ['cfg' => AudioVideoEffects::config()], 'audio'),
+    ];
+    return $payload;
+});
+EventBus::on('audio.settings.save', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    if (isset($post['audio_video_effects_save'])) {
+        AudioVideoEffects::save($post);
+    }
+    return $payload;
+});
+
 Assets::register('audio', [
     'css' => ['audio.css'],
     'js' => ['audio.js'],

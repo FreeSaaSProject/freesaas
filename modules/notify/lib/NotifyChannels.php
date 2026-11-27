@@ -239,6 +239,9 @@ final class NotifyChannels
         if (is_array($o['buttons'] ?? null) && $o['buttons'] !== []) {
             $opts['buttons'] = $o['buttons'];
         }
+        if (is_array($o['images'] ?? null) && $o['images'] !== []) {
+            $opts['images'] = $o['images'];
+        }
         if ($rcpt['rcpt_kind'] === 'chat') {
             $opts['chat_id'] = (string)$rcpt['chat_id'];
             $opts['platform'] = (string)$rcpt['platform'];

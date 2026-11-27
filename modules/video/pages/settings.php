@@ -54,6 +54,8 @@ View::render('settings', [
         ['label' => t('video.menu.settings'), 'current' => true],
     ]),
     'cfg' => $cfg,
+    // Optional reactions of other modules to absence alerts (each registers itself on this event).
+    'consequences' => (array)((EventBus::emit('video.consequences.collect', ['items' => []]))['items'] ?? []),
     'message' => $message,
     'error' => $error,
     'newToken' => $newToken,

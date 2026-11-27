@@ -93,6 +93,9 @@ final class VideoResultIngest
      */
     private static function applyCameraFrame(array $result, array $payload, string $frameRel, string $annotatedRel): int
     {
+        if (empty($result['on_demand']) && is_array($result['samples'] ?? null) && $result['samples'] !== []) {
+            return self::applyCameraSamples($result, $payload, $frameRel, $annotatedRel);
+        }
         $alertId = 0;
         $cameraId = (int)($result['camera_id'] ?? $payload['camera_id'] ?? 0);
         $detections = is_array($result['detections'] ?? null) ? $result['detections'] : [];
@@ -169,6 +172,99 @@ final class VideoResultIngest
                 (int)$result['dataset_project_id'],
                 VideoStorage::abs($frameRel)
             );
+        }
+
+        return $alertId;
+    }
+
+    /**
+     * Dense monitor tick: one detections row per sample (timeline), rules evaluated in order.
+     *
+     * @param array<string,mixed> $result {camera_id, samples:[{ts,detections,image_b64?}]}
+     * @param array<string,mixed> $payload
+     * @return int first alert id (0 = none)
+     */
+    private static function applyCameraSamples(array $result, array $payload, string $frameRel, string $annotatedRel): int
+    {
+        $cameraId = (int)($result['camera_id'] ?? $payload['camera_id'] ?? 0);
+        $now = time();
+        $items = [];
+        foreach ($result['samples'] as $i => $s) {
+            if (!is_array($s)) {
+                continue;
+            }
+            $items[] = [
+                'ts' => (int)($s['ts'] ?? 0),
+                'det' => is_array($s['detections'] ?? null) ? $s['detections'] : [],
+                'img' => (string)($s['image_b64'] ?? ''),
+                'i' => (int)$i,
+            ];
+        }
+        if ($items === []) {
+            return 0;
+        }
+        usort($items, static fn (array $a, array $b): int => $a['ts'] <=> $b['ts']);
+        // Edge host clock far from the server: keep the timeline but anchor the last sample at "now".
+        $lastTs = (int)$items[count($items) - 1]['ts'];
+        $shift = ($lastTs <= 0 || $lastTs > $now + 120 || $lastTs < $now - 86400) ? $now - ($lastTs > 0 ? $lastTs : $now) : 0;
+
+        $samples = [];
+        foreach ($items as $it) {
+            $dt = ($it['ts'] > 0 ? $it['ts'] : $now) + $shift;
+            $path = '';
+            $bytes = 0;
+            if ($it['img'] !== '') {
+                $bin = base64_decode($it['img'], true);
+                if ($bin !== false && $bin !== '') {
+                    $path = VideoStorage::putBytes('frames/' . max(0, $cameraId), 's_' . $dt . '_' . $it['i'] . '.jpg', $bin);
+                    $bytes = strlen($bin);
+                }
+            }
+            $id = VideoDetectionsRepository::insert($cameraId, $path, $it['det'], 0, $bytes, [], $dt);
+            $samples[] = ['dt' => $dt, 'detections' => $it['det'], 'path' => $path, 'id' => $id];
+        }
+
+        $alertId = 0;
+        $cam = $cameraId > 0 ? VideoCamerasRepository::find($cameraId) : null;
+        if (is_array($cam) && (string)($payload['mode'] ?? 'monitoring') === 'monitoring') {
+            $classes = is_array($payload['classes'] ?? null) ? array_values($payload['classes']) : [];
+            $fallback = array_values(array_filter([$annotatedRel, $frameRel], static fn (string $p): bool => $p !== ''));
+            foreach (VideoRules::evaluateBatch($cameraId, $cam, $samples, $classes) as $a) {
+                $paths = $a['paths'] !== [] ? $a['paths'] : $fallback;
+                $staff = $a['kind'] === VideoRules::KIND_PREFIX . 'absent' ? VideoDuty::resolve($cam, (int)$a['dt']) : null;
+                $meta = $a['meta'];
+                if ($staff !== null) {
+                    $meta['staff_id'] = $staff['id'];
+                    $meta['staff_name'] = $staff['name'];
+                }
+                $id = VideoAlertsRepository::create($cameraId, $a['kind'], $a['message'], $paths, $meta, $a['dt'], $staff['id'] ?? 0);
+                if ($alertId === 0) {
+                    $alertId = $id;
+                }
+                VideoDetectionsRepository::linkAlert((int)$a['sample_id'], $id);
+                if (class_exists(EventBus::class, false)) {
+                    EventBus::emit('video.alert.created', [
+                        'alert_id' => $id,
+                        'camera_id' => $cameraId,
+                        'kind' => $a['kind'],
+                        'message' => $a['message'],
+                        'paths' => $paths,
+                        'meta' => $meta,
+                        'dt' => $a['dt'],
+                        'staff_id' => $staff['id'] ?? 0,
+                        'staff_name' => $staff['name'] ?? '',
+                    ]);
+                }
+            }
+        }
+
+        $last = $samples[count($samples) - 1];
+        if ($cameraId > 0) {
+            VideoCamerasRepository::updateLastFrame($cameraId, $frameRel, $annotatedRel, [
+                'detections' => $last['detections'],
+                'alert_id' => $alertId,
+                'samples' => count($samples),
+            ]);
         }
 
         return $alertId;

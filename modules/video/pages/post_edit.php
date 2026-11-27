@@ -60,6 +60,7 @@ View::render('post_edit', [
     'models' => $models,
     'sched' => $sched,
     'rules_text' => $rulesText,
+    'rules_settings' => $settings,
     'isNew' => $isNew,
     'error' => $error,
 ], 'layout', 'video');

@@ -103,6 +103,149 @@ final class BotClient
     }
 
     /**
+     * Photos first (Telegram sendPhoto / sendMediaGroup, Max upload + attachments), then the text message
+     * with the buttons (its result is returned, so the platform message id belongs to the text).
+     * Photo failure is reported only when the text could not be sent either.
+     *
+     * @param array<string,mixed>|null $replyMarkup
+     * @param list<string> $images absolute file paths
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    public static function sendWithImages(
+        string $platform,
+        string $token,
+        string $chatId,
+        string $text,
+        ?array $replyMarkup,
+        array $images
+    ): array {
+        if ($images === []) {
+            return self::sendMessage($platform, $token, $chatId, $text, $replyMarkup);
+        }
+        $platform = strtolower(trim($platform));
+        $images = array_slice(array_values($images), 0, 10);
+        $photoErr = '';
+        if ($platform === 'max') {
+            $res = self::maxSendImages(trim($token), trim($chatId), $images);
+        } else {
+            $res = self::tgSendImages(trim($token), trim($chatId), $images);
+        }
+        if (!$res['ok']) {
+            $photoErr = $res['error'];
+        }
+        $out = self::sendMessage($platform, $token, $chatId, $text, $replyMarkup);
+        if (!$out['ok'] && $photoErr !== '') {
+            $out['error'] = $out['error'] . ' (photos: ' . $photoErr . ')';
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param list<string> $images
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    private static function tgSendImages(string $token, string $chatId, array $images): array
+    {
+        if (count($images) === 1) {
+            return self::tgRequest($token, 'sendPhoto', [
+                'chat_id' => $chatId,
+                'photo' => new CURLFile($images[0], 'image/jpeg', basename($images[0])),
+            ]);
+        }
+        $media = [];
+        $fields = ['chat_id' => $chatId];
+        foreach ($images as $i => $path) {
+            $key = 'f' . $i;
+            $media[] = ['type' => 'photo', 'media' => 'attach://' . $key];
+            $fields[$key] = new CURLFile($path, 'image/jpeg', basename($path));
+        }
+        $fields['media'] = json_encode($media, JSON_UNESCAPED_UNICODE);
+
+        return self::tgRequest($token, 'sendMediaGroup', $fields);
+    }
+
+    /**
+     * Max: POST /uploads?type=image → upload URL → multipart file → token; then one message with image attachments.
+     *
+     * @param list<string> $images
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    private static function maxSendImages(string $token, string $chatId, array $images): array
+    {
+        $attachments = [];
+        $lastErr = '';
+        foreach ($images as $path) {
+            $up = self::maxUploadImage($token, $path);
+            if ($up['ok']) {
+                $attachments[] = ['type' => 'image', 'payload' => ['token' => $up['token']]];
+            } else {
+                $lastErr = $up['error'];
+            }
+        }
+        if ($attachments === []) {
+            return ['ok' => false, 'data' => null, 'error' => $lastErr !== '' ? $lastErr : 'no images uploaded'];
+        }
+        $queryKey = self::maxUsesChatId($chatId) ? 'chat_id' : 'user_id';
+        $body = ['attachments' => $attachments];
+        $res = ['ok' => false, 'data' => null, 'error' => ''];
+        // Max may answer attachment.not.ready right after upload.
+        for ($try = 0; $try < 4; $try++) {
+            $res = self::maxRequest($token, 'POST', '/messages', [$queryKey => $chatId], $body);
+            if ($res['ok'] || stripos($res['error'], 'not.ready') === false) {
+                break;
+            }
+            sleep(1);
+        }
+
+        return $res;
+    }
+
+    /** @return array{ok:bool,token:string,error:string} */
+    private static function maxUploadImage(string $token, string $path): array
+    {
+        $slot = self::maxRequest($token, 'POST', '/uploads', ['type' => 'image'], null);
+        $url = is_array($slot['data'] ?? null) ? (string)($slot['data']['url'] ?? '') : '';
+        if (!$slot['ok'] || $url === '') {
+            return ['ok' => false, 'token' => '', 'error' => $slot['error'] !== '' ? $slot['error'] : 'max upload url missing'];
+        }
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => ['data' => new CURLFile($path, 'image/jpeg', basename($path))],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30,
+        ]);
+        if (BotsConfig::maxSslInsecure()) {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
+        $response = curl_exec($ch);
+        if ($response === false) {
+            return ['ok' => false, 'token' => '', 'error' => curl_error($ch) ?: 'max upload failed'];
+        }
+        $data = json_decode((string)$response, true);
+        $tok = '';
+        if (is_array($data)) {
+            $tok = (string)($data['token'] ?? '');
+            if ($tok === '' && is_array($data['photos'] ?? null)) {
+                foreach ($data['photos'] as $ph) {
+                    if (is_array($ph) && !empty($ph['token'])) {
+                        $tok = (string)$ph['token'];
+                        break;
+                    }
+                }
+            }
+        }
+        if ($tok === '') {
+            return ['ok' => false, 'token' => '', 'error' => 'max upload: no token ' . substr((string)$response, 0, 200)];
+        }
+
+        return ['ok' => true, 'token' => $tok, 'error' => ''];
+    }
+
+    /**
      * Max groups use query chat_id; dialogs use user_id.
      * Negative ids are groups (legacy Termy / Max platform-api).
      */

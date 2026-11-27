@@ -645,6 +645,87 @@ def handle_infer_batch(job: dict) -> None:
     post_result(job_id, {"predictions": preds})
 
 
+def handle_camera_batch(job: dict) -> None:
+    """Dense monitor tick: one RTSP stream, a frame every `sample_interval_sec`, YOLO on each frame.
+
+    Result: samples[{ts, detections, image_b64?}]. image_b64 (annotated JPEG) is attached only to frames
+    where none of `evidence_classes` is present (absence evidence), at most `evidence_per_minute` per minute.
+    """
+    from batch_sampling import EvidenceBudget, build_ffmpeg_cmd, is_absence, stream_frames
+
+    payload = job.get("payload") or {}
+    job_id = int(job["id"])
+    rtsp = str(payload.get("rtsp_url") or "")
+    camera_id = int(payload.get("camera_id") or 0)
+    if not rtsp:
+        post_result(job_id, {"camera_id": camera_id}, error="rtsp_url missing")
+        return
+    total = max(1, min(240, int(payload.get("samples") or 1)))
+    interval = max(1.0, min(120.0, float(payload.get("sample_interval_sec") or 6)))
+    window_end = int(payload.get("window_end_ts") or 0)
+    deadline = time.time() + total * interval + 45
+    if window_end > 0:
+        deadline = min(deadline, window_end + 15)
+    weights = resolve_weights(int(payload.get("model_id") or 0), payload)
+    conf = float(payload.get("conf_threshold") or 0.25)
+    iou = float(payload.get("iou_threshold") or 0.45)
+    classes_meta = payload.get("classes") if isinstance(payload.get("classes"), list) else None
+    evidence_classes = [str(x) for x in (payload.get("evidence_classes") or []) if str(x).strip()]
+    budget = EvidenceBudget(int(payload.get("evidence_per_minute") or 2))
+    cmd = build_ffmpeg_cmd(
+        str(FFMPEG.get("bin") or "ffmpeg"),
+        rtsp,
+        str(FFMPEG.get("rtsp_transport") or "tcp"),
+        interval,
+    )
+    samples: List[Dict[str, Any]] = []
+    last_frame = b""
+    last_ann = b""
+    errors = 0
+    last_error = ""
+    for _attempt in range(2):
+        try:
+            for ts, jpg in stream_frames(cmd, total - len(samples), interval, deadline, float(FFMPEG.get("timeout_sec") or 15)):
+                if window_end > 0 and ts > window_end:
+                    deadline = 0
+                    break
+                try:
+                    boxes, ann = run_infer_bytes(weights, jpg, conf, iou, classes_meta)
+                except Exception as e:  # noqa: BLE001
+                    errors += 1
+                    last_error = str(e)
+                    continue
+                sample: Dict[str, Any] = {"ts": int(ts), "detections": boxes}
+                if is_absence(boxes, evidence_classes, classes_meta) and budget.take(ts):
+                    sample["image_b64"] = base64.b64encode(jpeg_for_upload(ann)).decode("ascii")
+                samples.append(sample)
+                last_frame, last_ann = jpg, ann
+                set_activity("infer", f"batch cam={camera_id} {len(samples)}/{total}")
+        except FileNotFoundError:
+            post_result(job_id, {"camera_id": camera_id}, error="ffmpeg not found")
+            return
+        if len(samples) >= total or time.time() >= deadline:
+            break
+    if not samples:
+        post_result(job_id, {"camera_id": camera_id}, error=last_error or f"ffmpeg: no frames from {rtsp_safe(rtsp)}")
+        return
+    result: Dict[str, Any] = {
+        "camera_id": camera_id,
+        "detections": samples[-1]["detections"],
+        "on_demand": False,
+        "samples": samples,
+        "sample_interval_sec": interval,
+        "requested_samples": total,
+        "infer_errors": errors,
+    }
+    post_result(
+        job_id,
+        result,
+        frame_b64=base64.b64encode(jpeg_for_upload(last_frame)).decode("ascii"),
+        annotated_b64=base64.b64encode(jpeg_for_upload(last_ann)).decode("ascii"),
+    )
+
+
 def handle_camera_job(job: dict, *, on_demand: bool = False) -> None:
     payload = job.get("payload") or {}
     job_id = int(job["id"])
@@ -652,6 +733,9 @@ def handle_camera_job(job: dict, *, on_demand: bool = False) -> None:
     camera_id = int(payload.get("camera_id") or 0)
     if not rtsp:
         post_result(job_id, {"camera_id": camera_id}, error="rtsp_url missing")
+        return
+    if not on_demand and int(payload.get("samples") or 1) > 1:
+        handle_camera_batch(job)
         return
     weights = resolve_weights(int(payload.get("model_id") or 0), payload)
     conf = float(payload.get("conf_threshold") or 0.25)

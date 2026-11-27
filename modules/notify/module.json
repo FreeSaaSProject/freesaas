@@ -2,7 +2,7 @@
     "id": "notify",
     "name": "notify.module.name",
     "description": "notify.module.description",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "type": "product",
     "runtime": "both",
     "requires": {

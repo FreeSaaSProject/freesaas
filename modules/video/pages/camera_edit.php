@@ -113,6 +113,7 @@ View::render('camera_edit', [
     'settings' => $settings,
     'sched' => $sched,
     'rules_text' => $rulesText,
+    'rules_settings' => $settings,
     'isNew' => $isNew,
     'error' => $error,
 ], 'layout', 'video');

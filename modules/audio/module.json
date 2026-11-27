@@ -2,13 +2,14 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "1.0.29",
+    "version": "1.0.31",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
     },
     "optionalRequires": {
         "workweeks": ">=1.0.0",
+        "video": ">=0.5.0",
         "clients": ">=1.0.0",
         "audio_dicts": ">=1.0.0",
         "audio_pipeline": ">=1.0.0",
@@ -39,6 +40,7 @@
     ],
     "routes": {
         "pages": [
+            "/agent/audio/video-effects",
             "/audio",
             "/audio/ingest",
             "/audio/{id}",
@@ -230,7 +232,8 @@
         "base_records_badges",
         "base_badge_assignments",
         "base_records_balances",
-        "base_records_reviews"
+        "base_records_reviews",
+        "base_audio_video_effects"
     ],
     "migrators": [],
     "hooks": {
@@ -242,7 +245,10 @@
             "core.auth.before_logout",
             "core.notices.collect",
             "bi.datasets",
-            "backups.sources"
+            "backups.sources",
+            "video.alert.created",
+            "video.appeal.decided",
+            "video.consequences.collect"
         ],
         "publish": [
             "audio.settings.sections",

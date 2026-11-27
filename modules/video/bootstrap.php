@@ -27,6 +27,10 @@ require_once __DIR__ . '/lib/VideoColors.php';
 require_once __DIR__ . '/lib/VideoSchedule.php';
 require_once __DIR__ . '/lib/VideoPostsRepository.php';
 require_once __DIR__ . '/lib/VideoRules.php';
+require_once __DIR__ . '/lib/VideoPresence.php';
+require_once __DIR__ . '/lib/VideoDuty.php';
+require_once __DIR__ . '/lib/VideoAppealsRepository.php';
+require_once __DIR__ . '/lib/VideoAppealsBotPlugin.php';
 require_once __DIR__ . '/lib/VideoTrainSessionsRepository.php';
 require_once __DIR__ . '/lib/VideoResultIngest.php';
 require_once __DIR__ . '/lib/VideoPushDispatcher.php';
@@ -47,6 +51,8 @@ Assets::register('video', [
 
 ModuleManager::registerMenuGroup('video.menu.group', 520, '/video', '📹');
 
+VideoAppealsBotPlugin::register();
+
 $staffPages = [
     '/video' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'dashboard.php'],
     '/video/status' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'status.php'],
@@ -61,6 +67,10 @@ $staffPages = [
     '/video/cameras/{id}/live-frame' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'camera_live_frame.php'],
     '/video/models' => ['permission' => 'video.edit', 'methods' => ['GET', 'POST'], 'file' => 'models.php'],
     '/video/alerts' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'alerts.php'],
+    '/video/presence' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'presence.php'],
+    // Staff file own appeals (checked in VideoAppealsRepository), deciders need video.appeals.decide.
+    '/video/appeals' => ['permission' => 'video.appeals.view', 'methods' => ['GET', 'POST'], 'file' => 'appeals.php'],
+    '/video/appeals/{id}' => ['permission' => 'video.appeals.view', 'methods' => ['GET'], 'file' => 'appeal_view.php'],
     '/video/media' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'media.php'],
     '/video/train' => ['permission' => 'video.edit', 'methods' => ['GET', 'POST'], 'file' => 'train_sessions.php'],
     '/video/train/{id}' => ['permission' => 'video.edit', 'methods' => ['GET', 'POST'], 'file' => 'train_session.php'],
@@ -135,23 +145,28 @@ Cron::register('video.monitor_enqueue', [
             if (!VideoSchedule::isActive($now, $settings)) {
                 continue;
             }
-            $interval = max(5, (int)$cam['INTERVAL_SEC']);
-            $last = (int)$cam['LAST_SEEN'];
-            if ($last > 0 && ($now - $last) < $interval) {
-                continue;
+            $batch = VideoRules::monitorBatch($cam);
+            if ($batch['samples'] <= 1) {
+                $interval = max(5, (int)$cam['INTERVAL_SEC']);
+                $last = (int)$cam['LAST_SEEN'];
+                if ($last > 0 && ($now - $last) < $interval) {
+                    continue;
+                }
             }
+            // A dense batch runs ~5 min: allow one pending + one claimed so ticks follow without gaps.
             $st = Database::pdo()->prepare(
-                "SELECT COUNT(*) FROM base_video_jobs WHERE TYPE = ? AND STATUS IN ('pending','claimed')
-                 AND PAYLOAD_JSON LIKE ?"
+                "SELECT STATUS, COUNT(*) FROM base_video_jobs WHERE TYPE = ? AND STATUS IN ('pending','claimed')
+                 AND PAYLOAD_JSON LIKE ? GROUP BY STATUS"
             );
-            $like = '%"camera_id":' . (int)$cam['ID'] . '%';
+            $like = '%"camera_id":' . (int)$cam['ID'] . ',%';
             $st->execute([VideoJobsRepository::TYPE_MONITOR_TICK, $like]);
-            if ((int)$st->fetchColumn() > 0) {
+            $counts = $st->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
+            if ((int)($counts['pending'] ?? 0) > 0 || (int)($counts['claimed'] ?? 0) >= ($batch['samples'] > 1 ? 2 : 1)) {
                 continue;
             }
             VideoJobsRepository::enqueue(
                 VideoJobsRepository::TYPE_MONITOR_TICK,
-                VideoCamerasRepository::jobPayload($cam)
+                VideoCamerasRepository::monitorPayload($cam, $now)
             );
             $n++;
         }
@@ -258,6 +273,7 @@ EventBus::on('video.alert.created', static function (array $payload): array {
     if (ModuleManager::isEnabled('notify')) {
         $cameraId = (int)($payload['camera_id'] ?? 0);
         $cam = $cameraId > 0 && class_exists('VideoCamerasRepository', false) ? VideoCamerasRepository::find($cameraId) : null;
+        $staffName = trim((string)($payload['staff_name'] ?? ''));
         EventBus::emit('notify.event', [
             'event' => 'video.alert',
             'ctx' => [
@@ -266,6 +282,13 @@ EventBus::on('video.alert.created', static function (array $payload): array {
                 'camera_id' => $cameraId,
                 'camera_name' => is_array($cam) && trim((string)($cam['name'] ?? '')) !== '' ? (string)$cam['name'] : ('#' . $cameraId),
                 'alert_id' => (int)($payload['alert_id'] ?? 0),
+                'time' => date('H:i', (int)($payload['dt'] ?? 0) > 0 ? (int)$payload['dt'] : time()),
+                'staff_id' => (int)($payload['staff_id'] ?? 0),
+                'staff_name' => $staffName,
+                'staff_line' => $staffName !== ''
+                    ? "\n" . t('video.alert.staff_line', ['name' => $staffName])
+                    : ((string)($payload['kind'] ?? '') === VideoRules::KIND_PREFIX . 'absent' ? "\n" . t('video.alert.staff_unknown') : ''),
+                'images' => VideoAlertsRepository::existingFiles((array)($payload['paths'] ?? [])),
             ],
             'subjects' => [],
             'entity' => 'video_alert',
@@ -281,11 +304,48 @@ EventBus::on('video.alert.created', static function (array $payload): array {
         EventBus::emit('bots.send', [
             'text' => $msg,
             'channel' => 'video_alerts',
+            'images' => VideoAlertsRepository::existingFiles((array)($payload['paths'] ?? [])),
             'meta' => $payload,
         ]);
     }
 
     return $payload;
+});
+
+// Appeals: tell deciders (frames + buttons) and the employee through the bot, when bots is on.
+EventBus::on('video.appeal.created', static function ($payload) {
+    if (is_array($payload) && ModuleManager::isEnabled('bots')) {
+        VideoAppealsBotPlugin::notifyDeciders((int)($payload['appeal_id'] ?? 0));
+    }
+
+    return $payload;
+});
+EventBus::on('video.appeal.decided', static function ($payload) {
+    if (is_array($payload) && ModuleManager::isEnabled('bots')) {
+        VideoAppealsBotPlugin::notifyEmployee((int)($payload['appeal_id'] ?? 0));
+    }
+
+    return $payload;
+});
+
+EventBus::on('core.notices.collect', static function ($notices) {
+    if (!is_array($notices)) {
+        $notices = [];
+    }
+    if (!Auth::check() || !Auth::can(VideoAppealsRepository::PERM_DECIDE) || !Auth::can('video.appeals.view')) {
+        return $notices;
+    }
+    $n = VideoAppealsRepository::pendingCount();
+    if ($n > 0) {
+        $notices[] = [
+            'short' => t('video.appeal.notice_short', ['n' => $n]),
+            'href' => '/video/appeals?status=0',
+            'title' => t('video.appeal.notice_title'),
+            'tone' => 'warn',
+        ];
+    }
+
+    return $notices;
 });
 
 EventBus::on('backups.sources', static function ($payload) {

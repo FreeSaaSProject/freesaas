@@ -34,6 +34,7 @@ final class BotSend
                 'platform' => (string)($payload['platform'] ?? ''),
                 'dedupe_key' => (string)($payload['dedupe_key'] ?? ''),
                 'buttons' => is_array($payload['buttons'] ?? null) ? $payload['buttons'] : null,
+                'images' => is_array($payload['images'] ?? null) ? $payload['images'] : null,
                 'id_operator' => (int)($payload['id_operator'] ?? Auth::userId()),
             ]);
             $payload['queued_id'] = $id;

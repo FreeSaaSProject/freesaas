@@ -211,10 +211,18 @@ final class NotifyEngine
         if (trim($text) === '') {
             return [];
         }
-        return self::sendToTargets($rule, $rule['targets'], $text, $p, [
+        $extra = [
             'dedupe' => 'n' . $rule['id'] . ':' . $p['event'] . ':' . $p['entity_id'] . ':' . $p['dedupe_suffix'],
             'dry' => $dry,
-        ]);
+        ];
+        // Event context may carry bot attachments: images (absolute paths under var/) and inline buttons.
+        if (is_array($p['ctx']['images'] ?? null) && $p['ctx']['images'] !== []) {
+            $extra['images'] = $p['ctx']['images'];
+        }
+        if (is_array($p['ctx']['buttons'] ?? null) && $p['ctx']['buttons'] !== []) {
+            $extra['buttons'] = $p['ctx']['buttons'];
+        }
+        return self::sendToTargets($rule, $rule['targets'], $text, $p, $extra);
     }
 
     /**

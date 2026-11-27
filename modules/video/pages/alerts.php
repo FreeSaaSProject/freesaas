@@ -10,6 +10,11 @@ if ($wantsJson) {
     return;
 }
 
+$staffNames = [];
+foreach (UsersRepository::listEnabledStaff() as $u) {
+    $staffNames[(int)$u['id']] = $u['name'] !== '' ? $u['name'] : $u['login'];
+}
+
 View::render('alerts', [
     'title' => t('video.alerts.title'),
     'breadcrumbs' => Breadcrumbs::withHome([
@@ -17,4 +22,5 @@ View::render('alerts', [
     ]),
     'rows' => $rows,
     'cameraId' => $cameraId,
+    'staffNames' => $staffNames,
 ], 'layout', 'video');

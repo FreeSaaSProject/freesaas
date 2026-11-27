@@ -73,6 +73,22 @@
     </fieldset>
     <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
   </form>
+  <fieldset class="form-fieldset">
+    <legend><?= te('video.settings.consequences') ?></legend>
+    <p class="muted"><?= te('video.settings.consequences.help') ?></p>
+    <?php if ($consequences === []): ?>
+      <p class="muted"><?= te('video.settings.consequences.none') ?></p>
+    <?php else: ?>
+      <ul>
+        <?php foreach ($consequences as $c): ?>
+          <li>
+            <a href="<?= e((string)($c['href'] ?? '#')) ?>"><?= te((string)($c['label'] ?? '')) ?></a>
+            — <?= !empty($c['enabled']) ? te('video.settings.consequences.on') : te('video.settings.consequences.off') ?>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
+  </fieldset>
   <form method="post" class="video-purge-form">
     <input type="hidden" name="run_purge" value="1">
     <p class="field-help"><?= te('video.settings.run_purge.help') ?></p>

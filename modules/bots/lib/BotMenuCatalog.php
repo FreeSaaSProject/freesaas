@@ -135,7 +135,7 @@ final class BotMenuCatalog
             [
                 'id' => 'appeals',
                 'label_key' => 'bots.catalog.staff.appeals',
-                'module' => '',
+                'module' => 'video',
                 'aliases' => ['appeals'],
                 'kind' => 'cabinet',
             ],

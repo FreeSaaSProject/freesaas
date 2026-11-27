@@ -2,14 +2,16 @@
     "id": "video",
     "name": "video.module.name",
     "description": "video.module.description",
-    "version": "0.4.1",
+    "version": "0.5.2",
     "type": "product",
     "requires": {
-        "core": ">=1.1.0"
+        "core": ">=1.1.0",
+        "workweeks": ">=1.0.8"
     },
     "optionalRequires": {
-        "bots": ">=1.0.0",
-        "notify": ">=0.1.0",
+        "bots": ">=1.0.11",
+        "notify": ">=0.1.4",
+        "audio": ">=0.1.0",
         "video_label": ">=0.1.0"
     },
     "provides": [
@@ -29,6 +31,14 @@
         {
             "id": "video.delete",
             "label": "video.perm.delete"
+        },
+        {
+            "id": "video.appeals.view",
+            "label": "video.perm.appeals_view"
+        },
+        {
+            "id": "video.appeals.decide",
+            "label": "video.perm.appeals_decide"
         }
     ],
     "routes": {
@@ -46,6 +56,9 @@
             "/video/cameras/{id}/live-frame",
             "/video/models",
             "/video/alerts",
+            "/video/appeals",
+            "/video/appeals/{id}",
+            "/video/presence",
             "/video/media",
             "/video/train",
             "/video/train/{id}",
@@ -62,7 +75,9 @@
             "/agent/video/settings",
             "/agent/video/setup",
             "/agent/video/enqueue",
-            "/agent/video/session"
+            "/agent/video/session",
+            "/agent/video/alerts",
+            "/agent/video/presence"
         ]
     },
     "agent": {
@@ -346,7 +361,85 @@
                 "path": "/video/alerts",
                 "permission": "video.view",
                 "side_effect": "read",
-                "description": "Alert journal; optional camera_id="
+                "description": "Alert journal (STAFF_ID = attributed on-duty employee, STATE 1 = cancelled by appeal); optional camera_id="
+            },
+            {
+                "id": "video.presence.report",
+                "method": "GET",
+                "path": "/video/presence",
+                "permission": "video.view",
+                "side_effect": "read",
+                "description": "Absence report of one camera and day (camera_id=, day=YYYY-MM-DD): 30-minute intervals present_min/absent_min/avg_guests after the oper retro filter"
+            },
+            {
+                "id": "video.appeals.list",
+                "method": "GET",
+                "path": "/video/appeals",
+                "permission": "video.appeals.view",
+                "side_effect": "read",
+                "description": "Appeals of absence alerts; status=0 pending|1 accepted|2 rejected (own only without video.appeals.decide)"
+            },
+            {
+                "id": "video.appeals.get",
+                "method": "GET",
+                "path": "/video/appeals/{id}",
+                "permission": "video.appeals.view",
+                "side_effect": "read",
+                "description": "Appeal card with alert frame paths"
+            },
+            {
+                "id": "video.appeals.create",
+                "method": "POST",
+                "path": "/video/appeals",
+                "permission": "video.appeals.view",
+                "side_effect": "write",
+                "description": "File an appeal for own absence alert; action=create alert_id= reason=",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "action",
+                        "alert_id"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "const": "create"
+                        },
+                        "alert_id": {
+                            "type": "integer"
+                        },
+                        "reason": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "video.appeals.decide",
+                "method": "POST",
+                "path": "/video/appeals",
+                "permission": "video.appeals.decide",
+                "side_effect": "write",
+                "description": "Accept or reject; action=accept|reject id= comment=. Accept cancels the alert and emits video.appeal.decided",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "action",
+                        "id"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "description": "accept|reject"
+                        },
+                        "id": {
+                            "type": "integer"
+                        },
+                        "comment": {
+                            "type": "string"
+                        }
+                    }
+                }
             },
             {
                 "id": "video.settings.get",
@@ -437,6 +530,22 @@
         },
         {
             "group": "video.menu.group",
+            "num": 7,
+            "path": "/video/presence",
+            "icon": "📊",
+            "title": "video.menu.presence",
+            "kind": "work"
+        },
+        {
+            "group": "video.menu.group",
+            "num": 8,
+            "path": "/video/appeals",
+            "icon": "⚖️",
+            "title": "video.menu.appeals",
+            "kind": "work"
+        },
+        {
+            "group": "video.menu.group",
             "num": 5,
             "path": "/video/models",
             "icon": "🧬",
@@ -469,17 +578,25 @@
         "base_video_jobs",
         "base_video_alerts",
         "base_video_detections",
-        "base_video_train_sessions"
+        "base_video_train_sessions",
+        "base_video_appeals"
     ],
     "migrators": [],
     "hooks": {
         "subscribe": [
             "backups.sources",
-            "notify.catalog"
+            "notify.catalog",
+            "video.alert.created",
+            "video.appeal.created",
+            "video.appeal.decided",
+            "core.notices.collect"
         ],
         "publish": [
             "notify.event",
-            "video.alert.created"
+            "video.alert.created",
+            "video.appeal.created",
+            "video.appeal.decided",
+            "video.consequences.collect"
         ]
     },
     "catalog": {

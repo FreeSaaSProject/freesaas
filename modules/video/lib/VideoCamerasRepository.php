@@ -86,6 +86,29 @@ final class VideoCamerasRepository
         ];
     }
 
+    /**
+     * monitor_tick payload: dense batch (samples every sample_interval_sec) when configured or implied by oper rules.
+     *
+     * @param array<string, mixed> $cam
+     * @return array<string, mixed>
+     */
+    public static function monitorPayload(array $cam, int $now): array
+    {
+        $payload = self::jobPayload($cam);
+        $batch = VideoRules::monitorBatch($cam);
+        if ($batch['samples'] <= 1) {
+            return $payload;
+        }
+        $end = VideoSchedule::windowEndTs($now, VideoSchedule::effectiveSettings($cam));
+        $payload['samples'] = $batch['samples'];
+        $payload['sample_interval_sec'] = $batch['interval'];
+        $payload['window_end_ts'] = $end ?? 0;
+        $payload['evidence_classes'] = VideoRules::evidenceClasses(VideoRules::effective($cam));
+        $payload['evidence_per_minute'] = 2;
+
+        return $payload;
+    }
+
     /** @param array<string, mixed> $data */
     public static function save(int $id, array $data): int
     {

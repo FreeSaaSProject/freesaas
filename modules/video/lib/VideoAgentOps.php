@@ -26,14 +26,23 @@ final class VideoAgentOps
             ],
         ]);
         AgentOps::registerModuleOp('POST', '/agent/video/setup', 'video.setup', [self::class, 'setup'], [
-            'description' => 'Ensure worker_token + upsert post/model/camera. Body: post_name, post_id, model_name, weights_path, classes[], camera_name, rtsp_url, schedule, enabled, interval_sec, …',
+            'description' => 'Ensure worker_token + upsert post/model/camera. Body: post_name, post_id, model_name, weights_path, classes[], camera_name, rtsp_url, schedule_*, rules_text (absence DSL: "absent <class> minutes=4 run=6 cooldown=10 fpm=1 max=10"), monitor_samples/monitor_interval_sec (dense batch per tick), duty_status_ids[] (roles whose on-shift staff get the alert; ids from GET /agent/video/status roles[]), rules_scope=camera|post (where rules/monitor/duty are stored, default camera). Omitted keys keep current values.',
             'body' => [
                 'model_name', 'weights_path', 'classes', 'camera_name', 'rtsp_url',
                 'enabled', 'interval_sec', 'conf_threshold', 'iou_threshold', 'model_id', 'camera_id',
                 'post_id', 'post_name', 'regenerate_token', 'mode',
                 'schedule_mode', 'schedule_start_hour', 'schedule_start_minute',
-                'schedule_end_hour', 'schedule_end_minute', 'rules_text',
+                'schedule_end_hour', 'schedule_end_minute', 'schedule_overrides',
+                'rules_text', 'monitor_samples', 'monitor_interval_sec', 'duty_status_ids', 'rules_scope',
             ],
+        ]);
+        AgentOps::registerModuleOp('GET', '/agent/video/alerts', 'video.alerts', [self::class, 'alerts'], [
+            'description' => 'Recent alerts (with staff_id, STATE 1 = cancelled by appeal) + appeals. Query: camera_id, limit (≤200), appeal_status=0|1|2',
+            'query' => ['camera_id', 'limit', 'appeal_status'],
+        ]);
+        AgentOps::registerModuleOp('GET', '/agent/video/presence', 'video.presence', [self::class, 'presence'], [
+            'description' => 'Absence report of a camera for a day (oper filter, 30-min intervals). Query: camera_id, day=YYYY-MM-DD',
+            'query' => ['camera_id', 'day'],
         ]);
         AgentOps::registerModuleOp('POST', '/agent/video/enqueue', 'video.enqueue', [self::class, 'enqueue'], [
             'description' => 'Enqueue monitor_tick or on_demand. Body: camera_id, type=ondemand|monitor',
@@ -51,6 +60,8 @@ final class VideoAgentOps
             '/agent/video/status' => ['GET'],
             '/agent/video/settings' => ['GET', 'POST'],
             '/agent/video/setup' => ['POST'],
+            '/agent/video/alerts' => ['GET'],
+            '/agent/video/presence' => ['GET'],
             '/agent/video/enqueue' => ['POST'],
             '/agent/video/session' => ['POST'],
         ];
@@ -71,6 +82,42 @@ final class VideoAgentOps
     public static function status(): array
     {
         return VideoDiagnose::report();
+    }
+
+    /** @return array<string, mixed> */
+    public static function alerts(): array
+    {
+        $in = AgentOps::requestInput();
+        $cameraId = (int)($in['camera_id'] ?? 0);
+        $limit = max(1, min(200, (int)($in['limit'] ?? 50)));
+        $out = [
+            'ok' => true,
+            'alerts' => VideoAlertsRepository::recent($limit, $cameraId > 0 ? $cameraId : null),
+        ];
+        if (VideoAppealsRepository::tableReady()) {
+            $status = isset($in['appeal_status']) && $in['appeal_status'] !== '' ? (int)$in['appeal_status'] : -1;
+            $out['appeals'] = VideoAppealsRepository::list(['status' => $status], $limit);
+            $out['appeals_pending'] = VideoAppealsRepository::pendingCount();
+        }
+
+        return $out;
+    }
+
+    /** @return array<string, mixed> */
+    public static function presence(): array
+    {
+        $in = AgentOps::requestInput();
+        $cameraId = (int)($in['camera_id'] ?? 0);
+        $cam = $cameraId > 0 ? VideoCamerasRepository::find($cameraId) : null;
+        if ($cam === null) {
+            return ['ok' => false, 'error' => 'camera not found'];
+        }
+        $day = (string)($in['day'] ?? date('Y-m-d'));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+            $day = date('Y-m-d');
+        }
+
+        return ['ok' => true, 'camera_id' => $cameraId, 'day' => $day] + VideoRules::dayReport($cam, $day);
     }
 
     /** @return array<string, mixed> */
@@ -134,6 +181,8 @@ final class VideoAgentOps
 
         $postId = (int)($body['post_id'] ?? 0);
         $postName = trim((string)($body['post_name'] ?? ''));
+        // rules_text / monitor_* / duty_status_ids go to the camera by default; rules_scope=post stores them on the post.
+        $rulesScope = strtolower(trim((string)($body['rules_scope'] ?? 'camera')));
         if ($postName !== '' || $postId > 0) {
             $existing = $postId > 0 ? VideoPostsRepository::find($postId) : null;
             $settings = $existing
@@ -141,6 +190,9 @@ final class VideoAgentOps
                 : [];
             if (isset($body['schedule_mode'])) {
                 $settings = VideoSchedule::mergeFromPost($body, $settings);
+            }
+            if ($rulesScope === 'post') {
+                $settings = VideoRules::mergeFromPost($body, $settings);
             }
             $postId = VideoPostsRepository::save($postId, [
                 'name' => $postName !== '' ? $postName : (string)($existing['NAME'] ?? 'Post'),
@@ -223,7 +275,9 @@ final class VideoAgentOps
             if (isset($body['schedule_mode'])) {
                 $settings = VideoSchedule::mergeFromPost($body, $settings);
             }
-            $settings = VideoRules::mergeFromPost($body, $settings);
+            if ($rulesScope !== 'post') {
+                $settings = VideoRules::mergeFromPost($body, $settings);
+            }
             $cameraId = VideoCamerasRepository::save($cameraId, [
                 'name' => trim((string)($body['camera_name'] ?? 'Cam')) ?: 'Cam',
                 'rtsp_url' => $rtsp,
@@ -265,7 +319,10 @@ final class VideoAgentOps
         $type = strtolower(trim((string)($body['type'] ?? 'ondemand')));
         $payload = VideoCamerasRepository::jobPayload($cam);
         if ($type === 'monitor' || $type === 'monitor_tick') {
-            $jobId = VideoJobsRepository::enqueue(VideoJobsRepository::TYPE_MONITOR_TICK, $payload);
+            $jobId = VideoJobsRepository::enqueue(
+                VideoJobsRepository::TYPE_MONITOR_TICK,
+                VideoCamerasRepository::monitorPayload($cam, time())
+            );
         } else {
             $payload['annotate'] = true;
             $jobId = VideoJobsRepository::enqueue(VideoJobsRepository::TYPE_ON_DEMAND, $payload);

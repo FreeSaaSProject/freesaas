@@ -41,7 +41,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_staff_report_profiles` | staff_reports | Per-position quality report config (traffic lights) |
 | `base_tables` | tables | Massage tables; optional `ID_TABLE` |
 | `base_records*` (split by domain) | audio / audio_dicts / audio_pipeline / audio_reports / audio_llm | Shared naming; ownership by domain |
-| `base_records_badges`, `base_badge_assignments`, `base_records_reviews`, `base_records_balances` | audio | Badges, assignments; storage settings in `cfg/modules/audio.ini` |
+| `base_records_badges`, `base_badge_assignments`, `base_records_reviews`, `base_records_balances`, `base_audio_video_effects` | audio | Badges, assignments; storage settings in `cfg/modules/audio.ini`; records disabled by video absence alerts (restored by an accepted appeal) |
 | `base_records_coverage_profiles` | audio_pipeline | Per-status / per-staff coverage overrides |
 | `base_asr_leases` | audio_pipeline | One active ASR lease per record across pull + push channels |
 | `base_asr_push_workers` | audio_pipeline | Legacy push ASR workers; copied into `base_edge_hosts` (not read anymore) |
@@ -97,7 +97,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_doc_instances` / `base_doc_field_index` | docs | Filled documents incl. medcards (`PAYLOAD` JSON, frozen print, QR hashes) + narrow search index |
 | `base_doc_proposals` | docs | Pending autofill values (audio/LLM/import) awaiting staff accept |
 | `base_clients` / `base_procedures` / `base_events` / `base_records` (read) | docs | Merge context + spawn triggers; no medical columns added to these tables |
-| `base_video_workers`, `base_video_models`, `base_video_posts`, `base_video_cameras`, `base_video_jobs`, `base_video_alerts`, `base_video_detections`, `base_video_train_sessions` | video | Posts (N cams), schedule in SETTINGS_JSON, YOLO jobs, interactive train; media under `var/video/` |
+| `base_video_workers`, `base_video_models`, `base_video_posts`, `base_video_cameras`, `base_video_jobs`, `base_video_alerts`, `base_video_detections`, `base_video_train_sessions`, `base_video_appeals` | video | Posts (N cams), schedule in SETTINGS_JSON, YOLO jobs, interactive train, absence alerts (STAFF_ID = on-duty via workweeks) + appeals; media under `var/video/` |
 | `base_video_label_projects`, `base_video_label_images` | video_label | LabelForge-style projects; requires `video` for storage/infer |
 | `base_cron_job_state`, `base_cron_runs` | core | Platform cron: per-job state + run journal (`/cron/tick`, UI `/cron`) |
 | `base_likes` | core | News / comment likes (`LikesRepository`) |

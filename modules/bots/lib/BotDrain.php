@@ -51,7 +51,8 @@ final class BotDrain
             return ['id' => $id, 'name' => $name, 'status' => 'skipped', 'reason' => 'deadline'];
         }
 
-        [$text, $markup] = BotSendsRepository::extractButtons((string)($row['TEXT'] ?? ''));
+        [$rawText, $images] = BotSendsRepository::extractImages((string)($row['TEXT'] ?? ''));
+        [$text, $markup] = BotSendsRepository::extractButtons($rawText);
         if (trim($text) === '') {
             $text = t('bots.send.default_text');
         }
@@ -60,7 +61,7 @@ final class BotDrain
         $platform = BotSendsRepository::normalizePlatform((string)($row['PLATFORM'] ?? ''));
         // Direct mode: CHAT_ID + PLATFORM set (group / fixed recipient). Skip bot_links.
         if ($fixedChat !== '' && $platform !== '') {
-            return self::sendDirect($id, $name, $audience, $platform, $fixedChat, $text, $markup);
+            return self::sendDirect($id, $name, $audience, $platform, $fixedChat, $text, $markup, $images);
         }
 
         $targets = $audience === 'client'
@@ -92,7 +93,7 @@ final class BotDrain
         if ($tgChat !== '') {
             $ch = BotsConfig::channel($audience, 'telegram');
             if ($ch && $ch['token'] !== '') {
-                $resTg = BotClient::sendMessage('telegram', $ch['token'], $tgChat, $text, $markup);
+                $resTg = BotClient::sendWithImages('telegram', $ch['token'], $tgChat, $text, $markup, $images);
                 $okTg = !empty($resTg['ok']);
                 if (!$okTg) {
                     $errTg = (string)($resTg['error'] ?? 'tg error');
@@ -102,7 +103,7 @@ final class BotDrain
         if ($maxChat !== '') {
             $ch = BotsConfig::channel($audience, 'max');
             if ($ch && $ch['token'] !== '') {
-                $resMax = BotClient::sendMessage('max', $ch['token'], $maxChat, $text, $markup);
+                $resMax = BotClient::sendWithImages('max', $ch['token'], $maxChat, $text, $markup, $images);
                 $okMax = !empty($resMax['ok']);
                 if (!$okMax) {
                     $errMax = (string)($resMax['error'] ?? 'max error');
@@ -148,7 +149,8 @@ final class BotDrain
         string $platform,
         string $chatId,
         string $text,
-        ?array $markup
+        ?array $markup,
+        array $images = []
     ): array {
         $wantTg = $platform === 'telegram' || $platform === 'both';
         $wantMax = $platform === 'max' || $platform === 'both';
@@ -162,7 +164,7 @@ final class BotDrain
         if ($wantTg) {
             $ch = BotsConfig::channel($audience, 'telegram');
             if ($ch && $ch['token'] !== '') {
-                $resTg = BotClient::sendMessage('telegram', $ch['token'], $chatId, $text, $markup);
+                $resTg = BotClient::sendWithImages('telegram', $ch['token'], $chatId, $text, $markup, $images);
                 $okTg = !empty($resTg['ok']);
                 if (!$okTg) {
                     $errTg = (string)($resTg['error'] ?? 'tg error');
@@ -174,7 +176,7 @@ final class BotDrain
         if ($wantMax) {
             $ch = BotsConfig::channel($audience, 'max');
             if ($ch && $ch['token'] !== '') {
-                $resMax = BotClient::sendMessage('max', $ch['token'], $chatId, $text, $markup);
+                $resMax = BotClient::sendWithImages('max', $ch['token'], $chatId, $text, $markup, $images);
                 $okMax = !empty($resMax['ok']);
                 if (!$okMax) {
                     $errMax = (string)($resMax['error'] ?? 'max error');

@@ -94,6 +94,11 @@ final class BotSendsRepository
             $text = rtrim($text) . "\n" . $marker;
         }
 
+        $images = self::sanitizeImagePaths($opts['images'] ?? null);
+        if ($images !== []) {
+            $text = rtrim($text) . "\n[[IMAGES_JSON]]" . json_encode($images, JSON_UNESCAPED_UNICODE) . '[[/IMAGES_JSON]]';
+        }
+
         $now = time();
         $dtsend = (int)($opts['dtsend'] ?? $now);
         if ($dtsend <= 0) {
@@ -290,6 +295,7 @@ final class BotSendsRepository
      */
     public static function extractButtons(string $text): array
     {
+        [$text] = self::extractImages($text);
         if (strpos($text, '[[INLINE_JSON]]') === false) {
             return [$text, null];
         }
@@ -300,5 +306,56 @@ final class BotSendsRepository
         $clean = trim(str_replace($m[0], '', $text));
         $clean = trim(preg_replace("/\n{3,}/", "\n\n", $clean) ?? $clean);
         return [$clean, is_array($markup) ? $markup : null];
+    }
+
+    public const MAX_IMAGES = 10;
+
+    /**
+     * Image attachments live in TEXT as [[IMAGES_JSON]]["abs/path.jpg",…][[/IMAGES_JSON]] (like inline buttons).
+     * Only files under var/ are accepted.
+     *
+     * @return list<string>
+     */
+    public static function sanitizeImagePaths($paths): array
+    {
+        if (!is_array($paths)) {
+            return [];
+        }
+        $root = realpath(base_path('var'));
+        if ($root === false) {
+            return [];
+        }
+        $out = [];
+        foreach ($paths as $p) {
+            $p = trim((string)$p);
+            if ($p === '') {
+                continue;
+            }
+            $real = realpath($p);
+            if ($real === false || !is_file($real) || strpos($real, $root . DIRECTORY_SEPARATOR) !== 0) {
+                continue;
+            }
+            $out[$real] = $real;
+            if (count($out) >= self::MAX_IMAGES) {
+                break;
+            }
+        }
+        return array_values($out);
+    }
+
+    /**
+     * @return array{0:string,1:list<string>} [text without marker, image paths]
+     */
+    public static function extractImages(string $text): array
+    {
+        if (strpos($text, '[[IMAGES_JSON]]') === false
+            || !preg_match('/\[\[IMAGES_JSON\]\](.*?)\[\[\/IMAGES_JSON\]\]/s', $text, $m)
+        ) {
+            return [$text, []];
+        }
+        $paths = json_decode($m[1], true);
+        $clean = trim(str_replace($m[0], '', $text));
+
+        return [$clean, self::sanitizeImagePaths($paths)];
     }
 }

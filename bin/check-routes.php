@@ -233,8 +233,11 @@ $allowed = [
     '/agent/video/status' => ['methods' => ['GET'], 'why' => 'agent_token video status'],
     '/agent/video/settings' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token video settings'],
     '/agent/video/setup' => ['methods' => ['POST'], 'why' => 'agent_token video setup'],
+    '/agent/video/alerts' => ['methods' => ['GET'], 'why' => 'agent_token video alerts + appeals'],
+    '/agent/video/presence' => ['methods' => ['GET'], 'why' => 'agent_token video camera absence report'],
     '/agent/video/enqueue' => ['methods' => ['POST'], 'why' => 'agent_token video enqueue'],
     '/agent/video/session' => ['methods' => ['POST'], 'why' => 'agent_token video interactive train session'],
+    '/agent/audio/video-effects' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token audio video absence effects settings'],
 
     '/agent/video-label/projects' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token video_label projects'],
     '/agent/video-label/project' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token video_label project get/update'],

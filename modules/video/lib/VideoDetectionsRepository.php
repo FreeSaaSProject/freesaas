@@ -17,7 +17,8 @@ final class VideoDetectionsRepository
         array $detections,
         int $alertId = 0,
         int $bytes = 0,
-        array $extraPaths = []
+        array $extraPaths = [],
+        ?int $dt = null
     ): int {
         $extra = [];
         foreach ($extraPaths as $p) {
@@ -33,7 +34,7 @@ final class VideoDetectionsRepository
         );
         $st->execute([
             $cameraId,
-            time(),
+            $dt !== null && $dt > 0 ? $dt : time(),
             $framePath,
             $extra !== [] ? json_encode($extra, JSON_UNESCAPED_UNICODE) : null,
             json_encode($detections, JSON_UNESCAPED_UNICODE),
@@ -42,6 +43,30 @@ final class VideoDetectionsRepository
         ]);
 
         return (int)Database::pdo()->lastInsertId();
+    }
+
+    /**
+     * Rows of a time range, oldest first (presence history for rules and reports).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function rowsBetween(int $cameraId, int $fromDt, int $toDt, int $limit = 20000): array
+    {
+        $st = Database::pdo()->prepare(
+            'SELECT ID, CAMERA_ID, DT, FRAME_PATH, DETECTIONS_JSON, ALERT_ID FROM base_video_detections
+             WHERE CAMERA_ID = ? AND DT >= ? AND DT <= ? ORDER BY DT ASC, ID ASC LIMIT ' . max(1, $limit)
+        );
+        $st->execute([$cameraId, $fromDt, $toDt]);
+
+        return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public static function linkAlert(int $id, int $alertId): void
+    {
+        if ($id <= 0 || $alertId <= 0) {
+            return;
+        }
+        Database::pdo()->prepare('UPDATE base_video_detections SET ALERT_ID = ? WHERE ID = ?')->execute([$alertId, $id]);
     }
 
     /** @return list<array<string, mixed>> */
