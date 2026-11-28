@@ -6,7 +6,14 @@ declare(strict_types=1);
  *
  * Selection: explicit ids, or day / time window / admin / badge / review filters.
  * context_before: N preceding records of the same admin (or same badge when unassigned) on the same day,
- * flagged context=true. Output is capped by max_bytes; pagination via next_offset.
+ * flagged context=true.
+ *
+ * Paging has two independent signals:
+ *  - selection: next_offset (index into the selected records); null = every selected record delivered.
+ *  - transcript: per item `complete`; a long record is delivered in slices of whole lines, the cursor is
+ *    (next_offset, next_line_from) and next_offset stays on that record until its last line is out.
+ * Context records are delivered whole or listed in context_omitted (fetch them with ids=<id>, line_from=1).
+ * Any record can be read fully with ids=<id> and the line cursor.
  */
 final class TranscriptsBatch
 {
@@ -23,7 +30,10 @@ final class TranscriptsBatch
     public const BYTES_MAX = 30000;
 
     /** Reserved for the envelope (ok, total, next_offset, …) on top of the items. */
-    private const ENVELOPE_RESERVE = 512;
+    private const ENVELOPE_RESERVE = 768;
+
+    /** When a record does not fit alone, context may take at most this share of the budget. */
+    private const CONTEXT_SHARE = 0.4;
 
     private const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
 
@@ -95,15 +105,16 @@ final class TranscriptsBatch
         }
         $corrected = TranscriptCorrector::applyToRecords($raw);
         $trash = RecordsRepository::trashPhrases();
+        /** @var array<int,list<string>> $clean record id => cleaned transcript lines */
         $clean = [];
         foreach ($corrected as $id => $text) {
             $f = TranscriptGarbage::filterTranscription((string)$text, $trash);
-            $clean[(int)$id] = ['text' => $f['text'], 'lines' => (int)$f['lines']];
+            $clean[(int)$id] = $f['text'] === '' ? [] : explode("\n", $f['text']);
         }
 
         $reviews = RecordsReviewsRepository::mapByRecordIds($ids);
         $adminIds = [];
-        foreach ($selected as $row) {
+        foreach ($page as $row) {
             $adminIds[(int)$row['id_admin']] = true;
         }
         foreach ($ctxByRec as $list) {
@@ -120,84 +131,121 @@ final class TranscriptsBatch
         $used = 0;
         $items = [];
         $emitted = [];
-        $selectedEmitted = 0;
-        $budgetCut = false;
-        $anyTranscriptionTruncated = false;
+        $completed = 0;
+        $partial = null;
+        $contextOmitted = [];
 
-        foreach ($page as $row) {
+        foreach ($page as $idx => $row) {
             $rid = (int)$row['id'];
-            $unit = [];
-            foreach ($ctxByRec[$rid] ?? [] as $cid) {
-                if (!isset($emitted[$cid['id']])) {
-                    $unit[] = ['row' => $cid['row'], 'context' => true];
+            // A resumed record (line_from > 1) already had its context on the previous page.
+            $startLine = $idx === 0 ? $p['line_from'] : 1;
+            $selLines = $clean[$rid] ?? [];
+            $selMeta = self::meta($row, false, $reviews, $names, count($selLines));
+            $selFull = self::slice($selMeta, $selLines, $startLine, PHP_INT_MAX);
+            $selSize = self::sizeOf($selFull);
+
+            $ctx = [];
+            if ($startLine === 1) {
+                foreach ($ctxByRec[$rid] ?? [] as $c) {
+                    if (isset($emitted[$c['id']])) {
+                        continue;
+                    }
+                    $cLines = $clean[$c['id']] ?? [];
+                    $cItem = self::slice(
+                        self::meta($c['row'], true, $reviews, $names, count($cLines)),
+                        $cLines,
+                        1,
+                        PHP_INT_MAX
+                    );
+                    $ctx[] = ['id' => (int)$c['id'], 'item' => $cItem, 'size' => self::sizeOf($cItem)];
                 }
             }
-            $unit[] = ['row' => $row, 'context' => false];
-
-            $built = [];
-            $unitSize = 0;
-            foreach ($unit as $u) {
-                $item = self::item($u['row'], $u['context'], $clean, $reviews, $names);
-                $size = strlen((string)json_encode($item, self::JSON_FLAGS)) + 1;
-                $built[] = ['item' => $item, 'size' => $size, 'context' => $u['context']];
-                $unitSize += $size;
+            $ctxSize = 0;
+            foreach ($ctx as $c) {
+                $ctxSize += $c['size'];
             }
 
-            if ($used + $unitSize <= $budget) {
-                foreach ($built as $b) {
-                    $items[] = $b['item'];
-                    $emitted[(int)$b['item']['id']] = true;
-                    $used += $b['size'];
+            if ($used + $ctxSize + $selSize <= $budget) {
+                foreach ($ctx as $c) {
+                    $items[] = $c['item'];
+                    $emitted[$c['id']] = true;
                 }
-                $selectedEmitted++;
+                $items[] = $selFull;
+                $emitted[$rid] = true;
+                $used += $ctxSize + $selSize;
+                $completed++;
                 continue;
             }
             if ($used > 0) {
-                $budgetCut = true;
+                // The unit moves to the next page intact (context stays attached).
                 break;
             }
 
-            // First unit alone exceeds the budget: keep the context records that fit, then cut the selected transcript.
-            foreach ($built as $b) {
-                if (!$b['context']) {
-                    continue;
-                }
-                if ($used + $b['size'] <= $budget) {
-                    $items[] = $b['item'];
-                    $emitted[(int)$b['item']['id']] = true;
-                    $used += $b['size'];
+            // First unit alone does not fit. Context is whole-or-omitted and gets a bounded share,
+            // nearest predecessors first; the selected record gets the rest and is sliced by lines.
+            $allow = (int)floor($budget * self::CONTEXT_SHARE);
+            $keep = [];
+            $ctxUsed = 0;
+            for ($k = count($ctx) - 1; $k >= 0; $k--) {
+                if ($ctxUsed + $ctx[$k]['size'] <= $allow) {
+                    $keep[] = $ctx[$k];
+                    $ctxUsed += $ctx[$k]['size'];
+                } else {
+                    $contextOmitted[] = $ctx[$k]['id'];
                 }
             }
-            $selItem = $built[count($built) - 1]['item'];
-            $fitted = self::fitItem($selItem, $budget - $used);
-            $items[] = $fitted;
-            $emitted[(int)$fitted['id']] = true;
-            $used += strlen((string)json_encode($fitted, self::JSON_FLAGS)) + 1;
-            $selectedEmitted++;
-            $budgetCut = true;
+            foreach (array_reverse($keep) as $c) {
+                $items[] = $c['item'];
+                $emitted[$c['id']] = true;
+                $used += $c['size'];
+            }
+            $sel = self::fitSelected($selMeta, $selLines, $startLine, $budget - $used);
+            $items[] = $sel;
+            $emitted[$rid] = true;
+            $used += self::sizeOf($sel);
+            if (!empty($sel['complete'])) {
+                $completed++;
+                continue;
+            }
+            $partial = $sel;
             break;
         }
 
-        foreach ($items as $it) {
-            if (!empty($it['transcription_truncated'])) {
-                $anyTranscriptionTruncated = true;
-            }
+        // Cursor: next_offset stays on a partially delivered record; null only when nothing is left.
+        $nextOffset = $p['offset'] + $completed;
+        $nextLine = null;
+        if ($partial !== null) {
+            $nextLine = (int)$partial['next_line_from'];
+        } elseif ($nextOffset >= $total) {
+            $nextOffset = null;
         }
-        $nextOffset = $p['offset'] + $selectedEmitted < $total ? $p['offset'] + $selectedEmitted : null;
+        sort($contextOmitted);
 
         $out = [
             'ok' => true,
             'total' => $total,
             'returned' => count($items),
             'offset' => $p['offset'],
+            'line_from' => $p['line_from'],
             'limit' => $p['limit'],
             'next_offset' => $nextOffset,
-            'truncated' => $budgetCut || $anyTranscriptionTruncated,
+            'next_line_from' => $nextLine,
+            'selection_complete' => $nextOffset === null,
+            'transcripts_complete' => $partial === null,
+            'context_omitted' => $contextOmitted,
             'bytes' => 0,
             'max_bytes' => $maxBytes,
             'missing_ids' => $missing,
             'items' => $items,
         ];
+        if ($partial !== null) {
+            $out['hint'] = 'Record ' . (int)$partial['id'] . ' is partial (lines ' . (int)$partial['line_from'] . '-'
+                . (int)$partial['line_to'] . ' of ' . (int)$partial['lines'] . '). Call again with the same arguments, '
+                . 'offset=' . (int)$nextOffset . ' and line_from=' . (int)$nextLine . '.';
+        } elseif ($contextOmitted !== []) {
+            $out['hint'] = 'Context records ' . implode(',', $contextOmitted) . ' were left out to fit the budget; '
+                . 'read them with ids=<id> (add line_from to continue a long one).';
+        }
         $out['bytes'] = strlen((string)json_encode($out, self::JSON_FLAGS));
         return $out;
     }
@@ -207,7 +255,7 @@ final class TranscriptsBatch
      *   ids:list<int>, date:string, year:int, month:int, day:int,
      *   range_from:int, range_to:int, admin:int, unassigned:int, badge:int,
      *   review:string, disabled:int, search:string, context_before:int,
-     *   limit:int, offset:int, max_bytes:int, error:string
+     *   limit:int, offset:int, line_from:int, max_bytes:int, error:string
      * }
      */
     private static function parse(array $in): array
@@ -216,7 +264,7 @@ final class TranscriptsBatch
             'ids' => [], 'date' => '', 'year' => 0, 'month' => 0, 'day' => 0,
             'range_from' => 0, 'range_to' => 0, 'admin' => 0, 'unassigned' => 0, 'badge' => 0,
             'review' => '', 'disabled' => 0, 'search' => '', 'context_before' => 0,
-            'limit' => self::LIMIT_DEFAULT, 'offset' => 0, 'max_bytes' => self::BYTES_DEFAULT,
+            'limit' => self::LIMIT_DEFAULT, 'offset' => 0, 'line_from' => 1, 'max_bytes' => self::BYTES_DEFAULT,
             'error' => '',
         ];
 
@@ -292,6 +340,7 @@ final class TranscriptsBatch
         $out['context_before'] = max(0, min(self::CONTEXT_MAX, (int)($in['context_before'] ?? 0)));
         $out['limit'] = max(1, min(self::LIMIT_MAX, (int)($in['limit'] ?? self::LIMIT_DEFAULT)));
         $out['offset'] = max(0, (int)($in['offset'] ?? 0));
+        $out['line_from'] = max(1, (int)($in['line_from'] ?? 1));
         $out['max_bytes'] = max(self::BYTES_MIN, min(self::BYTES_MAX, (int)($in['max_bytes'] ?? self::BYTES_DEFAULT)));
 
         if ($out['ids'] === [] && $out['date'] === '' && $out['review'] === '') {
@@ -301,7 +350,7 @@ final class TranscriptsBatch
     }
 
     /** "HH:MM" → seconds from midnight; -2 when invalid. */
-    private static function hhmmToSeconds(string $hhmm): int
+    public static function hhmmToSeconds(string $hhmm): int
     {
         if (!preg_match('/^(\d{1,2}):(\d{2})$/', $hhmm, $m)) {
             return -2;
@@ -385,13 +434,14 @@ final class TranscriptsBatch
     }
 
     /**
+     * Record metadata without the transcript body.
+     *
      * @param array<string,mixed> $row
-     * @param array<int,array{text:string,lines:int}> $clean
      * @param array<int,array<string,mixed>> $reviews
      * @param array<int,string> $names
      * @return array<string,mixed>
      */
-    private static function item(array $row, bool $context, array $clean, array $reviews, array $names): array
+    private static function meta(array $row, bool $context, array $reviews, array $names, int $linesTotal): array
     {
         $id = (int)$row['id'];
         $ts = (int)$row['dt_recorded'];
@@ -400,7 +450,6 @@ final class TranscriptsBatch
         if (isset($reviews[$id])) {
             $review = (int)($reviews[$id]['dt_review'] ?? 0) > 0 ? 'reviewed' : 'pending';
         }
-        $text = $clean[$id] ?? ['text' => '', 'lines' => 0];
         return [
             'id' => $id,
             'dt_recorded' => $ts,
@@ -413,37 +462,65 @@ final class TranscriptsBatch
             'review' => $review,
             'score' => isset($row['score']) && $row['score'] !== null ? (int)$row['score'] : null,
             'context' => $context,
-            'lines' => $text['lines'],
-            'transcription' => $text['text'],
+            'lines' => $linesTotal,
         ];
     }
 
     /**
-     * Shrink an item's transcription (whole lines) until it fits into $room bytes.
+     * Item with $count lines of the cleaned transcript starting at 1-based $from.
+     * Adds the per-transcript completeness fields: line_from, line_to, complete, next_line_from.
      *
-     * @param array<string,mixed> $item
+     * @param array<string,mixed> $meta
+     * @param list<string> $lines
      * @return array<string,mixed>
      */
-    private static function fitItem(array $item, int $room): array
+    private static function slice(array $meta, array $lines, int $from, int $count): array
     {
-        $lines = $item['transcription'] === '' ? [] : explode("\n", (string)$item['transcription']);
-        $lo = 0;
-        $hi = count($lines);
+        $total = count($lines);
+        $from = max(1, $from);
+        $seg = $count > 0 && $from <= $total ? array_slice($lines, $from - 1, $count) : [];
+        $to = min($total, $from - 1 + count($seg));
+        $item = $meta;
+        $item['line_from'] = $from;
+        $item['line_to'] = $to;
+        $item['complete'] = $to >= $total;
+        if (!$item['complete']) {
+            $item['next_line_from'] = $to + 1;
+        }
+        $item['transcription'] = implode("\n", $seg);
+        return $item;
+    }
+
+    /**
+     * Largest slice of whole lines that fits $room bytes. Always at least one line (when any are left),
+     * so a cursor always moves forward even for a tiny budget.
+     *
+     * @param array<string,mixed> $meta
+     * @param list<string> $lines
+     * @return array<string,mixed>
+     */
+    private static function fitSelected(array $meta, array $lines, int $from, int $room): array
+    {
+        $remaining = max(0, count($lines) - (max(1, $from) - 1));
+        if ($remaining === 0) {
+            return self::slice($meta, $lines, $from, 0);
+        }
+        $lo = 1;
+        $hi = $remaining;
         while ($lo < $hi) {
             $mid = intdiv($lo + $hi + 1, 2);
-            $cand = $item;
-            $cand['transcription'] = implode("\n", array_slice($lines, 0, $mid));
-            if (strlen((string)json_encode($cand, self::JSON_FLAGS)) + 1 <= $room) {
+            if (self::sizeOf(self::slice($meta, $lines, $from, $mid)) <= $room) {
                 $lo = $mid;
             } else {
                 $hi = $mid - 1;
             }
         }
-        $item['transcription'] = implode("\n", array_slice($lines, 0, $lo));
-        $item['transcription_truncated'] = $lo < count($lines);
-        if (!$item['transcription_truncated']) {
-            unset($item['transcription_truncated']);
-        }
-        return $item;
+        return self::slice($meta, $lines, $from, $lo);
+    }
+
+    /** @param array<string,mixed> $item */
+    private static function sizeOf(array $item): int
+    {
+        return strlen((string)json_encode($item, self::JSON_FLAGS)) + 1;
     }
 }

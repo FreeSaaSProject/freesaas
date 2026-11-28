@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -54,7 +54,8 @@
             "/audio/api/blocks",
             "/audio/api/badge",
             "/audio/reviews/mark",
-            "/audio/transcripts"
+            "/audio/transcripts",
+            "/audio/activity"
         ]
     },
     "agent": {
@@ -258,7 +259,7 @@
                 "path": "/audio/transcripts",
                 "permission": "audio.view",
                 "side_effect": "read",
-                "description": "Batch cleaned transcripts (timecodes [m:ss.s->m:ss.s] relative to dt_recorded) for many records in one call. Select by ids (max 200) or by date (+ time_from/time_to HH:MM, admin, badge, review=pending|marked, disabled, search). Add context_before=N to include up to N preceding records of the same admin (or badge when unassigned) on the same day, flagged context=true. Output is capped by max_bytes; when next_offset is not null, call again with offset=next_offset. Prefer this over repeated audio.get.",
+                "description": "Batch cleaned transcripts (lines like [MM:SS->MM:SS]text, timecodes relative to dt_recorded) for many records in one call. Select by ids (max 200) or by date (+ time_from/time_to HH:MM, admin, badge, review=pending|marked, disabled, search). Add context_before=N to include up to N preceding records of the same admin (or badge when unassigned) on the same day, flagged context=true. Two independent completeness signals: (1) selection: next_offset is null only when every selected record was delivered completely; (2) transcript: each item has complete (true/false), line_from, line_to and lines (total). A long record is delivered in slices of whole lines: when next_offset is not null, call again with the same arguments, offset=next_offset and line_from=next_line_from (null = omit/1). Context records come whole or are listed in context_omitted: read those with ids=<id> (add line_from to continue). Any single record can always be read fully with ids=<id> and the line cursor. Prefer this over repeated audio.get.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -318,11 +319,70 @@
                             "type": "integer",
                             "description": "Offset into the selection (use next_offset from the previous response)"
                         },
+                        "line_from": {
+                            "type": "integer",
+                            "description": "1-based first transcript line for the first record of the page (use next_line_from from the previous response; default 1). Context is not repeated when it is above 1"
+                        },
                         "max_bytes": {
                             "type": "integer",
                             "description": "Response byte budget, 4000..30000 (default 12000). Keep the default: above 12000 the in-system assistant compacts the result and drops transcripts"
                         }
                     }
+                }
+            },
+            {
+                "id": "audio.activity.summary",
+                "method": "GET",
+                "path": "/audio/activity",
+                "permission": "audio.view",
+                "side_effect": "read",
+                "description": "Compact day summary by employee and hour, without reading transcripts. Per employee (total + hours[]): records, transcribed, untranscribed, disabled, pending_review, playtime_sec (recorded audio), speech_sec (sum of cleaned transcript line durations, capped at playtime), asr_records_pct (transcribed/records), asr_coverage_pct (playtime of transcribed records / playtime), speech_pct, dict_hits and dicts{dictionary id: hits} (legend in top-level dicts), speakers{diarized_records, speaker_rows, talk_sec, staff_talk_sec, other_talk_sec, dominant_self|other|unmatched} when diarization is available, and record_ids when with_ids=1 (feed them to audio.transcripts.batch ids). Records are bucketed by the hour of dt_recorded. detail=totals drops hour cells. Employees are paged under max_bytes: when next_offset is not null call again with offset=next_offset (selection_complete=true when done). Whole-selection totals are returned on the first page (offset 0) only. Use admin to narrow to one employee and time_from/time_to for a shift.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "date": {
+                            "type": "string",
+                            "description": "Calendar day YYYY-MM-DD (required)"
+                        },
+                        "time_from": {
+                            "type": "string",
+                            "description": "HH:MM, inclusive"
+                        },
+                        "time_to": {
+                            "type": "string",
+                            "description": "HH:MM, inclusive"
+                        },
+                        "admin": {
+                            "type": "integer",
+                            "description": "Only this employee user id (ID_ADMIN)"
+                        },
+                        "disabled": {
+                            "type": "integer",
+                            "description": "0 = all (default; disabled records are counted in the disabled field), 1 = active only, 2 = disabled only"
+                        },
+                        "detail": {
+                            "type": "string",
+                            "enum": ["hours", "totals"],
+                            "description": "hours (default) = per-hour cells per employee; totals = per-employee totals only"
+                        },
+                        "with_ids": {
+                            "type": "integer",
+                            "description": "1 = list record_ids per cell (hour cells, or employee totals when detail=totals); up to 200 per cell"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Employees per call, 1..50 (default 20); the byte budget may deliver fewer"
+                        },
+                        "offset": {
+                            "type": "integer",
+                            "description": "Employee offset (use next_offset from the previous response)"
+                        },
+                        "max_bytes": {
+                            "type": "integer",
+                            "description": "Response byte budget, 4000..30000 (default 12000). Keep the default for the in-system assistant"
+                        }
+                    },
+                    "required": ["date"]
                 }
             }
         ]

@@ -372,4 +372,6 @@ return [
     'audio.transcripts.err.time' => 'time_from / time_to должны быть в формате HH:MM.',
     'audio.transcripts.err.time_needs_date' => 'Для time_from / time_to нужен date.',
     'audio.transcripts.err.review' => 'review должен быть pending или marked.',
+    'audio.activity.err.date_required' => 'Укажите date (Y-m-d).',
+    'audio.activity.err.detail' => 'detail должен быть hours или totals.',
 ];

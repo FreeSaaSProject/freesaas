@@ -104,6 +104,7 @@
         },
         "audio": {
             "ops": [
+                "audio.activity.summary",
                 "audio.api.badge",
                 "audio.api.blocks",
                 "audio.api.dict",

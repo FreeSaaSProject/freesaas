@@ -372,4 +372,6 @@ Thinking over transcripts…',
     'audio.transcripts.err.time' => 'time_from / time_to must be HH:MM.',
     'audio.transcripts.err.time_needs_date' => 'time_from / time_to need date.',
     'audio.transcripts.err.review' => 'review must be pending or marked.',
+    'audio.activity.err.date_required' => 'Pass date (Y-m-d).',
+    'audio.activity.err.detail' => 'detail must be hours or totals.',
 ];
