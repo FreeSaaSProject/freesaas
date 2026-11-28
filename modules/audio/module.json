@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -312,7 +312,7 @@
                         },
                         "limit": {
                             "type": "integer",
-                            "description": "Selected records per call, 1..100 (default 30)"
+                            "description": "Selected records per call, 1..10 (default 5)"
                         },
                         "offset": {
                             "type": "integer",
@@ -320,7 +320,7 @@
                         },
                         "max_bytes": {
                             "type": "integer",
-                            "description": "Response byte budget, 10000..90000 (default 70000)"
+                            "description": "Response byte budget, 4000..30000 (default 12000). Keep the default: above 12000 the in-system assistant compacts the result and drops transcripts"
                         }
                     }
                 }

@@ -11,12 +11,16 @@ declare(strict_types=1);
 final class TranscriptsBatch
 {
     public const MAX_IDS = 200;
-    public const LIMIT_DEFAULT = 30;
-    public const LIMIT_MAX = 100;
+    /**
+     * Small pages on purpose: long tool results get cut by MCP clients and by the in-system
+     * assistant (AssistantToolPayload caps tool results at 12000 bytes and compacts above that).
+     */
+    public const LIMIT_DEFAULT = 5;
+    public const LIMIT_MAX = 10;
     public const CONTEXT_MAX = 5;
-    public const BYTES_DEFAULT = 70000;
-    public const BYTES_MIN = 10000;
-    public const BYTES_MAX = 90000;
+    public const BYTES_DEFAULT = 12000;
+    public const BYTES_MIN = 4000;
+    public const BYTES_MAX = 30000;
 
     /** Reserved for the envelope (ok, total, next_offset, …) on top of the items. */
     private const ENVELOPE_RESERVE = 512;
