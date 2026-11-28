@@ -118,7 +118,8 @@
                 "audio.list",
                 "audio.reviews.mark",
                 "audio.settings.get",
-                "audio.settings.save"
+                "audio.settings.save",
+                "audio.transcripts.batch"
             ],
             "uncovered_routes": [
                 "/agent/audio/video-effects",

@@ -14,6 +14,7 @@ require_once __DIR__ . '/lib/RecordsReviewsRepository.php';
 require_once __DIR__ . '/lib/TranscriptGarbage.php';
 require_once __DIR__ . '/lib/TranscriptCorrector.php';
 require_once __DIR__ . '/lib/TranscriptHighlighter.php';
+require_once __DIR__ . '/lib/TranscriptsBatch.php';
 require_once __DIR__ . '/lib/AudioBiContrib.php';
 require_once __DIR__ . '/lib/AudioIngestLongJob.php';
 
@@ -96,6 +97,7 @@ $pages = [
     '/audio/api/blocks' => ['permission' => 'audio.view', 'methods' => ['GET'], 'file' => 'api_blocks.php'],
     '/audio/api/badge' => ['permission' => '', 'methods' => ['POST'], 'file' => 'api_badge.php'],
     '/audio/reviews/mark' => ['permission' => 'audio.edit', 'methods' => ['POST'], 'file' => 'reviews_mark.php'],
+    '/audio/transcripts' => ['permission' => 'audio.view', 'methods' => ['GET'], 'file' => 'transcripts.php'],
     '/audio/{id}' => ['permission' => 'audio.view', 'methods' => ['GET', 'POST'], 'file' => 'view.php'],
 ];
 

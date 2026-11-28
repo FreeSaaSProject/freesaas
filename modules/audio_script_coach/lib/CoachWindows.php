@@ -333,14 +333,8 @@ final class CoachWindows
             if (mb_strlen($text, 'UTF-8') > 300) {
                 continue;
             }
-            $skip = false;
-            foreach ($trash as $needle) {
-                if ($needle !== '' && mb_strpos($text, $needle, 0, 'UTF-8') !== false) {
-                    $skip = true;
-                    break;
-                }
-            }
-            if ($skip) {
+            // Same garbage rules as the UI and MCP: dictionary trash, ASR loops, counting lines.
+            if (TranscriptGarbage::isTrashLine($text, $trash)) {
                 continue;
             }
             $prev = $text;

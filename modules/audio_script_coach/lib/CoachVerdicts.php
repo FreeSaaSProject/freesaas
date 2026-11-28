@@ -669,6 +669,7 @@ final class CoachVerdicts
         if ($src === '' || strpos($src, '[') === false) {
             return [];
         }
+        $trash = RecordsRepository::trashPhrases();
         $parts = explode('[', $src);
         array_shift($parts);
         $lines = [];
@@ -683,6 +684,10 @@ final class CoachVerdicts
                 continue;
             }
             if (mb_strlen($text, 'UTF-8') > 300) {
+                continue;
+            }
+            // Garbage lines (dictionary trash, ASR loops, counting) are not evidence for the LLM.
+            if (TranscriptGarbage::isTrashLine($text, $trash)) {
                 continue;
             }
             $prev = $text;

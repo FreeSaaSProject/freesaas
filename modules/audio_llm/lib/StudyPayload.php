@@ -71,6 +71,9 @@ final class StudyPayload
                     }
                 }
             }
+            if (!$trashFound && TranscriptGarbage::isTrashLine($baseText, $trashArray)) {
+                $trashFound = true;
+            }
             if ($trashFound) {
                 continue;
             }

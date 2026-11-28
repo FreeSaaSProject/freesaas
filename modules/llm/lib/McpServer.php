@@ -11,6 +11,9 @@ final class McpServer
 {
     public const PROTOCOL = '2025-03-26';
 
+    /** Upper bound for one tools/call text result (compacted to valid JSON above this). */
+    private const TOOL_RESULT_MAX_BYTES = 100000;
+
     public static function handle(): void
     {
         OAuthServer::corsHeaders();
@@ -312,13 +315,8 @@ final class McpServer
         } else {
             $payload = ['ok' => false, 'error' => (string)($inv['error'] ?? 'error')];
         }
-        $text = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        if ($text === false) {
-            $text = '{"ok":false,"error":"encode failed"}';
-        }
-        if (strlen($text) > 100000) {
-            $text = substr($text, 0, 100000) . '…';
-        }
+        // Valid JSON even when large: never byte-chop (breaks JSON and UTF-8 for the client).
+        $text = AssistantToolPayload::encodeToolContent($payload, self::TOOL_RESULT_MAX_BYTES);
         self::jsonRpcResult($id, [
             'content' => [['type' => 'text', 'text' => $text]],
             'isError' => !$inv['ok'],

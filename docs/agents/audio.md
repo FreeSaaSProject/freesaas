@@ -52,12 +52,13 @@ Denormalized chip cache written once by stem (`StemRunner`): `##dictId-diversity
 
 ## Agent JSON
 
-Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (15 ops).
+Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (16 ops).
 
 | Op | Method | Path |
 |----|--------|------|
 | `audio.list` | GET | `/audio` |
 | `audio.get` | GET | `/audio/{id}` |
+| `audio.transcripts.batch` | GET | `/audio/transcripts` |
 | `audio.badges.list` | GET | `/audio/badges` |
 | `audio.badges.write` | POST | `/audio/badges` |
 | `audio.assignments.list` | GET | `/audio/assignments` |
@@ -74,9 +75,24 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 
 Review queue («moderation»): pending = `base_records_reviews.DT_REVIEW < 1` (list via `audio.list` `review=pending`). Mark reviewed with `audio.reviews.mark` (`ids`, or `date` + optional `admin`). `audio_llm.review_moderate` only produces LLM analysis text and never changes status.
 
+### Reading transcripts in bulk (`audio.transcripts.batch`)
+
+`audio.list` returns metadata only and `audio.get` returns one record per call. To read a day or a set of records, use `audio.transcripts.batch` (route `GET /audio/transcripts`):
+
+- **Selection:** `ids` (max 200, array or CSV; other filters ignored) or `date` (`YYYY-MM-DD`), optionally with `time_from` / `time_to` (`HH:MM`), `admin`, `unassigned`, `badge`, `review=pending|marked`, `disabled` (default `0` = all), `search`.
+- **Context:** `context_before=N` (0..5) adds up to N preceding records of the same admin (or badge when unassigned) on the same day, flagged `context: true`. Context records are never repeated as selected records.
+- **Output:** `items[]` with `time` (HH:MM:SS from `dt_recorded`), `admin_name`, `id_badge`, `review` (`pending|reviewed|none`), and `transcription` (cleaned, same as `audio.get` with `include_transcription=1`). Lines look like `[m:ss.s->m:ss.s]text`; the offset is relative to the record start, and `dt_recorded` gives the wall-clock start.
+- **Budget and paging:** `limit` (1..100, default 30) selects records per call. `max_bytes` (10000..90000, default 70000) caps the response. When `next_offset` is not `null`, call again with `offset=next_offset`. A single oversized record is cut at a line boundary with `transcription_truncated: true`; read the rest with `audio.get`. MCP tool results above 100 KB are compacted to valid JSON (never cut mid-string), so keep `max_bytes` at or below 90000.
+- **Envelope:** `ok`, `total` (selected records), `returned` (items incl. context), `offset`, `next_offset`, `truncated`, `bytes`, `missing_ids[]`.
+
+Recipe for a day audit: `audio.list date=… review=pending` to see the queue, then `audio.transcripts.batch date=… context_before=2 limit=50` and follow `next_offset` until it is `null`. Shift checks: add `admin=<id>` and `time_from` / `time_to`.
+
+MCP tool name: `audio__transcripts__batch` (see [connect-mcp.md](connect-mcp.md)). MCP clients cache tool schemas: reconnect after an update to see the new op.
+
 ```bash
 curl -sS -b jar.txt 'https://example/audio?format=json'
 curl -sS -b jar.txt 'https://example/audio/badges?format=json'
+curl -sS -b jar.txt 'https://example/audio/transcripts?date=2026-07-11&context_before=2&limit=50&format=json'
 ```
 
 ## Notes

@@ -334,6 +334,14 @@ final class AssistantTools
         $_REQUEST = array_merge($_GET, $_POST);
         $_SERVER['REQUEST_METHOD'] = $method;
         $_SERVER['HTTP_ACCEPT'] = 'application/json';
+        // Pages branch on request_path() (e.g. news_edit: /news/new vs /news/{id}/edit).
+        // Expose the concrete route path, not the MCP endpoint, so in-process dispatch matches HTTP.
+        $queryString = $method === 'GET' || $method === 'HEAD'
+            ? http_build_query(array_filter($bag, static fn ($v): bool => is_scalar($v)))
+            : '';
+        $_SERVER['REQUEST_URI'] = self::concreteRequestUri($pattern, $pathArgs)
+            . ($queryString !== '' ? '?' . $queryString : '');
+        $_SERVER['QUERY_STRING'] = $queryString;
 
         $captured = AgentHttp::capture(static function () use ($handler, $resolved): void {
             Router::invokeHandler($handler, $resolved['params'], $resolved['route']);
@@ -404,6 +412,24 @@ final class AssistantTools
             $params['additionalProperties'] = true;
         }
         return $params;
+    }
+
+    /**
+     * Route pattern with {placeholders} replaced by rawurlencoded path args (e.g. /news/{id}/edit → /news/7/edit).
+     *
+     * @param array<string,mixed> $pathArgs
+     */
+    private static function concreteRequestUri(string $pattern, array $pathArgs): string
+    {
+        $uri = preg_replace_callback(
+            '/\{\*?([a-zA-Z_][a-zA-Z0-9_]*)\}/',
+            static function (array $m) use ($pathArgs): string {
+                $v = $pathArgs[$m[1]] ?? '';
+                return str_replace('%2F', '/', rawurlencode(is_scalar($v) ? (string)$v : ''));
+            },
+            $pattern
+        );
+        return is_string($uri) && $uri !== '' ? $uri : '/';
     }
 
     /** @return array<string,mixed> */

@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "1.0.31",
+    "version": "1.1.0",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -53,7 +53,8 @@
             "/audio/api/dict",
             "/audio/api/blocks",
             "/audio/api/badge",
-            "/audio/reviews/mark"
+            "/audio/reviews/mark",
+            "/audio/transcripts"
         ]
     },
     "agent": {
@@ -64,14 +65,77 @@
                 "method": "GET",
                 "path": "/audio",
                 "permission": "audio.view",
-                "description": "List audio records; filters: q, search, year, month, day, admin, badge, review, disabled, score. Soft audio_diarize{enabled,bulk_op,shift_profiles} when day filter set"
+                "description": "List audio records (metadata, no transcripts); filters: date=YYYY-MM-DD or year/month/day, q, search, admin, badge, unassigned, review=pending|marked, disabled, score. For reading transcripts use audio.transcripts.batch (one call for many records) instead of audio.get per id. Soft audio_diarize{enabled,bulk_op,shift_profiles} when day filter set",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "date": {
+                            "type": "string",
+                            "description": "Calendar day YYYY-MM-DD; alias of year/month/day"
+                        },
+                        "year": {
+                            "type": "integer"
+                        },
+                        "month": {
+                            "type": "integer"
+                        },
+                        "day": {
+                            "type": "integer",
+                            "description": "Day of month; 0 = whole month"
+                        },
+                        "q": {
+                            "type": "string",
+                            "description": "Filename or record id / badge match"
+                        },
+                        "search": {
+                            "type": "string",
+                            "description": "Substring in transcription"
+                        },
+                        "admin": {
+                            "type": "integer",
+                            "description": "Employee user id (ID_ADMIN)"
+                        },
+                        "unassigned": {
+                            "type": "integer",
+                            "description": "1 = records without employee"
+                        },
+                        "badge": {
+                            "type": "integer",
+                            "description": "Badge id (ID_DICTOPHONE)"
+                        },
+                        "review": {
+                            "type": "string",
+                            "enum": ["pending", "marked", "favorites"],
+                            "description": "Review queue filter; pending = unreviewed"
+                        },
+                        "disabled": {
+                            "type": "integer",
+                            "description": "0 = all, 1 = active only, 2 = disabled only"
+                        },
+                        "score": {
+                            "type": "integer"
+                        },
+                        "page": {
+                            "type": "integer"
+                        }
+                    }
+                }
             },
             {
                 "id": "audio.get",
                 "method": "GET",
                 "path": "/audio/{id}",
                 "permission": "audio.view",
-                "description": "One record; include_transcription=1 for trash-filtered transcript; POST action=toggle_disabled (audio.edit). Soft audio_diarize: speakers[] + audio_diarize{enabled,can_run_diarize}; enrollment ASR-DIA via op audio_diarize.diarize.longjob (ids_csv, asr_model=reuse, apply_transcription=0)"
+                "description": "One record; include_transcription=1 adds the trash-filtered transcript (for many records at once use audio.transcripts.batch); POST action=toggle_disabled (audio.edit). Soft audio_diarize: speakers[] + audio_diarize{enabled,can_run_diarize}; enrollment ASR-DIA via op audio_diarize.diarize.longjob (ids_csv, asr_model=reuse, apply_transcription=0)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "include_transcription": {
+                            "type": "integer",
+                            "description": "1 = include cleaned transcription"
+                        }
+                    }
+                }
             },
             {
                 "id": "audio.badges.list",
@@ -186,6 +250,79 @@
                         }
                     },
                     "additionalProperties": false
+                }
+            },
+            {
+                "id": "audio.transcripts.batch",
+                "method": "GET",
+                "path": "/audio/transcripts",
+                "permission": "audio.view",
+                "side_effect": "read",
+                "description": "Batch cleaned transcripts (timecodes [m:ss.s->m:ss.s] relative to dt_recorded) for many records in one call. Select by ids (max 200) or by date (+ time_from/time_to HH:MM, admin, badge, review=pending|marked, disabled, search). Add context_before=N to include up to N preceding records of the same admin (or badge when unassigned) on the same day, flagged context=true. Output is capped by max_bytes; when next_offset is not null, call again with offset=next_offset. Prefer this over repeated audio.get.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ids": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "description": "Record ids (max 200); a comma-separated string is also accepted. When set, other filters are ignored"
+                        },
+                        "date": {
+                            "type": "string",
+                            "description": "Calendar day YYYY-MM-DD (DT_RECORDED)"
+                        },
+                        "time_from": {
+                            "type": "string",
+                            "description": "HH:MM, inclusive; needs date"
+                        },
+                        "time_to": {
+                            "type": "string",
+                            "description": "HH:MM, inclusive; needs date"
+                        },
+                        "admin": {
+                            "type": "integer",
+                            "description": "Employee user id (ID_ADMIN)"
+                        },
+                        "unassigned": {
+                            "type": "integer",
+                            "description": "1 = records without employee"
+                        },
+                        "badge": {
+                            "type": "integer",
+                            "description": "Badge id (ID_DICTOPHONE)"
+                        },
+                        "review": {
+                            "type": "string",
+                            "enum": ["pending", "marked"],
+                            "description": "pending = in review queue; marked = any review row"
+                        },
+                        "disabled": {
+                            "type": "integer",
+                            "description": "0 = all (default), 1 = active only, 2 = disabled only"
+                        },
+                        "search": {
+                            "type": "string",
+                            "description": "Substring in transcription"
+                        },
+                        "context_before": {
+                            "type": "integer",
+                            "description": "0..5: include N preceding records of the same admin/badge on the same day (default 0)"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Selected records per call, 1..100 (default 30)"
+                        },
+                        "offset": {
+                            "type": "integer",
+                            "description": "Offset into the selection (use next_offset from the previous response)"
+                        },
+                        "max_bytes": {
+                            "type": "integer",
+                            "description": "Response byte budget, 10000..90000 (default 70000)"
+                        }
+                    }
                 }
             }
         ]

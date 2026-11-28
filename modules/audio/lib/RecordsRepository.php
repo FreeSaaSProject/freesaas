@@ -216,6 +216,29 @@ final class RecordsRepository
     }
 
     /**
+     * Metadata only (no transcription) for ids, chronological. Same light columns as list().
+     *
+     * @param list<int> $ids
+     * @return list<array<string,mixed>>
+     */
+    public static function lightByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn ($i) => $i > 0)));
+        if (!$ids || !Database::tableExists('base_records')) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID AS id, ID_ADMIN AS id_admin, ID_DICTOPHONE AS id_dictophone,
+                    DT_RECORDED AS dt_recorded, PLAYTIME AS playtime, SCORE AS score,
+                    DISABLED AS disabled
+             FROM base_records WHERE ID IN ($in) ORDER BY DT_RECORDED ASC, ID ASC"
+        );
+        $st->execute($ids);
+        return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /**
      * @param list<int> $ids
      * @return array<int,array<string,mixed>> id => row (with transcription)
      */

@@ -137,6 +137,8 @@ final class KeyReplaceLlm
              ORDER BY i.ID DESC LIMIT {$limit}"
         );
         $st->execute([$keyId]);
+        // Garbage lines (dictionary trash, ASR loops, counting) must not reach the LLM as context.
+        $trash = RecordsRepository::trashPhrases();
         $out = [];
         while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
             $parts = explode('[', (string)$row['t']);
@@ -147,7 +149,7 @@ final class KeyReplaceLlm
                 $line = substr($line, $pos + 1);
             }
             $line = trim(preg_replace('/\s+/u', ' ', $line) ?? $line);
-            if ($line !== '') {
+            if ($line !== '' && !TranscriptGarbage::isTrashLine($line, $trash)) {
                 $out[] = mb_substr($line, 0, 240, 'UTF-8');
             }
         }

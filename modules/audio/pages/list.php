@@ -27,6 +27,16 @@ $badge = (int)($_GET['badge'] ?? 0);
 $reviewRaw = trim((string)($_GET['review'] ?? ''));
 $review = in_array($reviewRaw, ['pending', 'marked', 'favorites'], true) ? $reviewRaw : '';
 
+// date=YYYY-MM-DD is an alias for year/month/day (agents often send it).
+if (!array_key_exists('year', $_GET) && !array_key_exists('month', $_GET) && !array_key_exists('day', $_GET)
+    && isset($_GET['date']) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', (string)$_GET['date'], $dateM)
+    && checkdate((int)$dateM[2], (int)$dateM[3], (int)$dateM[1])
+) {
+    $_GET['year'] = (string)(int)$dateM[1];
+    $_GET['month'] = (string)(int)$dateM[2];
+    $_GET['day'] = (string)(int)$dateM[3];
+}
+
 // Oper review queue (errorShow=6): no date filter when opening ?review=pending alone.
 $queueAllDates = ($review === 'pending'
     && !array_key_exists('year', $_GET)

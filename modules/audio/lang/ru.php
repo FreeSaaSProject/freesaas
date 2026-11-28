@@ -366,4 +366,10 @@ return [
     'audio.video_effects.enabled' => 'Отключать записи при предупреждении об отсутствии',
     'audio.video_effects.before_min' => 'Минут до отсутствия',
     'audio.video_effects.after_min' => 'Минут после отсутствия',
+    'audio.transcripts.err.selector' => 'Укажите ids, date (Y-m-d) или review=pending|marked.',
+    'audio.transcripts.err.too_many' => 'Слишком много ids ({n}); лимит {max}.',
+    'audio.transcripts.err.date' => 'date должен быть в формате YYYY-MM-DD.',
+    'audio.transcripts.err.time' => 'time_from / time_to должны быть в формате HH:MM.',
+    'audio.transcripts.err.time_needs_date' => 'Для time_from / time_to нужен date.',
+    'audio.transcripts.err.review' => 'review должен быть pending или marked.',
 ];

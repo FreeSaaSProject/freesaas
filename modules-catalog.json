@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-27T18:28:10+00:00",
+    "generated_at": "2026-11-28T07:19:26+00:00",
     "modules": [
         {
             "id": "acquiring",
@@ -160,7 +160,7 @@
         },
         {
             "id": "assistant",
-            "version": "1.0.17",
+            "version": "1.0.18",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -240,7 +240,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.31",
+            "version": "1.1.0",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -318,7 +318,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.33",
+            "version": "1.0.34",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -354,7 +354,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.18",
+            "version": "0.1.19",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -508,7 +508,7 @@
         },
         {
             "id": "audio_script_coach",
-            "version": "0.2.3",
+            "version": "0.2.4",
             "type": "product",
             "name": {
                 "en": "Script coach",
@@ -1668,7 +1668,7 @@
         },
         {
             "id": "llm",
-            "version": "1.0.7",
+            "version": "1.0.8",
             "type": "product",
             "name": {
                 "en": "LLM",

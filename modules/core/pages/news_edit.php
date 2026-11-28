@@ -4,7 +4,7 @@ declare(strict_types=1);
 $wantsJson = AgentHttp::wantsJson();
 
 $path = request_path();
-$isNew = ($path === '/news/new');
+$isNew = ($path === '/news/new') || Router::param('id') === null;
 $id = $isNew ? 0 : (int)(Router::param('id') ?? 0);
 
 $error = '';
